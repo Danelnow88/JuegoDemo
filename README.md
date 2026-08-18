@@ -1,0 +1,571 @@
+﻿# 🔷 NEON VOID — Roguelite de supervivencia
+
+> **Juego arcade roguelite** estilo *synthwave* / *neon*, hecho 100% con **HTML5 Canvas + JavaScript + CSS** (sin frameworks ni dependencias externas: se juega abriendo `index.html` en el navegador).
+
+---
+
+## ⚠️ REGLA DE MANTENIMIENTO DEL README (LEER PRIMERO)
+
+> **Este README es la fuente de verdad del proyecto.** Cada vez que se **modifique** una característica existente o se **agregue** una nueva (código, mecánicas, personajes, armas, enemigos, jefes, sonido, UI, configuración, estructura de archivos, etc.), **este README DEBE actualizarse en el mismo cambio**, documentando:
+
+- Qué se agregó / modificó / corrigió.
+- Dónde vive en el código (archivo y función / sección).
+- Cualquier cambio en datos del juego (números, balance, valores).
+
+**Si el código cambia y el README no, el cambio está incompleto.** Esta regla aplica a cualquier contribución (manual o mediante IA).
+
+---
+
+## 📁 Estructura del proyecto
+
+```
+JuegoDemo/
+├── index.html          # Página principal: estructura DOM, HUD, overlays (menú, tienda, game over)
+├── css/
+│   └── styles.css      # Todo el estilo visual: tema neon, HUD, menú, tarjetas, tienda, inventario
+└── js/
+    └── game.js         # TODO el motor del juego (lógica, render, audio, estado) — IIFE
+```
+
+- **Sin builds, sin dependencias, sin servidor.** Se ejecuta directamente en el navegador.
+- Toda la lógica vive en `js/game.js`, envuelta en una **IIFE** con `'use strict'` (todo scoped, no contamina el global).
+- El estado del juego y del canvas es totalmente **procedural** (se dibuja en cada frame con `requestAnimationFrame`).
+
+---
+
+## 🎮 Presentación general
+
+El jugador controla una nave/entidad en un área de `900 × 520` (escalada responsive al tamaño de pantalla) y debe **sobrevivir oleadas** de enemigos. Al completar una oleada (o al vencer un jefe cada 5 oleadas) se abre una **tienda** donde el jugador gasta **fragmentos (💎 shards)** para comprar mejoras, armas y consumibles. También puede recoger armas durante la partida y guardarlas en un **inventario de 6 slots** (teclas 1–6 en partida para equipar). El objetivo es acumular puntaje, avanzar oleadas y conseguir **progresión permanente** (meta) que se conserva entre partidas.
+
+---
+
+## 🧠 Arquitectura y flujo del código (`js/game.js`)
+
+El archivo se organiza en secciones claramente comentadas. Flujo general:
+
+1. **`init()`** — configuración inicial: carga la meta de `localStorage`, prepara el canvas, añade todos los listeners (teclado, botones, tarjetas de personaje) y arranca el loop de animación.
+2. **`loop(now)`** — bucle principal: calcula `dt` (delta time, máx `0.03`), gestiona *hitstop* y *deathTimer*, llama a `update(dt)` y `draw()`, y aplica el *screen shake*.
+3. **`update(dt)`** — solo corre si `state === 'playing'`. Mueve al jugador, dispara, gestiona habilidades/enfriamientos, spawn de enemigos/élites, timer de oleada, y actualiza todas las entidades.
+4. **`draw()`** — renderiza todo en el canvas: fondo, grilla, barra de oleada, entidades, partículas, textos flotantes, HUD, panel de stats, y la pantalla de muerte con *jumpscare*.
+
+### Estados del juego (`state`)
+| Estado | Descripción |
+|--------|-------------|
+| `menu` | Pantalla de inicio con selección de personaje |
+| `playing` | En plena oleada |
+| `shop` | Tienda entre oleadas |
+| `gameover` | Pantalla de muerte / derrota |
+
+### Variable de estado clave: `player`
+La nave del jugador y sus stats en vivo:
+```js
+{ x, y, hp, maxHp, speed, color, specialCd, maxCd, invuln, character,
+  armor, luck, overdrive, xp, level, xpToNext }
+```
+También hay estado por partida: `wave`, `score`, `shards`, `boss`, `inventory`, `currentWeapon`, `consumableItems`… y estado de **meta** (persistente): `metaShards` y `permUpgrades`.
+
+---
+
+## 🕹️ Controles
+
+| Input | Acción |
+|-------|--------|
+| `WASD` o flechas | Mover |
+| `SHIFT` + dirección | Deslizamiento progresivo; acelera mientras se mantiene y desacelera al soltar |
+| `ESPACIO`, `Z` o `X` | Habilidad especial |
+| `TAB` | Mostrar/ocultar estadísticas |
+| `P` | Pausa (no existe atajo con `ESC` en el código) |
+| `1`–`6` en partida | Equipar arma del inventario |
+| `F` | Usar el consumible disponible (poción/overdrive/escudo) |
+| Botones táctiles | Mover izquierda/derecha + especial (móvil, **inactivos** — ver Estado actual) |
+
+---
+
+## 👤 Personajes jugables (4)
+
+Definidos en `const CHARACTERS`. Se eligen en el menú inicial (tarjetas HTML) y cada uno tiene stats base, pasiva y habilidad especial.
+
+| Personaje | HP | SPD | ARM | Pasiva | Habilidad (ESPACIO) | CD |
+|-----------|----|----|-----|--------|---------------------|-----|
+| BOTI | 120 | 200 | 0 | Regenera 1 HP cada 5s | Lluvia Estelar ☄️ | 6s |
+| NOVA | 80 | 280 | 0 | +20% daño, recibe +20% | Fase Fantasma 👻 | 7s |
+| ROOK | 160 | 150 | 5 | -15% daño recibido | Muralla 🛡 | 12s |
+| ENJAMBRE | 90 | 240 | 0 | 15% esquiva | Drones de Combate 🛸 | 10s |
+
+---
+
+## 🔫 Armas (10)
+
+Definidas en `const WEAPONS` con rareza `common / uncommon / rare / epic / legendary`.
+
+| ID | Nombre | Daño | Vel. | Cadencia | Rareza | Pro | Con |
+|----|--------|------|------|----------|--------|-----|-----|
+| `pistol` | Pistola | 12 | 500 | 30 | common | Versátil | Daño bajo |
+| `rifle` | Rifle | 20 | 700 | 25 | uncommon | Daño alto | Cadencia media |
+| `smg` | Subfusil | 7 | 450 | 12 | rare | Muy rápido | Daño bajo |
+| `shotgun` | Escopeta | 8 | 400 | 45 | rare | Área | Corto alcance |
+| `sniper` | Francotirador | 50 | 1200 | 70 | epic | Daño extrema | Lenta |
+| `laser` | Láser | 25 | 900 | 20 | epic | Penetra 1 | Daño medio |
+| `plasma` | Plasma | 40 | 600 | 35 | legendary | Doble disparo | Lento |
+| `flamethrower` | Lanzallamas | 6 | 260 | 14 | epic | Área amplia | Daño bajo |
+| `bow` | Arco | 22 | 800 | 40 | rare | Penetra 3 | Cadencia media |
+| `railgun` | Cañón de Riel | 70 | 1500 | 90 | legendary | Máximo daño | Muy lenta |
+
+---
+
+## 👾 Enemigos básicos (7 tipos)
+
+Definidos en `const ENEMY_TYPES`.
+
+| ID | Nombre | HP | Vel. | Daño | Shape | Behavior |
+|----|--------|----|------|------|-------|----------|
+| `drone` | DRON | 25 | 75 | 12 | circle | chase |
+| `runner` | CORREDOR | 15 | 145 | 10 | triangle | chase |
+| `tank` | TANQUE | 60 | 40 | 18 | hex | chase |
+| `shielder` | ESCUDO | 35 | 65 | 8 | diamond | shield |
+| `swarmlet` | ENJAMBITO | 10 | 115 | 8 | atom | swarm |
+| `spitter` | ESCOPURAS | 22 | 50 | 15 | rock | ranged |
+| `wisp` | ESPÍRITU | 12 | 160 | 6 | dot | erratic |
+
+---
+
+## 💀 Élites (8 tipos)
+
+Definidos en `const ELITE_TYPES`. Aparecen aleatoriamente durante las oleadas, tienen más HP, score y xp, y se aturden brevemente al recibir daño (`e.stun = 0.25` en `updateBullets`).
+
+| Nombre | HP | Vel. | Daño | Shape |
+|--------|----|------|------|-------|
+| ÉLITE | 90 | 90 | 20 | hex |
+| RÁPIDO | 40 | 190 | 15 | triangle |
+| TANQUE | 160 | 35 | 25 | rock |
+| ASESINO | 55 | 165 | 30 | diamond |
+| FANTASMA | 65 | 145 | 25 | circle |
+| CAOS | 105 | 130 | 22 | atom |
+| GOLIATH | 210 | 25 | 35 | rock |
+| VELOCITY | 40 | 220 | 18 | dot |
+
+---
+
+## 👑 Jefes (10 tipos)
+
+Definidos en `const BOSS_TYPES`. Aparecen cada 5 oleadas. Cada jefe tiene patrón de movimiento, tipo de ataque y forma propia.
+
+| Nombre | HP base | Vel. | Patrón | Ataque | Shape |
+|--------|---------|------|--------|--------|-------|
+| JEFE | 300 | 30 | chase | repeater | hex |
+| TITÁN | 450 | 25 | charge | heavy | hex |
+| SEÑOR DEL VACÍO | 600 | 20 | summon | summon | circle |
+| GUARDIÁN | 350 | 45 | circle | spread | hex |
+| DESTRUCTOR | 500 | 28 | burst | beam | rock |
+| NÉMESIS | 400 | 40 | teleport | volley | diamond |
+| COLOSO | 700 | 18 | slow_charge | bomb | rock |
+| FANTASMA | 280 | 45 | phase | orbs | circle |
+| MUTANTE | 380 | 32 | split | split | hex |
+| APOCALIPSIS | 800 | 22 | rage | rage | rock |
+
+---
+
+## 🛒 Tienda del Vacío
+
+Se abre al completar una oleada o derrotar un jefe. Tiene **3 secciones** generadas dinámicamente por `generateOffers()` y renderizadas con `renderOffers()`:
+
+1. **MEJORAS** (`dom.upgradesOffers`): mejoras permanentes para la partida actual.
+2. **ARMAS** (`dom.weaponOffers`): nuevas armas para agregar al inventario.
+3. **CONSUMIBLES** (`dom.consumableOffers`): potenciadores de un solo uso.
+
+También incluye el **INVENTARIO** (`dom.invSlots`) con 6 slots. Para comprar, seleccionar una oferta y confirmar. Las armas recogidas se guardan en el inventario y se pueden equipar con las teclas **1–6** durante la partida.
+
+Cada oferta muestra un **icono emoji** descriptivo y un **precio en 💎** (fragmentos): 💚 +25 HP, 🚀 Velocidad, 🛡 Armadura, 🍀 Suerte, 🧪 Poción, ⚡ Overdrive, 🛡 Escudo. Las ofertas de armas usan **arte pixelado procedural** (`drawWeaponPixelArt`) renderizado en un canvas de 64×64px dentro del `offer-icon`.
+
+---
+
+## 📦 Inventario
+
+- **6 slots** (`INVENTORY_SLOTS`).
+- Si el inventario está lleno, comprar un arma la equipa automáticamente.
+- Las armas también se pueden recoger en la partida como *pickups* (`weaponPickups`).
+- Al recoger un pickup: si hay slot libre se guarda; si no, se equipa directamente.
+
+---
+
+## 📊 Progresión
+
+### Progresión por partida
+- `wave`: oleada actual (aumenta al limpiar oleadas o derrotar jefes).
+- `score`: puntaje acumulado por eliminar enemigos.
+- `shards`: fragmentos gastables en la tienda (se obtienen de enemigos y jefes).
+- `xp` / `level`: al matar enemigos se gana XP; al subir de nivel se otorgan +10 HP máx y +20 HP.
+
+### Progresión permanente (meta)
+- `metaShards`: fragmentos que persisten entre partidas (se ganan al morir: `metaShards += floor(shards/2) + floor(score/100)`).
+- `permUpgrades`: mejoras permanentes compradas con meta-shards.
+  - `damage`: +2 daño por nivel.
+  - `speed`: +15% velocidad por nivel.
+  - `hp`: +20 HP máx por nivel.
+  - `luck`: +10 suerte por nivel (suma a `player.luck`; mejora el drop de shards y reduce el crítico enemigo).
+
+Los datos de meta se guardan en `localStorage` (`neonVoidMeta`) mediante `loadMeta()` / `saveMeta()`.
+
+---
+
+## 🔊 Audio
+
+Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
+
+### Efectos de sonido (`sfx`)
+- `sfx.pickup()` — pickup genérico.
+- `sfx.special()` — uso de habilidad especial.
+- `sfx.wave()` — inicio de oleada / victoria.
+- `sfx.damage()` — daño al jugador.
+- `sfx.levelup()` — subida de nivel.
+- `sfx.explosion()` — muerte de enemigo.
+- `sfx.bossAttack.<tipo>()` — sonido de ataque por cada tipo de jefe (`repeater`, `heavy`, `summon`, `spread`, `beam`, `volley`, `bomb`, `orbs`, `split`, `rage`).
+- `playWeaponSound(weapon)` — sonido distinto por arma.
+
+### Música synthwave
+- Generada proceduralmente con osciladores, filtros y ruido.
+- Estructura: kick + snare + hi-hat + bajo (sawtooth) + lead melódico.
+- `updateMusic(dt)` incrementa la intensidad según si hay jefe en pantalla.
+- Patrón de 16 steps (`DRUM_PATTERN`), acorde raíz rotativo (`CHORD_ROOTS`) y drone atmosférico continuo.
+
+---
+
+## 🎨 Efectos visuales
+
+| Efecto | Dónde | Descripción |
+|--------|-------|-------------|
+| *Screen shake* | `shake`, `canvas.style.transform` | Vibración al recibir daño, al morir y en victorias. |
+| *Hitstop* | `hitstop` | Congelamiento breve al impactar al jefe. |
+| *Flash* | `flashColor`, `flashAlpha` | Pantalla iluminada al usar habilidades o victorias. |
+| *Partículas* | `particles` | Explosiones, habilidades y FX. |
+| *Textos flotantes* | `floatTexts` | Daño, críticos, level up, pickups. |
+| *Estelas* | `trails` | Rastro del jugador y proyectiles. |
+| *Meteoritos* | `meteors` | Habilidad de BOTI. |
+| *Drones* | `drones` | Habilidad de ENJAMBRE. |
+| *Barra de HP del jefe* | `drawBoss()` | HP sobre el jefe, color condicional. |
+| *Flash de daño al jefe* | `boss.hitFlash` | Blanco que decae al recibir daño. |
+
+---
+
+## 🏗️ Detalle de sistemas principales
+
+### Spawn de enemigos
+- `spawnEnemy()` elige entre `ENEMY_TYPES` y, con probabilidad, un `ELITE_TYPES`.
+- Si no hay jefe, genera enemigos cada `spawnTimer`.
+- La cantidad por tick crece con la oleada: `2 + min(6, floor(wave/2))`.
+- Frecuencia de spawn: `max(0.45, 1.3 - wave * 0.018)`.
+- Escalado de HP: `hpScale = 1 + wave * 0.18` (más suave en oleadas altas).
+
+### Daño
+- Daño al jugador: `computePlayerHit(base)` → crítico (`chance = 0.08 + wave*0.018`, tope 35%, reducida por la suerte) → armadura plana → pasiva del personaje (NOVA +20%, ROOK −15%, ENJAMBRE esquiva 15%).
+- Daño de armas: `weapon.damage + permUpgrades.damage * 2 + weaponLevel`.
+- Armadura reduce daño plano: `max(1, dmg - player.armor)`.
+
+### Oleadas y victoria
+- `waveTimer` inicia en `max(15, 25 - wave * 0.4)` segundos.
+- Al terminar: `triggerWaveVictory()` → `transition` → `showShop()`.
+- Jefes cada 5 oleadas: al morir, `wave++` y se abre la tienda con victoria épica.
+
+### Niveles
+- XP necesaria por nivel: `xpToNext`, escala con `* 1.5` al subir.
+- Al subir: `+10 maxHp`, `+20 hp`, flash dorado y texto `LEVEL UP!`.
+
+---
+
+## 🕒 Timeline / versionado
+
+### v1 — Base del juego
+- Motor completo con Canvas, estados `menu / playing / shop / gameover`.
+- 4 personajes con habilidades especiales distintas (meteor, phase, bulwark, hivemind).
+- 10 armas, 7 enemigos básicos, 8 élites, 10 jefes.
+- HUD con HP, especial, oleada, score, shards.
+- Tienda con 3 secciones (mejoras, armas, consumibles) e inventario de 6 slots.
+- Progresión permanente (`metaShards`, `permUpgrades`) persistida en `localStorage`.
+- Sistema de audio procedural synthwave (música + SFX por arma/jefe).
+- Sistema de niveles por XP.
+
+### v2 — Correcciones y balance
+- **Fix de shop y tienda**: `generateOffers()` reescrita para estructura de 3 secciones con `renderOffers()`. (`js/game.js`)
+- **Fix de sonido de jefes**: todas las llamadas a `sfx.bossAttack` corregidas de sintaxis de función a método (`sfx.bossAttack.repeater()`, etc.) en `runBossAttack()`. (`js/game.js`)
+- **Fix de encoding**: corregida corrupción de emojis y caracteres especiales (tildes, ñ). (`js/game.js`, `index.html`, `README.md`)
+- **Efectos FX ampliados**: explosiones, textos flotantes, estelas y partículas optimizadas.
+
+### v3 — Relevamiento de mecánicas
+- **Daño crítico enemigo**: críticos escalables con la oleada (`calcEnemyDamage`).
+- **Stuns de élite**: al recibir daño, los élites se aturden 0.3s y se congelan (movimientos y disparos). (`updateEnemies`)
+- **Densidad de spawns progresiva**: `2 + min(6, floor(wave/2))` enemigos por tick, frecuencia ajustada. Ya no hay oleadas de 3s. (`update()`)
+- **Escalado de HP enemigo reforzado**: `hpScale = 1 + wave * 0.22`. (`spawnEnemy`)
+- **Barra de HP del jefe y flash de daño**: `drawBoss()` con barra de HP y `hitFlash` blanco. (`BOSS_TYPES`, `nextWave`, `drawBoss`, `updateBoss`, daño en `updateBullets`)
+- **Fix de scrollbar de la tienda**: `.shop-overlay` con `overflow-y: hidden`, `max-height: 100vh` y contenido compactado para evitar scroll. (`css/styles.css`)
+
+### v4 — Bugs críticos
+- **BUG CRÍTICO — oleadas que terminan en segundos**: la condición de fin de oleada (`transition <= 0 && waveTimer <= 0 && !boss`) se evaluaba después del countdown que abría la tienda. Cuando `transition` llegaba a 0, `showShop()` abría la tienda y, en el mismo frame, la condición volvía a dispararse → victorias automáticas (~1.3 s por oleada). **Fix**: fin de oleada evaluado antes del countdown de transición, reiniciando `waveTimer` limpio. Las oleadas duran de verdad y no "se ganan solas". (`update()`)
+- **BUG — botón 📊 sin función**: `charBtn` no tenía listener. **Fix**: agregado a `dom` y vinculado a `showStats`. (`init()`)
+- **Limpieza de estado al iniciar partida**: `startGame()` resetea `transition`, `paused` y `showStats`. (`startGame()`)
+- **Nota sobre el "boss roto"**: tras la corrección de la cascada de oleadas, el flujo de jefe (spawn en múltiplo de 5, daño, `hitFlash`, barra de HP, derrota → victoria épica → tienda) quedó coherente.
+
+---
+
+### v5 — UI/UX de tienda y arte de armas
+- **Tienda sin scroll ni desplazamiento**: `.shop-overlay` con `overflow-y: hidden`, `max-height: 100vh` y paddings/gaps reducidos para que todo el contenido quepa en pantalla sin scroll. (`css/styles.css`)
+- **Arte de armas en la tienda**: se reemplazaron los emojis por dibujos pixelados procedurales generados con canvas (`drawWeaponPixelArt`). Cada arma tiene su propio sprite estilo pixel art retro (pistola, rifle, escopeta, subfusil, francotirador, lanzallamas, láser, cohete, plasma, cañón de riel). (`js/game.js`)
+
+### v6 — Reconstrucción de la tienda rota
+
+- **BUG CRÍTICO — CSS de ofertas corrupto**: la regla `.offer` estaba envuelta en `@"..."@` (delimitadores de C#, no de CSS), lo que rompía el parsing y dejaba las ofertas de la tienda totalmente sin estilar. **Fix**: eliminados los caracteres `@"` y `"@`. (`css/styles.css`: sección tienda/offers)
+- **BUG CRÍTICO — `gameOver()` fuera de la IIFE**: la función tenía indentación 0, quedando fuera del `(() => { ... })();`. Al morir el jugador lanzaba `ReferenceError: triggerFlash is not defined`, congelando el juego e impidiendo avanzar/reiniciar. **Fix**: reindentada a 2 espacios para quedar dentro de la IIFE. (`js/game.js`, función `gameOver()`)
+- **Iconos de ofertas rotos**: mejoras y consumibles mostraban los caracteres `?`, `??`, `???` (signos literales) en vez de emoji. **Fix**: reemplazados por emoji descriptivos — 💚 +25 HP, 🚀 Velocidad, 🛡 Armadura, 🍀 Suerte, 🧪 Poción, ⚡ Overdrive, 🛡 Escudo. (`js/game.js`, `generateOffers()`)
+- **Icono de precio roto**: el precio de cada oferta mostraba `??` en lugar de 💎. **Fix**: reemplazado por 💎 (diamante), coherente con la barra de fragmentos. (`js/game.js`, `renderOffers()`)
+- **Rediseño a pantalla de tienda dedicada (sin overlay)**: la tienda dejó de usar la clase compartida `.overlay` (fondo translúcido, centrado, scroll) y el botón quedaba recortado (`overflow-y: hidden`). Ahora es una pantalla propia `.shop-screen` con fondo sólido, `overflow: hidden` (sin scroll) y todo el contenido en cuadrículas auto-ajustables: `.shop-grid` (secciones MEJORAS / ARMAS / CONSUMIBLES con `flex: 1` y columnas `repeat(auto-fit, minmax(200px, 1fr))`) y `.offers` dentro de cada sección (`repeat(auto-fill, minmax(88px, 1fr))`). La sección de inventario y el botón ▶ CONTINUAR quedan al pie, siempre visibles. (`index.html` — div `#shop`, `css/styles.css` — `.shop-screen`)
+- **Verificación**: `node --check js/game.js` pasa sin errores; la tienda vuelve a mostrarse estilizada y funcional (comprar, equipar, continuar).
+
+---
+
+### v7 — Mejoras y correcciones (mantenimiento)
+- **Tienda de mejoras permanentes**: pantalla `#permShop` en el menú; gasta `metaShards` en `PERM_UPGRADES` (daño, velocidad, vida, suerte) con coste creciente (`permCost`). Aplica en `selectCharacter` y `startGame()`. (`index.html`, `js/game.js`)
+- **Consumibles de uso real (tecla F)**: al comprar Poción/Overdrive/Escudo se guardan en `consumableItems` y se usan en partida con `F` (`useConsumable`). Indicador en el HUD canvas.
+- **Nivel de armas por derribos**: `weaponLevels`/`weaponKills` (6 derribos por nivel), daño `+nivel`, se conserva al cambiar de arma; reemplaza al `weaponLevel` global fijo.
+- **Fix Overdrive**: la velocidad solo se multiplica una vez (`*1.5` si no está activo), evitando inflarla con compras repetidas.
+- **Fix boss `teleport` (NÉMESIS)**: ahora teletransporta cada 2.2 s (con partículas), no cada frame.
+- **Escudo del `shielder`**: bloquea balas del frente en `updateBullets`.
+- **Fix mojibake**: `Vida máxima`, `daño`, `¡`, `Poción`.
+- **`permUpgrades.luck` aplicada** (+10 suerte por nivel).
+- **Limpieza de código muerto**: `selectedWeapon`, `dom.offers`, `WX/WY`, `sfx.shoot`, `sfx.menu`; eliminado `js/utils.js` (vacío); `player.stun` duplicado.
+- **Nueva tecla**: `F` para usar consumible.
+
+---
+
+
+### v8 — Pasivas, resistencias, críticos, meta y fases de jefe
+- **Pasivas de personaje implementadas de verdad** (`computePlayerHit`): NOVA recibe +20%, ROOK -15%, ENJAMBRE 15% de esquiva (texto `ESQUIVA`); antes solo la regeneración de BOTI funcionaba (el resto era cosmético). (`CHARACTERS`, `js/game.js`)
+- **Crítico de armas real**: cada bala tiene chance (`0.1 + suerte*0.002`) de hacer **×2** de daño y mostrarlo (`★CRIT`); antes el "CRIT" era un estun fantasma en golpe letal (inútil).
+- **Elite stun corregido**: las élites ahora **se aturden 0.25s al recibir daño** (lo que el README ya prometía pero el código no hacía).
+- **Resistencias de enemigos**: TANQUE (básico y élite) y GOLIATH tienen `resist: 3` (reducción plana de daño por bala). Es la primera resistencia del juego.
+- **Balance de crítico enemigo**: chance tope 0.35 (antes 0.4) y multiplicador 1.6 (antes 1.75); además **la suerte del jugador reduce** la chance de crítico enemigo.
+- **Escalado de HP de enemigos más suave**: `1 + wave*0.18` (antes `0.22`).
+- **Meta mejorada**: nuevo nivel de **Armadura** (+1 por nivel), **tope máximo por mejora** (`MAX_PERM_LEVEL = 10`, muestra "MÁX"), y la **Suerte** ahora también reduce el crítico enemigo.
+- **Sin élites durante jefes**: `spawnElite()` ya no corre si hay boss (antes, en oleadas de jefe pares seguían saliendo élites).
+- **Tope de esbirros invocados** a 40 (antes 80) para evitar el caos en sumon/split.
+- **FASE 2 de jefes**: al bajar del 50% de HP, un aviso `¡FASE 2!`, el jefe ataca ~2x más rápido, se mueve más rápido y muestra un anillo rojo pulsante.
+
+### v9 — Movimiento y colisiones precisas
+- **Deslizamiento progresivo**: `SHIFT` junto a una dirección acelera hasta 2.15× la velocidad normal; al soltar SHIFT o la dirección, la velocidad se reduce suavemente y no existe una distancia fija de deslizamiento. (`player.moveVx/moveVy`, listeners de teclado y `update()` en `js/game.js`)
+- **Hitboxes de proyectiles enemigos**: cada proyectil de jefe guarda y dibuja su propio radio. `updateBullets()` comprueba la suma del radio real del proyectil y el radio visual del personaje, sustituyendo el umbral fijo de 25 px que podía registrar daño al pasar claramente por debajo de una bola.
+
+### v10 — HUD compacto y alerta de vida crítica
+- **Panel de estado compacto**: `.stats` ahora agrupa oleada, puntaje y fragmentos como chips pequeños con iconos; la habilidad se representa con un icono circular con anillo de recarga y pulsación al estar lista. (`index.html`, `css/styles.css`, `updateHUD()`)
+- **Vida crítica al 25%**: al quedar con 25% de HP o menos, la barra de vida pasa a rojo y se sacude; además, `drawPlayer()` muestra un contorno rojo pulsante alrededor del personaje. Las alertas se desactivan automáticamente al recuperar vida por encima de ese umbral.
+
+### v11 — Lenguaje visual unificado del HUD
+- **Iconografía coherente**: oleada, puntaje y fragmentos reemplazan sus letras por símbolos visuales, incluido el diamante. Logo, indicadores, vida y botones comparten tamaño, borde, radio y brillo neon.
+- **Habilidad sin texto**: el icono de habilidad ya no muestra `OK`/`CD`. Durante la recarga exhibe un relleno circular del color del personaje y, al quedar disponible, se vuelve completamente verde con pulso suave.
+
+### v12 — Indicador de habilidad simplificado
+- **Cooldown sin glifos**: el indicador de habilidad no contiene texto ni símbolos. Se rellena completamente en gris al iniciar la recarga y transiciona de forma continua hacia verde; al completarse queda verde y mantiene un pulso suave. El botón de sonido vuelve a usar únicamente su icono de altavoz.
+
+### v13 — Habilidad lista destacada
+- **Confirmación dorada sincronizada**: al completar el relleno verde, el indicador gana un borde dorado, brillo verde/dorado y un movimiento breve de elevación. Si se usa la habilidad, la clase de estado se elimina de inmediato y vuelve al aspecto neutro de recarga.
+
+### v14 — HUD ajustado por contexto
+- **Indicador de habilidad más compacto**: el círculo de habilidad pasa de 30 px a 26 px. Fuera del combate (tienda o pausa) se desactiva su pulso y se muestra en gris neutro.
+- **Barra de vida más ancha**: `.hp-bar` se estira de 90 px a 112 px, conservando sus 18 px de alto y sus alertas de vida crítica.
+
+### v15 — Cadencia determinista y proporcional a la oleada
+- **Cadencia por tiempo real**: `update()` ahora resta `dt` a `fireTimer` (antes era un contador por frame, dependiente del framerate). `fireRate` se interpreta como frames a ~60fps (`FIRE_FPS = 60`), por lo que el ritmo de disparo real ya no cambia con el monitor/Hz. (`js/game.js`)
+- **Cadencia proporcional a la dificultad de la oleada**: el intervalo efectivo (`weaponFireInterval()`) se acorta `1%` por oleada (`WAVE_CADENCE_SCALE = 0.01`), con tope de factor `0.55` (máx `-45%`) y sin bajar del piso `MIN_FIRE_INTERVAL = 4/60s` (~15 disparos/s).
+- **Freno anti-congestión**: si hay más del `80%` de `MAX_BULLETS` en pantalla (`BULLET_SOFT_CAP = 0.8`), no se dispara y se reintenta al piso; evita saturar el render cuando la cadencia alta coincide con `overdrive`. (`update()`)
+
+### v16 — Nivel de arma proporcional a la dificultad de la oleada
+- **El progreso por derribo pesa según la oleada**: cada kill del arma equipada suma `weaponKillProgress() = min(3, 1 + 0.06×wave)` puntos a `weaponKills` (antes +1 fijo). Matar enemigos en oleadas altas (más duros) hace avanzar el nivel del arma al mismo ritmo, sin regalar niveles. (`js/game.js`)
+- **Tope anti-explosión**: el peso máximo es 3 puntos por derribo (`WEAPON_PROGRESS_CAP = 3`). El umbral sigue siendo `6 × nivelActual`, por lo que más allá de la oleada ~34 el ritmo se estabiliza (≈2 derribos por nivel).
+
+### v17 — Mejora de arma coherente: daño fijo + cadencia por nivel
+- **Daño**: se mantiene aditivo y predecible `weapon.damage + permUpgrades.damage*2 + currentWeaponLevel()` (sin cambios de valor; comentario aclaratorio en `shoot()`).
+- **Cadencia que mejora con el nivel del arma**: `weaponFireInterval()` ahora multiplica también por `levelFactor = max(0.6, 1 − 0.004×(nivel−1))` (−0.4% por nivel, máx −40%). Se combina con el factor de oleada (v15) y respeta el piso `MIN_FIRE_INTERVAL`. El DPS crece de forma suave por daño y por cadencia, sin cambiar velocidades/pierce/count (física intacta). (`js/game.js`)
+
+### v18 — Estética de disparos por tier (cada 10 niveles del arma)
+- **Tier visual por nivel**: `weaponVisualTier() = min(5, floor(nivel/10))` (nivel 1–9 base; 10–19 tier 1; 20–29 tier 2; …; ≥60 tier 5). (`js/game.js`)
+- **En `shoot()`** cada bala del jugador guarda `tier`, `glowColor` (de `BULLET_TIER_COLORS` = cian, dorado, rosa, púrpura, turquesa, blanco) y `size = 3 + tier`. Solo visual; NO se usa en colisiones.
+- **En `draw()`** las balas del jugador con `tier > 0` dibujan un halo exterior del color del tier y un glow más intenso (`shadowBlur = 10 + tier*2`); el núcleo conserva `weapon.color` y el tamaño crece `1px` por tier. Las balas enemigas se dibujan igual que antes.
+- **Panel de stats** (`TAB`): muestra `| Tier N (color)` cuando el arma está en tier 1+.
+
+### v19 — Rework de identidad visual de los disparos (v18 ajustado)
+- **Geometría base propia por arma** vía `BULLET_DEFS` (formas y tamaños base pequeños): bala (pistola/rifle/subfusil/francotirador/riel, con largos distintos), flecha (arco), rayo fino (láser), orbe (plasma), perdigones (escopeta) y llama (lanzallamas). Se dibujan orientados a la dirección de vuelo (`drawBulletShape()`). Solo render; no afecta colisión. (`js/game.js`)
+- **Tamaños reducidos**: ya no `3 + tier`. El proyectil conserva su tamaño base hasta tier 2 (nivel 1–29) y crece muy sutilmente desde tier 3: `g = max(0, tier−2) × 0.05` (tier 3 = +5%, tier 4 = +10%, tier 5 = +15%).
+- **Glow compacto por tier**: `shadowBlur = 8 + tier` (en vez de `10 + tier*2`) y sin halo exterior grande.
+- **`shoot()`** guarda `wid` en cada bala para elegir la forma; las balas enemigas y las de drones se dibujan como antes.
+
+### v20 — Fix de bugs encontrados: shielder inmortal + enemigos que se congelan
+- **ESCUDO (`shielder`) ya no es inmortal**: el rombo morado bloqueaba TODAS las balas porque el autofire siempre impacta por el frente. Ahora el escudo tiene recarga `SHIELD_COOLDOWN = 0.9s`: bloquea una bala y queda vulnerable un instante antes de volver a escudarse. (Se mantiene el bloqueo frontal; se agrega `shieldCd` al spawn y su decremento en `updateEnemies()`.)
+- **Se elimina el "congelado" por saturación del buffer de balas**: balas del jugador y enemigas compartían `bullets` (tope 200), y cuando las enemigas llenaban el buffer, el jugador (y luego los propios enemigos) dejaban de disparar → montón estático sin atacar. Ahora hay **presupuestos separados** `MAX_PLAYER_BULLETS = 150` / `MAX_ENEMY_BULLETS = 120`, contados con `playerBulletCount()`/`enemyBulletCount()`, aplicados a los 4 puntos de balas enemigas (ESCOPURA, `spawnBossProj`, spread, orbs) y al disparo del jugador. Cada bando ya no bloquea al otro.
+- **ESCOPURAS (`spitter`) mejorado**: color neón en paleta (`#6dc4c0`), deja de moverse recién a 170 px (antes 200) y agrega separación suave entre ellos para no apilarse; su forma `rock` recibe un brillo interior para no verse "roto".
+- Se eliminó la constante muerta `BULLET_SOFT_CAP` (reemplazada por el conteo por bando).
+
+---
+
+## 🚀 Cómo ejecutar
+El proyecto es **100% front-end, sin build ni servidor**. Para jugar:
+
+1. Abrí `index.html` directamente en un navegador moderno (Chrome, Edge, Firefox) haciendo doble clic o arrastrándolo.
+   - No requiere `npm install`, ni `node_modules`, ni dependencias externas.
+   - El audio usa la **Web Audio API**; el navegador puede pedir permiso para reproducir sonido tras interactuar con el botón **COMENZAR**.
+   - La progresión permanente se guarda en `localStorage` de tu navegador (clave `neonVoidMeta`).
+
+2. (Opcional) Para desarrollo podés servir la carpeta con cualquier servidor estático, p. ej.:
+   ```sh
+   python -m http.server 8000        # desde la raíz de JuegoDemo
+   ```
+   y abrir `http://localhost:8000`. Es exactamente lo mismo que abrir el archivo.
+
+### Comandos / verificación útiles
+
+| Comando | Propósito |
+|--------|-----------|
+| `node --check js/game.js` | Valida sintaxis de `game.js` sin ejecutarlo (devuelve `0` si pasa). |
+| Abrir `index.html` | Ejecutar el juego en el navegador. |
+
+> No hay tests automatizados, linter ni CI configurados.
+
+---
+
+## 🧭 Estado actual del desarrollo
+
+El **README describe fielmente el juego jugable** (motor, 4 personajes, 10 armas, 7 enemigos, 8 élites, 10 jefes, tienda, inventario, niveles, audio y meta persistente). Todo esto está implementado y verificado con `node --check`.
+
+### Estado actual (tras v14 — revisión completa en sesión de retoma · 14/08/2026)
+
+> Estado verificado a fecha de esta sesión: `git status` limpio en el commit `4999dc9` ("version Juego Demo Danel 1.0"), `node --check js/game.js` pasa sin errores. No hay cambios sin commitear. El juego es 100% jugable tal como se describe aquí.
+
+| Tema | Estado real |
+|------|-------------|
+| Controles táctiles móviles | **Sin implementar (decisión)**: el juego es web, no mobile. Botones ocultos y sin listeners. |
+| Tienda de mejoras permanentes (`metaShards`) | **Implementada** (v7): pantalla `#permShop` en el menú; `PERM_UPGRADES` (daño, velocidad, vida, suerte) con coste creciente. |
+| Consumibles | **Implementado** (v7): se compran y guardan en `consumableItems`; se usan con la tecla `F` en partida. |
+| Nivel de armas | **Implementado** (v7): cada arma sube de nivel por derribos (6 por nivel) y se conserva al cambiar (`weaponLevels`). |
+| Escudo del `shielder` | **Implementado** (v7): bloquea balas que llegan desde el frente (frente = hacia el jugador). |
+| Suerte permanente (`permUpgrades.luck`) | **Aplicada** (v7/v8): +10 suerte por nivel; suma a `player.luck` y reduce el crítico enemigo. |
+| Código muerto | **Limpiado** (v7): `selectedWeapon`, `dom.offers`, `WX/WY`, `sfx.shoot`, `sfx.menu`. |
+| `js/utils.js` | **Eliminado** (v7): archivo vacío, sin uso. |
+| Deslizamiento (SHIFT) | **Implementado** (v9): acelera hasta 2.15× mientras se mantiene; desacelera suave al soltar (`player.moveVx/moveVy`). |
+| Hitbox de proyectiles de jefe | **Implementado** (v9): cada proyectil enemigo guarda/dibuja su propio radio real (`updateBullets`). |
+| HUD compacto y alerta de vida crítica | **Implementado** (v10–v14): chips con iconos, barra roja a ≤25% HP, contorno rojo pulsante, indicador de habilidad circular 26px y lista dorada. |
+---
+
+## ✅ Funcionalidades implementadas
+
+- Motor Canvas 2D con bucle `requestAnimationFrame`, `dt` limitado (`0.03`) y `resizeCanvas()` responsive (escala lógica 900×520).
+- Estados de juego: `menu`, `playing`, `shop`, `gameover`; pausa (`P`), stats (`TAB`), mostrar/ocultar HUD (`👁️`).
+- 4 personajes (`CHARACTERS`) con stats, pasiva y habilidad especial únicas (meteor, phase, bulwark, hivemind).
+- 10 armas (`WEAPONS`) con rareza, daño, velocidad y cadencia determinista escalada por la oleada **y** por el nivel del arma (`weaponFireInterval`, v15-v17) y propiedades especiales (escopeta multi-disparo, láser/arco/riel con penetración, plasma doble).
+- Estética de disparos con identidad geométrica por arma (`BULLET_DEFS`, v19) + tier visual cada 10 niveles (`weaponVisualTier`, v18): bala, flecha, rayo, orbe, perdigones y llama, con glow/color por tier, todo sin tocar colisiones.
+- Disparo automático hacia enemigo más cercano (`findTarget`); knockback; crítico de armas; `overdrive` duplica disparos.
+- Spawn de enemigos (7 tipos) y élites (8 tipos) con escalado progresivo por oleada (HP `1 + wave*0.18`, velocidad, cantidad por lote) y `spawnElite()` cada oleada par.
+- Jefes (`BOSS_TYPES`, 10) cada 5 oleadas, cada uno con patrón de movimiento y ataque distinto (repeater, heavy, summon, spread, beam, volley, bomb, orbs, split, rage), barra de HP y `hitFlash`.
+- Daño enemigo con críticos escalables (`enemyCritChance`), armadura con reducción plana, stuns de élite.
+- Sistema de oleadas con timer (los jefes no dejan ganar por tiempo), transiciones, victoria épica y apertura de tienda.
+- Tienda del Vacío (3 secciones: mejoras / armas / consumibles) con renders dinámicos (`generateOffers`/`renderOffers`) y arte pixelado procedural de armas (`drawWeaponPixelArt`).
+- Inventario de 6 slots con equipar (click o teclas 1–6), soltar y quitar.
+- XP / niveles por partida (`+10 maxHp`, `+20 hp` al subir).
+- Meta persistente en `localStorage` (`metaShards`, `permUpgrades`), aplicada en `selectCharacter` y `startGame()`.
+- Audio procedural synthwave por Web Audio API (música kick/snare/hihat/bajo/lead/drone + SFX por arma y por ataque de jefe; toggle de sonido).
+- FX: screen shake, hitstop, flash, partículas, textos flotantes, estelas, drones, meteoritos, jumpscare de muerte, pausa.
+- HUD DOM (HP, especial, oleada, score, shards) + HUD canvas (armas, habilidad, stats, barra de oleada).
+- **Pasivas de personaje activas** (`computePlayerHit`): NOVA recibe +20%, ROOK −15%, ENJAMBRE 15% de esquiva.
+- **Crítico real de armas** (×2, chance según suerte) y **resistencias** de enemigos tanque (TANQUE/GOLIATH −3 por bala).
+- **FASE 2 de jefes** al 50% de HP (ataque y movimiento más rápidos, anillo rojo) y **tope de esbirros invocados** a 40.
+- **Meta con Armadura** (+1 por nivel), **tope MÁX** (10) por mejora, y **sin élites durante jefes**.
+- Tienda de **mejoras permanentes** con `metaShards` (`#permShop`, `PERM_UPGRADES`, `renderPermOffers`) accesible desde el menú.
+- **Consumibles de uso en combate**: se compran en la tienda, se guardan en `consumableItems` y se usan con `F` (poción/overdrive/escudo).
+- **Nivel por arma**: `weaponLevels`/`weaponKills`; cada arma sube de nivel con derribos (6 por nivel) y mantiene su daño al cambiar. Desde v16 el progreso por derribo pesa según la oleada (`min(3, 1 + 0.06*wave)`), por lo que es proporcional a la dificultad.
+- **Escudo frontal del `shielder`**: bloquea balas del frente (`updateBullets`).
+- **Suerte permanente** `permUpgrades.luck` (+10 por nivel) aplicada a `player.luck` y reductora del crítico enemigo.
+
+---
+
+## ⏳ Funcionalidades pendientes / a revisar (prioridad sugerida)
+
+1. **(No implementado, por decisión)** Controles táctiles móviles (`.controls`): el juego es web, no mobile. Para retomarlo: darles listeners (`left`/`right`/`specialBtn`) y quitar `display:none`.
+2. **Balance y testing** del nuevo sistema de armas por nivel, consumibles (F) y tienda de mejoras permanentes.
+3. **Ideas a futuro**: más enemigos/jefes, guardado de mejores puntajes, dificultad selectable.
+(El resto de los puntos originales —mejoras permanentes, consumibles, nivel de armas, escudo `shielder` y limpieza de código— se resolvieron en v7.)
+<!-- fin de pendientes -->
+
+---
+
+## 🐛 Bugs / problemas conocidos
+
+> ✅ **Corregidos en v7:** mojibake de caracteres, bug de Overdrive (velocidad inflada), patrón `teleport` de NÉMESIS, `player.stun` duplicado y código muerto.
+
+- **Controles táctiles móviles** inactivos (`display:none` y sin listeners) — **intencional** (juego web, no mobile).
+- **NOVA — pasiva "+20% daño" NO aplicada**: el personaje define `takeDmgMult: 1.2` (recibe +20%) pero **no existe** multiplicador de daño saliente en el código; `baseDmg` en `shoot()` no lo considera. Solo el "+20% de daño recibido" está activo. (Bug real pendiente de corregir.)
+- **`ESC` no pausa**: solo hay listener para `KeyP`; el atajo con `ESC` nunca se implementó (la documentación anterior lo afirmaba por error).
+- **Código muerto menor**: la paleta y el branch `rocket` en `drawWeaponPixelArt()` no se usan (no existe el arma “rocket” en `WEAPONS`).
+- Queda testing de balance de los sistemas nuevos.
+<!-- CRLF fixes -->
+<!-- CRLF fixes -->
+<!-- CRLF fixes -->
+<!-- CRLF fixes -->
+
+---
+
+## 🧨 Zonas delicadas al modificar el código
+
+- **`js/game.js` es un archivo monolítico en una IIFE** (`(() => { 'use strict' ... })();`). Toda la lógica, render y audio viven ahí. Al agregar código mantené la indentación dentro de la IIFE: un desbalance de llaves (como pasó con `gameOver()` en v6) saca funciones y rompe el juego con `ReferenceError`.
+- **Estados globales compartidos**: `state`, `player`, `wave`, `currentWeapon`, `inventory`, `boss` y los arrays de entidades. Si se cambia un sistema, verificá dependencias cruzadas (p. ej. `spawnEnemy` no corre durante jefe; `update()` retorna antes de `frame++` fuera de `playing`).
+- **Fin de oleada y tienda (crítico)**: el orden de evaluación entre `waveTimer`, `transition` y `showShop()` causó el bug v4 de "oleadas que se ganan solas". No reorganices ese bloque sin entender la secuencia.
+- **Escalado del canvas**: `resizeCanvas()` + `ctx.setTransform(scaleX, ...)` dibuja en coordenadas lógicas 900×520; la lógica usa esas unidades.
+- **Audio**: toda la cadena depende de `audioCtx` (creado al pulsar COMENZAR) y cada función chequea `!audioCtx || !soundOn`. No llamar audio antes de `initAudio()`.
+- **Meta permanencia**: `loadMeta()`/`saveMeta()` manejan `localStorage`; `permUpgrades.*` ya se aplica en `selectCharacter` y `startGame()`.
+- **README = fuente de verdad**: por regla del proyecto, todo cambio de código debe reflejarse aquí en el mismo cambio.
+
+---
+
+## 🧠 Notas de implementación y observaciones de auditoría (14/08/2026)
+
+Comportamientos reales verificados al leer el código completo (`js/game.js`, 2225 líneas en una IIFE; `css/styles.css` 377 líneas; `index.html` 129 líneas). Útil para retomar desarrollo sin re-descubrir.
+
+### Flujo y estado clave
+- **`frame` solo avanza durante `playing`**: `frame++` está dentro de `update()`, que retorna antes si `state !== 'playing' || paused`. Por eso todas las animaciones basadas en `frame` (grid, trail, regen, flotación de personaje, FASE 2 del jefe, jumpscare) se "congelan" fuera del combate. Si agregás FX basados en `frame`, tenelo presente.
+- **Regeneración de BOTI atada a `frame`**: `frame % 300 === 0` (~5 s a 60 fps). Si llegara a no jugarse a 60 fps estable, el timing real cambia.
+- **Movimiento**: no es instantáneo; `player.moveVx/moveVy` integran hacia `targetVx/targetVy` con `maxDelta` (1800 al deslizar, 2600 normal). `SHIFT` multiplica la velocidad por `2.15`.
+- **Disparo automático**: `shoot()` apunta al enemigo más cercano (`findTarget`, incluye al jefe); no hay puntería manual. NOVA NO tiene multiplicador de daño saliente (bug documentado abajo).
+
+### Datos que NO se limpian (menor, no bloqueante)
+- `nextWave()` y `startGame()` limpian `enemies/bullets/pickups/floatTexts/trails/weaponPickups`, pero **NO** `drones` ni `meteors`. Los drones duran 5 s y caen los meteoros, y `updateDrones/updateMeteors` solo corren en `playing`, así que pueden quedar congelados al pasar a `shop` y continuar después. Si se quiere un reset perfecto de partida, limpiar también `drones = []; meteors = [];` en `startGame()`/`nextWave()`.
+
+### Balance / escalado (valores reales)
+- HP de enemigos básicos: `1 + wave*0.18`; velocidad `+wave*2`; score/xp se escalan `*(1 + wave*0.1)` (dan decimales; `score` acumula floats).
+- **Élites**: HP `+wave*4`, velocidad `+wave`, pero `score`/`xp` son **planos** (sin escalar por oleada). Probablemente intencional, pero es asimétrico frente a los básicos.
+- Spawn por tick: `2 + min(6, floor(wave/2))`; frecuencia `max(0.45, 1.3 - wave*0.018)`; élites en oleadas pares (`wave%2===0`), nunca durante jefes.
+- `waveTimer = max(15, 25 - wave*0.4)`; jefe cada `wave%5===0` (HP `base + wave*25`).
+- Cadencia efectiva del arma: `max(MIN_FIRE_INTERVAL, (fireRate/60) × max(0.55, 1−0.01×wave) × max(0.6, 1−0.004×(nivel−1)))` (v15–v17).
+- Daño de arma total: `weapon.damage + permUpgrades.damage*2 + currentWeaponLevel()`. `currentWeaponLevel()` devuelve `weaponLevels[id] || 1` (mínimo 1).
+- Nivel de arma: sube con `weaponKills` (umbral `6 * nivelActual`); cada derribo suma `min(3, 1 + 0.06*wave)` puntos (v16); se conserva por arma durante la partida.
+- Daño recibido: `computePlayerHit` → crit (`0.08 + wave*0.018`, tope 0.35, reducida por `luck`) → `max(1, dmg - armor)` → `* takeDmgMult` (inc. esquiva `dodge`).
+
+### Bugs reales confirmados (sin corregir, registrados aquí)
+1. **NOVA — "+20% daño" NO aplicado**: solo existe `takeDmgMult: 1.2` (recibe +20%); no hay multiplicador de daño saliente en `shoot()`/`baseDmg`. Faltaría, p. ej., `const dmgSource = player.character === 'nova' ? 1.2 : 1;` en `shoot()`.
+2. **`ESC` no pausa**: solo hay listener para `KeyP`.
+3. **Código muerto**: la paleta `rocket` y el branch `name.includes("rocket")` en `drawWeaponPixelArt()` no se usan (no existe el arma "rocket" en `WEAPONS`).
+4. **Controles táctiles móviles** (`.controls`): `display:none` y sin listeners — **intencional** (juego web, no mobile).
+
+### Integraciones frágiles (no mover sin entender)
+- El bloque fin de oleada ↔ `transition` ↔ `showShop()` debe evaluarse **antes** del countdown (bug v4).
+- `computePlayerHit` es el único punto donde se resuelven esquiva/crit/armadura/pasiva: NOVA (+20% recibe), ROOK (−15%), ENJAMBRE (15% dodge), BOTI sin mod.
+- `shielder` bloquea balas solo desde el frente (ángulo respecto al jugador); `bulwark` (ROOK) refleja balas enemigas.
+- El arma por defecto es siempre `WEAPONS[0]` (pistola); cualquier soltado/quitado vuelve a pistola.
+
+---
+
+## 📦 Estructura actualizada de archivos
+
+```
+JuegoDemo/
+├── index.html          # Página principal: DOM, HUD, overlays (menú, tienda, game over), nav táctil (oculto)
+├── README.md           # Este documento (fuente de verdad)
+├── css/
+│   └── styles.css      # Estilo visual: neon, HUD, menú, tarjetas, tienda, inventario, ofertas
+└── js/
+    ├── game.js         # Motor completo (lógica, render, audio, estado) — IIFE
+    └── (js/utils.js se eliminó en v7 por estar vacío)
+```
