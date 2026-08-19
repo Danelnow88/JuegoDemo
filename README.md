@@ -31,10 +31,14 @@ JuegoDemo/
     │   └── gameData.js # Datos puros: personajes, armas, rarezas, formas, enemigos, élites, jefes, mejoras
     ├── audio/
     │   └── synth.js    # Audio synthwave + SFX: estado en NV.* (soundOn/audioCtx/musicState/musicTime); consume NV.getFrame/getBoss/getState
+    ├── render/
+    │   └── canvas.js   # canvas + ctx (expuestos en NV.canvas/NV.ctx)
+    ├── ui/
+    │   └── dom.js      # Árbol DOM (expuesto en NV.dom)
     └── game.js         # Motor restante (lógica, render, estado de entidades) — IIFE (en proceso de desmonopolización)
 ```
 
-- **Sin builds, sin dependencias, sin servidor.** Se ejecuta directamente en el navegador. Orden de carga: `core/state.js` → `core/utils.js` → `data/gameData.js` → `audio/synth.js` → `game.js`.
+- **Sin builds, sin dependencias, sin servidor.** Se ejecuta directamente en el navegador. Orden de carga: `core/state.js` → `core/utils.js` → `data/gameData.js` → `audio/synth.js` → `ui/dom.js` → `render/canvas.js` → `game.js`.
 - `game.js` está en una **IIFE** con `'use strict'` (todo scoped, no contamina el global), pero los **datos** ya viven en `window.NV` (`core/state.js` + `data/gameData.js`) y `game.js` los usa por **alias locales**.
 - El estado del juego y del canvas es totalmente **procedural** (se dibuja en cada frame con `requestAnimationFrame`).
 
@@ -436,6 +440,12 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 - **NOVA — bug de daño NO corregido** (intencional): el multiplicador de daño saliente documentado en `shoot()`/`baseDmg` se deja pendiente; se conserva el comportamiento documentado y no se altera el balance.
 - Verificación: `node --check js/game.js` y `node --check js/audio/synth.js` OK; smoke runtime en Node (carga ordenada + ejercicio de `initAudio`/`updateMusic`/`playWeaponSound`/`sfx.*` y toggle `soundOn`) pasa 18/18.
 
+### v26 — Fase 4 del refactor: canvas/ctx y DOM en módulos
+- **Canvas/ctx extraído**: `js/render/canvas.js` expone `NV.canvas`/`NV.ctx`; `game.js` los aliasa (`const canvas = NV.canvas; const ctx = NV.ctx;`) sin tocar `draw()`/`resizeCanvas()`.
+- **DOM extraído**: `js/ui/dom.js` expone `NV.dom`; `game.js` aliasa `const dom = NV.dom;`, sin cambiar referencias `dom.*`.
+- Comportamiento idéntico: misma data de elementos, solo se reubica la declaración.
+- Verificación: `node --check js/render/canvas.js`, `node --check js/ui/dom.js`, `node --check js/game.js` OK; smoke runtime 7 módulos, 13/13 checks.
+
 ---
 
 ## 🚀 Cómo ejecutar
@@ -557,7 +567,7 @@ El **README describe fielmente el juego jugable** (motor, 4 personajes, 10 armas
 
 ## 🧠 Notas de implementación y observaciones de auditoría (14/08/2026)
 
-Comportamientos reales verificados al leer el código completo (`js/game.js`, ~2187 líneas en una IIFE; el audio ya no está inline — pasó a `js/audio/synth.js` (~185 líneas); `css/styles.css` ~380 líneas; `index.html` ~134 líneas). Útil para retomar desarrollo sin re-descubrir.
+Comportamientos reales verificados al leer el código completo (`js/game.js`, ~2155 líneas en una IIFE; el audio ya no está inline — pasó a `js/audio/synth.js` (~186 líneas); `css/styles.css` ~380 líneas; `index.html` ~136 líneas). Útil para retomar desarrollo sin re-descubrir.
 
 ### Flujo y estado clave
 - **`frame` solo avanza durante `playing`**: `frame++` está dentro de `update()`, que retorna antes si `state !== 'playing' || paused`. Por eso todas las animaciones basadas en `frame` (grid, trail, regen, flotación de personaje, FASE 2 del jefe, jumpscare) se "congelan" fuera del combate. Si agregás FX basados en `frame`, tenelo presente.
@@ -608,5 +618,9 @@ JuegoDemo/
     │   └── gameData.js # Datos puros: personajes, armas, élites, jefes, mejoras
     ├── audio/
     │   └── synth.js    # Audio synthwave + SFX (estado en NV.*; fue inline en game.js)
+    ├── render/
+    │   └── canvas.js   # canvas + ctx (NV.canvas/NV.ctx)
+    ├── ui/
+    │   └── dom.js      # Árbol DOM (NV.dom)
     └── game.js         # Motor restante (lógica, render, estado de entidades) — IIFE
 ```
