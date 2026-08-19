@@ -20,15 +20,22 @@
 
 ```
 JuegoDemo/
-├── index.html          # Página principal: estructura DOM, HUD, overlays (menú, tienda, game over)
+├── index.html          # Página principal: DOM, HUD, overlays (menú, tienda, game over) + carga de scripts en orden
 ├── css/
 │   └── styles.css      # Todo el estilo visual: tema neon, HUD, menú, tarjetas, tienda, inventario
 └── js/
-    └── game.js         # TODO el motor del juego (lógica, render, audio, estado) — IIFE
+    ├── core/
+    │   ├── state.js    # Namespace global window.NV (se carga primero; futuro estado compartido)
+    │   └── utils.js    # Utilidades puras (sin estado): NV.formatPoints
+    ├── data/
+    │   └── gameData.js # Datos puros: personajes, armas, rarezas, formas, enemigos, élites, jefes, mejoras
+    ├── audio/
+    │   └── synth.js    # Audio synthwave + SFX: estado en NV.* (soundOn/audioCtx/musicState/musicTime); consume NV.getFrame/getBoss/getState
+    └── game.js         # Motor restante (lógica, render, estado de entidades) — IIFE (en proceso de desmonopolización)
 ```
 
-- **Sin builds, sin dependencias, sin servidor.** Se ejecuta directamente en el navegador.
-- Toda la lógica vive en `js/game.js`, envuelta en una **IIFE** con `'use strict'` (todo scoped, no contamina el global).
+- **Sin builds, sin dependencias, sin servidor.** Se ejecuta directamente en el navegador. Orden de carga: `core/state.js` → `core/utils.js` → `data/gameData.js` → `audio/synth.js` → `game.js`.
+- `game.js` está en una **IIFE** con `'use strict'` (todo scoped, no contamina el global), pero los **datos** ya viven en `window.NV` (`core/state.js` + `data/gameData.js`) y `game.js` los usa por **alias locales**.
 - El estado del juego y del canvas es totalmente **procedural** (se dibuja en cada frame con `requestAnimationFrame`).
 
 ---
@@ -401,6 +408,34 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 - **ESCOPURAS (`spitter`) mejorado**: color neón en paleta (`#6dc4c0`), deja de moverse recién a 170 px (antes 200) y agrega separación suave entre ellos para no apilarse; su forma `rock` recibe un brillo interior para no verse "roto".
 - Se eliminó la constante muerta `BULLET_SOFT_CAP` (reemplazada por el conteo por bando).
 
+### v21 — Mejora de tienda "Velocidad" → "Agilidad" (equilibrio de movimiento)
+- **La mejora de tienda ya no infla la velocidad** (antes `player.speed *= 1.25`, que al comprarla varias veces volvía incontrolable al personaje y chocaba con el impulso de `Shift`).
+- Ahora esa compra se llama **Agilidad** (`🌀`): aumenta `player.agility`, que **acelera y frena más rápido el movimiento** (`maxDelta`) sin cambiar la velocidad punta. Se ofrece **solo si no está al tope** (`MAX_AGILITY = 2`; cada compra `+0.2`, 5 compras = tope +100%).
+- La velocidad normal sigue siendo `char.stats.speed × (1 + permUpgrades.speed*0.15)`, y `Shift` sigue multiplicando por `2.15` (sin inflarse por compras).
+- Se muestra `Agilidad: x2.00` en el panel de estadísticas (`TAB`).
+
+### v22 — Fix de HUD: oleada completa y puntaje entero legible
+- **Oleada ya no se corta**: el span `#wave` ("OLEADA 12") tenía `max-width:54px` + ellipsis que lo recortaba. Se quita el corte (`max-width:none`, `overflow:visible`) y se agrega `white-space:nowrap` a `.stat` para que ningún número se parta. (`css/styles.css`)
+- **Puntaje entero y formateado**: nuevo helper `formatPoints(n)` que redondea a entero, separa los miles y abrevia números enormes (≥100.000 → `123K`, ≥1.000.000 → `1,5M`) para que nunca desborde el contenedor. Aplicado al HUD (`dom.score`) y a la pantalla de game over (`dom.goScore`). (`js/game.js`)
+- Continuo: los fragmentos (`shards`) ya eran enteros; el `goWave`/barra de oleada del canvas también.
+
+### v23 — Fase 0+1 del refactor: desmonolitizar (datos al namespace `NV`)
+- **Se define el namespace global `window.NV`** (`js/core/state.js`), futuro contenedor del estado compartido. Se carga primero.
+- **Los datos puros se extraen a `js/data/gameData.js`** (personajes, armas, rarezas, formas de proyectil, enemigos, élites, jefes, mejoras permanentes). Se carga antes de `game.js`.
+- `game.js` ahora consume esos datos mediante **alias locales** (`const CHARACTERS = NV.CHARACTERS;`), por lo que **ninguna referencia interna cambió** → mismo comportamiento. `index.html` carga los scripts en orden: `core/state.js` → `data/gameData.js` → `game.js`.
+- Estructura: `js/` ahora tiene subcarpetas `core/` y `data/` (primer paso del plan de desmonopolización; siguen `utils`, `audio`, `engine`, `render`, `ui`, `main`).
+
+### v24 — Fase 2 del refactor: utilidades puras
+- Se crea `js/core/utils.js` con helpers puros (sin estado): **`NV.formatPoints`** (formato de puntaje).
+- `game.js` lo consume con alias local `const formatPoints = NV.formatPoints;`. Orden de carga: `core/state.js` → `core/utils.js` → `data/gameData.js` → `game.js`.
+
+### v25 — Fase 3 del refactor: migración de audio a `js/audio/synth.js`
+- **Audio extraído de `game.js`**: toda la cadena synthwave/SFX (`initAudio`, `updateMusic`, `playWeaponSound`, `sfx.*`, drones y programación de notas) pasó a `js/audio/synth.js` (IIFE). Estado mutable en `window.NV` (`NV.soundOn`, `NV.audioCtx`, `NV.musicState`, `NV.musicTime`).
+- **`game.js`** expone accessors `NV.getFrame`/`getState`/`getBoss`/`getPlayer` (cierran sobre `frame`/`state`/`boss`/`player`) y consume el audio por aliases locales (`const initAudio = NV.initAudio; const updateMusic = NV.updateMusic; const playWeaponSound = NV.playWeaponSound; const sfx = NV.sfx;`). El código migrado es una copia fiel (copy + refs a `NV`): lógica, patrón, timing y volúmenes idénticos → comportamiento idéntico.
+- Orden de carga en `index.html`: `core/state.js` → `core/utils.js` → `data/gameData.js` → `audio/synth.js` → `game.js`.
+- **NOVA — bug de daño NO corregido** (intencional): el multiplicador de daño saliente documentado en `shoot()`/`baseDmg` se deja pendiente; se conserva el comportamiento documentado y no se altera el balance.
+- Verificación: `node --check js/game.js` y `node --check js/audio/synth.js` OK; smoke runtime en Node (carga ordenada + ejercicio de `initAudio`/`updateMusic`/`playWeaponSound`/`sfx.*` y toggle `soundOn`) pasa 18/18.
+
 ---
 
 ## 🚀 Cómo ejecutar
@@ -514,7 +549,7 @@ El **README describe fielmente el juego jugable** (motor, 4 personajes, 10 armas
 - **Estados globales compartidos**: `state`, `player`, `wave`, `currentWeapon`, `inventory`, `boss` y los arrays de entidades. Si se cambia un sistema, verificá dependencias cruzadas (p. ej. `spawnEnemy` no corre durante jefe; `update()` retorna antes de `frame++` fuera de `playing`).
 - **Fin de oleada y tienda (crítico)**: el orden de evaluación entre `waveTimer`, `transition` y `showShop()` causó el bug v4 de "oleadas que se ganan solas". No reorganices ese bloque sin entender la secuencia.
 - **Escalado del canvas**: `resizeCanvas()` + `ctx.setTransform(scaleX, ...)` dibuja en coordenadas lógicas 900×520; la lógica usa esas unidades.
-- **Audio**: toda la cadena depende de `audioCtx` (creado al pulsar COMENZAR) y cada función chequea `!audioCtx || !soundOn`. No llamar audio antes de `initAudio()`.
+- **Audio**: está en `js/audio/synth.js` (IIFE). Estado mutable en `NV.*` (`NV.soundOn`, `NV.audioCtx` creado al pulsar COMENZAR, `NV.musicState`, `NV.musicTime`); cada función chequea `!NV.audioCtx || !NV.soundOn`. Lee estado del juego vía getters definidos en `game.js` (`NV.getState`/`getBoss`/`getFrame`). `game.js` consume el audio por aliases locales (`NV.initAudio`, `NV.updateMusic`, `NV.playWeaponSound`, `NV.sfx`). Se carga `synth.js` ANTES de `game.js`. No llamar a audio antes de `initAudio()`.
 - **Meta permanencia**: `loadMeta()`/`saveMeta()` manejan `localStorage`; `permUpgrades.*` ya se aplica en `selectCharacter` y `startGame()`.
 - **README = fuente de verdad**: por regla del proyecto, todo cambio de código debe reflejarse aquí en el mismo cambio.
 
@@ -522,7 +557,7 @@ El **README describe fielmente el juego jugable** (motor, 4 personajes, 10 armas
 
 ## 🧠 Notas de implementación y observaciones de auditoría (14/08/2026)
 
-Comportamientos reales verificados al leer el código completo (`js/game.js`, 2225 líneas en una IIFE; `css/styles.css` 377 líneas; `index.html` 129 líneas). Útil para retomar desarrollo sin re-descubrir.
+Comportamientos reales verificados al leer el código completo (`js/game.js`, ~2187 líneas en una IIFE; el audio ya no está inline — pasó a `js/audio/synth.js` (~185 líneas); `css/styles.css` ~380 líneas; `index.html` ~134 líneas). Útil para retomar desarrollo sin re-descubrir.
 
 ### Flujo y estado clave
 - **`frame` solo avanza durante `playing`**: `frame++` está dentro de `update()`, que retorna antes si `state !== 'playing' || paused`. Por eso todas las animaciones basadas en `frame` (grid, trail, regen, flotación de personaje, FASE 2 del jefe, jumpscare) se "congelan" fuera del combate. Si agregás FX basados en `frame`, tenelo presente.
@@ -566,6 +601,12 @@ JuegoDemo/
 ├── css/
 │   └── styles.css      # Estilo visual: neon, HUD, menú, tarjetas, tienda, inventario, ofertas
 └── js/
-    ├── game.js         # Motor completo (lógica, render, audio, estado) — IIFE
-    └── (js/utils.js se eliminó en v7 por estar vacío)
+    ├── core/
+    │   ├── state.js    # Namespace global window.NV (se carga primero)
+    │   └── utils.js    # Utilidades puras: NV.formatPoints
+    ├── data/
+    │   └── gameData.js # Datos puros: personajes, armas, élites, jefes, mejoras
+    ├── audio/
+    │   └── synth.js    # Audio synthwave + SFX (estado en NV.*; fue inline en game.js)
+    └── game.js         # Motor restante (lógica, render, estado de entidades) — IIFE
 ```

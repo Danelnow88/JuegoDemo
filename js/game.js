@@ -22,7 +22,6 @@
   // === ESTADO ===
   let state = 'menu', frame = 0, lastTime = 0;
   let shake = 0, hitstop = 0, flashColor = null, flashAlpha = 0, specialVFX = null;
-  let musicTime = 0;
   let deathTimer = 0, deathShake = 0;
 
   // === JUGADOR ===
@@ -30,7 +29,7 @@
     x: W/2, y: H-100, hp: 100, maxHp: 100, speed: 200, color: '#7cf8ff',
     specialCd: 0, maxCd: 4, invuln: 0, character: 'boti',
     armor: 0, luck: 0, overdrive: 0, xp: 0, level: 1, xpToNext: 100,
-    moveVx: 0, moveVy: 0,
+    moveVx: 0, moveVy: 0, agility: 1,
   };
 
   // === ENTIDADES ===
@@ -59,62 +58,19 @@
   // Mejoras permanentes comprables con metaShards (afectan a TODOS los personajes).
   // El coste crece con el nivel y tienen un tope máximo (MAX_PERM_LEVEL).
   const MAX_PERM_LEVEL = 10;
-  const PERM_UPGRADES = [
-    { key: 'damage', name: 'Daño', icon: '⚔️', base: 40, desc: '+2 daño por nivel' },
-    { key: 'speed',  name: 'Velocidad', icon: '🚀', base: 50, desc: '+15% velocidad por nivel' },
-    { key: 'hp',     name: 'Vida', icon: '❤️', base: 30, desc: '+20 HP máx por nivel' },
-    { key: 'armor',  name: 'Armadura', icon: '🛡', base: 35, desc: '+1 armadura por nivel' },
-    { key: 'luck',   name: 'Suerte', icon: '🍀', base: 20, desc: '+10 suerte · reduce el crítico enemigo' },
-  ];
+  const PERM_UPGRADES = NV.PERM_UPGRADES;
 
   // === INPUT ===
   let moveLeft = false, moveRight = false, moveUp = false, moveDown = false;
   let slideHeld = false, specialPressed = false, showStats = false, showHUD = true, paused = false;
-  let soundOn = true;
 
   // === PERSONAJES ===
-  const CHARACTERS = {
-    boti: {
-      name: 'BOTI', color: '#7cf8ff', bodyColor: '#4a9eff', eyeColor: '#fff', size: 22,
-      special: 'meteor', maxCd: 6, passive: 'Regenera 1 HP cada 5s',
-      skillIcon: '☄️', skillName: 'Lluvia Estelar', skillDesc: 'Meteoritos que caen del cielo',
-      stats: { hp: 120, speed: 200, armor: 0, luck: 0 },
-    },
-    nova: {
-      name: 'NOVA', color: '#caa7ff', bodyColor: '#9b59b6', eyeColor: '#ff0', size: 18,
-      special: 'phase', maxCd: 7, passive: 'Daño +20%, recibe +20%', takeDmgMult: 1.2,
-      skillIcon: '👻', skillName: 'Fase Fantasma', skillDesc: 'Intangible 3s + rastro de daño',
-      stats: { hp: 80, speed: 280, armor: 0, luck: 5 },
-    },
-    rook: {
-      name: 'ROOK', color: '#ffcf76', bodyColor: '#f39c12', eyeColor: '#000', size: 26,
-      special: 'bulwark', maxCd: 12, passive: '-15% daño recibido', takeDmgMult: 0.85,
-      skillIcon: '🛡', skillName: 'Muralla', skillDesc: 'Invuln 3s + refleja balas',
-      stats: { hp: 160, speed: 150, armor: 5, luck: 0 },
-    },
-    swarm: {
-      name: 'ENJAMBRE', color: '#8dfaff', bodyColor: '#00d4aa', eyeColor: '#fff', size: 16,
-      special: 'hivemind', maxCd: 10, passive: '15% esquiva', dodge: 0.15,
-      skillIcon: '🛸', skillName: 'Drones de Combate', skillDesc: '6 drones que orbitan y disparan (5s)',
-      stats: { hp: 90, speed: 240, armor: 0, luck: 10 },
-    },
-  };
+  const CHARACTERS = NV.CHARACTERS;
 
   // === ARMAS (10) ===
-  const WEAPONS = [
-    { id: 'pistol', name: 'Pistola', damage: 12, speed: 500, fireRate: 30, color: '#fff', rarity: 'common', icon: '•', emoji: '🔫', pro: 'Versátil', con: 'Daño bajo' },
-    { id: 'rifle', name: 'Rifle', damage: 20, speed: 700, fireRate: 25, color: '#4ade80', rarity: 'uncommon', icon: '••', emoji: '🔫', pro: 'Daño alto', con: 'Cadencia media' },
-    { id: 'smg', name: 'Subfusil', damage: 7, speed: 450, fireRate: 12, color: '#facc15', rarity: 'rare', icon: '•••', emoji: '🔫', pro: 'Muy rápido', con: 'Daño bajo' },
-    { id: 'shotgun', name: 'Escopeta', damage: 8, speed: 400, fireRate: 45, count: 5, spread: 0.25, color: '#f97316', rarity: 'rare', icon: '✦', emoji: '💥', pro: 'Área', con: 'Corto alcance' },
-    { id: 'sniper', name: 'Francotirador', damage: 50, speed: 1200, fireRate: 70, color: '#ef4444', rarity: 'epic', icon: '⭑', emoji: '🎯', pro: 'Daño extrema', con: 'Lenta' },
-    { id: 'laser', name: 'Láser', damage: 25, speed: 900, fireRate: 20, color: '#f472b6', rarity: 'epic', icon: '◆', emoji: '🔦', pro: 'Penetra 1', con: 'Daño medio' },
-    { id: 'plasma', name: 'Plasma', damage: 40, speed: 600, fireRate: 35, count: 2, spread: 0.1, color: '#a855f7', rarity: 'legendary', icon: '★', emoji: '🔮', pro: 'Doble disparo', con: 'Lento' },
-    { id: 'flamethrower', name: 'Lanzallamas', damage: 6, speed: 260, fireRate: 14, count: 3, spread: 0.35, color: '#fb923c', rarity: 'epic', icon: '🔥', emoji: '🔥', pro: 'Área amplia', con: 'Daño bajo' },
-    { id: 'bow', name: 'Arco', damage: 22, speed: 800, fireRate: 40, pierce: 3, color: '#22c55e', rarity: 'rare', icon: '➶', emoji: '🏹', pro: 'Penetra 3', con: 'Cadencia media' },
-    { id: 'railgun', name: 'Cañón de Riel', damage: 70, speed: 1500, fireRate: 90, pierce: 5, color: '#06b6d4', rarity: 'legendary', icon: '⚡', emoji: '⚡', pro: 'Máximo daño', con: 'Muy lenta' },
-  ];
+  const WEAPONS = NV.WEAPONS;
 
-  const RARITY_COLORS = { common: '#fff', uncommon: '#4ade80', rare: '#facc15', epic: '#f472b6', legendary: '#a855f7' };
+  const RARITY_COLORS = NV.RARITY_COLORS;
   let currentWeapon = WEAPONS[0], fireTimer = 0;
   // Cadencia determinista (en segundos). fireRate se interpreta como frames a ~60fps.
   const FIRE_FPS = 60;                 // frames por segundo asumidos en fireRate
@@ -122,6 +78,8 @@
   const WAVE_CADENCE_SCALE = 0.01;     // -1% de intervalo por oleada (máx -45% de factor)
   const WEAPON_LEVEL_CADENCE_SCALE = 0.004; // -0.4% de intervalo por nivel de arma (máx -40%)
   const SHIELD_COOLDOWN = 0.9;        // recarga del escudo del shielder (s): vulnerable entre bloqueos
+  const MAX_AGILITY = 2;              // tope de la mejora de Agilidad (x2 = +100% aceleración/freno)
+  const AGILITY_PER_UPGRADE = 0.2;    // +0.2 por compra (5 compras llegan al tope)
   // Intervalo de disparo efectivo: base del arma acortada por la dificultad de la oleada
   // (factor wave) y por el nivel del arma (factor nivel): la cadencia mejora al subir de nivel.
   function weaponFireInterval() {
@@ -143,7 +101,7 @@
   function currentWeaponLevel() { return weaponLevels[currentWeapon.id] || 1; }
   // Estética por nivel del arma: cada 10 niveles cambia la apariencia de los disparos
   // (tier). Solo visual; NO afecta colisiones ni velocidad/pierce/count de proyectiles.
-  const BULLET_TIER_COLORS = ['#7cf8ff', '#ffd700', '#ff5f8a', '#a855f7', '#00ffd8', '#ffffff'];
+  const BULLET_TIER_COLORS = NV.BULLET_TIER_COLORS;
   const MAX_BULLET_TIER = BULLET_TIER_COLORS.length - 1; // 5 (nivel >= 60)
   function weaponVisualTier() {
     return Math.min(MAX_BULLET_TIER, Math.floor(currentWeaponLevel() / 10));
@@ -151,224 +109,22 @@
   // Identidad visual de cada arma: forma y tamaño base del proyectil del jugador.
   // El "len" es largo (a lo largo del vuelo), "w" grosor (transversal). Solo render;
   // no participan en colisiones. El tier aplica un factor de crecimiento tardío y sutil.
-  const BULLET_DEFS = {
-    pistol: { shape: 'bullet', len: 7,  w: 3 },
-    rifle:  { shape: 'bullet', len: 10, w: 3 },
-    smg:    { shape: 'bullet', len: 6,  w: 3 },
-    shotgun:{ shape: 'pellet', r: 2.2 },
-    sniper: { shape: 'bullet', len: 16, w: 3.5 },
-    laser:  { shape: 'laser',  len: 16, w: 2 },
-    plasma: { shape: 'orb',    r: 4 },
-    flamethrower: { shape: 'flame', len: 8, w: 6 },
-    bow:    { shape: 'arrow',  len: 12 },
-    railgun:{ shape: 'bullet', len: 20, w: 3 },
-  };
+  const BULLET_DEFS = NV.BULLET_DEFS;
 
   // === ENEMIGOS BÁSICOS (7 tipos) ===
-  const ENEMY_TYPES = [
-    { id: 'drone', name: 'DRON', hp: 25, speed: 75, radius: 11, color: '#f07bad', shape: 'circle', score: 10, xp: 10, behavior: 'chase', knockbackRes: 0, damage: 12 },
-    { id: 'runner', name: 'CORREDOR', hp: 15, speed: 145, radius: 9, color: '#ffcf76', shape: 'triangle', score: 15, xp: 15, behavior: 'chase', knockbackRes: 0.3, damage: 10 },
-    { id: 'tank', name: 'TANQUE', hp: 60, speed: 40, radius: 20, color: '#ef9d49', shape: 'hex', score: 30, xp: 35, behavior: 'chase', knockbackRes: 0.8, damage: 18, resist: 3 },
-    { id: 'shielder', name: 'ESCUDO', hp: 35, speed: 65, radius: 14, color: '#caa7ff', shape: 'diamond', score: 25, xp: 30, behavior: 'shield', knockbackRes: 0.6, damage: 8, shield: true },
-    { id: 'swarmlet', name: 'ENJAMBITO', hp: 10, speed: 115, radius: 7, color: '#22d3ee', shape: 'atom', score: 8, xp: 8, behavior: 'swarm', knockbackRes: 0.1, damage: 8 },
-    { id: 'spitter', name: 'ESCOPURAS', hp: 22, speed: 50, radius: 13, color: '#6dc4c0', shape: 'rock', score: 18, xp: 25, behavior: 'ranged', knockbackRes: 0.4, damage: 15, stunChance: 0.2 },
-    { id: 'wisp', name: 'ESPÍRITU', hp: 12, speed: 160, radius: 6, color: '#4ade80', shape: 'dot', score: 6, xp: 6, behavior: 'erratic', knockbackRes: 0.2, damage: 6 },
-  ];
+  const ENEMY_TYPES = NV.ENEMY_TYPES;
 
   // === ÉLITES (8 tipos) ===
-  const ELITE_TYPES = [
-    { name: 'ÉLITE', hp: 90, speed: 90, radius: 20, color: '#ff0', shape: 'hex', score: 50, xp: 50, behavior: 'chase', damage: 20 },
-    { name: 'RÁPIDO', hp: 40, speed: 190, radius: 14, color: '#0ff', shape: 'triangle', score: 30, xp: 30, behavior: 'erratic', damage: 15 },
-    { name: 'TANQUE', hp: 160, speed: 35, radius: 30, color: '#f80', shape: 'rock', score: 60, xp: 60, behavior: 'chase', damage: 25, resist: 3 },
-    { name: 'ASESINO', hp: 55, speed: 165, radius: 12, color: '#f0f', shape: 'diamond', score: 40, xp: 40, behavior: 'chase', damage: 30 },
-    { name: 'FANTASMA', hp: 65, speed: 145, radius: 16, color: '#e0ffff', shape: 'circle', score: 45, xp: 45, behavior: 'erratic', damage: 25 },
-    { name: 'CAOS', hp: 105, speed: 130, radius: 22, color: '#ff4500', shape: 'atom', score: 55, xp: 55, behavior: 'erratic', damage: 22 },
-    { name: 'GOLIATH', hp: 210, speed: 25, radius: 36, color: '#ff1493', shape: 'rock', score: 100, xp: 100, behavior: 'chase', damage: 35, stunChance: 0.15, resist: 3 },
-    { name: 'VELOCITY', hp: 40, speed: 220, radius: 10, color: '#00ff88', shape: 'dot', score: 35, xp: 35, behavior: 'chase', damage: 18 },
-  ];
+  const ELITE_TYPES = NV.ELITE_TYPES;
 
   // === BOSSES (10 tipos) ===
-    const BOSS_TYPES = [
-    { name: 'JEFE', hp: 300, radius: 50, color: '#ff5f9b', speed: 30, pattern: 'chase', attack: 'repeater', shape: 'hex', stunChance: 0 },
-    { name: 'TITÁN', hp: 450, radius: 55, color: '#ff8c00', speed: 25, pattern: 'charge', attack: 'heavy', shape: 'hex', stunChance: 0.1 },
-    { name: 'SEÑOR DEL VACÍO', hp: 600, radius: 65, color: '#dc143c', speed: 20, pattern: 'summon', attack: 'summon', shape: 'circle', stunChance: 0.15 },
-    { name: 'GUARDIÁN', hp: 350, radius: 45, color: '#00bfff', speed: 35, pattern: 'circle', attack: 'spread', shape: 'hex', stunChance: 0.05 },
-    { name: 'DESTRUCTOR', hp: 500, radius: 60, color: '#ff0000', speed: 28, pattern: 'burst', attack: 'beam', shape: 'rock', stunChance: 0.25 },
-    { name: 'NÉMESIS', hp: 400, radius: 48, color: '#8b00ff', speed: 40, pattern: 'teleport', attack: 'volley', shape: 'diamond', stunChance: 0.08 },
-    { name: 'COLOSO', hp: 700, radius: 70, color: '#ff4500', speed: 18, pattern: 'slow_charge', attack: 'bomb', shape: 'rock', stunChance: 0.2 },
-    { name: 'FANTASMA', hp: 280, radius: 40, color: '#e0ffff', speed: 45, pattern: 'phase', attack: 'orbs', shape: 'circle', stunChance: 0.12 },
-    { name: 'MUTANTE', hp: 380, radius: 52, color: '#32cd32', speed: 32, pattern: 'split', attack: 'split', shape: 'hex', stunChance: 0.1 },
-    { name: 'APOCALIPSIS', hp: 800, radius: 75, color: '#ff1493', speed: 22, pattern: 'rage', attack: 'rage', shape: 'rock', stunChance: 0.18 },
-  ];
-
-  // === MÚSICA SYNTHWAVE ===
-  let audioCtx = null;
-  const musicState = { step: 0, lastBeat: 0, intensity: 0 };
-  // Progresión de acordes y bajo (estilo Karl Casey dark synthwave)
-  const CHORD_ROOTS = [65.41, 87.31, 110.00, 146.83]; // C2 - F2 - G2 - C3
-  const BASS_LINE = [65.41, 87.31, 65.41, 146.83];    // C - F - C - G (bajo)
-  const LEAD_SEQ = [329.63, 440.00, 493.88, 587.33, 659.26, 587.33, 493.88, 440.00];
-  const DRUM_PATTERN = [
-    [1,0,1,0, 1,0,0,0, 1,0,1,0, 1,0,0,0], // Kick (16 steps)
-    [0,0,0,0, 1,0,0,0, 0,0,0,0, 1,0,0,0], // Snare
-    [1,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1], // Hi-hat
-  ];
-  function initMusic() {
-    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  }
-  function initAudio() {
-    initMusic();
-    if (audioCtx.state === 'suspended') audioCtx.resume();
-  }
-  function createDrone(freq, time, dur) {
-    if (!audioCtx || !soundOn) return;
-    const osc = audioCtx.createOscillator();
-    const lfo = audioCtx.createOscillator();
-    const filter = audioCtx.createBiquadFilter();
-    const gain = audioCtx.createGain();
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(freq, time);
-    lfo.type = 'sine';
-    lfo.frequency.setValueAtTime(5, time);
-    filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(freq * 2, time);
-    gain.gain.setValueAtTime(0.01, time);
-    gain.gain.exponentialRampToValueAtTime(0.001, time + dur);
-    lfo.connect(filter.frequency);
-    osc.connect(filter); filter.connect(gain); gain.connect(audioCtx.destination);
-    lfo.start(time); osc.start(time);
-    osc.stop(time + dur); lfo.stop(time + dur);
-  }
-  function scheduleNote(type, freq, dur, vol) {
-    if (!audioCtx || !soundOn) return;
-    const osc = audioCtx.createOscillator();
-    const filter = audioCtx.createBiquadFilter();
-    const gain = audioCtx.createGain();
-    osc.type = type;
-    osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-    filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(3000, audioCtx.currentTime);
-    gain.gain.setValueAtTime(vol || 0.03, audioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
-    osc.connect(filter); filter.connect(gain); gain.connect(audioCtx.destination);
-    osc.start(); osc.stop(audioCtx.currentTime + dur);
-  }
-  function scheduleNoise(dur, vol) {
-    if (!audioCtx || !soundOn) return;
-    const buffer = audioCtx.createBuffer(1, audioCtx.sampleRate * dur, audioCtx.sampleRate);
-    const data = buffer.getChannelData(0);
-    for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * 0.5;
-    const src = audioCtx.createBufferSource();
-    const filter = audioCtx.createBiquadFilter();
-    const gain = audioCtx.createGain();
-    src.buffer = buffer;
-    filter.type = 'bandpass';
-    filter.frequency.setValueAtTime(200 + Math.random() * 200, audioCtx.currentTime);
-    gain.gain.setValueAtTime(vol || 0.04, audioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
-    src.connect(filter); filter.connect(gain); gain.connect(audioCtx.destination);
-    src.start(); src.stop(audioCtx.currentTime + dur);
-  }
-  function scheduleDrum(type, dur, vol) {
-    if (!audioCtx || !soundOn) return;
-    if (type === 'noise') { scheduleNoise(dur, vol); return; }
-    const osc = audioCtx.createOscillator();
-    const filter = audioCtx.createBiquadFilter();
-    const gain = audioCtx.createGain();
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(type === 'kick' ? 60 : 120, audioCtx.currentTime);
-    filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(type === 'kick' ? 150 : 4000, audioCtx.currentTime);
-    gain.gain.setValueAtTime(vol || 0.04, audioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
-    osc.connect(filter); filter.connect(gain); gain.connect(audioCtx.destination);
-    osc.start(); osc.stop(audioCtx.currentTime + dur);
-  }
-  function updateMusic(dt) {
-    if (!audioCtx || !soundOn || state !== 'playing') return;
-    musicTime += dt * (1 + musicState.intensity * 0.6);
-    const stepDur = 0.12;
-    musicState.intensity = Math.min(1, musicState.intensity + (boss ? 0.02 : -0.015) * dt);
-    if (musicTime - musicState.lastBeat >= stepDur) {
-      musicState.lastBeat = musicTime;
-      musicState.step = (musicState.step + 1) % 16;
-      const step = musicState.step;
-      // Kick (808 punch)
-      if (DRUM_PATTERN[0][step]) scheduleDrum('kick', 0.1, 0.1 + musicState.intensity * 0.05);
-      // Snare (808 clap)
-      if (DRUM_PATTERN[1][step]) scheduleDrum('noise', 0.15, 0.06 + musicState.intensity * 0.03);
-      // Hi-hats
-      if (DRUM_PATTERN[2][step]) scheduleNote('square', 8000 + (step % 3) * 3000, 0.03, 0.02 + musicState.intensity * 0.015);
-      // Bajo cada 4 steps (subby sawtooth)
-      if (step % 4 === 0) {
-        const bassIdx = Math.floor(step / 4) % BASS_LINE.length;
-        scheduleNote('sawtooth', BASS_LINE[bassIdx], 0.2, 0.05 + musicState.intensity * 0.02);
-      }
-      // Lead melódico (guitarra synth) → solo cada 8 steps
-      if (step % 8 === 0 || (musicState.intensity > 0.7 && step % 4 === 0)) {
-        const note = LEAD_SEQ[Math.floor(step / 2) % LEAD_SEQ.length];
-        scheduleNote('sawtooth', note, 0.25, 0.04 + musicState.intensity * 0.02);
-      }
-    }
-    // Drone atmosférico continuo (loop)
-    if (frame % 120 === 0) {
-      const droneFreq = CHORD_ROOTS[Math.floor(frame / 120) % CHORD_ROOTS.length] * 4;
-      createDrone(droneFreq, audioCtx.currentTime, 2.5);
-    }
-  }
-  function playTone(freq, dur, type, vol) {
-    if (!audioCtx || !soundOn) return;
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.type = type || 'square';
-    osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-    gain.gain.setValueAtTime(vol || 0.03, audioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-    osc.start();
-    osc.stop(audioCtx.currentTime + dur);
-  }
-  const sfx = {
-    explosion: () => playTone(110, 0.25, 'sawtooth', 0.06),
-    pickup: () => playTone(1320, 0.12, 'square', 0.04),
-    damage: () => playTone(80, 0.15, 'square', 0.07),
-    special: () => playTone(660, 0.4, 'triangle', 0.05),
-    levelup: () => playTone(523, 0.1, 'square', 0.05),
-    wave: () => playTone(440, 0.3, 'triangle', 0.06),
-  };
-
-  // Sonido distintivo por tipo de arma
-  function playWeaponSound(weapon) {
-    if (!soundOn) return;
-    switch (weapon.id) {
-      case 'pistol': playTone(880, 0.08, 'square', 0.03); break;
-      case 'rifle': playTone(640, 0.07, 'square', 0.035); break;
-      case 'smg': playTone(990, 0.04, 'square', 0.028); break;
-      case 'shotgun': scheduleNoise(0.18, 0.07); playTone(170, 0.18, 'sawtooth', 0.09); break;
-      case 'sniper': playTone(110, 0.45, 'square', 0.11); scheduleNoise(0.25, 0.05); break;
-      case 'laser': playTone(1250, 0.12, 'sine', 0.045); break;
-      case 'plasma': playTone(720, 0.1, 'triangle', 0.05); break;
-      case 'flamethrower': scheduleNoise(0.14, 0.05); playTone(95, 0.13, 'sawtooth', 0.08); break;
-      case 'bow': playTone(430, 0.09, 'sine', 0.045); break;
-      case 'railgun': playTone(150, 0.5, 'sawtooth', 0.12); scheduleNoise(0.3, 0.06); break;
-            default: playTone(880, 0.08, 'square', 0.03);
-    }
-  }
-
-  // Sonidos de ataque distintos para cada jefe
-  sfx.bossAttack = {
-    repeater: () => { scheduleNoise(0.04, 0.045); playTone(220, 0.05, 'square', 0.055); },
-    heavy: () => { scheduleNoise(0.09, 0.07); playTone(100, 0.3, 'sawtooth', 0.11); },
-    summon: () => { scheduleNoise(0.14, 0.06); playTone(75, 0.5, 'sawtooth', 0.11); },
-    spread: () => playTone(330, 0.09, 'triangle', 0.07),
-    beam: () => { scheduleNoise(0.55, 0.11); playTone(150, 0.7, 'sawtooth', 0.14); },
-    volley: () => { playTone(440, 0.05, 'square', 0.05); playTone(880, 0.05, 'square', 0.045); },
-    bomb: () => { scheduleNoise(0.22, 0.08); playTone(120, 0.45, 'sawtooth', 0.11); },
-    orbs: () => playTone(660, 0.07, 'sine', 0.05),
-    split: () => playTone(520, 0.1, 'triangle', 0.07),
-    rage: () => { scheduleNoise(0.05, 0.06); playTone(190, 0.06, 'square', 0.07); },
-  };
+    const BOSS_TYPES = NV.BOSS_TYPES;
+  const formatPoints = NV.formatPoints;
+  // === AUDIO (migrado a js/audio/synth.js) ===
+  const initAudio = NV.initAudio;
+  const updateMusic = NV.updateMusic;
+  const playWeaponSound = NV.playWeaponSound;
+  const sfx = NV.sfx;
 
   // === DOM ELEMENTS ===
   const dom = {
@@ -427,8 +183,8 @@
         player.armor = (char.stats ? char.stats.armor : 0) + (permUpgrades.armor || 0);
         player.luck = (char.stats ? char.stats.luck : 0) + permUpgrades.luck * 10;
         player.maxCd = char.maxCd;
-        dom.sound.textContent = soundOn ? '🔊 SONIDO' : '🔇 SONIDO';
-        dom.sound.classList.toggle('off', !soundOn);
+        dom.sound.textContent = NV.soundOn ? '🔊 SONIDO' : '🔇 SONIDO';
+        dom.sound.classList.toggle('off', !NV.soundOn);
         console.log('[CHAR] Seleccionado:', player.character);
       });
     });
@@ -492,9 +248,9 @@
     }
 
     dom.sound.addEventListener('click', () => {
-      soundOn = !soundOn;
-      dom.sound.textContent = soundOn ? '🔊 SONIDO' : '🔇 SONIDO';
-      dom.sound.classList.toggle('off', !soundOn);
+      NV.soundOn = !NV.soundOn;
+      dom.sound.textContent = NV.soundOn ? '🔊 SONIDO' : '🔇 SONIDO';
+      dom.sound.classList.toggle('off', !NV.soundOn);
     });
 
         if (dom.hudToggle) {
@@ -550,7 +306,7 @@
     player.armor = (char.stats.armor || 0) + (permUpgrades.armor || 0);
     player.luck = (char.stats.luck || 0) + permUpgrades.luck * 10;
     player.specialCd = 0; player.invuln = 0; player.overdrive = 0; player.stun = 0;
-    player.moveVx = 0; player.moveVy = 0; slideHeld = false;
+    player.moveVx = 0; player.moveVy = 0; slideHeld = false; player.agility = 1;
     player.xp = 0; player.level = 1; player.xpToNext = 100;
 
     wave = 1; score = 0; shards = 0;
@@ -560,8 +316,8 @@
     weaponLevels = {}; weaponKills = {}; fireTimer = 0;
         boss = null; shake = 0; hitstop = 0; flashAlpha = 0;
     transition = 0; paused = false; showStats = false;
-    specialVFX = null; musicTime = 0;
-    musicState.bassStep = 0; musicState.leadStep = 0;
+    specialVFX = null; NV.musicTime = 0;
+    NV.musicState.step = 0; NV.musicState.lastBeat = 0; NV.musicState.intensity = 0;
 
     resizeCanvas();
     nextWave();
@@ -775,10 +531,12 @@
       icon: '💚', name: '+25 HP', desc: 'Vida máxima +25',
       price: 15, buy: () => { player.maxHp += 25; player.hp += 25; },
     });
-    upgrades.push({
-            icon: '🚀', name: 'Velocidad', desc: '+25% velocidad',
-      price: 15, buy: () => { player.speed *= 1.25; },
-    });
+    if (player.agility < MAX_AGILITY) {
+      upgrades.push({
+        icon: '🌀', name: 'Agilidad', desc: 'Responde más rápido: acelera y frena mejor (máx +100%)',
+        price: 15, buy: () => { player.agility = Math.min(MAX_AGILITY, player.agility + AGILITY_PER_UPGRADE); },
+      });
+    }
     upgrades.push({
             icon: '🛡', name: 'Armadura', desc: '+3 armadura',
       price: 20, buy: () => { player.armor += 3; },
@@ -911,7 +669,7 @@
       dom.gameOver.classList.remove('hidden');
       dom.goTitle.textContent = 'FIN';
       dom.goText.textContent = 'Llegaste a la oleada ' + wave;
-      dom.goScore.textContent = score;
+      dom.goScore.textContent = formatPoints(score);
       dom.goWave.textContent = wave;
       metaShards += Math.floor(shards / 2) + Math.floor(score / 100);
       saveMeta();
@@ -943,7 +701,7 @@
     const targetVy = len > 0 && player.stun <= 0 ? (dy / len) * speed : 0;
     // Al mantener Shift acelera; al soltarlo (o la dirección) desacelera sin
     // recorrer una distancia prefijada. Así el deslizamiento es controlable.
-    const maxDelta = (sliding ? 1800 : 2600) * dt;
+    const maxDelta = (sliding ? 1800 : 2600) * player.agility * dt;
     player.moveVx += Math.max(-maxDelta, Math.min(maxDelta, targetVx - player.moveVx));
     player.moveVy += Math.max(-maxDelta, Math.min(maxDelta, targetVy - player.moveVy));
     player.x += player.moveVx * dt;
@@ -1674,7 +1432,7 @@
 
   function updateHUD() {
     dom.wave.textContent = 'OLEADA ' + wave;
-    dom.score.textContent = score;
+    dom.score.textContent = formatPoints(score);
     dom.shards.textContent = shards;
     dom.hpText.textContent = Math.max(0, Math.round(player.hp)) + '/' + player.maxHp;
     dom.hpFill.style.width = Math.max(0, (player.hp / player.maxHp) * 100) + '%';
@@ -2132,6 +1890,7 @@
       `Nivel: ${player.level}  |  XP: ${player.xp}/${player.xpToNext}`,
       `HP: ${Math.round(player.hp)}/${player.maxHp}  |  Armadura: ${player.armor}`,
       `Velocidad: ${Math.round(player.speed)}  |  Suerte: ${player.luck}`,
+      `Agilidad: ${player.agility.toFixed(2)}x (maniobralidad)`,
       `Arma: ${weapon.name} (${weapon.rarity}) | Nv ${currentWeaponLevel()}` + (weaponVisualTier() > 0 ? ` | Tier ${weaponVisualTier()} (${BULLET_TIER_COLORS[weaponVisualTier()]})` : ''),
       `Daño: ${weapon.damage + permUpgrades.damage * 2 + currentWeaponLevel()}`,
       `Inventario: ${inventory.length}/${INVENTORY_SLOTS}  |  Consumibles: ${consumableItems.length}`,
@@ -2418,5 +2177,11 @@
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
   } else { init(); }
+
+  // === Accesores de estado para módulos externos (audio, render, ui…)
+  NV.getFrame = () => frame;
+  NV.getState = () => state;
+  NV.getBoss = () => boss;
+  NV.getPlayer = () => player;
 })();
 

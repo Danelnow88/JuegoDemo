@@ -32,9 +32,9 @@ body {
 .logo span { color: #7cf8ff; font-size: 20px; line-height: 1; }
 .stats { display: flex; gap: 5px; align-items: center; font-size: 11px; }
 .stats > * { flex: 0 0 auto; }
-.stat { height: 30px; min-width: 34px; padding: 3px 7px 3px 4px; display: inline-flex; align-items: center; gap: 5px; background: linear-gradient(135deg, rgba(124,248,255,.12), rgba(124,248,255,.035)); border: 1px solid rgba(124,248,255,.2); border-radius: 9px; color: #eaffff; font-variant-numeric: tabular-nums; box-shadow: inset 0 1px rgba(255,255,255,.05); }
+.stat { height: 30px; min-width: 34px; padding: 3px 7px 3px 4px; display: inline-flex; align-items: center; gap: 5px; background: linear-gradient(135deg, rgba(124,248,255,.12), rgba(124,248,255,.035)); border: 1px solid rgba(124,248,255,.2); border-radius: 9px; color: #eaffff; font-variant-numeric: tabular-nums; white-space: nowrap; box-shadow: inset 0 1px rgba(255,255,255,.05); }
 .stat-icon { width: 21px; height: 21px; display: grid; place-items: center; border-radius: 7px; background: rgba(124,248,255,.16); color: #7cf8ff; font-size: 13px; line-height: 1; filter: drop-shadow(0 0 4px rgba(124,248,255,.4)); }
-.stat-wave #wave { max-width: 54px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stat-wave #wave { max-width: none; overflow: visible; text-overflow: clip; white-space: nowrap; }
 .stat-score .stat-icon { color: #ffcf76; background: rgba(255,207,118,.16); filter: drop-shadow(0 0 4px rgba(255,207,118,.4)); }
 .shard { color: #7cf8ff; }
 .shard .stat-icon { color: #caa7ff; background: rgba(202,167,255,.18); filter: drop-shadow(0 0 4px rgba(202,167,255,.4)); }
