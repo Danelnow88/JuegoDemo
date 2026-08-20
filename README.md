@@ -28,9 +28,11 @@ JuegoDemo/
     │   ├── state.js    # Namespace global window.NV (se carga primero; futuro estado compartido)
     │   └── utils.js    # Utilidades puras (sin estado): NV.formatPoints
     ├── data/
-    │   └── gameData.js # Datos puros: personajes, armas, rarezas, formas, enemigos, élites, jefes, mejoras
+    │   ├── gameData.js  # Datos puros: personajes, armas, rarezas, formas, enemigos, élites, jefes, mejoras
+    │   ├── balance.js   # Datos de balance/tuning (NV.BALANCE): topes de buffer, cadencia, agilidad, niveles de arma
+    │   └── consumables.js # Datos de consumibles (NV.CONSUMABLES): poción (hp), overdrive (speedMult), escudo (duración)
     ├── audio/
-    │   └── synth.js    # Audio synthwave + SFX: estado en NV.* (soundOn/audioCtx/musicState/musicTime); consume NV.getFrame/getBoss/getState
+    │   └── synth.js    # Audio synthwave + SFX: Estado mutable en NV.* (soundOn/audioCtx/musicState/musicTime); consume NV.getFrame/getBoss/getState
     ├── render/
     │   └── canvas.js   # canvas + ctx (expuestos en NV.canvas/NV.ctx)
     ├── ui/
@@ -38,8 +40,8 @@ JuegoDemo/
     └── game.js         # Motor restante (lógica, render, estado de entidades) — IIFE (en proceso de desmonopolización)
 ```
 
-- **Sin builds, sin dependencias, sin servidor.** Se ejecuta directamente en el navegador. Orden de carga: `core/state.js` → `core/utils.js` → `data/gameData.js` → `audio/synth.js` → `ui/dom.js` → `render/canvas.js` → `game.js`.
-- `game.js` está en una **IIFE** con `'use strict'` (todo scoped, no contamina el global), pero los **datos** ya viven en `window.NV` (`core/state.js` + `data/gameData.js`) y `game.js` los usa por **alias locales**.
+- **Sin builds, sin dependencias, sin servidor.** Se ejecuta directamente en el navegador. Orden de carga: `core/state.js` → `core/utils.js` → `data/gameData.js` → `data/balance.js` → `data/consumables.js` → `audio/synth.js` → `ui/dom.js` → `render/canvas.js` → `game.js`.
+- `game.js` está en una **IIFE** con `'use strict'` (todo scoped, no contamina el global), pero los **datos** ya viven en `window.NV` (`core/state.js` + `data/gameData.js` + `data/balance.js` + `data/consumables.js`) y `game.js` los usa por **alias locales** (`const BALANCE = NV.BALANCE`, etc.).
 - El estado del juego y del canvas es totalmente **procedural** (se dibuja en cada frame con `requestAnimationFrame`).
 
 ---
@@ -446,6 +448,13 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 - Comportamiento idéntico: misma data de elementos, solo se reubica la declaración.
 - Verificación: `node --check js/render/canvas.js`, `node --check js/ui/dom.js`, `node --check js/game.js` OK; smoke runtime 7 módulos, 13/13 checks.
 
+### v27 — Fase 5 del refactor: balance y consumibles a `data/`
+- **`js/data/balance.js`**: extrae el bloque de constantes de tuning de `game.js` y lo expone como `NV.BALANCE` (congelado con `Object.freeze`). Incluye: `MAX_ENEMIES`, `MAX_BULLETS`, `MAX_PARTICLES`, `MAX_PLAYER_BULLETS`, `MAX_ENEMY_BULLETS`, `MAX_PERM_LEVEL`, `FIRE_FPS`, `MIN_FIRE_INTERVAL`, `WAVE_CADENCE_SCALE`, `WEAPON_LEVEL_CADENCE_SCALE`, `SHIELD_COOLDOWN`, `MAX_AGILITY`, `AGILITY_PER_UPGRADE`, `WEAPON_KILLS_PER_LEVEL`, `WEAPON_PROGRESS_SCALE`, `WEAPON_PROGRESS_CAP`.
+- **`js/data/consumables.js`**: extrae las definiciones de consumibles a `NV.CONSUMABLES` (poción `hp:40`, overdrive `speedMult:1.5/duration:5`, escudo `duration:2`), congelado. `useConsumable` en `game.js` los lee desde ahí.
+- `game.js` consume por alias locales (`const CONSUMABLES = NV.CONSUMABLES;`, y lee `NV.BALANCE.*` inline en las 16 constantes). Comportamiento idéntico.
+- Estructura: `data/` pasa a tener `gameData.js` + `balance.js` + `consumables.js`.
+- Verificación: `node --check` de los 2 nuevos módulos y de `game.js` OK; refs a `NV.BALANCE` (16 usos) y `NV.CONSUMABLES` confirmadas en runtime.
+
 ---
 
 ## 🚀 Cómo ejecutar
@@ -615,7 +624,9 @@ JuegoDemo/
     │   ├── state.js    # Namespace global window.NV (se carga primero)
     │   └── utils.js    # Utilidades puras: NV.formatPoints
     ├── data/
-    │   └── gameData.js # Datos puros: personajes, armas, élites, jefes, mejoras
+    │   ├── gameData.js   # Datos puros: personajes, armas, élites, jefes, mejoras
+    │   ├── balance.js    # Datos de balance/tuning (NV.BALANCE)
+    │   └── consumables.js # Datos de consumibles (NV.CONSUMABLES)
     ├── audio/
     │   └── synth.js    # Audio synthwave + SFX (estado en NV.*; fue inline en game.js)
     ├── render/

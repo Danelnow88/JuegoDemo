@@ -34,11 +34,11 @@
 
   // === ENTIDADES ===
   let enemies = [], bullets = [], particles = [], pickups = [], floatTexts = [], trails = [], weaponPickups = [], drones = [], meteors = [];
-  const MAX_ENEMIES = 80, MAX_BULLETS = 200, MAX_PARTICLES = 200;
+  const MAX_ENEMIES = NV.BALANCE.MAX_ENEMIES, MAX_BULLETS = NV.BALANCE.MAX_BULLETS, MAX_PARTICLES = NV.BALANCE.MAX_PARTICLES;
   // Presupuesto separado de balas por bando: evita que las balas enemigas
   // (p. ej. muchos ESCOPURAS) congele el disparo del jugador al saturar el buffer común.
-  const MAX_PLAYER_BULLETS = 150;
-  const MAX_ENEMY_BULLETS = 120;
+  const MAX_PLAYER_BULLETS = NV.BALANCE.MAX_PLAYER_BULLETS;
+  const MAX_ENEMY_BULLETS = NV.BALANCE.MAX_ENEMY_BULLETS;
   // Cuenta cuántas balas hay de cada bando (para respetar los topes propios).
   function playerBulletCount() { let n = 0; for (const b of bullets) if (!b.isEnemy) n++; return n; }
   function enemyBulletCount() { let n = 0; for (const b of bullets) if (b.isEnemy) n++; return n; }
@@ -50,6 +50,7 @@
   let inventory = [];
   const INVENTORY_SLOTS = 6;
   let consumableItems = [];
+  const CONSUMABLES = NV.CONSUMABLES;
 
   // === PROGRESIÓN PERMANENTE ===
   let metaShards = 0;
@@ -57,7 +58,7 @@
 
   // Mejoras permanentes comprables con metaShards (afectan a TODOS los personajes).
   // El coste crece con el nivel y tienen un tope máximo (MAX_PERM_LEVEL).
-  const MAX_PERM_LEVEL = 10;
+  const MAX_PERM_LEVEL = NV.BALANCE.MAX_PERM_LEVEL;
   const PERM_UPGRADES = NV.PERM_UPGRADES;
 
   // === INPUT ===
@@ -73,13 +74,13 @@
   const RARITY_COLORS = NV.RARITY_COLORS;
   let currentWeapon = WEAPONS[0], fireTimer = 0;
   // Cadencia determinista (en segundos). fireRate se interpreta como frames a ~60fps.
-  const FIRE_FPS = 60;                 // frames por segundo asumidos en fireRate
-  const MIN_FIRE_INTERVAL = 4 / FIRE_FPS; // ~0.0667s -> máx ~15 disparos/s (piso anti-congestión)
-  const WAVE_CADENCE_SCALE = 0.01;     // -1% de intervalo por oleada (máx -45% de factor)
-  const WEAPON_LEVEL_CADENCE_SCALE = 0.004; // -0.4% de intervalo por nivel de arma (máx -40%)
-  const SHIELD_COOLDOWN = 0.9;        // recarga del escudo del shielder (s): vulnerable entre bloqueos
-  const MAX_AGILITY = 2;              // tope de la mejora de Agilidad (x2 = +100% aceleración/freno)
-  const AGILITY_PER_UPGRADE = 0.2;    // +0.2 por compra (5 compras llegan al tope)
+  const FIRE_FPS = NV.BALANCE.FIRE_FPS;                 // frames por segundo asumidos en fireRate
+  const MIN_FIRE_INTERVAL = NV.BALANCE.MIN_FIRE_INTERVAL; // ~0.0667s -> máx ~15 disparos/s (piso anti-congestión)
+  const WAVE_CADENCE_SCALE = NV.BALANCE.WAVE_CADENCE_SCALE;     // -1% de intervalo por oleada (máx -45% de factor)
+  const WEAPON_LEVEL_CADENCE_SCALE = NV.BALANCE.WEAPON_LEVEL_CADENCE_SCALE; // -0.4% de intervalo por nivel de arma (máx -40%)
+  const SHIELD_COOLDOWN = NV.BALANCE.SHIELD_COOLDOWN;        // recarga del escudo del shielder (s): vulnerable entre bloqueos
+  const MAX_AGILITY = NV.BALANCE.MAX_AGILITY;              // tope de la mejora de Agilidad (x2 = +100% aceleración/freno)
+  const AGILITY_PER_UPGRADE = NV.BALANCE.AGILITY_PER_UPGRADE;    // +0.2 por compra (5 compras llegan al tope)
   // Intervalo de disparo efectivo: base del arma acortada por la dificultad de la oleada
   // (factor wave) y por el nivel del arma (factor nivel): la cadencia mejora al subir de nivel.
   function weaponFireInterval() {
@@ -91,9 +92,9 @@
   // Niveles por arma: cada derribo aporta "puntos de progreso" (weaponKills) que
   // pesan según la dificultad de la oleada (más difícil = más progreso), con tope.
   let weaponLevels = {}, weaponKills = {};
-  const WEAPON_KILLS_PER_LEVEL = 6;   // ~6 puntos de progreso por nivel
-  const WEAPON_PROGRESS_SCALE = 0.06; // +6% de progreso por derribo, por oleada
-  const WEAPON_PROGRESS_CAP = 3;      // máx ~3 puntos de progreso por derribo
+  const WEAPON_KILLS_PER_LEVEL = NV.BALANCE.WEAPON_KILLS_PER_LEVEL;   // ~6 puntos de progreso por nivel
+  const WEAPON_PROGRESS_SCALE = NV.BALANCE.WEAPON_PROGRESS_SCALE; // +6% de progreso por derribo, por oleada
+  const WEAPON_PROGRESS_CAP = NV.BALANCE.WEAPON_PROGRESS_CAP;      // máx ~3 puntos de progreso por derribo
   // Progreso que aporta un derribo: crece con la oleada, acotado para no explotar.
   function weaponKillProgress() {
     return Math.min(WEAPON_PROGRESS_CAP, 1 + WEAPON_PROGRESS_SCALE * wave);
@@ -373,15 +374,15 @@
     if (state !== 'playing' || paused || consumableItems.length === 0) return;
     const item = consumableItems.shift();
     if (item.type === 'potion') {
-      player.hp = Math.min(player.maxHp, player.hp + 40);
+      player.hp = Math.min(player.maxHp, player.hp + CONSUMABLES.potion.hp);
       addFloatText(player.x, player.y, '+40 HP', '#0f0');
     } else if (item.type === 'overdrive') {
       // Solo se multiplica la velocidad una vez para no inflarla con compras repetidas.
-      if (player.overdrive <= 0) player.speed *= 1.5;
-      player.overdrive = 5;
+      if (player.overdrive <= 0) player.speed *= CONSUMABLES.overdrive.speedMult;
+      player.overdrive = CONSUMABLES.overdrive.duration;
       addFloatText(player.x, player.y, 'OVERDRIVE', '#caa7ff');
     } else if (item.type === 'shield') {
-      player.invuln = 2;
+      player.invuln = CONSUMABLES.shield.duration;
       addFloatText(player.x, player.y, 'ESCUDO', '#ffcf76');
     }
     triggerFlash('#7cf8ff');
