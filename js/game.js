@@ -874,60 +874,13 @@
   }
 
   function updateDrones(dt) {
-    if (drones.length === 0) return;
-    for (const d of drones) {
-      if (!d.life) d.life = 5;
-      d.life -= dt;
-      if (d.life <= 0) { d.dead = true; continue; }
-      d.angle += d.speed * dt;
-      d.fireTimer -= dt;
-      if (d.fireTimer <= 0) {
-        d.fireTimer = 0.8;
-        const dx = Math.cos(d.angle) * d.orbitRadius;
-        const dy = Math.sin(d.angle) * d.orbitRadius;
-        const target = findTarget();
-        const angle = target
-          ? Math.atan2(target.y - (player.y + dy), target.x - (player.x + dx))
-          : d.angle;
-        if (bullets.length < MAX_BULLETS) {
-          bullets.push({
-            x: player.x + dx, y: player.y + dy,
-            vx: Math.cos(angle) * 500, vy: Math.sin(angle) * 500,
-            damage: 15, color: d.color, dead: false, isEnemy: false,
-          });
-        }
-      }
-    }
-    drones = drones.filter((d) => !d.dead);
+    drones = NV.updateDrones(dt, drones, player, bullets, MAX_BULLETS, findTarget);
   }
 
   function updateMeteors(dt) {
-    if (meteors.length === 0) return;
-    for (const m of meteors) {
-      m.x += m.vx * dt;
-      m.y += m.vy * dt;
-      if (m.y > H + 20) { m.dead = true; continue; }
-      // Impacto
-      for (const e of enemies) {
-        if (e.dead) continue;
-        const d = Math.hypot(e.x - m.x, e.y - m.y);
-        if (d < m.radius + e.radius) {
-          e.hp -= 40;
-          if (e.hp <= 0) killEnemy(e);
-          applyKnockback(e, m.x, m.y, 150);
-        }
-      }
-      if (boss && !boss.dead) {
-        const d = Math.hypot(boss.x - m.x, boss.y - m.y);
-                if (d < m.radius + boss.radius) { boss.hp -= 30; boss.hitFlash = 0.2; }
-      }
-      if (m.y > H - 20) {
-        m.dead = true;
-        spawnExplosion(m.x, m.y, 8, m.color, 0.4);
-        shake = Math.max(shake, 0.1);
-      }
-    }
-    meteors = meteors.filter((m) => !m.dead);
+    const res = NV.updateMeteors(dt, meteors, { H, enemies, boss, shake }, { killEnemy, applyKnockback, spawnExplosion });
+    meteors = res.meteors;
+    shake = res.shake;
   }
 
   function spawnEnemy() {

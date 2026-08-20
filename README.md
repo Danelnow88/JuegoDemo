@@ -20,30 +20,33 @@
 
 ```
 JuegoDemo/
-├── index.html          # Página principal: DOM, HUD, overlays (menú, tienda, game over) + carga de scripts en orden
+├── index.html          # Página principal: DOM, HUD, overlays (menú, tienda, game over), nav táctil (oculto)
+├── README.md           # Este documento (fuente de verdad)
 ├── css/
-│   └── styles.css      # Todo el estilo visual: tema neon, HUD, menú, tarjetas, tienda, inventario
+│   └── styles.css      # Estilo visual: neon, HUD, menú, tarjetas, tienda, inventario, ofertas
 └── js/
     ├── core/
-    │   ├── state.js    # Namespace global window.NV (se carga primero; futuro estado compartido)
-    │   └── utils.js    # Utilidades puras (sin estado): NV.formatPoints
+    │   ├── state.js    # Namespace global window.NV (se carga primero)
+    │   └── utils.js    # Utilidades puras: NV.formatPoints
     ├── data/
-    │   ├── gameData.js  # Datos puros: personajes, armas, rarezas, formas, enemigos, élites, jefes, mejoras
-    │   ├── balance.js   # Datos de balance/tuning (NV.BALANCE): topes de buffer, cadencia, agilidad, niveles de arma
-    │   └── consumables.js # Datos de consumibles (NV.CONSUMABLES): poción (hp), overdrive (speedMult), escudo (duración)
+    │   ├── gameData.js   # Datos puros: personajes, armas, élites, jefes, mejoras
+    │   ├── balance.js    # Datos de balance/tuning (NV.BALANCE)
+    │   └── consumables.js # Datos de consumibles (NV.CONSUMABLES)
     ├── audio/
     │   └── synth.js    # Audio synthwave + SFX: Estado mutable en NV.* (soundOn/audioCtx/musicState/musicTime); consume NV.getFrame/getBoss/getState
     ├── render/
     │   ├── canvas.js      # canvas + ctx base (expuestos en NV.canvas/NV.ctx)
     │   ├── projectiles.js # Dibujo de proyectiles del jugador (formas por arma) + VFX especial (NV.drawBulletShape/NV.drawSpecialVFX)
-    │   ├── enemies.js     # Dibujo de enemigos (NV.drawEnemy)
-    │   ├── bosses.js      # Dibujo de jefes: cuerpo, forma, barra HP, FASE 2 (NV.drawBoss)
-    │   ├── player.js      # Dibujo del jugador/piloto + auras (phase, bulwark, crítico) (NV.drawPlayer)
+    │   ├── enemies.js     # NV.drawEnemy
+    │   ├── bosses.js      # NV.drawBoss
+    │   ├── player.js      # NV.drawPlayer
     │   └── hud.js         # HUD en canvas: cooldown, panel arma/habilidad/consumibles, stats TAB (NV.drawSpecialCooldown/drawWeaponHUD/drawStats)
     ├── ui/
     │   └── dom.js      # Árbol DOM (expuesto en NV.dom)
     ├── engine/
-    │   └── fx.js       # Efectos/FX (partículas, textos flotantes, estelas): NV.spawnExplosion/updateParticles/addFloatText/updateFloatTexts/updateTrails
+    │   ├── fx.js        # Efectos/FX (partículas, textos flotantes, estelas): NV.spawnExplosion/updateParticles/addFloatText/updateFloatTexts/updateTrails
+    │   ├── drones.js     # NV.updateDrones (disparo de drones ENJAMBRE)
+    │   └── meteors.js     # NV.updateMeteors (Lluvia Estelar)
     └── game.js         # Motor restante (lógica, render, estado de entidades) — IIFE (en proceso de desmonopolización)
 ```
 
@@ -483,6 +486,14 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 
 ---
 
+### v30 — Fase C del refactor: engine drones + meteoros
+- `updateDrones` → `js/engine/drones.js` (`NV.updateDrones`): recibe `dt, drones, player, bullets, MAX_BULLETS, findTarget`; devuelve el array filtrado. Wrapper en `game.js` reasigna `drones`; `findTarget` (closure) inyectado como callback.
+- `updateMeteors` → `js/engine/meteors.js` (`NV.updateMeteors`): recibe `dt, meteors, ctxState{H, enemies, boss, shake}, cbs{killEnemy, applyKnockback, spawnExplosion}`; devuelve `{meteors, shake}`. Callbacks inyectados preservan las closures del monolito; `shake` (let) vuelve del return.
+- Orden de carga: `... render/hud.js` → `engine/fx.js, drones.js, meteors.js` → `game.js`.
+- Verificación: `node --check` OK en drones/meteors/game; smoke runtime **5/5** (dispara+expira drones; daño a enemigo/boss por meteoros; salida de pantalla; filtro correcto).
+
+---
+
 ## 🚀 Cómo ejecutar
 El proyecto es **100% front-end, sin build ni servidor**. Para jugar:
 
@@ -665,6 +676,8 @@ JuegoDemo/
     ├── ui/
     │   └── dom.js      # Árbol DOM (NV.dom)
     ├── engine/
-    │   └── fx.js       # NV.spawnExplosion/updateParticles/addFloatText/updateFloatTexts/updateTrails
+    │   ├── fx.js        # NV.spawnExplosion/updateParticles/addFloatText/updateFloatTexts/updateTrails
+    │   ├── drones.js     # NV.updateDrones (disparo de drones ENJAMBRE)
+    │   └── meteors.js     # NV.updateMeteors (Lluvia Estelar)
     └── game.js         # Motor restante (lógica, render, estado de entidades) — IIFE
 ```
