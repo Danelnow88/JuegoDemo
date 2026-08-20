@@ -34,7 +34,12 @@ JuegoDemo/
     ├── audio/
     │   └── synth.js    # Audio synthwave + SFX: Estado mutable en NV.* (soundOn/audioCtx/musicState/musicTime); consume NV.getFrame/getBoss/getState
     ├── render/
-    │   └── canvas.js   # canvas + ctx (expuestos en NV.canvas/NV.ctx)
+    │   ├── canvas.js      # canvas + ctx base (expuestos en NV.canvas/NV.ctx)
+    │   ├── projectiles.js # Dibujo de proyectiles del jugador (formas por arma) + VFX especial (NV.drawBulletShape/NV.drawSpecialVFX)
+    │   ├── enemies.js     # Dibujo de enemigos (NV.drawEnemy)
+    │   ├── bosses.js      # Dibujo de jefes: cuerpo, forma, barra HP, FASE 2 (NV.drawBoss)
+    │   ├── player.js      # Dibujo del jugador/piloto + auras (phase, bulwark, crítico) (NV.drawPlayer)
+    │   └── hud.js         # HUD en canvas: cooldown, panel arma/habilidad/consumibles, stats TAB (NV.drawSpecialCooldown/drawWeaponHUD/drawStats)
     ├── ui/
     │   └── dom.js      # Árbol DOM (expuesto en NV.dom)
     └── game.js         # Motor restante (lógica, render, estado de entidades) — IIFE (en proceso de desmonopolización)
@@ -455,6 +460,17 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 - Estructura: `data/` pasa a tener `gameData.js` + `balance.js` + `consumables.js`.
 - Verificación: `node --check` de los 2 nuevos módulos y de `game.js` OK; refs a `NV.BALANCE` (16 usos) y `NV.CONSUMABLES` confirmadas en runtime.
 
+### v28 — Fase A del refactor: render desmonopolizado a `js/render/`
+- Extraído del monolito el **render de entidades/HUD** a módulos independientes (cada uno una IIFE que expone funciones PURAS de dibujo en `NV.*`). Este corte es mecánico y **no cambia ningún comportamiento**: `game.js` conserva wrappers locales (`function drawEnemy(e){ NV.drawEnemy(ctx, e, frame); }`) que aportan el `ctx` y los valores de su closure, por lo que el frame dibuja exactamente igual.
+- Nuevos módulos en `js/render/`:
+  - `projectiles.js` → `NV.drawBulletShape` (forma por arma, patrón del proyectil) + `NV.drawSpecialVFX` (anillo del especial).
+  - `enemies.js` → `NV.drawEnemy` (formas hex/triangle/diamond/atom/rock/dot + élite).
+  - `bosses.js` → `NV.drawBoss` (cuerpo, forma, barra HP, flash, anillo FASE 2, nombre).
+  - `player.js` → `NV.drawPlayer` (forma del piloto + auras: crítico, fase fantasma, muralla, respiración, orbital swarm).
+  - `hud.js` → `NV.drawSpecialCooldown`, `NV.drawWeaponHUD`, `NV.drawStats` (paneles en canvas).
+- `game.js` **baja de ~2156 a ~1734 líneas** (se sacaron ~500 líneas de dibujo). Orden de carga en `index.html`: `core` → `data` → `audio` → `ui/dom` → `render/canvas, projectiles, enemies, bosses, player, hud` → `game.js`.
+- Verificación: `node --check` de todos los módulos OK; smoke runtime en Node (con ctx/canvas/DOM stubs) **22/22** checks de render (todas las formas + estados).
+
 ---
 
 ## 🚀 Cómo ejecutar
@@ -630,7 +646,12 @@ JuegoDemo/
     ├── audio/
     │   └── synth.js    # Audio synthwave + SFX (estado en NV.*; fue inline en game.js)
     ├── render/
-    │   └── canvas.js   # canvas + ctx (NV.canvas/NV.ctx)
+    │   ├── canvas.js      # canvas + ctx base (NV.canvas/NV.ctx)
+    │   ├── projectiles.js # NV.drawBulletShape + NV.drawSpecialVFX
+    │   ├── enemies.js     # NV.drawEnemy
+    │   ├── bosses.js      # NV.drawBoss
+    │   ├── player.js      # NV.drawPlayer
+    │   └── hud.js         # NV.drawSpecialCooldown/drawWeaponHUD/drawStats
     ├── ui/
     │   └── dom.js      # Árbol DOM (NV.dom)
     └── game.js         # Motor restante (lógica, render, estado de entidades) — IIFE

@@ -1434,87 +1434,10 @@
   // orientado a la dirección de vuelo. "g" es el factor de crecimiento por tier (sutil,
   // solo en niveles altos). No participa en colisiones.
   function drawBulletShape(b, def, g) {
-    const color = b.color;
-    ctx.save();
-    ctx.translate(b.x, b.y);
-    ctx.rotate(Math.atan2(b.vy, b.vx));
-    ctx.fillStyle = color;
-    ctx.strokeStyle = color;
-
-    if (def.shape === 'bullet') {
-      // Proyectil tipo bala: cuerpo recto + punta cónica al frente (+x).
-      const L = def.len * (1 + g), W = def.w * (1 + g);
-      ctx.beginPath();
-      ctx.rect(-L * 0.55, -W / 2, L * 0.75, W);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.moveTo(L * 0.2, -W / 2);
-      ctx.lineTo(L * 0.5, 0);
-      ctx.lineTo(L * 0.2, W / 2);
-      ctx.closePath();
-      ctx.fill();
-    } else if (def.shape === 'arrow') {
-      // Flecha: astil + cabeza triangular + plumas traseras.
-      const L = def.len * (1 + g);
-      ctx.lineWidth = 1.6;
-      ctx.beginPath();
-      ctx.moveTo(-L * 0.55, 0);
-      ctx.lineTo(L * 0.42, 0);
-      ctx.stroke();
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      ctx.moveTo(L * 0.42, -2.5);
-      ctx.lineTo(L * 0.78, 0);
-      ctx.lineTo(L * 0.42, 2.5);
-      ctx.closePath();
-      ctx.fill();
-      ctx.beginPath();
-      ctx.moveTo(-L * 0.55, 0); ctx.lineTo(-L * 0.32, -3);
-      ctx.moveTo(-L * 0.55, 0); ctx.lineTo(-L * 0.32, 3);
-      ctx.stroke();
-    } else if (def.shape === 'laser') {
-      // Rayo fino: núcleo brillante + centro blanco.
-      const L = def.len * (1 + g), W = def.w * (1 + g);
-      ctx.fillStyle = color;
-      ctx.fillRect(-L / 2, -W / 2, L, W);
-      ctx.fillStyle = 'rgba(255,255,255,0.85)';
-      ctx.fillRect(-L / 2, -W * 0.25, L, W * 0.5);
-    } else if (def.shape === 'orb') {
-      // Orbe de plasma: núcleo + centro claro.
-      const r = def.r * (1 + g);
-      ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = 'rgba(255,255,255,0.5)';
-      ctx.beginPath(); ctx.arc(0, 0, r * 0.5, 0, Math.PI * 2); ctx.fill();
-    } else if (def.shape === 'pellet') {
-      // Perdigón pequeño (escopeta).
-      const r = def.r * (1 + g);
-      ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
-    } else if (def.shape === 'flame') {
-      // Llama: gota de fuego con punta al frente y núcleo claro.
-      const L = def.len * (1 + g), W = def.w * (1 + g);
-      ctx.beginPath();
-      ctx.moveTo(L * 0.45, 0);
-      ctx.quadraticCurveTo(0, -W / 2, -L * 0.55, 0);
-      ctx.quadraticCurveTo(0, W / 2, L * 0.45, 0);
-      ctx.closePath();
-      ctx.fill();
-      ctx.globalAlpha = 0.6;
-      ctx.fillStyle = 'rgba(255,255,255,0.9)';
-      ctx.beginPath();
-      ctx.moveTo(L * 0.18, 0);
-      ctx.quadraticCurveTo(0, -W * 0.35, -L * 0.22, 0);
-      ctx.quadraticCurveTo(0, W * 0.35, L * 0.18, 0);
-      ctx.closePath();
-      ctx.fill();
-      ctx.globalAlpha = 1;
-    } else {
-      // Fallback: círculo pequeño.
-      const r = (def.r || 2.5) * (1 + g);
-      ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
-    }
-
-    ctx.restore();
+    NV.drawBulletShape(ctx, b, def, g);
   }
+
+
 
   // === RENDER ===
   function draw() {
@@ -1733,388 +1656,44 @@
   }
 
   function drawSpecialVFX(vfx) {
-    const radius = (1 - vfx.life) * 130;
-    ctx.strokeStyle = vfx.color;
-    ctx.lineWidth = 5;
-    ctx.globalAlpha = vfx.life;
-    ctx.beginPath(); ctx.arc(vfx.x, vfx.y, radius, 0, Math.PI * 2); ctx.stroke();
-    ctx.globalAlpha = 1;
+    NV.drawSpecialVFX(ctx, vfx);
   }
+
+
 
   function drawSpecialCooldown() {
-    const char = CHARACTERS[player.character];
-    const cx = player.x, cy = player.y;
-    const radius = char.size + 16;
-
-    if (player.specialCd > 0) {
-      const progress = 1 - player.specialCd / char.maxCd;
-      ctx.strokeStyle = 'rgba(124, 248, 255, 0.5)';
-      ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.arc(cx, cy, radius, 0, Math.PI * 2); ctx.stroke();
-
-      ctx.strokeStyle = char.color;
-      ctx.lineWidth = 3;
-      ctx.lineCap = 'round';
-      ctx.beginPath();
-      const startAngle = -Math.PI / 2;
-      ctx.arc(cx, cy, radius, startAngle, startAngle + progress * Math.PI * 2);
-      ctx.stroke();
-      ctx.lineCap = 'default';
-    } else {
-      ctx.fillStyle = char.color;
-      ctx.font = 'bold 18px system-ui';
-      ctx.textAlign = 'center';
-      ctx.fillText(char.skillIcon, cx, cy - radius - 8);
-    }
+    NV.drawSpecialCooldown(ctx, W, H, CHARACTERS, player);
   }
+
+
 
   function drawWeaponHUD() {
-    if (!showHUD) return;
-    const weapon = currentWeapon;
-    const char = CHARACTERS[player.character];
-    const iconColor = RARITY_COLORS[weapon.rarity];
-    const w = 118, h = 40;
-    const wx = W - w - 12, wy = 10;
-
-    ctx.textAlign = 'left';
-
-    // === ARMA (panel pequeño) ===
-    ctx.fillStyle = 'rgba(0,0,0,0.72)';
-    ctx.strokeStyle = iconColor; ctx.lineWidth = 1.5;
-    ctx.fillRect(wx, wy, w, h); ctx.strokeRect(wx, wy, w, h);
-    ctx.font = 'bold 15px system-ui';
-    ctx.fillStyle = iconColor;
-    ctx.fillText(weapon.emoji, wx + 7, wy + 24);
-    ctx.font = 'bold 9px system-ui';
-    ctx.fillStyle = '#fff';
-    ctx.fillText(weapon.name, wx + 30, wy + 16);
-    ctx.font = '8px system-ui';
-    ctx.fillStyle = '#aaa';
-    ctx.fillText('Nv ' + currentWeaponLevel() + ' · teclas 1-6', wx + 30, wy + 30);
-
-    // === HABILIDAD (panel pequeño + relleno de cooldown) ===
-    const sy = wy + h + 6;
-    ctx.fillStyle = 'rgba(0,0,0,0.72)';
-    ctx.strokeStyle = char.color; ctx.lineWidth = 1.5;
-    ctx.fillRect(wx, sy, w, h); ctx.strokeRect(wx, sy, w, h);
-
-    // Relleno que se completa de abajo hacia arriba según el cooldown
-    const cd = player.specialCd > 0 ? 1 - player.specialCd / char.maxCd : 1;
-    const fillH = Math.max(0, Math.min(1, cd)) * (h - 2);
-    ctx.globalAlpha = 0.55;
-    ctx.fillStyle = char.color;
-    ctx.fillRect(wx + 1, sy + h - 1 - fillH, w - 2, fillH);
-    ctx.globalAlpha = 1;
-
-    ctx.font = 'bold 15px system-ui';
-    ctx.fillStyle = char.color;
-    ctx.fillText(char.skillIcon, wx + 7, sy + 24);
-    ctx.font = 'bold 8px system-ui';
-    ctx.fillStyle = cd >= 1 ? '#fff' : '#aaa';
-    ctx.fillText(cd >= 1 ? '¡LISTO! ✓' : 'CD ' + Math.ceil(player.specialCd) + 's', wx + 30, sy + 16);
-    ctx.font = '8px system-ui';
-    ctx.fillStyle = '#aaa';
-    ctx.fillText(char.skillName, wx + 30, sy + 30);
-
-    // === CONSUMIBLES (indicador con la tecla F) ===
-    if (consumableItems.length > 0) {
-      const cy = sy + h + 6;
-      ctx.fillStyle = 'rgba(0,0,0,0.72)';
-      ctx.strokeStyle = '#7cf8ff'; ctx.lineWidth = 1.5;
-      ctx.fillRect(wx, cy, w, h); ctx.strokeRect(wx, cy, w, h);
-      ctx.font = 'bold 15px system-ui';
-      ctx.fillText(consumableItems[0].icon, wx + 7, cy + 24);
-      ctx.font = 'bold 9px system-ui';
-      ctx.fillStyle = '#fff';
-      ctx.fillText('x' + consumableItems.length, wx + 30, cy + 16);
-      ctx.font = '8px system-ui';
-      ctx.fillStyle = '#aaa';
-      ctx.fillText('F: usar consumible', wx + 30, cy + 30);
-    }
+    NV.drawWeaponHUD(ctx, W, H, CHARACTERS, RARITY_COLORS, player, currentWeapon, currentWeaponLevel, consumableItems, showHUD);
   }
+
+
 
   function drawStats() {
-    const char = CHARACTERS[player.character];
-    const weapon = currentWeapon;
-    const panelX = 10, panelY = 60, panelW = 260, panelH = 250;
-
-    ctx.fillStyle = 'rgba(0,0,0,0.9)';
-    ctx.fillRect(panelX, panelY, panelW, panelH);
-    ctx.strokeStyle = RARITY_COLORS[weapon.rarity];
-    ctx.lineWidth = 2;
-    ctx.strokeRect(panelX, panelY, panelW, panelH);
-
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 14px system-ui';
-    ctx.textAlign = 'left';
-    ctx.fillText('ESTADÍSTICAS', panelX + 10, panelY + 20);
-
-    ctx.font = '12px system-ui';
-    ctx.fillStyle = '#aaa';
-    const lines = [
-      `Personaje: ${char.name}`,
-      `Pasiva: ${char.passive}`,
-      `Habilidad: ${char.skillIcon} ${char.skillName} (CD: ${char.maxCd}s)`,
-      `Nivel: ${player.level}  |  XP: ${player.xp}/${player.xpToNext}`,
-      `HP: ${Math.round(player.hp)}/${player.maxHp}  |  Armadura: ${player.armor}`,
-      `Velocidad: ${Math.round(player.speed)}  |  Suerte: ${player.luck}`,
-      `Agilidad: ${player.agility.toFixed(2)}x (maniobralidad)`,
-      `Arma: ${weapon.name} (${weapon.rarity}) | Nv ${currentWeaponLevel()}` + (weaponVisualTier() > 0 ? ` | Tier ${weaponVisualTier()} (${BULLET_TIER_COLORS[weaponVisualTier()]})` : ''),
-      `Daño: ${weapon.damage + permUpgrades.damage * 2 + currentWeaponLevel()}`,
-      `Inventario: ${inventory.length}/${INVENTORY_SLOTS}  |  Consumibles: ${consumableItems.length}`,
-    ];
-    lines.forEach((line, i) => ctx.fillText(line, panelX + 10, panelY + 45 + i * 18));
+    NV.drawStats(ctx, CHARACTERS, RARITY_COLORS, player, currentWeapon, currentWeaponLevel, weaponVisualTier, BULLET_TIER_COLORS, permUpgrades, inventory, INVENTORY_SLOTS, consumableItems);
   }
+
+
 
   function drawEnemy(e) {
-    ctx.save();
-    ctx.translate(e.x, e.y);
-    ctx.fillStyle = e.color;
-    ctx.shadowBlur = e.isElite ? 14 : 10;
-    ctx.shadowColor = e.color;
-
-    const r = e.radius;
-    if (e.shape === 'hex') {
-      ctx.beginPath();
-      for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2; ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r); }
-      ctx.closePath(); ctx.fill();
-    } else if (e.shape === 'triangle') {
-      ctx.beginPath(); ctx.moveTo(0, -r); ctx.lineTo(r * 0.87, r * 0.5); ctx.lineTo(-r * 0.87, r * 0.5); ctx.closePath(); ctx.fill();
-    } else if (e.shape === 'diamond') {
-      ctx.beginPath(); ctx.moveTo(0, -r); ctx.lineTo(r, 0); ctx.lineTo(0, r); ctx.lineTo(-r, 0); ctx.closePath(); ctx.fill();
-    } else if (e.shape === 'atom') {
-      ctx.beginPath(); ctx.arc(0, 0, r * 0.4, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = e.color;
-      ctx.lineWidth = 2;
-      for (let i = 0; i < 3; i++) { const a = (i / 3) * Math.PI * 2 + frame * 0.1; ctx.beginPath(); ctx.ellipse(0, 0, r, r * 0.3, a, 0, Math.PI * 2); ctx.stroke(); }
-    } else if (e.shape === 'rock') {
-      ctx.beginPath();
-      for (let i = 0; i < 7; i++) { const a = (i / 7) * Math.PI * 2; const rr = r * (0.7 + (i / 7) * 0.3); ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); }
-      ctx.closePath(); ctx.fill();
-      // Brillo interior para que se vea intencional en lugar de "roto".
-      ctx.fillStyle = 'rgba(255,255,255,0.18)';
-      ctx.beginPath();
-      for (let i = 0; i < 7; i++) { const a = (i / 7) * Math.PI * 2; const rr = r * (0.38 + (i / 7) * 0.16); ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); }
-      ctx.closePath(); ctx.fill();
-    } else if (e.shape === 'dot') {
-      ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#000';
-      ctx.beginPath(); ctx.arc(-r * 0.3, -r * 0.3, r * 0.2, 0, Math.PI * 2); ctx.arc(r * 0.3, -r * 0.3, r * 0.2, 0, Math.PI * 2); ctx.fill();
-    } else {
-      ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
-    }
-
-    if (e.isElite) {
-      ctx.strokeStyle = '#ff0';
-      ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(0, 0, r + 4, 0, Math.PI * 2); ctx.stroke();
-    }
-
-    ctx.shadowBlur = 0;
-    ctx.restore();
+    NV.drawEnemy(ctx, e, frame);
   }
 
-    function drawBoss() {
-    if (!boss || boss.dead) return;
-    if (boss.hitFlash > 0) boss.hitFlash = Math.max(0, boss.hitFlash - 0.05);
-    ctx.save();
-    ctx.translate(boss.x, boss.y);
-    ctx.fillStyle = boss.color;
-    ctx.shadowBlur = 30;
-    ctx.shadowColor = boss.color;
 
-    // Barra de salud del jefe
-    const barW = 260, barH = 16;
-    const hpPct = Math.max(0, boss.hp) / boss.maxHp;
-    ctx.save();
-    ctx.translate(0, -boss.radius - 40);
-    ctx.fillStyle = '#222';
-    ctx.fillRect(-barW / 2, 0, barW, barH);
-    ctx.fillStyle = hpPct > 0.4 ? '#7cf8ff' : (hpPct > 0.2 ? '#ffcf76' : '#ff5f9b');
-    ctx.fillRect(-barW / 2, 0, barW * hpPct, barH);
-    ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(-barW / 2, 0, barW, barH);
-    ctx.font = 'bold 11px system-ui';
-    ctx.textAlign = 'center';
-    ctx.fillStyle = '#fff';
-    ctx.fillText(Math.ceil(boss.hp) + ' / ' + boss.maxHp, 0, 13);
-    ctx.restore();
 
-    // Flash blanco al recibir daño
-    if (boss.hitFlash > 0) {
-      ctx.globalAlpha = boss.hitFlash;
-      ctx.fillStyle = '#fff';
-      ctx.beginPath();
-      for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2; ctx.lineTo(Math.cos(a) * boss.radius, Math.sin(a) * boss.radius); }
-      ctx.fill();
-    }
-    ctx.globalAlpha = 1;
-
-    const r = boss.radius;
-    ctx.save();
-    if (boss.shape === 'circle') {
-      ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.closePath(); ctx.fill();
-    } else if (boss.shape === 'diamond') {
-// Anillo indicador de FASE 2
-    if (boss.phase2) {
-      ctx.strokeStyle = 'rgba(255, 95, 155, 0.85)';
-      ctx.lineWidth = 4;
-      ctx.beginPath();
-      ctx.arc(0, 0, r + 12 + Math.sin(frame * 0.1) * 3, 0, Math.PI * 2);
-      ctx.stroke();
-    }
-      ctx.beginPath(); ctx.moveTo(0, -r * 1.2); ctx.lineTo(r * 0.9, 0); ctx.lineTo(0, r * 1.2); ctx.lineTo(-r * 0.9, 0); ctx.closePath(); ctx.fill();
-    } else if (boss.shape === 'rock') {
-      ctx.beginPath();
-      for (let i = 0; i < 7; i++) { const a = (i / 7) * Math.PI * 2; const rr = r * (0.75 + (i / 7) * 0.25); ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); }
-      ctx.closePath(); ctx.fill();
-    } else {
-      ctx.beginPath();
-      for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2; ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r); }
-      ctx.closePath(); ctx.fill();
-    }
-    ctx.restore();
-
-    ctx.fillStyle = '#fff';
-    ctx.beginPath(); ctx.arc(-8, -5, 6, 0, Math.PI * 2); ctx.arc(8, -5, 6, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#000';
-    ctx.beginPath(); ctx.arc(-8, -5, 3, 0, Math.PI * 2); ctx.arc(8, -5, 3, 0, Math.PI * 2); ctx.fill();
-
-    ctx.fillStyle = boss.color;
-    ctx.font = 'bold 13px system-ui';
-    ctx.textAlign = 'center';
-    ctx.fillText(boss.name, 0, -r - 10);
-
-    ctx.shadowBlur = 0;
-    ctx.restore();
+  function drawBoss() {
+    NV.drawBoss(ctx, boss, frame);
   }
+
 
   function drawPlayer() {
-    const char = CHARACTERS[player.character];
-    ctx.save();
-    ctx.translate(player.x, player.y);
-
-    const invulnBlink = player.invuln > 0 && Math.floor(player.invuln * 20) % 2 === 0;
-    const stunBlink = player.stun > 0 && Math.floor(player.stun * 20) % 2 === 0;
-    const criticalHealth = player.hp > 0 && player.hp / player.maxHp <= 0.25;
-    ctx.globalAlpha = invulnBlink ? 0.4 : (stunBlink ? 0.6 : 1);
-
-    // Señal visual de vida crítica: un contorno rojo late alrededor de cualquier personaje.
-    if (criticalHealth) {
-      const pulse = 0.35 + Math.sin(frame * 0.22) * 0.25;
-      ctx.save();
-      ctx.globalAlpha = pulse;
-      ctx.strokeStyle = '#ff3048';
-      ctx.shadowColor = '#ff3048';
-      ctx.shadowBlur = 18;
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.arc(0, 0, char.size + 10 + Math.sin(frame * 0.18) * 2, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.restore();
-    }
-
-    // Fase Fantasma: aura espectral pulsante
-    if (player.phase > 0) {
-      const ghostPulse = 0.3 + Math.sin(frame * 0.3) * 0.2;
-      ctx.strokeStyle = '#caa7ff';
-      ctx.globalAlpha = ghostPulse;
-      ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.arc(0, 0, char.size + 20 + Math.sin(frame * 0.2) * 5, 0, Math.PI * 2); ctx.stroke();
-      ctx.beginPath(); ctx.arc(0, 0, char.size + 8, 0, Math.PI * 2); ctx.stroke();
-      ctx.globalAlpha = invulnBlink ? 0.4 : 1;
-    }
-
-    // Muralla: escudo dorado visible
-    if (player.bulwark > 0) {
-      const shieldPulse = 0.4 + Math.sin(frame * 0.15) * 0.2;
-      ctx.strokeStyle = '#ffcf76';
-      ctx.globalAlpha = shieldPulse;
-      ctx.lineWidth = 4;
-      ctx.beginPath(); ctx.arc(0, 0, char.size + 15, 0, Math.PI * 2); ctx.stroke();
-      ctx.globalAlpha = invulnBlink ? 0.4 : 1;
-    }
-
-    const breathe = Math.sin(frame * 0.05) * 1.5;
-    const bob = Math.sin(frame * 0.12) * 2;
-    ctx.translate(0, bob + breathe);
-
-    // Aura pulsante
-    const auraPulse = 0.15 + Math.sin(frame * 0.08) * 0.05;
-    ctx.strokeStyle = char.color;
-    ctx.globalAlpha = auraPulse * (invulnBlink ? 0.4 : 1);
-    ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.arc(0, 0, char.size + 12 + Math.sin(frame * 0.1) * 3, 0, Math.PI * 2); ctx.stroke();
-    ctx.globalAlpha = invulnBlink ? 0.4 : 1;
-
-    ctx.shadowBlur = 30;
-    ctx.shadowColor = char.color;
-    const size = char.size;
-    const cid = char.id || player.character;
-
-    if (cid === 'boti') {
-      // Hexágono
-      ctx.fillStyle = char.bodyColor;
-      ctx.beginPath();
-      for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2; ctx.lineTo(Math.cos(a) * size, Math.sin(a) * size); }
-      ctx.closePath(); ctx.fill();
-      ctx.fillStyle = char.color;
-      ctx.beginPath();
-      for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2; ctx.lineTo(Math.cos(a) * (size * 0.6), Math.sin(a) * (size * 0.6)); }
-      ctx.closePath(); ctx.fill();
-    } else if (cid === 'nova') {
-      // Diamante/rombo
-      ctx.fillStyle = char.bodyColor;
-      ctx.beginPath();
-      ctx.moveTo(0, -size * 1.2);
-      ctx.lineTo(size * 0.8, 0);
-      ctx.lineTo(0, size * 1.2);
-      ctx.lineTo(-size * 0.8, 0);
-      ctx.closePath(); ctx.fill();
-      ctx.fillStyle = char.color;
-      ctx.beginPath();
-      ctx.moveTo(0, -size * 0.7);
-      ctx.lineTo(size * 0.45, 0);
-      ctx.lineTo(0, size * 0.7);
-      ctx.lineTo(-size * 0.45, 0);
-      ctx.closePath(); ctx.fill();
-    } else if (cid === 'rook') {
-      // Escudo hexagonal grueso
-      ctx.fillStyle = char.bodyColor;
-      ctx.beginPath();
-      for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2 + Math.PI / 6; ctx.lineTo(Math.cos(a) * size * 1.1, Math.sin(a) * size * 1.1); }
-      ctx.closePath(); ctx.fill();
-      ctx.strokeStyle = char.color;
-      ctx.lineWidth = 4;
-      ctx.beginPath();
-      for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2 + Math.PI / 6; ctx.lineTo(Math.cos(a) * size * 0.7, Math.sin(a) * size * 0.7); }
-      ctx.closePath(); ctx.stroke();
-      ctx.fillStyle = char.color;
-      ctx.beginPath(); ctx.arc(0, 0, size * 0.3, 0, Math.PI * 2); ctx.fill();
-    } else if (cid === 'swarm') {
-      // Círculo con anillos orbitales
-      ctx.fillStyle = char.bodyColor;
-      ctx.beginPath(); ctx.arc(0, 0, size, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = char.color;
-      ctx.lineWidth = 2;
-      for (let i = 0; i < 3; i++) {
-        const a = (i / 3) * Math.PI * 2 + frame * 0.05;
-        ctx.beginPath(); ctx.ellipse(0, 0, size * 1.3, size * 0.4, a, 0, Math.PI * 2); ctx.stroke();
-      }
-      ctx.fillStyle = char.color;
-      ctx.beginPath(); ctx.arc(0, 0, size * 0.5, 0, Math.PI * 2); ctx.fill();
-    }
-
-    // Ojos
-    ctx.fillStyle = '#000';
-    ctx.beginPath(); ctx.arc(-5, -1, 2.5, 0, Math.PI * 2); ctx.arc(5, -1, 2.5, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = char.eyeColor;
-    ctx.beginPath(); ctx.arc(-5, -1, 1.2, 0, Math.PI * 2); ctx.arc(5, -1, 1.2, 0, Math.PI * 2); ctx.fill();
-
-    ctx.shadowBlur = 0;
-    ctx.restore();
+    NV.drawPlayer(ctx, player, CHARACTERS, frame);
   }
+
 
   // === LOOP ===
   function loop(now) {
