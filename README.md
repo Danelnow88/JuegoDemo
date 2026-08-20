@@ -42,6 +42,8 @@ JuegoDemo/
     │   └── hud.js         # HUD en canvas: cooldown, panel arma/habilidad/consumibles, stats TAB (NV.drawSpecialCooldown/drawWeaponHUD/drawStats)
     ├── ui/
     │   └── dom.js      # Árbol DOM (expuesto en NV.dom)
+    ├── engine/
+    │   └── fx.js       # Efectos/FX (partículas, textos flotantes, estelas): NV.spawnExplosion/updateParticles/addFloatText/updateFloatTexts/updateTrails
     └── game.js         # Motor restante (lógica, render, estado de entidades) — IIFE (en proceso de desmonopolización)
 ```
 
@@ -471,6 +473,14 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 - `game.js` **baja de ~2156 a ~1734 líneas** (se sacaron ~500 líneas de dibujo). Orden de carga en `index.html`: `core` → `data` → `audio` → `ui/dom` → `render/canvas, projectiles, enemies, bosses, player, hud` → `game.js`.
 - Verificación: `node --check` de todos los módulos OK; smoke runtime en Node (con ctx/canvas/DOM stubs) **22/22** checks de render (todas las formas + estados).
 
+### v29 — Fase B del refactor: engine FX a `js/engine/fx.js`
+- Extraído del monolito el **primer bloque del motor**: los efectos visuales (FX) a `js/engine/fx.js`. Son las funciones más aisladas (operan solo sobre sus arrays de partículas/textos/estelas), ideal para el corte inicial del `engine`.
+- Expuestas en `NV.*`: `NV.spawnExplosion` (empuja partículas por referencia, respeta `MAX_PARTICLES`), `NV.updateParticles`, `NV.addFloatText`, `NV.updateFloatTexts`, `NV.updateTrails`.
+- **Patrón de array**: las que hacen `filter` reciben el array y **devuelven el filtrado** (el wrapper en `game.js` lo reasigna: `particles = NV.updateParticles(dt, particles)`); las que hacen `push` mutan el array por referencia. Así el comportamiento es idéntico.
+- `game.js` conserva wrappers locales (`function spawnExplosion(x,y,c,col,s){ NV.spawnExplosion(particles, MAX_PARTICLES, x,y,c,col,s); }`) → mismas firmas de llamada, cero cambios en el resto.
+- Orden de carga: `... render/hud.js` → `engine/fx.js` → `game.js`.
+- Verificación: `node --check js/game.js` y `node --check js/engine/fx.js` OK; smoke runtime **6/6** (push/filter/interacción con refs).
+
 ---
 
 ## 🚀 Cómo ejecutar
@@ -654,5 +664,7 @@ JuegoDemo/
     │   └── hud.js         # NV.drawSpecialCooldown/drawWeaponHUD/drawStats
     ├── ui/
     │   └── dom.js      # Árbol DOM (NV.dom)
+    ├── engine/
+    │   └── fx.js       # NV.spawnExplosion/updateParticles/addFloatText/updateFloatTexts/updateTrails
     └── game.js         # Motor restante (lógica, render, estado de entidades) — IIFE
 ```

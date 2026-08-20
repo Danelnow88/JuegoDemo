@@ -349,11 +349,9 @@
   }
 
   function spawnExplosion(x, y, count, color, speedMult) {
-    for (let i = 0; i < count && particles.length < MAX_PARTICLES; i++) {
-      const a = (i / count) * Math.PI * 2;
-      particles.push({ x, y, vx: Math.cos(a) * 300 * speedMult, vy: Math.sin(a) * 300 * speedMult, life: 1, color });
-    }
+    NV.spawnExplosion(particles, MAX_PARTICLES, x, y, count, color, speedMult);
   }
+
 
   function skipShop() {
     state = 'playing';
@@ -1354,9 +1352,9 @@
   }
 
   function updateParticles(dt) {
-    for (const p of particles) { p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt; }
-    particles = particles.filter((p) => p.life > 0);
+    particles = NV.updateParticles(dt, particles);
   }
+
 
   function updatePickups(dt) {
     for (const p of pickups) {
@@ -1387,16 +1385,19 @@
   }
 
   function updateFloatTexts(dt) {
-    for (const ft of floatTexts) { ft.y -= 60 * dt; ft.life -= dt; }
-    floatTexts = floatTexts.filter((ft) => ft.life > 0);
+    floatTexts = NV.updateFloatTexts(dt, floatTexts);
   }
 
-  function addFloatText(x, y, text, color) { floatTexts.push({ x, y, text, color, life: 0.8 }); }
+
+  function addFloatText(x, y, text, color) {
+    NV.addFloatText(floatTexts, x, y, text, color);
+  }
+
 
   function updateTrails(dt) {
-    for (const t of trails) { t.life -= dt; t.size *= 0.9; }
-    trails = trails.filter((t) => t.life > 0);
+    trails = NV.updateTrails(dt, trails);
   }
+
 
   function updateHUD() {
     dom.wave.textContent = 'OLEADA ' + wave;
