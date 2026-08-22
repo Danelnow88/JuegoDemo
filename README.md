@@ -46,7 +46,8 @@ JuegoDemo/
     ├── engine/
     │   ├── fx.js        # Efectos/FX (partículas, textos flotantes, estelas): NV.spawnExplosion/updateParticles/addFloatText/updateFloatTexts/updateTrails
     │   ├── drones.js     # NV.updateDrones (disparo de drones ENJAMBRE)
-    │   └── meteors.js     # NV.updateMeteors (Lluvia Estelar)
+    │   ├── meteors.js     # NV.updateMeteors (Lluvia Estelar)
+    │   └── pickups.js     # NV.spawnWeaponPickup/updatePickups/updateWeaponPickups (drop de armas + shards)
     └── game.js         # Motor restante (lógica, render, estado de entidades) — IIFE (en proceso de desmonopolización)
 ```
 
@@ -492,6 +493,15 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 - Orden de carga: `... render/hud.js` → `engine/fx.js, drones.js, meteors.js` → `game.js`.
 - Verificación: `node --check` OK en drones/meteors/game; smoke runtime **5/5** (dispara+expira drones; daño a enemigo/boss por meteoros; salida de pantalla; filtro correcto).
 
+### v31 — Fase D del refactor: engine pickups (armas + shards)
+- `spawnWeaponPickup`, `updatePickups`, `updateWeaponPickups` → `js/engine/pickups.js` (`NV.*`).
+  - `NV.spawnWeaponPickup(WEAPONS, weaponPickups, W, H, showBanner, RARITY_COLORS)`: empuja un pickup por ref + banner.
+  - `NV.updatePickups(dt, pickups, player, addFloatText, pickupSfx)` → `{ pickups, shards }`: recolecta shards/coins.
+  - `NV.updateWeaponPickups(dt, weaponPickups, player, inventory, INVENTORY_SLOTS, currentWeapon, addFloatText, RARITY_COLORS, pickupSfx)` → `{ weaponPickups, currentWeapon }`: guarda en inventario o equipa si está lleno.
+- Callbacks inyectados (`showBanner`, `addFloatText`, `sfx.pickup`) preservan closures del monolito; `shards` (let) y `currentWeapon` se reasignan desde el return del wrapper.
+- Orden de carga: `... render/hud.js` → `engine/fx.js, drones.js, meteors.js, pickups.js` → `game.js`.
+- Verificación: `node --check` OK en todos los engine modules + game.js; smoke runtime **4/4** (spawn dentro de pantalla; recolección de shard con filtro; guardar vs equipar según inventario).
+
 ---
 
 ## 🚀 Cómo ejecutar
@@ -678,6 +688,7 @@ JuegoDemo/
     ├── engine/
     │   ├── fx.js        # NV.spawnExplosion/updateParticles/addFloatText/updateFloatTexts/updateTrails
     │   ├── drones.js     # NV.updateDrones (disparo de drones ENJAMBRE)
-    │   └── meteors.js     # NV.updateMeteors (Lluvia Estelar)
+    │   ├── meteors.js     # NV.updateMeteors (Lluvia Estelar)
+    │   └── pickups.js     # NV.spawnWeaponPickup/updatePickups/updateWeaponPickups (drop de armas + shards)
     └── game.js         # Motor restante (lógica, render, estado de entidades) — IIFE
 ```

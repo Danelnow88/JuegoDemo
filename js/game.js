@@ -933,9 +933,7 @@
   }
 
   function spawnWeaponPickup() {
-    const weapon = WEAPONS[Math.floor(Math.random() * WEAPONS.length)];
-    weaponPickups.push({ x: 40 + Math.random() * (W - 80), y: 80 + Math.random() * (H - 160), weapon: weapon, dead: false });
-    showBanner('¡' + weapon.name + '! 💎', RARITY_COLORS[weapon.rarity]);
+    NV.spawnWeaponPickup(WEAPONS, weaponPickups, W, H, showBanner, RARITY_COLORS);
   }
 
   function killEnemy(e) {
@@ -1310,31 +1308,14 @@
 
 
   function updatePickups(dt) {
-    for (const p of pickups) {
-      if (p.dead) continue;
-      const d = Math.hypot(p.x - player.x, p.y - player.y);
-      if (d < 30) { p.dead = true; shards += 1; addFloatText(p.x, p.y - 10, '+1', '#7cf8ff'); sfx.pickup(); }
-    }
-    pickups = pickups.filter((p) => !p.dead);
+    const r = NV.updatePickups(dt, pickups, player, addFloatText, sfx.pickup);
+    pickups = r.pickups; shards += r.shards;
   }
 
   function updateWeaponPickups(dt) {
-    for (const wp of weaponPickups) {
-      if (wp.dead) continue;
-      const d = Math.hypot(wp.x - player.x, wp.y - player.y);
-      if (d < 30) {
-        wp.dead = true;
-        if (inventory.length < INVENTORY_SLOTS) {
-          inventory.push(wp.weapon);
-          addFloatText(wp.x, wp.y - 10, 'GUARDADO', '#ffcf76');
-        } else {
-          currentWeapon = wp.weapon;
-          addFloatText(wp.x, wp.y - 10, currentWeapon.name, RARITY_COLORS[currentWeapon.rarity]);
-        }
-        sfx.pickup();
-      }
-    }
-    weaponPickups = weaponPickups.filter((wp) => !wp.dead);
+    const r = NV.updateWeaponPickups(dt, weaponPickups, player, inventory, INVENTORY_SLOTS, currentWeapon, addFloatText, RARITY_COLORS, sfx.pickup);
+    weaponPickups = r.weaponPickups;
+    if (currentWeapon !== r.currentWeapon) currentWeapon = r.currentWeapon;
   }
 
   function updateFloatTexts(dt) {
