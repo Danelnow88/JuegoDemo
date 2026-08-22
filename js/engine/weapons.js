@@ -1,8 +1,8 @@
 // engine/weapons.js — Disparo del jugador y knockback.
 // Patrón ctxState+callbacks: reciben estado/callbacks y retornan/mutan el resultado.
-(function () {
+(() => {
   'use strict';
-  const NV = (window.NV = window.NV || {});
+  const NV = window.NV;
 
   // Enemigo/jefe más cercano al jugador.
   NV.findTarget = function ({ player, enemies, boss }) {

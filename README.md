@@ -54,7 +54,7 @@ JuegoDemo/
     │   ├── bullets.js     # NV.updateBullets (colisiones, bulwark, escudos)
     │   ├── weapons.js     # NV.shoot/findTarget/applyKnockback (disparo del jugador)
     │   └── special.js     # NV.useSpecial (habilidades: meteor/phase/bulwark/hivemind)
-    └── game.js         # Motor restante (lógica, render, estado de entidades) — IIFE (en proceso de desmonopolización)
+    └── game.js         # Orquestador: init/update/loop, flujo de oleadas/tienda/menú, input, guardado — IIFE
 ```
 
 - **Sin builds, sin dependencias, sin servidor.** Se ejecuta directamente en el navegador. Orden de carga: `core/state.js` → `core/utils.js` → `data/gameData.js` → `data/balance.js` → `data/consumables.js` → `audio/synth.js` → `ui/dom.js` → `render/canvas.js` → `game.js`.

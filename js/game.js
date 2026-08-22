@@ -1231,6 +1231,5 @@
   NV.getFrame = () => frame;
   NV.getState = () => state;
   NV.getBoss = () => boss;
-  NV.getPlayer = () => player;
 })();
 

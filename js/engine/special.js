@@ -1,8 +1,8 @@
 // engine/special.js — Habilidad especial de cada personaje (ctxState+callbacks).
 // Retorna { specialVFX, drones, shake }; muta player/meteors/particles vía estado.
-(function () {
+(() => {
   'use strict';
-  const NV = (window.NV = window.NV || {});
+  const NV = window.NV;
 
   // state: { player, CHARACTERS, meteors, particles, W, H?, shake, specialVFX,
   //          cbs: { showBanner, triggerFlash, spawnExplosion, sfx } }
