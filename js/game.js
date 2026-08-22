@@ -780,7 +780,7 @@
 
   function useSpecial() {
     const res = NV.useSpecial({
-      player, CHARACTERS, meteors, particles, W, shake, specialVFX,
+      player, CHARACTERS, meteors, particles, drones, W, shake, specialVFX,
       cbs: { showBanner, triggerFlash, spawnExplosion, sfx },
     });
     drones = res.drones; shake = res.shake; specialVFX = res.specialVFX;

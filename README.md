@@ -22,6 +22,8 @@
 JuegoDemo/
 ├── index.html          # Página principal: DOM, HUD, overlays (menú, tienda, game over), nav táctil (oculto)
 ├── README.md           # Este documento (fuente de verdad)
+├── tests/
+│   └── space_special.js # Arnés headless: especial de cada personaje × 300 frames sin crash
 ├── css/
 │   └── styles.css      # Estilo visual: neon, HUD, menú, tarjetas, tienda, inventario, ofertas
 └── js/
@@ -508,6 +510,12 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 - Orden de carga: `... render/hud.js` → `engine/fx.js, drones.js, meteors.js, pickups.js` → `game.js`.
 - Verificación: `node --check` OK en todos los engine modules + game.js; smoke runtime **4/4** (spawn dentro de pantalla; recolección de shard con filtro; guardar vs equipar según inventario).
 
+### v35 — fix: crash del ataque especial (barra espaciadora)
+- **Bug**: al lanzar el especial con cualquier personaje salvo `swarm` (Enjambre), el juego se congelaba en el frame siguiente. Causa: el wrapper de `useSpecial` en `game.js` no pasaba `drones` en el estado a `NV.useSpecial`, que devolvía `drones: undefined`; la rama hivemind lo reasignaba (`drones = []`) y por eso era el único inmune. El siguiente frame, `updateDrones` recibía `undefined` y la excepción cortaba el `requestAnimationFrame`.
+- **Fix**: 1 línea — pasar `drones` en el estado (game.js).
+- **`tests/space_special.js`** (nuevo): arnés headless que carga todos los módulos con stubs de DOM/canvas/audio, arranca partida con cada personaje, dispara Espacio y corre 300 frames verificando que no haya excepciones. Resultado: 4/4 ok.
+
+
 ### v34 — engine: weapons + special (fin de la desmonopolización del gameplay)
 - **`js/engine/weapons.js`**: `NV.shoot` (proyectiles del jugador: crítico por suerte, overdrive ×2, tier visual), `NV.findTarget`, `NV.applyKnockback`.
 - **`js/engine/special.js`**: `NV.useSpecial` (Lluvia Estelar, Fase Fantasma, Baluarte, Enjambre); retorna `{ specialVFX, drones, shake }`.
@@ -552,6 +560,7 @@ El proyecto es **100% front-end, sin build ni servidor**. Para jugar:
 | Comando | Propósito |
 |--------|-----------|
 | `node --check js/game.js` | Valida sintaxis de `game.js` sin ejecutarlo (devuelve `0` si pasa). |
+| `node tests/space_special.js` | Smoke headless del especial: 4 personajes × 300 frames (`ok` = sin crash). |
 | Abrir `index.html` | Ejecutar el juego en el navegador. |
 
 > No hay tests automatizados, linter ni CI configurados.
@@ -693,6 +702,8 @@ Comportamientos reales verificados al leer el código completo (`js/game.js`, ~2
 JuegoDemo/
 ├── index.html          # Página principal: DOM, HUD, overlays (menú, tienda, game over), nav táctil (oculto)
 ├── README.md           # Este documento (fuente de verdad)
+├── tests/
+│   └── space_special.js # Arnés headless: especial de cada personaje × 300 frames sin crash
 ├── css/
 │   └── styles.css      # Estilo visual: neon, HUD, menú, tarjetas, tienda, inventario, ofertas
 └── js/

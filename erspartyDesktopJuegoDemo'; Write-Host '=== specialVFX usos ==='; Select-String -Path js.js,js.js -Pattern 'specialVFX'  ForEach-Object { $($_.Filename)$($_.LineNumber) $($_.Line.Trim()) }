@@ -1,0 +1,15 @@
+[33md55a398[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmaster[m[33m)[m auditoria: eliminado NV.getPlayer huerfano; IIFE unificadas a arrow (weapons/special); README: game.js descrito como orquestador (desmonopolizacion completa)
+[33m88d20c8[m v34 engine: js/engine/{weapons,special}.js (shoot/findTarget/applyKnockback; useSpecial meteor/phase/bulwark/hivemind) extraidos de game.js; patron ctxState+callbacks; smoke 5/5; README arboles + changelog v34
+[33md644bdb[m v33 engine: js/engine/{combat,boss,bullets}.js (enemyCritChance/calcEnemyDamage/computePlayerHit; updateBoss/spawnBossProj/spawnMinion/runBossAttack; updateBullets) extraidos de game.js; patron ctxState+callbacks; smoke 9/9; README arboles + changelog v33
+[33m743a016[m v32 engine: js/engine/enemies.js (spawnEnemy/spawnElite/killEnemy/updateEnemies) extraídos de game.js; patrón ctxState+callbacks, retorna score/enemies/shake/gameOver; smoke 6/6; README árbol + changelog v32
+[33m36e9654[m v31 engine: pickups (js/engine/pickups.js: spawnWeaponPickup/updatePickups/updateWeaponPickups) extraídos de game.js; wrappers reasignan shards/currentWeapon; smoke 4/4; README árbol + changelog v31
+[33ma030c12[m Limpieza: quitar scripts/smock temporales del repo (_fix_tree.js, _smoke_dm.js)
+[33m9ebe68e[m v30 engine: drones.js (+NV.updateDrones) y meteors.js (+NV.updateMeteors) extraídos de game.js; wrappers reasignan arrays/callbacks; smoke 5/5; README árbol + changelog v30
+[33m85f4325[m Limpieza: quitar _fx.txt temporal del repo
+[33m858e3ac[m Fase B refactor: engine FX a js/engine/fx.js (+spawnExplosion/updateParticles/addFloatText/updateFloatTexts/updateTrails) via wrappers NV; smoke 6/6; README v29
+[33m772be99[m Fase A refactor: render desmonopolizado a js/render/ (projectiles/enemies/bosses/player/hud) via wrappers NV; game.js 2156->1734 lineas; smoke 22/22; README v28
+[33mccc1cf1[m CHECKPOINT · migración de arquitectura monolítica: estado estable validado (2 oleadas OK). Punto de restauración antes de descomponer game.js en módulos engine/render/ui/main.
+[33m7e26a42[m Fase 5: extraer balance (NV.BALANCE) y consumibles (NV.CONSUMABLES) a data/ via NV (aliases); README v27; node --check OK
+[33m18e3ab7[m Fase 4: extraer canvas/ctx y DOM a render/canvas.js + ui/dom.js via NV (aliases); node --check + smoke 13/13
+[33ma3f3715[m Fases 1-3: extraer core/data + core/utils; migrar audio a js/audio/synth.js via NV (aliases+getters); node --check + smoke 18/18
+[33mad84adc[m JUEGO DEMO DANEL
