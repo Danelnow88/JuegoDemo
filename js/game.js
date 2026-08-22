@@ -884,52 +884,11 @@
   }
 
   function spawnEnemy() {
-    if (enemies.length >= MAX_ENEMIES) return;
-    if (boss && !boss.dead) return;
-
-    const waveTier = Math.min(6, Math.floor(wave / 3));
-    const available = ENEMY_TYPES.slice(0, 2 + waveTier);
-    const type = available[Math.floor(Math.random() * available.length)];
-    const side = Math.random() < 0.5 ? 0 : W;
-    const y = 80 + Math.random() * (H - 200);
-        const hpScale = 1 + wave * 0.18;
-
-    enemies.push({
-      x: side, y: y,
-      hp: Math.round(type.hp * hpScale), maxHp: Math.round(type.hp * hpScale),
-      speed: type.speed + wave * 2,
-      radius: type.radius, color: type.color, shape: type.shape,
-      score: type.score * (1 + wave * 0.1), xp: type.xp * (1 + wave * 0.1),
-      dead: false, behavior: type.behavior,
-      angle: Math.random() * Math.PI * 2, erraticTimer: 0,
-      knockbackRes: type.knockbackRes || 0, knockVelX: 0, knockVelY: 0,
-      damage: type.damage || 10, shield: type.shield || false, shieldCd: 0, resist: type.resist || 0,
-      shootTimer: 0, stunChance: type.stunChance || 0,
-    });
+    NV.spawnEnemy({ enemies, MAX_ENEMIES, boss, wave, ENEMY_TYPES, W, H });
   }
 
   function spawnElite() {
-    if (wave < 2) return;
-    if (wave % 2 !== 0) return;
-    if (boss && !boss.dead) return; // No spawnear élites durante un jefe
-    const startIndex = ((wave / 2 - 1) * 2) % ELITE_TYPES.length;
-    for (let i = 0; i < 2; i++) {
-      if (enemies.length >= MAX_ENEMIES) break;
-      const elite = ELITE_TYPES[(startIndex + i) % ELITE_TYPES.length];
-      const side = Math.random() < 0.5 ? 0 : W;
-      const y = 80 + Math.random() * (H - 200);
-      enemies.push({
-        x: side, y: y,
-        hp: elite.hp + wave * 4, maxHp: elite.hp + wave * 4,
-        speed: elite.speed + wave,
-        radius: elite.radius, color: elite.color, shape: elite.shape,
-        score: elite.score, xp: elite.xp, dead: false,
-        behavior: elite.behavior, angle: Math.random() * Math.PI * 2,
-        erraticTimer: 0, isElite: true, eliteDamage: elite.damage,
-        knockbackRes: 0.3, knockVelX: 0, knockVelY: 0, shootTimer: 0,
-        stunChance: elite.stunChance || 0, resist: elite.resist || 0,
-      });
-    }
+    NV.spawnElite({ enemies, MAX_ENEMIES, boss, wave, ELITE_TYPES, W, H });
   }
 
   function spawnWeaponPickup() {
@@ -937,126 +896,19 @@
   }
 
   function killEnemy(e) {
-    e.dead = true;
-    score += e.score;
-    player.xp += e.xp;
-    addFloatText(e.x, e.y, '+' + Math.round(e.score), e.isElite ? '#ff0' : '#ffcf76');
-    while (player.xp >= player.xpToNext) {
-      player.xp -= player.xpToNext;
-      player.level++;
-      player.xpToNext = Math.floor(player.xpToNext * 1.5);
-      player.maxHp += 10;
-      player.hp = Math.min(player.hp + 20, player.maxHp);
-      addFloatText(player.x, player.y - 50, 'LEVEL UP!', '#ff0');
-      sfx.levelup();
-      triggerFlash('#ff0');
-    }
-    // El arma equipada gana XP por derribos y sube de nivel (más daño, se conserva al cambiar).
-    // El progreso de cada derribo pesa según la dificultad de la oleada.
-    const wid = currentWeapon.id;
-    const curLevel = weaponLevels[wid] || 1;
-    weaponKills[wid] = (weaponKills[wid] || 0) + weaponKillProgress();
-    if (weaponKills[wid] >= WEAPON_KILLS_PER_LEVEL * curLevel) {
-      weaponLevels[wid] = curLevel + 1;
-      addFloatText(player.x, player.y - 40, currentWeapon.name + ' → Nv ' + (curLevel + 1), '#ffd700');
-      sfx.levelup();
-    }
-    spawnExplosion(e.x, e.y, 8, e.color, 0.3);
-    if (Math.random() < 0.15 + player.luck * 0.01) pickups.push({ x: e.x, y: e.y, type: 'shard', dead: false });
-    sfx.explosion();
+    score = NV.killEnemy({
+      e, score, player, weaponLevels, weaponKills, currentWeapon,
+      WEAPON_KILLS_PER_LEVEL, addFloatText, spawnExplosion, triggerFlash, sfx, pickups, weaponKillProgress,
+    });
   }
 
   function updateEnemies(dt) {
-    for (const e of enemies) {
-      if (e.dead) continue;
-
-      const kb = e.knockVelX || 0;
-      const kby = e.knockVelY || 0;
-      const kbx = Math.abs(kb) > 0.1 ? kb : 0;
-      const kby2 = Math.abs(kby) > 0.1 ? kby : 0;
-
-            if (e.stun > 0) e.stun -= dt;
-            if (e.shieldCd > 0) e.shieldCd = Math.max(0, e.shieldCd - dt);
-      const stunned = e.stun > 0;
-      if (!stunned) {
-        if (e.behavior === 'chase') {
-          const angle = Math.atan2(player.y - e.y, player.x - e.x);
-          e.x += Math.cos(angle) * e.speed * dt + kbx * dt;
-          e.y += Math.sin(angle) * e.speed * dt + kby2 * dt;
-        } else if (e.behavior === 'erratic') {
-          e.erraticTimer -= dt;
-          if (e.erraticTimer <= 0) { e.angle += (Math.random() - 0.5) * 3; e.erraticTimer = 0.5; }
-          e.x += (Math.cos(e.angle) * e.speed + kbx) * dt;
-          e.y += (Math.sin(e.angle) * e.speed + kby2) * dt;
-        } else if (e.behavior === 'swarm') {
-          const angle = Math.atan2(player.y - e.y, player.x - e.x);
-          e.x += (Math.cos(angle) * e.speed + kbx) * dt;
-          e.y += (Math.sin(angle) * e.speed + kby2) * dt;
-          // Se juntan entre sí
-          for (const other of enemies) {
-            if (other !== e && !other.dead && Math.hypot(other.x - e.x, other.y - e.y) < e.radius * 4) {
-              const oa = Math.atan2(other.y - e.y, other.x - e.x);
-              e.x -= Math.cos(oa) * 10 * dt;
-              e.y -= Math.sin(oa) * 10 * dt;
-            }
-          }
-        } else if (e.behavior === 'shield') {
-          const angle = Math.atan2(player.y - e.y, player.x - e.x);
-          const dist = Math.hypot(player.x - e.x, player.y - e.y);
-          if (dist > e.radius + 30) {
-            e.x += Math.cos(angle) * e.speed * dt + kbx * dt;
-            e.y += Math.sin(angle) * e.speed * dt + kby2 * dt;
-          }
-        } else if (e.behavior === 'ranged') {
-          const dist = Math.hypot(player.x - e.x, player.y - e.y);
-          if (dist > 170) {
-            const angle = Math.atan2(player.y - e.y, player.x - e.x);
-            e.x += Math.cos(angle) * e.speed * 0.5 * dt + kbx * dt;
-            e.y += Math.sin(angle) * e.speed * 0.5 * dt + kby2 * dt;
-          } else {
-            // Separación suave para que no se apilen todos en un mismo punto.
-            for (const other of enemies) {
-              if (other === e || other.dead) continue;
-              const od = Math.hypot(other.x - e.x, other.y - e.y);
-              const minD = (e.radius + other.radius) * 0.7;
-              if (od > 0 && od < minD) {
-                const a2 = Math.atan2(e.y - other.y, e.x - other.x);
-                const push = (minD - od) * 1.2 * dt;
-                e.x += Math.cos(a2) * push;
-                e.y += Math.sin(a2) * push;
-              }
-            }
-            e.shootTimer += dt;
-            if (e.shootTimer > 1.2) {
-              e.shootTimer = 0;
-              const angle = Math.atan2(player.y - e.y, player.x - e.x);
-              if (bullets.length < MAX_BULLETS && enemyBulletCount() < MAX_ENEMY_BULLETS) bullets.push({ x: e.x, y: e.y, vx: Math.cos(angle) * 250, vy: Math.sin(angle) * 250, damage: e.damage, color: e.color, isEnemy: true, dead: false });
-            }
-          }
-        }
-      }
-
-      e.knockVelX = (e.knockVelX || 0) * 0.92;
-      e.knockVelY = (e.knockVelY || 0) * 0.92;
-
-            const d = Math.hypot(e.x - player.x, e.y - player.y);
-      if (d < e.radius + 20 && player.invuln <= 0 && player.stun <= 0) {
-        const baseDmg = e.isElite ? (e.eliteDamage || 0) : e.damage;
-        const hit = computePlayerHit(baseDmg);
-        if (hit.dodged) {
-          addFloatText(player.x, player.y - 20, 'ESQUIVA', '#8dfaff');
-        } else {
-          const damage = hit.dmg;
-          player.hp -= damage;
-          player.invuln = 0.5;
-          if (e.stunChance && Math.random() < e.stunChance) { player.stun = 0.6; addFloatText(player.x, player.y - 30, 'STUN', '#ff0'); }
-          shake = Math.max(shake, hit.crit ? 0.3 : 0.15);
-          addFloatText(player.x, player.y - 20, '-' + damage + (hit.crit ? ' ★CRIT' : ''), hit.crit ? '#ff0' : (e.isElite ? '#ff0' : '#ff5f9b'));
-          if (player.hp <= 0) { gameOver(); return; }
-        }
-      }
-    }
-    enemies = enemies.filter((e) => !e.dead);
+    const res = NV.updateEnemies(dt, {
+      enemies, player, bullets, MAX_BULLETS, MAX_ENEMY_BULLETS, shake,
+      enemyBulletCount, computePlayerHit, addFloatText,
+    });
+    enemies = res.enemies; shake = res.shake;
+    if (res.gameOver) { gameOver(); return; }
   }
 
   function updateBoss(dt) {

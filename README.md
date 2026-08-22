@@ -47,7 +47,8 @@ JuegoDemo/
     │   ├── fx.js        # Efectos/FX (partículas, textos flotantes, estelas): NV.spawnExplosion/updateParticles/addFloatText/updateFloatTexts/updateTrails
     │   ├── drones.js     # NV.updateDrones (disparo de drones ENJAMBRE)
     │   ├── meteors.js     # NV.updateMeteors (Lluvia Estelar)
-    │   └── pickups.js     # NV.spawnWeaponPickup/updatePickups/updateWeaponPickups (drop de armas + shards)
+    │   ├── pickups.js     # NV.spawnWeaponPickup/updatePickups/updateWeaponPickups (drop de armas + shards)
+    │   └── enemies.js     # NV.spawnEnemy/spawnElite/killEnemy/updateEnemies (comportamientos, daño, drop)
     └── game.js         # Motor restante (lógica, render, estado de entidades) — IIFE (en proceso de desmonopolización)
 ```
 
@@ -502,6 +503,15 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 - Orden de carga: `... render/hud.js` → `engine/fx.js, drones.js, meteors.js, pickups.js` → `game.js`.
 - Verificación: `node --check` OK en todos los engine modules + game.js; smoke runtime **4/4** (spawn dentro de pantalla; recolección de shard con filtro; guardar vs equipar según inventario).
 
+### v32 — Fase E del refactor: engine enemigos (spawns + comportamiento + derribo)
+- `spawnEnemy`, `spawnElite`, `killEnemy`, `updateEnemies` → `js/engine/enemies.js` (`NV.*`).
+  - `NV.spawnEnemy(st)` / `NV.spawnElite(st)`: push por ref (respeta `MAX_ENEMIES`, no durante jefe; élites solo waves pares ≥ 2).
+  - `NV.killEnemy(st)` → devuelve el **nuevo `score`** (primitivo `let`); muta `player` (xp/nivel/hp), `weaponLevels`/`weaponKills`/`pickups` por ref; usa callbacks `addFloatText`, `sfx`, `triggerFlash`, `spawnExplosion`, `weaponKillProgress`.
+  - `NV.updateEnemies(dt, st)` → `{ enemies, shake, gameOver }`: comportamientos (chase/erratic/swarm/shield/ranged + disparo), knockback decay, daño al jugador (vía `computePlayerHit`). `enemies` filtrado y `shake`/`gameOver` vuelven del retorno.
+- Patrón **ctxState + callbacks**: se pasan en un objeto `st` las constantes/arrays/closures; SOLO los primitivos `let` que cambian (`score`, `enemies` filtrado, `shake`) o flags (`gameOver`) se devuelven por el return.
+- Orden de carga: `... render/hud.js` → `engine/fx.js, drones.js, meteors.js, pickups.js, enemies.js` → `game.js`.
+- Verificación: `node --check` OK en todos los engine modules + game.js; smoke runtime **6/6** (spawn tope-máx + élite; killEnemy score/xp/level/arma; chase avanza; ranged dispara). `game.js` baja a ~1521 líneas.
+
 ---
 
 ## 🚀 Cómo ejecutar
@@ -689,6 +699,7 @@ JuegoDemo/
     │   ├── fx.js        # NV.spawnExplosion/updateParticles/addFloatText/updateFloatTexts/updateTrails
     │   ├── drones.js     # NV.updateDrones (disparo de drones ENJAMBRE)
     │   ├── meteors.js     # NV.updateMeteors (Lluvia Estelar)
-    │   └── pickups.js     # NV.spawnWeaponPickup/updatePickups/updateWeaponPickups (drop de armas + shards)
+    │   ├── pickups.js     # NV.spawnWeaponPickup/updatePickups/updateWeaponPickups (drop de armas + shards)
+    │   └── enemies.js     # NV.spawnEnemy/spawnElite/killEnemy/updateEnemies (comportamientos, daño, drop)
     └── game.js         # Motor restante (lógica, render, estado de entidades) — IIFE
 ```
