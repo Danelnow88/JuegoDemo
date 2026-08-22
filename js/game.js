@@ -306,7 +306,8 @@
     if (wave % 5 === 0) {
       const bossIndex = ((wave / 5 - 1) % BOSS_TYPES.length + BOSS_TYPES.length) % BOSS_TYPES.length;
       const bt = BOSS_TYPES[bossIndex];
-                  const bossHp = Math.round((bt.hp + wave * 25) * 1.35); // +35% HP: los jefes deben ser un reto real
+                  // HP cuadrático en la oleada: los jefes deben ser peleas largas, no piñatas.
+                  const bossHp = Math.round((bt.hp + wave * wave * 12 + wave * 40) * 1.5);
                   boss = { x: W/2, y: 100, hp: bossHp, maxHp: bossHp, radius: bt.radius, color: bt.color, timer: 0, atkTimer: 0, hitFlash: 0, name: bt.name, pattern: bt.pattern, attack: bt.attack, shape: bt.shape };
       showBanner('¡' + bt.name + '!', bt.color);
       triggerFlash(bt.color);
@@ -731,7 +732,7 @@
       }
       spawnElite();
       if (Math.random() < 0.03 + wave * 0.002) spawnWeaponPickup();
-      spawnTimer = Math.max(0.45, 1.3 - wave * 0.018);
+      spawnTimer = Math.max(0.25, 1.3 - wave * 0.035); // oleadas más densas
     }
 
         waveTimer -= dt;

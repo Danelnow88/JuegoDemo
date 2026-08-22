@@ -510,6 +510,12 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 - Orden de carga: `... render/hud.js` → `engine/fx.js, drones.js, meteors.js, pickups.js` → `game.js`.
 - Verificación: `node --check` OK en todos los engine modules + game.js; smoke runtime **4/4** (spawn dentro de pantalla; recolección de shard con filtro; guardar vs equipar según inventario).
 
+### v37 — rebalancing duro (ronda 2): jefes con pelea larga y PvE que molesta
+- **Jefes**: HP ahora **cuadrático en la oleada**: `(bt.hp + wave²×12 + wave×40) × 1.5` — oleada 5 ≈ 1425 HP, oleada 10 ≈ 3075, oleada 15 ≈ 5625, oleada 25 ≈ 13425 (antes ~945 en la 10; morían en segundos).
+- **PvE**: HP enemigo escala `0.30/oleada` (antes 0.22); **daño enemigo escala** `+1.5/oleada` (cap +60) y élites `+2/oleada` (cap +80) — antes el daño era plano y la armadura lo anulaba; HP de élite cuadrático (`90 + wave²×1.5`).
+- **Densidad**: intervalo de spawn `máx(0.25s, 1.3 − oleada×0.035)` (antes piso 0.45 y pendiente 0.018) → oleadas mucho más pobladas.
+
+
 ### v36 — rebalancing (tienda, economía y dificultad)
 - **Topes de tienda por partida** (`SHOP_CAPS`): +25 HP ×8, Armadura +3 ×5, Suerte +2 ×7. La oferta desaparece al agotar el tope (muestra `n/max`); se resetean en cada partida (`shopBought`). Agilidad ya tenía tope propio.
 - **Economía de 💎**: élite garantiza un shard de **valor 3** (`p.value`, soportado por `updatePickups`); jefe paga **50 + wave×5** (antes 30 fijos); fin de oleada da **8 + wave×2** (antes 10).

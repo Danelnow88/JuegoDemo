@@ -15,7 +15,8 @@
     const type = available[Math.floor(Math.random() * available.length)];
     const side = Math.random() < 0.5 ? 0 : st.W;
     const y = 80 + Math.random() * (st.H - 200);
-    const hpScale = 1 + st.wave * 0.22;
+    const hpScale = 1 + st.wave * 0.30;
+    const dmgScale = Math.min(60, Math.round(st.wave * 1.5)); // el daño enemigo también escala
     st.enemies.push({
       x: side, y: y,
       hp: Math.round(type.hp * hpScale), maxHp: Math.round(type.hp * hpScale),
@@ -25,7 +26,7 @@
       dead: false, behavior: type.behavior,
       angle: Math.random() * Math.PI * 2, erraticTimer: 0,
       knockbackRes: type.knockbackRes || 0, knockVelX: 0, knockVelY: 0,
-      damage: type.damage || 10, shield: type.shield || false, shieldCd: 0, resist: type.resist || 0,
+      damage: (type.damage || 10) + dmgScale, shield: type.shield || false, shieldCd: 0, resist: type.resist || 0,
       shootTimer: 0, stunChance: type.stunChance || 0,
     });
   };
@@ -41,14 +42,15 @@
       const elite = st.ELITE_TYPES[(startIndex + i) % st.ELITE_TYPES.length];
       const side = Math.random() < 0.5 ? 0 : st.W;
       const y = 80 + Math.random() * (st.H - 200);
+      const eliteDmg = elite.damage + Math.min(80, Math.round(st.wave * 2));
       st.enemies.push({
         x: side, y: y,
-        hp: elite.hp + st.wave * 4, maxHp: elite.hp + st.wave * 4,
+        hp: Math.round(elite.hp + st.wave * st.wave * 1.5), maxHp: Math.round(elite.hp + st.wave * st.wave * 1.5),
         speed: elite.speed + st.wave,
         radius: elite.radius, color: elite.color, shape: elite.shape,
         score: elite.score, xp: elite.xp, dead: false,
         behavior: elite.behavior, angle: Math.random() * Math.PI * 2,
-        erraticTimer: 0, isElite: true, eliteDamage: elite.damage,
+        erraticTimer: 0, isElite: true, eliteDamage: eliteDmg,
         knockbackRes: 0.3, knockVelX: 0, knockVelY: 0, shootTimer: 0,
         stunChance: elite.stunChance || 0, resist: elite.resist || 0,
       });
