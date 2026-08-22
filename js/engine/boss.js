@@ -44,17 +44,17 @@
         if (b.atkTimer >= 0.22) { st.sfx.bossAttack.repeater(); proj(b, 360, 13); b.atkTimer = 0; }
         break;
       case 'heavy':
-        if (b.atkTimer >= 1.8) { st.sfx.bossAttack.heavy(); proj(b, 420, 42); b.atkTimer = 0; }
+        if (b.atkTimer >= 1.35) { st.sfx.bossAttack.heavy(); proj(b, 420, 42); b.atkTimer = 0; }
         break;
       case 'summon':
-        if (b.atkTimer >= 3.5 && st.enemies.length < 22) {
+        if (b.atkTimer >= 2.6 && st.enemies.length < 26) {
           st.sfx.bossAttack.summon();
           minion(b.x, b.y + 40); minion(b.x + 30, b.y + 20); minion(b.x - 30, b.y + 20);
           b.atkTimer = 0;
         }
         break;
       case 'spread':
-        if (b.atkTimer >= 1.7) {
+        if (b.atkTimer >= 1.25) {
           st.sfx.bossAttack.spread();
           const cnt = 9;
           for (let i = 0; i < cnt; i++) {
@@ -66,20 +66,20 @@
         }
         break;
       case 'beam':
-        if (b.atkTimer >= 4.6) { st.sfx.bossAttack.beam(); proj(b, 560, 44); b.atkTimer = 0; b.beamWarned = false; }
-        else if (b.atkTimer >= 4.1 && !b.beamWarned) {
+        if (b.atkTimer >= 3.6) { st.sfx.bossAttack.beam(); proj(b, 560, 44); b.atkTimer = 0; b.beamWarned = false; }
+        else if (b.atkTimer >= 3.1 && !b.beamWarned) {
           b.beamWarned = true; st.triggerFlash('#ff5f9b');
           st.addFloatText(b.x, b.y - 60, '¡CARGANDO LÁSER!', '#ff5f9b');
         }
         break;
       case 'volley':
-        if (b.atkTimer >= 1.3) { st.sfx.bossAttack.volley(); proj(b, 420, 20, 5, 0.24); b.atkTimer = 0; }
+        if (b.atkTimer >= 0.95) { st.sfx.bossAttack.volley(); proj(b, 420, 20, 5, 0.24); b.atkTimer = 0; }
         break;
       case 'bomb':
-        if (b.atkTimer >= 2.0) { st.sfx.bossAttack.bomb(); proj(b, 200, 34); b.atkTimer = 0; }
+        if (b.atkTimer >= 1.6) { st.sfx.bossAttack.bomb(); proj(b, 200, 34); b.atkTimer = 0; }
         break;
       case 'orbs':
-        if (b.atkTimer >= 1.4) {
+        if (b.atkTimer >= 1.1) {
           st.sfx.bossAttack.orbs();
           const a = Math.atan2(st.player.y - b.y, st.player.x - b.x) + (Math.random() - 0.5) * 0.4;
           if (st.bullets.length < st.MAX_BULLETS && st.enemyBulletCount() < st.MAX_ENEMY_BULLETS) st.bullets.push({ x: b.x, y: b.y + 40, vx: Math.cos(a) * 300, vy: Math.sin(a) * 300, damage: 18, color: '#e0ffff', radius: 5, isEnemy: true, dead: false });
@@ -91,17 +91,17 @@
           b.split = true; st.sfx.bossAttack.split();
           minion(b.x, b.y); minion(b.x, b.y); minion(b.x + 25, b.y - 20);
         }
-        if (b.atkTimer >= 1.5) { st.sfx.bossAttack.split(); proj(b, 340, 24); b.atkTimer = 0; }
+        if (b.atkTimer >= 1.15) { st.sfx.bossAttack.split(); proj(b, 340, 24); b.atkTimer = 0; }
         break;
       case 'rage':
         {
           const hpct = b.hp / b.maxHp;
-          const cd = 0.9 + hpct * 1.5;
+          const cd = 0.55 + hpct * 1.2;
           if (b.atkTimer >= cd) { st.sfx.bossAttack.rage(); proj(b, 460, 26); b.atkTimer = 0; }
         }
         break;
       default:
-        if (b.atkTimer >= 1.5) { proj(b, 320, 18); b.atkTimer = 0; }
+        if (b.atkTimer >= 1.1) { proj(b, 320, 18); b.atkTimer = 0; }
     }
   };
 
@@ -143,8 +143,8 @@
       shake = Math.max(shake, 0.8);
     }
     if (boss.phase2) {
-      boss.atkTimer = (boss.atkTimer || 0) + dt * 0.9; // ataques ~2x más frecuentes
-      boss.timer += dt * 0.35; // patrón de movimiento más veloz
+      boss.atkTimer = (boss.atkTimer || 0) + dt * 1.4; // ataques notablemente más frecuentes en FASE 2
+      boss.timer += dt * 0.6; // patrón de movimiento más veloz
     }
 
     NV.runBossAttack(boss, dt, st);
@@ -153,7 +153,8 @@
       const bossName = boss.name, bossColor = boss.color;
       boss.dead = true;
       score += 500;
-      shards += 30;
+      // Recompensa escalada: el jefe es el contenido más difícil y financia ~1 mejora grande.
+      shards += 50 + wave * 5;
       st.spawnExplosion(boss.x, boss.y, 60, boss.color, 1.4);
       wave++;
       st.triggerWaveVictory(true, bossName, bossColor);

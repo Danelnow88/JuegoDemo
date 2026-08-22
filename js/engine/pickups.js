@@ -27,8 +27,9 @@
       const d = Math.hypot(p.x - player.x, p.y - player.y);
       if (d < 30) {
         p.dead = true;
-        shards += 1;
-        addFloatText(p.x, p.y - 10, '+1', '#7cf8ff');
+        const v = p.value || 1;
+        shards += v;
+        addFloatText(p.x, p.y - 10, '+' + v, '#7cf8ff');
         pickupSfx();
       }
     }

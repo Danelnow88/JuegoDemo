@@ -510,6 +510,14 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 - Orden de carga: `... render/hud.js` → `engine/fx.js, drones.js, meteors.js, pickups.js` → `game.js`.
 - Verificación: `node --check` OK en todos los engine modules + game.js; smoke runtime **4/4** (spawn dentro de pantalla; recolección de shard con filtro; guardar vs equipar según inventario).
 
+### v36 — rebalancing (tienda, economía y dificultad)
+- **Topes de tienda por partida** (`SHOP_CAPS`): +25 HP ×8, Armadura +3 ×5, Suerte +2 ×7. La oferta desaparece al agotar el tope (muestra `n/max`); se resetean en cada partida (`shopBought`). Agilidad ya tenía tope propio.
+- **Economía de 💎**: élite garantiza un shard de **valor 3** (`p.value`, soportado por `updatePickups`); jefe paga **50 + wave×5** (antes 30 fijos); fin de oleada da **8 + wave×2** (antes 10).
+- **PvE más difícil**: escala de HP enemiga `0.18→0.22/oleada`; velocidad `+2.5/oleada` con cap `+40`; crítico enemigo base `8%→10%`; élites desde oleada **3**, en oleadas impares (antes desde la 2, pares).
+- **Jefes realmente difíciles**: **+35% HP** (`(bt.hp + wave*25)×1.35`); FASE 2 acelera ataques ×1.4 (antes ×0.9) y movimiento ×0.6; cadencias reducidas: heavy 1.8→1.35, summon 3.5→2.6 (cap esbirros 26), spread 1.7→1.25, volley 1.3→0.95, bomb 2.0→1.6, orbs 1.4→1.1, split 1.5→1.15, rage cd `0.55+hpct×1.2`, default 1.5→1.1, beam 4.6→3.6.
+- **Tests**: nuevo `tests/economy.js` (3/3) — recompensa de jefe, valor de shards y topes definidos; `tests/space_special.js` sigue 4/4.
+
+
 ### v35 — fix: crash del ataque especial (barra espaciadora)
 - **Bug**: al lanzar el especial con cualquier personaje salvo `swarm` (Enjambre), el juego se congelaba en el frame siguiente. Causa: el wrapper de `useSpecial` en `game.js` no pasaba `drones` en el estado a `NV.useSpecial`, que devolvía `drones: undefined`; la rama hivemind lo reasignaba (`drones = []`) y por eso era el único inmune. El siguiente frame, `updateDrones` recibía `undefined` y la excepción cortaba el `requestAnimationFrame`.
 - **Fix**: 1 línea — pasar `drones` en el estado (game.js).

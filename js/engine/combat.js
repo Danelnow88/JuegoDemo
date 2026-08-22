@@ -7,7 +7,7 @@
 
   // Crit: la "suerte" del jugador baja la chance de crítico enemigo.
   NV.enemyCritChance = function (wave, player) {
-    return Math.max(0.05, Math.min(0.35, 0.08 + wave * 0.018 - player.luck * 0.0008));
+    return Math.max(0.05, Math.min(0.35, 0.10 + wave * 0.018 - player.luck * 0.0008));
   };
 
   NV.calcEnemyDamage = function (base, enemyCritChanceFn) {

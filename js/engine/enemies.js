@@ -15,11 +15,11 @@
     const type = available[Math.floor(Math.random() * available.length)];
     const side = Math.random() < 0.5 ? 0 : st.W;
     const y = 80 + Math.random() * (st.H - 200);
-    const hpScale = 1 + st.wave * 0.18;
+    const hpScale = 1 + st.wave * 0.22;
     st.enemies.push({
       x: side, y: y,
       hp: Math.round(type.hp * hpScale), maxHp: Math.round(type.hp * hpScale),
-      speed: type.speed + st.wave * 2,
+      speed: type.speed + Math.min(40, st.wave * 2.5),
       radius: type.radius, color: type.color, shape: type.shape,
       score: type.score * (1 + st.wave * 0.1), xp: type.xp * (1 + st.wave * 0.1),
       dead: false, behavior: type.behavior,
@@ -32,8 +32,8 @@
 
   // ---- Spawn élite (cada 2 oleadas, desde la 2) ----
   NV.spawnElite = function (st) {
-    if (st.wave < 2) return;
-    if (st.wave % 2 !== 0) return;
+    if (st.wave < 3) return;
+    if (st.wave % 2 === 0) return;
     if (st.boss && !st.boss.dead) return; // no élites durante un jefe
     const startIndex = ((st.wave / 2 - 1) * 2) % st.ELITE_TYPES.length;
     for (let i = 0; i < 2; i++) {
@@ -82,7 +82,12 @@
       st.sfx.levelup();
     }
     st.spawnExplosion(e.x, e.y, 8, e.color, 0.3);
-    if (Math.random() < 0.15 + st.player.luck * 0.01) st.pickups.push({ x: e.x, y: e.y, type: 'shard', dead: false });
+    if (e.isElite) {
+      // El élite garantiza shards de mayor valor: matarlo es una decisión económica.
+      st.pickups.push({ x: e.x, y: e.y, type: 'shard', value: 3, dead: false });
+    } else if (Math.random() < 0.15 + st.player.luck * 0.01) {
+      st.pickups.push({ x: e.x, y: e.y, type: 'shard', dead: false });
+    }
     st.sfx.explosion();
     return score;
   };

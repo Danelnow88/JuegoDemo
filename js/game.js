@@ -55,6 +55,9 @@
   // === PROGRESIÓN PERMANENTE ===
   let metaShards = 0;
   let permUpgrades = { damage: 0, speed: 0, hp: 0, armor: 0, luck: 0 };
+  // Compras por partida en la tienda de oleada (topes anti-acumulación infinita).
+  let shopBought = {};
+  const SHOP_CAPS = { hp: 8, armor: 5, luck: 7 }; // +25 HP ×8, +3 armadura ×5, +2 suerte ×7
 
   // Mejoras permanentes comprables con metaShards (afectan a TODOS los personajes).
   // El coste crece con el nivel y tienen un tope máximo (MAX_PERM_LEVEL).
@@ -278,6 +281,7 @@
     player.xp = 0; player.level = 1; player.xpToNext = 100;
 
     wave = 1; score = 0; shards = 0;
+    shopBought = {};
     enemies = []; bullets = []; particles = []; pickups = [];
     floatTexts = []; trails = []; weaponPickups = [];
     inventory = []; currentWeapon = WEAPONS[0]; consumableItems = [];
@@ -302,7 +306,8 @@
     if (wave % 5 === 0) {
       const bossIndex = ((wave / 5 - 1) % BOSS_TYPES.length + BOSS_TYPES.length) % BOSS_TYPES.length;
       const bt = BOSS_TYPES[bossIndex];
-                  boss = { x: W/2, y: 100, hp: bt.hp + wave * 25, maxHp: bt.hp + wave * 25, radius: bt.radius, color: bt.color, timer: 0, atkTimer: 0, hitFlash: 0, name: bt.name, pattern: bt.pattern, attack: bt.attack, shape: bt.shape };
+                  const bossHp = Math.round((bt.hp + wave * 25) * 1.35); // +35% HP: los jefes deben ser un reto real
+                  boss = { x: W/2, y: 100, hp: bossHp, maxHp: bossHp, radius: bt.radius, color: bt.color, timer: 0, atkTimer: 0, hitFlash: 0, name: bt.name, pattern: bt.pattern, attack: bt.attack, shape: bt.shape };
       showBanner('¡' + bt.name + '!', bt.color);
       triggerFlash(bt.color);
       spawnExplosion(boss.x, boss.y, 40, boss.color, 1);
@@ -493,24 +498,30 @@
     const weapons = [];
     const consumables = [];
 
-    upgrades.push({
-      icon: '💚', name: '+25 HP', desc: 'Vida máxima +25',
-      price: 15, buy: () => { player.maxHp += 25; player.hp += 25; },
-    });
+    if ((shopBought.hp || 0) < SHOP_CAPS.hp) {
+      upgrades.push({
+        icon: '💚', name: '+25 HP', desc: 'Vida máxima +25 (' + (shopBought.hp || 0) + '/' + SHOP_CAPS.hp + ')',
+        price: 15, buy: () => { player.maxHp += 25; player.hp += 25; shopBought.hp = (shopBought.hp || 0) + 1; },
+      });
+    }
     if (player.agility < MAX_AGILITY) {
       upgrades.push({
         icon: '🌀', name: 'Agilidad', desc: 'Responde más rápido: acelera y frena mejor (máx +100%)',
         price: 15, buy: () => { player.agility = Math.min(MAX_AGILITY, player.agility + AGILITY_PER_UPGRADE); },
       });
     }
-    upgrades.push({
-            icon: '🛡', name: 'Armadura', desc: '+3 armadura',
-      price: 20, buy: () => { player.armor += 3; },
-    });
-    upgrades.push({
-            icon: '🍀', name: 'Suerte', desc: '+2 suerte',
-      price: 20, buy: () => { player.luck += 2; },
-    });
+    if ((shopBought.armor || 0) < SHOP_CAPS.armor) {
+      upgrades.push({
+        icon: '🛡', name: 'Armadura', desc: '+3 armadura (' + (shopBought.armor || 0) + '/' + SHOP_CAPS.armor + ')',
+        price: 20, buy: () => { player.armor += 3; shopBought.armor = (shopBought.armor || 0) + 1; },
+      });
+    }
+    if ((shopBought.luck || 0) < SHOP_CAPS.luck) {
+      upgrades.push({
+        icon: '🍀', name: 'Suerte', desc: '+2 suerte (' + (shopBought.luck || 0) + '/' + SHOP_CAPS.luck + ')',
+        price: 20, buy: () => { player.luck += 2; shopBought.luck = (shopBought.luck || 0) + 1; },
+      });
+    }
 
     WEAPONS.forEach(w => {
       if (w !== currentWeapon && !inventory.includes(w)) {
@@ -727,7 +738,7 @@
     // Fin de oleada (sin jefe): se evalúa ANTES del countdown de transición para
     // evitar que abrir la tienda re-dispare la victoria en el mismo frame.
     if (transition <= 0 && waveTimer <= 0 && !boss) {
-      shards += 10 + wave * 2;
+      shards += 8 + wave * 2;
       triggerWaveVictory(false, null, null);
       wave++;
       waveTimer = Math.max(15, 25 - wave * 0.4); // arranca limpia la próxima oleada
