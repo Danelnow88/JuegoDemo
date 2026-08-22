@@ -34,9 +34,15 @@
     const count = Math.min(weapon.count || 1, 7);
     const spread = weapon.spread || 0;
     const target = NV.findTarget({ player, enemies, boss });
-    const baseAngle = target
-      ? Math.atan2(target.y - player.y, target.x - player.x)
-      : -Math.PI / 2;
+
+    // === RANGO DE ACTIVACIÓN ===
+    // El arma solo dispara si hay objetivo y está dentro de su alcance (config por arma en WEAPONS.range).
+    // Devuelve false para que game.js reintente pronto sin consumir la cadencia del arma.
+    if (!target) return false;
+    const range = weapon.range || Infinity;
+    if (Math.hypot(target.x - player.x, target.y - player.y) > range) return false;
+
+    const baseAngle = Math.atan2(target.y - player.y, target.x - player.x);
 
     // Durante overdrive, disparos duplicados
     const actualCount = player.overdrive > 0 ? count * 2 : count;

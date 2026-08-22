@@ -510,6 +510,13 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 - Orden de carga: `... render/hud.js` → `engine/fx.js, drones.js, meteors.js, pickups.js` → `game.js`.
 - Verificación: `node --check` OK en todos los engine modules + game.js; smoke runtime **4/4** (spawn dentro de pantalla; recolección de shard con filtro; guardar vs equipar según inventario).
 
+### v39 — rango de activación por arma (attack range)
+- Nuevo campo **`range` (px) en cada arma** de `data/gameData.js` — centralizado en la config, sin hardcodeos.
+- `NV.shoot` solo dispara si hay objetivo y está dentro del alcance del arma; devuelve `false` si está fuera de rango o no hay objetivo, y `game.js` reintenta en ~1 frame (`MIN_FIRE_INTERVAL`) sin consumir la cadencia del arma ni reproducir sonido.
+- Rangos: railgun 800 · sniper 700 · bow 540 · plasma 520 · rifle 480 · laser 450 · pistol 380 · smg 320 · shotgun 240 · flamethrower 170.
+- **Tests**: nuevo `tests/weapon_range.js` (4/4) — range definido en todas, orden relativo coherente, no-disparo fuera de rango, disparo dentro de rango y en el límite exacto.
+
+
 ### v38 — IA de jefes: puntería predictiva, ataques adaptativos, stun y más durabilidad
 - **Durabilidad**: multiplicador global de HP de jefe `×1.5 → ×1.8` (oleada 10 ≈ 3.690 HP).
 - **IA predictiva**: nueva `NV.predictAim` — los proyectiles del jefe apuntan a donde *estará* el jugador (lead al 80% del tiempo de vuelo, esquivable cambiando de dirección). Integrada en `spawnBossProj`.

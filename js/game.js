@@ -712,8 +712,8 @@
     fireTimer -= dt;
     if (fireTimer <= 0 && hitstop <= 0) {
       if (playerBulletCount() < MAX_PLAYER_BULLETS) {
-        shoot();
-        fireTimer = weaponFireInterval();
+        if (shoot() !== false) fireTimer = weaponFireInterval();
+        else fireTimer = MIN_FIRE_INTERVAL; // fuera de rango: reintentar enseguida sin gastar cadencia
       } else {
         // Buffer casi lleno (p. ej. con overdrive activo): reintentar enseguida.
         fireTimer = MIN_FIRE_INTERVAL;
@@ -775,7 +775,7 @@
   }
 
   function shoot() {
-    NV.shoot({
+    return NV.shoot({
       player, enemies, boss, bullets, currentWeapon,
       currentWeaponLevel, weaponVisualTier, BULLET_TIER_COLORS, MAX_BULLETS,
       permDamageBonus: permUpgrades.damage, playWeaponSound,
