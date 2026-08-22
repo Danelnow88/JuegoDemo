@@ -9,7 +9,8 @@ function t(desc, fn) { try { fn(); pass++; console.log('  ok  ' + desc); } catch
 t('jefe muerto paga 50 + wave*5 (wave 10 => 100)', () => {
   const boss = { pattern: 'chase', timer: 0, hp: 0, maxHp: 500, dead: false, name: 'B', color: '#f00', radius: 30 };
   const res = NV.updateBoss(0.1, { boss, W: 800, H: 600, score: 0, shards: 5, wave: 10, shake: 0,
-    sfx: { bossAttack: {} }, enemies: [], bullets: [], MAX_BULLETS: 50, MAX_ENEMY_BULLETS: 50, enemyBulletCount: () => 0,
+    player: { x: 400, y: 500, hp: 100, maxHp: 100 },
+    sfx: { bossAttack: new Proxy({}, { get: () => () => {} }) }, enemies: [], bullets: [], MAX_BULLETS: 50, MAX_ENEMY_BULLETS: 50, enemyBulletCount: () => 0,
     showBanner: () => {}, triggerFlash: () => {}, spawnExplosion: () => {}, addFloatText: () => {},
     triggerWaveVictory: () => {}, runBossAttack: () => {}, spawnBossProj: () => {}, spawnMinion: () => {} });
   if (res.shards !== 105) throw new Error('shards=' + res.shards);

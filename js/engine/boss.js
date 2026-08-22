@@ -6,16 +6,49 @@
   'use strict';
   const NV = window.NV;
 
-  // ---- Proyectil del jefe (disparo guiado al jugador, salida debajo del cuerpo) ----
-  NV.spawnBossProj = function (b, speed, damage, count, spread, color, radius, st) {
+  // ---- IA: puntería predictiva (apunta a donde ESTARÁ el jugador, con 80% de lead para que sea esquivable) ----
+  NV.predictAim = function (b, st, projSpeed) {
+    const p = st.player;
+    const dx = p.x - b.x, dy = p.y - b.y;
+    const vx = p.moveVx || 0, vy = p.moveVy || 0;
+    if (!projSpeed || (!vx && !vy)) return Math.atan2(dy, dx);
+    const t = Math.min(0.8, Math.hypot(dx, dy) / projSpeed);
+    return Math.atan2(dy + vy * t * 0.8, dx + vx * t * 0.8);
+  };
+
+  // ---- Proyectil del jefe (puntería predictiva, salida debajo del cuerpo; stun opcional por disparo) ----
+  NV.spawnBossProj = function (b, speed, damage, count, spread, color, radius, st, stun) {
     if (!b) return;
     const cnt = count || 1;
-    const angle = Math.atan2(st.player.y - b.y, st.player.x - b.x);
+    const baseAngle = NV.predictAim(b, st, speed);
     const spreadA = spread || 0;
+    const sc = (stun !== undefined ? stun : b.stunChance) || 0;
     for (let i = 0; i < cnt && st.bullets.length < st.MAX_BULLETS && st.enemyBulletCount() < st.MAX_ENEMY_BULLETS; i++) {
-      const a = cnt > 1 ? angle + (i - (cnt - 1) / 2) * spreadA : angle;
-      st.bullets.push({ x: b.x, y: b.y + 40, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, damage: damage, color: color || b.color, radius: radius || 5, isEnemy: true, dead: false, stunChance: b.stunChance || 0 });
+      const a = cnt > 1 ? baseAngle + (i - (cnt - 1) / 2) * spreadA : baseAngle;
+      st.bullets.push({ x: b.x, y: b.y + 40, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, damage: damage, color: color || b.color, radius: radius || 5, isEnemy: true, dead: false, stunChance: sc });
     }
+  };
+
+  // ---- IA adaptativa: elige el ataque según el estado del jugador/arena ----
+  // Cada jefe conserva su ataque primario como identidad; rota entre un pool secundario propio.
+  NV.AI_SECONDARY = {
+    repeater: ['spread', 'volley'], heavy: ['volley', 'bomb'], summon: ['orbs', 'spread'],
+    spread: ['volley', 'repeater'], beam: ['heavy', 'spread'], volley: ['spread', 'repeater'],
+    bomb: ['heavy', 'volley'], orbs: ['spread', 'volley'], split: ['volley', 'spread'], rage: ['heavy', 'beam'],
+  };
+  NV.selectBossAttack = function (b, st) {
+    const p = st.player;
+    const dist = Math.hypot(p.x - b.x, p.y - b.y);
+    const pool = NV.AI_SECONDARY[b.primaryAttack] || ['volley', 'spread'];
+    const lowHp = p.maxHp > 0 && p.hp / p.maxHp < 0.35;
+    if (b.primaryAttack === 'summon') {
+      // Identidad invocadora: invoca salvo que la arena esté saturada.
+      return st.enemies.length >= 15 ? 'repeater' : 'summon';
+    }
+    if (lowHp && dist < 280) return 'volley';           // remate agresivo si el jugador está herido y cerca
+    if (dist > 380) return pool[0];                      // lejos: presión a distancia
+    if (st.enemies.length < 3 && b.phase2) return pool[1]; // fase 2 con arena limpia: cambia de registro
+    return b.primaryAttack;                              // por defecto, su mecánica única
   };
 
   // ---- Esbirro (funciona incluso durante pelea con jefe) ----
@@ -37,14 +70,14 @@
   NV.runBossAttack = function (b, dt, st) {
     b.atkTimer = (b.atkTimer || 0) + dt;
     const s = b.attack;
-    const proj = st.spawnBossProj;
+    const proj = (speed, damage, count, spread, color, radius, stun) => st.spawnBossProj(b, speed, damage, count, spread, color, radius, st, stun);
     const minion = st.spawnMinion;
     switch (s) {
       case 'repeater':
-        if (b.atkTimer >= 0.22) { st.sfx.bossAttack.repeater(); proj(b, 360, 13); b.atkTimer = 0; }
+        if (b.atkTimer >= 0.22) { st.sfx.bossAttack.repeater(); proj(360, 13); b.atkTimer = 0; }
         break;
       case 'heavy':
-        if (b.atkTimer >= 1.35) { st.sfx.bossAttack.heavy(); proj(b, 420, 42); b.atkTimer = 0; }
+        if (b.atkTimer >= 1.35) { st.sfx.bossAttack.heavy(); proj(420, 42, 1, 0, undefined, undefined, 0.25); b.atkTimer = 0; } // golpe pesado: aturde a veces
         break;
       case 'summon':
         if (b.atkTimer >= 2.6 && st.enemies.length < 26) {
@@ -56,9 +89,11 @@
       case 'spread':
         if (b.atkTimer >= 1.25) {
           st.sfx.bossAttack.spread();
+          // Espiral rotante: cada ráfaga rota el anillo, cubriendo más ángulos entre casts
+          b.spiralOff = (b.spiralOff || 0) + 0.35;
           const cnt = 9;
           for (let i = 0; i < cnt; i++) {
-            const a = (i / cnt) * Math.PI * 2;
+            const a = b.spiralOff + (i / cnt) * Math.PI * 2;
             if (st.bullets.length >= st.MAX_BULLETS || st.enemyBulletCount() >= st.MAX_ENEMY_BULLETS) break;
             st.bullets.push({ x: b.x, y: b.y + 40, vx: Math.cos(a) * 260, vy: Math.sin(a) * 260, damage: 18, color: b.color, radius: 5, isEnemy: true, dead: false });
           }
@@ -66,17 +101,20 @@
         }
         break;
       case 'beam':
-        if (b.atkTimer >= 3.6) { st.sfx.bossAttack.beam(); proj(b, 560, 44); b.atkTimer = 0; b.beamWarned = false; }
+        if (b.atkTimer >= 3.6) { st.sfx.bossAttack.beam(); proj(560, 44, 1, 0, '#ff5f9b', 9, 0.35); b.atkTimer = 0; b.beamWarned = false; } // láser cargado: stun alto
         else if (b.atkTimer >= 3.1 && !b.beamWarned) {
           b.beamWarned = true; st.triggerFlash('#ff5f9b');
           st.addFloatText(b.x, b.y - 60, '¡CARGANDO LÁSER!', '#ff5f9b');
         }
         break;
       case 'volley':
-        if (b.atkTimer >= 0.95) { st.sfx.bossAttack.volley(); proj(b, 420, 20, 5, 0.24); b.atkTimer = 0; }
+        // Cadena de proyectiles: ráfaga principal + ráfaga rápida de seguimiento
+        if (b.atkTimer >= (b.chaining ? 0.18 : 0.95)) {
+          st.sfx.bossAttack.volley(); proj(420, 20, 5, 0.24); b.atkTimer = 0; b.chaining = !b.chaining;
+        }
         break;
       case 'bomb':
-        if (b.atkTimer >= 1.6) { st.sfx.bossAttack.bomb(); proj(b, 200, 34); b.atkTimer = 0; }
+        if (b.atkTimer >= 1.6) { st.sfx.bossAttack.bomb(); proj(200, 34, 1, 0, undefined, undefined, 0.3); b.atkTimer = 0; } // bomba: stun al impactar
         break;
       case 'orbs':
         if (b.atkTimer >= 1.1) {
@@ -91,17 +129,17 @@
           b.split = true; st.sfx.bossAttack.split();
           minion(b.x, b.y); minion(b.x, b.y); minion(b.x + 25, b.y - 20);
         }
-        if (b.atkTimer >= 1.15) { st.sfx.bossAttack.split(); proj(b, 340, 24); b.atkTimer = 0; }
+        if (b.atkTimer >= 1.15) { st.sfx.bossAttack.split(); proj(340, 24); b.atkTimer = 0; }
         break;
       case 'rage':
         {
           const hpct = b.hp / b.maxHp;
           const cd = 0.55 + hpct * 1.2;
-          if (b.atkTimer >= cd) { st.sfx.bossAttack.rage(); proj(b, 460, 26); b.atkTimer = 0; }
+          if (b.atkTimer >= cd) { st.sfx.bossAttack.rage(); proj(460, 26); b.atkTimer = 0; }
         }
         break;
       default:
-        if (b.atkTimer >= 1.1) { proj(b, 320, 18); b.atkTimer = 0; }
+        if (b.atkTimer >= 1.1) { proj(320, 18); b.atkTimer = 0; }
     }
   };
 
@@ -138,6 +176,7 @@
     // === FASE 2 (por debajo del 50% de HP) ===
     if (!boss.phase2 && boss.hp <= boss.maxHp * 0.5) {
       boss.phase2 = true;
+      boss.aiTimer = 99; // fuerza re-selección de ataque al entrar en fase 2
       st.showBanner('¡FASE 2! ' + boss.name, '#ff5f9b');
       st.triggerFlash('#ff5f9b');
       shake = Math.max(shake, 0.8);
@@ -146,6 +185,11 @@
       boss.atkTimer = (boss.atkTimer || 0) + dt * 1.4; // ataques notablemente más frecuentes en FASE 2
       boss.timer += dt * 0.6; // patrón de movimiento más veloz
     }
+
+    // IA adaptativa: re-evalúa el ataque cada pocos segundos según el estado del jugador/arena
+    boss.primaryAttack = boss.primaryAttack || boss.attack;
+    boss.aiTimer = (boss.aiTimer || 0) + dt;
+    if (boss.aiTimer >= (boss.phase2 ? 5 : 8)) { boss.aiTimer = 0; boss.attack = NV.selectBossAttack(boss, st); boss.atkTimer = 0; }
 
     NV.runBossAttack(boss, dt, st);
 

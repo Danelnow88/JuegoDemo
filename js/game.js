@@ -306,8 +306,8 @@
     if (wave % 5 === 0) {
       const bossIndex = ((wave / 5 - 1) % BOSS_TYPES.length + BOSS_TYPES.length) % BOSS_TYPES.length;
       const bt = BOSS_TYPES[bossIndex];
-                  // HP cuadrático en la oleada: los jefes deben ser peleas largas, no piñatas.
-                  const bossHp = Math.round((bt.hp + wave * wave * 12 + wave * 40) * 1.5);
+                  // HP cuadrático en la oleada y durabilidad global: peleas largas y con peso.
+                  const bossHp = Math.round((bt.hp + wave * wave * 12 + wave * 40) * 1.8);
                   boss = { x: W/2, y: 100, hp: bossHp, maxHp: bossHp, radius: bt.radius, color: bt.color, timer: 0, atkTimer: 0, hitFlash: 0, name: bt.name, pattern: bt.pattern, attack: bt.attack, shape: bt.shape };
       showBanner('¡' + bt.name + '!', bt.color);
       triggerFlash(bt.color);

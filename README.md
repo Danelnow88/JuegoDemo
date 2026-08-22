@@ -510,6 +510,15 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 - Orden de carga: `... render/hud.js` → `engine/fx.js, drones.js, meteors.js, pickups.js` → `game.js`.
 - Verificación: `node --check` OK en todos los engine modules + game.js; smoke runtime **4/4** (spawn dentro de pantalla; recolección de shard con filtro; guardar vs equipar según inventario).
 
+### v38 — IA de jefes: puntería predictiva, ataques adaptativos, stun y más durabilidad
+- **Durabilidad**: multiplicador global de HP de jefe `×1.5 → ×1.8` (oleada 10 ≈ 3.690 HP).
+- **IA predictiva**: nueva `NV.predictAim` — los proyectiles del jefe apuntan a donde *estará* el jugador (lead al 80% del tiempo de vuelo, esquivable cambiando de dirección). Integrada en `spawnBossProj`.
+- **IA adaptativa**: nueva `NV.selectBossAttack` — cada jefe conserva su ataque primario como identidad pero re-evalúa cada 8s (5s en FASE 2): invocador sigue invocando salvo arena saturada; remata con `volley` si el jugador está herido (<35% HP) y cerca; presión a distancia (`spread`) si el jugador está lejos; en FASE 2 con arena limpia cambia de registro vía pool secundario propio (`NV.AI_SECONDARY`). Al entrar en FASE 2 fuerza re-selección inmediata.
+- **Stun por ataque**: subset de ataques ahora puede aturdir — heavy 25%, bomba 30%, láser cargado (beam) 35%. El resto usa el `stunChance` base del jefe.
+- **Patrones variados**: `spread` ahora dispara **espiral rotante** (offset +0.35 rad por ráfaga); `volley` encadena ráfaga principal + seguimiento rápido (0.18s).
+- **Tests**: nuevo `tests/boss_ai.js` (5/5) — fórmula de HP, lead predictivo, stun por disparo, árbol de decisión adaptativo e integración en `updateBoss`.
+
+
 ### v37 — rebalancing duro (ronda 2): jefes con pelea larga y PvE que molesta
 - **Jefes**: HP ahora **cuadrático en la oleada**: `(bt.hp + wave²×12 + wave×40) × 1.5` — oleada 5 ≈ 1425 HP, oleada 10 ≈ 3075, oleada 15 ≈ 5625, oleada 25 ≈ 13425 (antes ~945 en la 10; morían en segundos).
 - **PvE**: HP enemigo escala `0.30/oleada` (antes 0.22); **daño enemigo escala** `+1.5/oleada` (cap +60) y élites `+2/oleada` (cap +80) — antes el daño era plano y la armadura lo anulaba; HP de élite cuadrático (`90 + wave²×1.5`).
