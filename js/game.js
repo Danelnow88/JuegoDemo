@@ -912,246 +912,48 @@
   }
 
   function updateBoss(dt) {
-    if (!boss || boss.dead) return;
-    boss.timer += dt;
-
-    if (boss.pattern === 'chase') { boss.x = W / 2 + Math.sin(boss.timer * 0.3) * 200; }
-    else if (boss.pattern === 'charge') { boss.x = W / 2 + Math.sin(boss.timer * 0.5) * 300; boss.y = 100 + Math.sin(boss.timer * 0.5) * 30; }
-    else if (boss.pattern === 'circle') { boss.x = W / 2 + Math.cos(boss.timer) * 250; boss.y = 100 + Math.sin(boss.timer * 0.7) * 100; }
-    else if (boss.pattern === 'burst') { boss.x = W / 2 + Math.sin(boss.timer * 2) * 150; }
-    else if (boss.pattern === 'teleport') {
-      boss.teleportTimer = (boss.teleportTimer || 0) + dt;
-      if (boss.teleportTimer >= 2.2) {
-        boss.teleportTimer = 0;
-        spawnExplosion(boss.x, boss.y, 18, boss.color, 0.6);
-        boss.x = 100 + Math.random() * (W - 200);
-        boss.y = 100 + Math.random() * 200;
-        spawnExplosion(boss.x, boss.y, 18, boss.color, 0.6);
-      }
-    }
-    else if (boss.pattern === 'slow_charge') { boss.x = W / 2 + Math.sin(boss.timer * 0.3) * 350; }
-    else if (boss.pattern === 'phase') { boss.x = W / 2 + Math.sin(boss.timer) * 180; boss.y = 80 + Math.cos(boss.timer * 1.5) * 80; }
-    else if (boss.pattern === 'split') { boss.x = W / 2 + Math.sin(boss.timer * 0.8) * 220; }
-    else if (boss.pattern === 'rage') { boss.x = W / 2 + Math.sin(boss.timer * 1.2) * 280; boss.y = 100 + Math.cos(boss.timer) * 120; }
-    else { boss.x = W / 2 + Math.sin(boss.timer) * 200; }
-
-// === FASE 2 (por debajo del 50% de HP) ===
-    if (!boss.phase2 && boss.hp <= boss.maxHp * 0.5) {
-      boss.phase2 = true;
-      showBanner('¡FASE 2! ' + boss.name, '#ff5f9b');
-      triggerFlash('#ff5f9b');
-      shake = Math.max(shake, 0.8);
-    }
-    if (boss.phase2) {
-      boss.atkTimer = (boss.atkTimer || 0) + dt * 0.9; // ataques ~2x más frecuentes
-      boss.timer += dt * 0.35; // patrón de movimiento más veloz
-    }
-    // === ATAQUES PROPIOS DE CADA JEFE (arma / sonido / timing distintos) ===
-
-    runBossAttack(boss, dt);
-
-    if (boss.hp <= 0) {
-      const bossName = boss.name, bossColor = boss.color;
-      boss.dead = true;
-      score += 500;
-      shards += 30;
-      spawnExplosion(boss.x, boss.y, 60, boss.color, 1.4);
-      wave++;
-      boss = null;
-            triggerWaveVictory(true, bossName, bossColor);
-    }
+    const res = NV.updateBoss(dt, {
+      boss, player, enemies, bullets, W, H,
+      score, shards, wave, shake,
+      MAX_BULLETS, MAX_ENEMY_BULLETS, enemyBulletCount, ENEMY_TYPES,
+      spawnExplosion, showBanner, triggerFlash, triggerWaveVictory, addFloatText, sfx,
+      spawnBossProj, spawnMinion, runBossAttack,
+    });
+    score = res.score; shards = res.shards; wave = res.wave; shake = res.shake; boss = res.boss;
   }
 
     // === DIFICULTAD PROGRESIVA: críticos escalables con la oleada (PvE) ===
   // La "suerte" del jugador reduce la chance de crítico enemigo.
-  function enemyCritChance() { return Math.max(0.05, Math.min(0.35, 0.08 + wave * 0.018 - player.luck * 0.0008)); }
-  function calcEnemyDamage(base) {
-    const crit = Math.random() < enemyCritChance();
-    return { dmg: crit ? Math.round(base * 1.6) : base, crit };
-  }
-  // Daño que recibe el jugador: crítico → armadura (plano) → pasiva del personaje → esquiva.
-  function computePlayerHit(base) {
-    const char = CHARACTERS[player.character];
-    if ((char.dodge || 0) > 0 && Math.random() < char.dodge) {
-      return { dodged: true };
-    }
-    const c = calcEnemyDamage(base);
-    let dmg = Math.max(1, c.dmg - player.armor);
-    const mult = char.takeDmgMult || 1;
-    dmg = Math.max(1, Math.round(dmg * mult));
-    return { dodged: false, dmg, crit: c.crit };
-  }
+  function enemyCritChance() { return NV.enemyCritChance(wave, player); }
+  function calcEnemyDamage(base) { return NV.calcEnemyDamage(base, enemyCritChance); }
+  function computePlayerHit(base) { return NV.computePlayerHit(base, { player, CHARACTERS, calcEnemyDamage }); }
 
   // === PROYECTILES Y ATAQUES DISTINTOS POR JEFE ===
   function spawnBossProj(b, speed, damage, count, spread, color, radius) {
-    if (!b) return;
-    const cnt = count || 1;
-    const angle = Math.atan2(player.y - b.y, player.x - b.x);
-    const spreadA = spread || 0;
-    for (let i = 0; i < cnt && bullets.length < MAX_BULLETS && enemyBulletCount() < MAX_ENEMY_BULLETS; i++) {
-      const a = cnt > 1 ? angle + (i - (cnt - 1) / 2) * spreadA : angle;
-      bullets.push({ x: b.x, y: b.y + 40, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, damage: damage, color: color || b.color, radius: radius || 5, isEnemy: true, dead: false, stunChance: b.stunChance || 0 });
-    }
+    return NV.spawnBossProj(b, speed, damage, count, spread, color, radius, { player, bullets, MAX_BULLETS, enemyBulletCount, MAX_ENEMY_BULLETS });
   }
 
   // Esbirros invocados (funciona incluso durante la pelea con un jefe)
   function spawnMinion(x, y) {
-    if (enemies.length >= 40) return;
-    const t = ENEMY_TYPES[0];
-    const e = {
-      x: x, y: y,
-      hp: Math.round(20 * (1 + wave * 0.3)), speed: t.speed + wave * 2, radius: 9, color: t.color, shape: 'circle',
-      score: 8, xp: 8, dead: false, behavior: 'chase', angle: Math.random() * Math.PI * 2,
-      erraticTimer: 0, isElite: false, eliteDamage: 8, knockbackRes: 0, knockVelX: 0, knockVelY: 0,
-      damage: 8, shield: false, shootTimer: 0, stun: 0,
-    };
-    e.maxHp = e.hp;
-    enemies.push(e);
+    return NV.spawnMinion(x, y, { enemies, wave, ENEMY_TYPES });
   }
 
   function runBossAttack(b, dt) {
-    b.atkTimer = (b.atkTimer || 0) + dt;
-    const s = b.attack;
-    switch (s) {
-      case 'repeater':
-        if (b.atkTimer >= 0.22) { sfx.bossAttack.repeater(); spawnBossProj(b, 360, 13); b.atkTimer = 0; }
-        break;
-      case 'heavy':
-        if (b.atkTimer >= 1.8) { sfx.bossAttack.heavy(); spawnBossProj(b, 420, 42); b.atkTimer = 0; }
-        break;
-      case 'summon':
-        if (b.atkTimer >= 3.5 && enemies.length < 22) {
-          sfx.bossAttack.summon();
-          spawnMinion(b.x, b.y + 40); spawnMinion(b.x + 30, b.y + 20); spawnMinion(b.x - 30, b.y + 20);
-          b.atkTimer = 0;
-        }
-        break;
-      case 'spread':
-        if (b.atkTimer >= 1.7) {
-          sfx.bossAttack.spread();
-          const cnt = 9;
-          for (let i = 0; i < cnt; i++) {
-            const a = (i / cnt) * Math.PI * 2;
-            if (bullets.length >= MAX_BULLETS || enemyBulletCount() >= MAX_ENEMY_BULLETS) break;
-            bullets.push({ x: b.x, y: b.y + 40, vx: Math.cos(a) * 260, vy: Math.sin(a) * 260, damage: 18, color: b.color, radius: 5, isEnemy: true, dead: false });
-          }
-          b.atkTimer = 0;
-        }
-        break;
-      case 'beam':
-        if (b.atkTimer >= 4.6) { sfx.bossAttack.beam(); spawnBossProj(b, 560, 44); b.atkTimer = 0; b.beamWarned = false; }
-        else if (b.atkTimer >= 4.1 && !b.beamWarned) {
-          b.beamWarned = true; triggerFlash('#ff5f9b');
-          addFloatText(b.x, b.y - 60, '¡CARGANDO LÁSER!', '#ff5f9b');
-        }
-        break;
-      case 'volley':
-        if (b.atkTimer >= 1.3) { sfx.bossAttack.volley(); spawnBossProj(b, 420, 20, 5, 0.24); b.atkTimer = 0; }
-        break;
-      case 'bomb':
-        if (b.atkTimer >= 2.0) { sfx.bossAttack.bomb(); spawnBossProj(b, 200, 34); b.atkTimer = 0; }
-        break;
-      case 'orbs':
-        if (b.atkTimer >= 1.4) {
-          sfx.bossAttack.orbs();
-          const a = Math.atan2(player.y - b.y, player.x - b.x) + (Math.random() - 0.5) * 0.4;
-          if (bullets.length < MAX_BULLETS && enemyBulletCount() < MAX_ENEMY_BULLETS) bullets.push({ x: b.x, y: b.y + 40, vx: Math.cos(a) * 300, vy: Math.sin(a) * 300, damage: 18, color: '#e0ffff', radius: 5, isEnemy: true, dead: false });
-          b.atkTimer = 0;
-        }
-        break;
-      case 'split':
-        if (!b.split && b.hp < b.maxHp / 2) {
-          b.split = true; sfx.bossAttack.split();
-          spawnMinion(b.x, b.y); spawnMinion(b.x, b.y); spawnMinion(b.x + 25, b.y - 20);
-        }
-        if (b.atkTimer >= 1.5) { sfx.bossAttack.split(); spawnBossProj(b, 340, 24); b.atkTimer = 0; }
-        break;
-      case 'rage':
-        {
-          const hpct = b.hp / b.maxHp;
-          const cd = 0.9 + hpct * 1.5;
-          if (b.atkTimer >= cd) { sfx.bossAttack.rage(); spawnBossProj(b, 460, 26); b.atkTimer = 0; }
-        }
-        break;
-      default:
-        if (b.atkTimer >= 1.5) { spawnBossProj(b, 320, 18); b.atkTimer = 0; }
-    }
+    return NV.runBossAttack(b, dt, {
+      player, enemies, bullets, sfx, triggerFlash, addFloatText,
+      MAX_BULLETS, MAX_ENEMY_BULLETS, enemyBulletCount,
+      spawnBossProj, spawnMinion,
+    });
   }
 
   function updateBullets(dt) {
-    for (const b of bullets) {
-      if (b.dead) continue;
-      b.x += b.vx * dt;
-      b.y += b.vy * dt;
-      if (b.x < -10 || b.x > W + 10 || b.y < -10 || b.y > H + 10) { b.dead = true; continue; }
-
-      if (b.isEnemy) {
-        const d = Math.hypot(b.x - player.x, b.y - player.y);
-        const playerRadius = (CHARACTERS[player.character].size || 20) * 0.45;
-        const hitRadius = playerRadius + (b.radius || 5);
-        if (d < hitRadius) {
-          if (player.bulwark > 0) {
-            // Muralla: refleja la bala enemiga hacia el enemigo
-            b.isEnemy = false;
-            b.vx *= -1.1; b.vy *= -1.1;
-            b.color = '#ffcf76';
-            b.damage = 20;
-            b.pierce = 1;
-            continue;
-          }
-          if (player.invuln <= 0 && player.stun <= 0) {
-            const hit = computePlayerHit(b.damage);
-            b.dead = true;
-            if (hit.dodged) {
-              addFloatText(player.x, player.y - 20, 'ESQUIVA', '#8dfaff');
-            } else {
-              const damage = hit.dmg;
-              player.hp -= damage;
-              if (b.stunChance && Math.random() < b.stunChance) { player.stun = 0.6; addFloatText(player.x, player.y - 30, 'STUN', '#ff0'); }
-              shake = Math.max(shake, hit.crit ? 0.3 : 0.1);
-              addFloatText(player.x, player.y - 20, '-' + damage + (hit.crit ? ' ★CRIT' : ''), hit.crit ? '#ff0' : '#ff5f9b');
-              if (player.hp <= 0) { gameOver(); return; }
-            }
-            }
-        }
-      } else {
-        let hitCount = 0;
-        for (const e of enemies) {
-          if (e.dead) continue;
-          const d = Math.hypot(b.x - e.x, b.y - e.y);
-          if (d < e.radius + 4) {
-            // ESCUDO (shielder): bloquea balas frontales solo cuando el escudo está listo.
-            if (e.shield) {
-              if (e.shieldCd <= 0) {
-                const facing = Math.atan2(player.y - e.y, player.x - e.x);
-                const toBullet = Math.atan2(b.y - e.y, b.x - e.x);
-                const diff = Math.abs(Math.atan2(Math.sin(toBullet - facing), Math.cos(toBullet - facing)));
-                if (diff < Math.PI / 2) {
-                  b.dead = true;
-                  e.shieldCd = SHIELD_COOLDOWN; // queda recargando: vulnerable un instante
-                  spawnExplosion(e.x + Math.cos(toBullet) * e.radius, e.y + Math.sin(toBullet) * e.radius, 4, e.color, 0.4);
-                  break;
-                }
-              }
-            }
-            const dealt = Math.max(1, b.damage - (e.resist || 0));
-            e.hp -= dealt;
-            hitCount++;
-            if (e.isElite) e.stun = 0.25; // Élite se aturde brevemente al recibir daño
-            if (b.crit) addFloatText(e.x, e.y - e.radius - 6, '★CRIT', '#ff0');
-            if (e.hp <= 0) killEnemy(e);
-            // Knockback al enemigo al dispararle
-            applyKnockback(e, b.x, b.y, 60);
-            if (b.pierce && hitCount >= b.pierce) { b.dead = true; break; }
-          }
-        }
-        if (boss && !boss.dead && !b.dead) {
-          const d = Math.hypot(b.x - boss.x, b.y - boss.y);
-                    if (d < boss.radius + 4) { boss.hp -= b.damage; boss.hitFlash = Math.max(boss.hitFlash, 0.15); b.dead = true; hitstop = 0.03; }
-        }
-      }
-    }
-    bullets = bullets.filter((b) => !b.dead);
+    const res = NV.updateBullets(dt, {
+      bullets, W, H, player, enemies, boss, shake, hitstop,
+      MAX_BULLETS, CHARACTERS, SHIELD_COOLDOWN,
+      computePlayerHit, addFloatText, killEnemy, applyKnockback, spawnExplosion, gameOver,
+    });
+    bullets = res.bullets; shake = res.shake; hitstop = res.hitstop;
+    if (res.gameOver) return;
   }
 
   function updateParticles(dt) {

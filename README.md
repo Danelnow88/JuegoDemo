@@ -48,7 +48,10 @@ JuegoDemo/
     │   ├── drones.js     # NV.updateDrones (disparo de drones ENJAMBRE)
     │   ├── meteors.js     # NV.updateMeteors (Lluvia Estelar)
     │   ├── pickups.js     # NV.spawnWeaponPickup/updatePickups/updateWeaponPickups (drop de armas + shards)
-    │   └── enemies.js     # NV.spawnEnemy/spawnElite/killEnemy/updateEnemies (comportamientos, daño, drop)
+    │   ├── enemies.js     # NV.spawnEnemy/spawnElite/killEnemy/updateEnemies
+    │   ├── combat.js      # NV.enemyCritChance/calcEnemyDamage/computePlayerHit
+    │   ├── boss.js        # NV.updateBoss/spawnBossProj/spawnMinion/runBossAttack
+    │   └── bullets.js     # NV.updateBullets (colisiones, bulwark, escudos)
     └── game.js         # Motor restante (lógica, render, estado de entidades) — IIFE (en proceso de desmonopolización)
 ```
 
@@ -503,6 +506,14 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 - Orden de carga: `... render/hud.js` → `engine/fx.js, drones.js, meteors.js, pickups.js` → `game.js`.
 - Verificación: `node --check` OK en todos los engine modules + game.js; smoke runtime **4/4** (spawn dentro de pantalla; recolección de shard con filtro; guardar vs equipar según inventario).
 
+### v33 — engine: combat + boss + bullets
+- **`js/engine/combat.js`**: `NV.enemyCritChance`, `NV.calcEnemyDamage`, `NV.computePlayerHit` (IA de crítico/daño enemigo y resolución de golpes al jugador: esquiva, armadura, bulwark, escudo).
+- **`js/engine/boss.js`**: `NV.updateBoss`, `NV.spawnBossProj`, `NV.spawnMinion`, `NV.runBossAttack` (patrones del jefe, muerte → score/wave, ataques).
+- **`js/engine/bullets.js`**: `NV.updateBullets` (balas amistosas/enemigas, colisiones, pierce, knockback, escudos).
+- Patrón **ctxState+callbacks**: reciben un objeto de estado y callbacks (`killEnemy`, `spawnExplosion`, `computePlayerHit`, …) y retornan el estado mutado; `game.js` solo conserva wrappers que reasignan el resultado.
+- Smoke: 9/9 (combat 2, boss 3, boss+bullets 4). `game.js`: ~1521 → ~1323 líneas.
+
+
 ### v32 — Fase E del refactor: engine enemigos (spawns + comportamiento + derribo)
 - `spawnEnemy`, `spawnElite`, `killEnemy`, `updateEnemies` → `js/engine/enemies.js` (`NV.*`).
   - `NV.spawnEnemy(st)` / `NV.spawnElite(st)`: push por ref (respeta `MAX_ENEMIES`, no durante jefe; élites solo waves pares ≥ 2).
@@ -700,6 +711,9 @@ JuegoDemo/
     │   ├── drones.js     # NV.updateDrones (disparo de drones ENJAMBRE)
     │   ├── meteors.js     # NV.updateMeteors (Lluvia Estelar)
     │   ├── pickups.js     # NV.spawnWeaponPickup/updatePickups/updateWeaponPickups (drop de armas + shards)
-    │   └── enemies.js     # NV.spawnEnemy/spawnElite/killEnemy/updateEnemies (comportamientos, daño, drop)
+    │   ├── enemies.js     # NV.spawnEnemy/spawnElite/killEnemy/updateEnemies
+    │   ├── combat.js      # NV.enemyCritChance/calcEnemyDamage/computePlayerHit
+    │   ├── boss.js        # NV.updateBoss/spawnBossProj/spawnMinion/runBossAttack
+    │   └── bullets.js     # NV.updateBullets (colisiones, bulwark, escudos)
     └── game.js         # Motor restante (lógica, render, estado de entidades) — IIFE
 ```
