@@ -51,7 +51,9 @@ JuegoDemo/
     │   ├── enemies.js     # NV.spawnEnemy/spawnElite/killEnemy/updateEnemies
     │   ├── combat.js      # NV.enemyCritChance/calcEnemyDamage/computePlayerHit
     │   ├── boss.js        # NV.updateBoss/spawnBossProj/spawnMinion/runBossAttack
-    │   └── bullets.js     # NV.updateBullets (colisiones, bulwark, escudos)
+    │   ├── bullets.js     # NV.updateBullets (colisiones, bulwark, escudos)
+    │   ├── weapons.js     # NV.shoot/findTarget/applyKnockback (disparo del jugador)
+    │   └── special.js     # NV.useSpecial (habilidades: meteor/phase/bulwark/hivemind)
     └── game.js         # Motor restante (lógica, render, estado de entidades) — IIFE (en proceso de desmonopolización)
 ```
 
@@ -506,6 +508,12 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 - Orden de carga: `... render/hud.js` → `engine/fx.js, drones.js, meteors.js, pickups.js` → `game.js`.
 - Verificación: `node --check` OK en todos los engine modules + game.js; smoke runtime **4/4** (spawn dentro de pantalla; recolección de shard con filtro; guardar vs equipar según inventario).
 
+### v34 — engine: weapons + special (fin de la desmonopolización del gameplay)
+- **`js/engine/weapons.js`**: `NV.shoot` (proyectiles del jugador: crítico por suerte, overdrive ×2, tier visual), `NV.findTarget`, `NV.applyKnockback`.
+- **`js/engine/special.js`**: `NV.useSpecial` (Lluvia Estelar, Fase Fantasma, Baluarte, Enjambre); retorna `{ specialVFX, drones, shake }`.
+- Smoke: 5/5. `game.js`: ~1323 → ~1236 líneas. Queda como orquestador puro (init/update/loop, flujo de oleadas/tienda/menú, guardado).
+
+
 ### v33 — engine: combat + boss + bullets
 - **`js/engine/combat.js`**: `NV.enemyCritChance`, `NV.calcEnemyDamage`, `NV.computePlayerHit` (IA de crítico/daño enemigo y resolución de golpes al jugador: esquiva, armadura, bulwark, escudo).
 - **`js/engine/boss.js`**: `NV.updateBoss`, `NV.spawnBossProj`, `NV.spawnMinion`, `NV.runBossAttack` (patrones del jefe, muerte → score/wave, ataques).
@@ -714,6 +722,8 @@ JuegoDemo/
     │   ├── enemies.js     # NV.spawnEnemy/spawnElite/killEnemy/updateEnemies
     │   ├── combat.js      # NV.enemyCritChance/calcEnemyDamage/computePlayerHit
     │   ├── boss.js        # NV.updateBoss/spawnBossProj/spawnMinion/runBossAttack
-    │   └── bullets.js     # NV.updateBullets (colisiones, bulwark, escudos)
+    │   ├── bullets.js     # NV.updateBullets (colisiones, bulwark, escudos)
+    │   ├── weapons.js     # NV.shoot/findTarget/applyKnockback (disparo del jugador)
+    │   └── special.js     # NV.useSpecial (habilidades: meteor/phase/bulwark/hivemind)
     └── game.js         # Motor restante (lógica, render, estado de entidades) — IIFE
 ```

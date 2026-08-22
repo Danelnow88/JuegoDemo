@@ -763,114 +763,27 @@
   }
 
   function shoot() {
-    const weapon = currentWeapon;
-    const count = Math.min(weapon.count || 1, 7);
-    const spread = weapon.spread || 0;
-    const target = findTarget();
-    const baseAngle = target
-      ? Math.atan2(target.y - player.y, target.x - player.x)
-      : -Math.PI / 2;
-
-    // Durante overdrive, disparos duplicados
-    const actualCount = player.overdrive > 0 ? count * 2 : count;
-
-    // Estética por tier del arma (solo visual).
-    const vTier = weaponVisualTier();
-    const glowColor = BULLET_TIER_COLORS[vTier];
-
-    for (let i = 0; i < actualCount; i++) {
-      if (bullets.length >= MAX_BULLETS) break;
-      const angle = baseAngle + (i - (actualCount - 1) / 2) * spread;
-      const crit = Math.random() < (0.1 + player.luck * 0.002);
-      const baseDmg = weapon.damage + permUpgrades.damage * 2 + currentWeaponLevel(); // daño aditivo: base + meta + nivel de arma
-      bullets.push({
-        x: player.x, y: player.y - 20,
-        vx: Math.cos(angle) * weapon.speed, vy: Math.sin(angle) * weapon.speed,
-        damage: crit ? baseDmg * 2 : baseDmg,
-        color: weapon.color, dead: false, isEnemy: false, pierce: weapon.pierce || 0,
-        crit, stunChance: 0,
-        // Estética de tier (visual; no se usa en colisiones). wid selecciona la forma.
-        tier: vTier, glowColor, wid: weapon.id,
-      });
-    }
-    playWeaponSound(weapon);
+    NV.shoot({
+      player, enemies, boss, bullets, currentWeapon,
+      currentWeaponLevel, weaponVisualTier, BULLET_TIER_COLORS, MAX_BULLETS,
+      permDamageBonus: permUpgrades.damage, playWeaponSound,
+    });
   }
 
   function findTarget() {
-    let target = null, minDist = Infinity;
-    for (const e of enemies) {
-      const d = Math.hypot(e.x - player.x, e.y - player.y);
-      if (d < minDist) { minDist = d; target = e; }
-    }
-    if (boss && !boss.dead) {
-      const d = Math.hypot(boss.x - player.x, boss.y - player.y);
-      if (d < minDist) target = boss;
-    }
-    return target;
+    return NV.findTarget({ player, enemies, boss });
   }
 
   function applyKnockback(e, bx, by, strength) {
-    const angle = Math.atan2(e.y - by, e.x - bx);
-    const kb = strength * (1 - (e.knockbackRes || 0));
-    e.knockVelX = (e.knockVelX || 0) + Math.cos(angle) * kb;
-    e.knockVelY = (e.knockVelY || 0) + Math.sin(angle) * kb;
+    return NV.applyKnockback(e, bx, by, strength);
   }
 
   function useSpecial() {
-    const char = CHARACTERS[player.character];
-    player.specialCd = char.maxCd + 0.5;
-    specialVFX = { x: player.x, y: player.y, life: 1, type: char.special, color: char.color };
-    showBanner(char.skillName.toUpperCase(), char.color);
-
-    if (char.special === 'meteor') {
-      // Lluvia Estelar: 8 meteoritos caen del cielo
-      triggerFlash('#7cf8ff');
-      shake = 0.4;
-      for (let i = 0; i < 12; i++) {
-        meteors.push({
-          x: 30 + Math.random() * (W - 60),
-          y: -20 - Math.random() * 120,
-          vy: 320 + Math.random() * 200,
-          vx: (Math.random() - 0.5) * 70,
-          radius: 9 + Math.random() * 7,
-          color: i % 2 === 0 ? '#7cf8ff' : '#caa7ff',
-          dead: false,
-        });
-      }
-      spawnExplosion(player.x, player.y, 30, '#7cf8ff', 0.6);
-    } else if (char.special === 'phase') {
-      // Fase Fantasma: intangible 3s + rastro de daño
-      player.invuln = 3;
-      player.phase = 3;
-      triggerFlash('#caa7ff');
-      for (let i = 0; i < 46; i++) {
-        const a = (i / 46) * Math.PI * 2;
-        particles.push({ x: player.x, y: player.y, vx: Math.cos(a) * 360, vy: Math.sin(a) * 360, life: 0.7, color: i % 2 ? '#caa7ff' : '#fff' });
-      }
-    } else if (char.special === 'bulwark') {
-      player.invuln = 3;
-      player.bulwark = 3;
-      shake = 0.5;
-      triggerFlash('#ffcf76');
-      spawnExplosion(player.x, player.y, 40, '#ffcf76', 0.4);
-      spawnExplosion(player.x, player.y, 25, '#fff', 0.5);
-    } else if (char.special === 'hivemind') {
-      // Drones de Combate: 6 drones que orbitan y disparan por 5s
-      triggerFlash('#8dfaff');
-      drones = [];
-      for (let i = 0; i < 6; i++) {
-        drones.push({
-          angle: (i / 6) * Math.PI * 2,
-          orbitRadius: 55,
-          speed: 2.5,
-          fireTimer: 0.3 + i * 0.1,
-          color: '#8dfaff',
-          dead: false,
-        });
-      }
-      spawnExplosion(player.x, player.y, 20, '#8dfaff', 0.6);
-    }
-    sfx.special();
+    const res = NV.useSpecial({
+      player, CHARACTERS, meteors, particles, W, shake, specialVFX,
+      cbs: { showBanner, triggerFlash, spawnExplosion, sfx },
+    });
+    drones = res.drones; shake = res.shake; specialVFX = res.specialVFX;
   }
 
   function updateDrones(dt) {
