@@ -151,6 +151,13 @@ canvas {
   overflow: hidden;
 }
 .shop-screen.hidden { display: none !important; }
+/* Entrada de la tienda: fade + leve zoom. La animación se reinicia sola cada vez que
+   el elemento pasa de display:none a visible, así no requiere JS de transición. */
+@keyframes shop-in {
+  from { opacity: 0; transform: scale(1.04); backdrop-filter: blur(0px); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.shop-screen:not(.hidden) { animation: shop-in 0.4s ease-out both; }
 .shop-title {
   color: #ffcf76;
   font-size: 24px;

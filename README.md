@@ -510,6 +510,12 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 - Orden de carga: `... render/hud.js` → `engine/fx.js, drones.js, meteors.js, pickups.js` → `game.js`.
 - Verificación: `node --check` OK en todos los engine modules + game.js; smoke runtime **4/4** (spawn dentro de pantalla; recolección de shard con filtro; guardar vs equipar según inventario).
 
+### v46 — transición fin de oleada → tienda
+- **Fix de orden**: durante la celebración de victoria (`transition > 0`) ya no corren spawns ni el countdown de la oleada siguiente — antes se veían arrancar los primeros enemigos de la próxima oleada antes de que apareciera la tienda. Ahora durante la celebración solo siguen las partículas/efectos, y la oleada nueva arranca recién al salir de la tienda (`skipShop` → `nextWave`).
+- **Transición visual**: entrada animada de la pantalla de tienda vía CSS puro (`@keyframes shop-in`: fade + leve zoom-out 1.04→1, 400ms ease-out). Se reinicia sola al pasar de `display:none` a visible, sin JS adicional. Mismo lenguaje visual (paleta y easing suaves del juego).
+- Sin cambios en timing de oleadas, tienda, boss rounds ni economía (tests economy 3/3, boss_ai 5/5, char_skills 3/3).
+
+
 ### v45 — cambio de arma con la rueda del mouse
 - **Rueda del mouse en partida**: rueda abajo = arma siguiente, arriba = anterior, ciclo circular sobre [pistola base + inventario]. Funciona para todos los personajes (el inventario es compartido). Ignorado en menús/pausa.
 - Lógica centralizada y pura: `NV.cycleWeapon(current, list, dir)` en `core/utils.js` (devuelve instancias por referencia, conserva nivel/rareza del arma del inventario).

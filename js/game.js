@@ -741,6 +741,9 @@
 
     if (specialPressed && player.specialCd <= 0) useSpecial();
 
+    // Spawns y progreso de oleada SOLO fuera de la transición de victoria: durante la
+    // celebración no arranca la oleada siguiente (nada de spawns ni countdown visible).
+    if (transition <= 0) {
         spawnTimer -= dt;
     if (spawnTimer <= 0) {
       // Densidad progresiva garantizada: cada oleada empieza con presión
@@ -755,6 +758,7 @@
     }
 
         waveTimer -= dt;
+    }
     // Fin de oleada (sin jefe): se evalúa ANTES del countdown de transición para
     // evitar que abrir la tienda re-dispare la victoria en el mismo frame.
     if (transition <= 0 && waveTimer <= 0 && !boss) {
