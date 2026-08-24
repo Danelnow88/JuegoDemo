@@ -92,4 +92,22 @@
     ctx.beginPath(); ctx.arc(vfx.x, vfx.y, radius, 0, Math.PI * 2); ctx.stroke();
     ctx.globalAlpha = 1;
   };
+
+  // Shockwave genérico: doble anillo (frontal brillante + estela interna que se desvanece).
+  NV.drawShockwaves = function (ctx, shockwaves) {
+    for (const s of shockwaves) {
+      const ease = 1 - s.life;              // ease-out cuadrático
+      const radius = s.maxRadius * (1 - (1 - ease) * (1 - ease));
+      // Anillo frontal
+      ctx.strokeStyle = s.color;
+      ctx.lineWidth = s.width;
+      ctx.globalAlpha = s.life;
+      ctx.beginPath(); ctx.arc(s.x, s.y, radius, 0, Math.PI * 2); ctx.stroke();
+      // Estela interna (más tenue, detrás del frente)
+      ctx.lineWidth = s.width * 2;
+      ctx.globalAlpha = s.life * 0.25;
+      ctx.beginPath(); ctx.arc(s.x, s.y, Math.max(0, radius - 14), 0, Math.PI * 2); ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+  };
 })();

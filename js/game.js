@@ -33,7 +33,7 @@
   };
 
   // === ENTIDADES ===
-  let enemies = [], bullets = [], particles = [], pickups = [], floatTexts = [], trails = [], weaponPickups = [], drones = [], meteors = [];
+  let enemies = [], bullets = [], particles = [], pickups = [], floatTexts = [], shockwaves = [], trails = [], weaponPickups = [], drones = [], meteors = [];
   const MAX_ENEMIES = NV.BALANCE.MAX_ENEMIES, MAX_BULLETS = NV.BALANCE.MAX_BULLETS, MAX_PARTICLES = NV.BALANCE.MAX_PARTICLES;
   // Presupuesto separado de balas por bando: evita que las balas enemigas
   // (p. ej. muchos ESCOPURAS) congele el disparo del jugador al saturar el buffer común.
@@ -301,7 +301,7 @@
     console.log('[WAVE] Oleada ' + wave);
     waveTimer = Math.max(15, 25 - wave * 0.4);
     spawnTimer = 0;
-    enemies = []; bullets = []; pickups = [];
+    enemies = []; bullets = []; pickups = []; shockwaves = [];
 
     if (wave % 5 === 0) {
       const bossIndex = ((wave / 5 - 1) % BOSS_TYPES.length + BOSS_TYPES.length) % BOSS_TYPES.length;
@@ -757,6 +757,7 @@
     updateWeaponPickups(dt);
     updateFloatTexts(dt);
     updateTrails(dt);
+    shockwaves = NV.updateShockwaves(dt, shockwaves);
     updateDrones(dt);
     updateMeteors(dt);
 
@@ -797,7 +798,8 @@
   function useSpecial() {
     const res = NV.useSpecial({
       player, CHARACTERS, meteors, particles, drones, W, shake, specialVFX,
-      cbs: { showBanner, triggerFlash, spawnExplosion, sfx },
+      enemies, shockwaves,
+      cbs: { showBanner, triggerFlash, spawnExplosion, sfx, applyKnockback, addFloatText },
     });
     drones = res.drones; shake = res.shake; specialVFX = res.specialVFX;
   }
@@ -998,6 +1000,7 @@
     }
 
     if (specialVFX) drawSpecialVFX(specialVFX);
+    NV.drawShockwaves(ctx, shockwaves);
 
     for (const t of trails) {
       ctx.globalAlpha = Math.max(0, t.life / 0.3);

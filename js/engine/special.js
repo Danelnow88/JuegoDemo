@@ -42,12 +42,25 @@
         particles.push({ x: player.x, y: player.y, vx: Math.cos(a) * 360, vy: Math.sin(a) * 360, life: 0.7, color: i % 2 ? '#caa7ff' : '#fff' });
       }
     } else if (char.special === 'bulwark') {
+      // Muralla: escudo + ONDA DE CHOQUE que empuja y aturde a los enemigos cercanos
       player.invuln = 3;
       player.bulwark = 3;
       shake = 0.5;
       triggerFlash('#ffcf76');
       spawnExplosion(player.x, player.y, 40, '#ffcf76', 0.4);
       spawnExplosion(player.x, player.y, 25, '#fff', 0.5);
+      const applyKnockback = state.cbs.applyKnockback;
+      const sayStun = state.cbs.addFloatText;
+      const SHOCK_R = 120;
+      for (const e of state.enemies || []) {
+        if (e.dead) continue;
+        if (Math.hypot(e.x - player.x, e.y - player.y) < SHOCK_R) {
+          e.stun = Math.max(e.stun || 0, 1.0); // control de 1s (usa el sistema de stun existente)
+          if (applyKnockback) applyKnockback(e, player.x, player.y, 260);
+          if (sayStun) sayStun(e.x, e.y - 20, '¡ATURDIDO!', '#ffcf76');
+        }
+      }
+      NV.spawnShockwave(state.shockwaves || [], player.x, player.y, { maxRadius: 130, color: '#ffcf76', width: 5 });
     } else if (char.special === 'hivemind') {
       // Drones de Combate: 6 drones que orbitan y disparan por 5s
       triggerFlash('#8dfaff');

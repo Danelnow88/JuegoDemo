@@ -35,4 +35,18 @@
     for (const t of trails) { t.life -= dt; t.size *= 0.9; }
     return trails.filter((t) => t.life > 0);
   };
+
+  // ---- Shockwave reutilizable (onda expansiva radial): ROOK, detonación de NOVA, futuros FX ----
+  // spawnShockwave(shockwaves, x, y, opts) — opts: { maxRadius, color, width }
+  NV.spawnShockwave = function (shockwaves, x, y, opts) {
+    const o = opts || {};
+    shockwaves.push({ x, y, life: 1, maxRadius: o.maxRadius || 130, color: o.color || '#ffcf76', width: o.width || 5 });
+  };
+
+  // Avanza la vida de cada onda; devuelve el array filtrado.
+  NV.updateShockwaves = function (dt, shockwaves) {
+    if (!shockwaves) return [];
+    for (const s of shockwaves) s.life -= dt * 2.2; // ~0.45s de expansión con easing rápido
+    return shockwaves.filter((s) => s.life > 0);
+  };
 })();

@@ -29,7 +29,7 @@
             b.isEnemy = false;
             b.vx *= -1.1; b.vy *= -1.1;
             b.color = '#ffcf76';
-            b.damage = 20;
+            b.damage = 30; // +50% de reflejo con Muralla activa
             b.pierce = 1;
             continue;
           }
