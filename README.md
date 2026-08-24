@@ -510,6 +510,12 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 - Orden de carga: `... render/hud.js` → `engine/fx.js, drones.js, meteors.js, pickups.js` → `game.js`.
 - Verificación: `node --check` OK en todos los engine modules + game.js; smoke runtime **4/4** (spawn dentro de pantalla; recolección de shard con filtro; guardar vs equipar según inventario).
 
+### v46b — fix HUD de oleada + transición de tienda pulida
+- **Fix real del orden**: el `wave++` se ejecutaba inmediatamente al ganar la oleada (tanto en la victoria normal como dentro de `boss.js` al morir el jefe), así que `updateHUD()` pintaba "OLEADA n+1" durante la celebración. Ahora el incremento vive únicamente en `skipShop()`: el HUD conserva el número y progreso de la oleada completada hasta que el jugador sale de la tienda.
+- **Transición con personalidad** (timing total ≤550ms, CSS puro): título que cae con blur→foco y asentamiento de letter-spacing; secciones en cascada (fade-up con retardos escalonados); barrido de luz superior en cian/violeta (paleta del juego) con glow.
+- Tests: economy 3/3, boss_ai 5/5.
+
+
 ### v46 — transición fin de oleada → tienda
 - **Fix de orden**: durante la celebración de victoria (`transition > 0`) ya no corren spawns ni el countdown de la oleada siguiente — antes se veían arrancar los primeros enemigos de la próxima oleada antes de que apareciera la tienda. Ahora durante la celebración solo siguen las partículas/efectos, y la oleada nueva arranca recién al salir de la tienda (`skipShop` → `nextWave`).
 - **Transición visual**: entrada animada de la pantalla de tienda vía CSS puro (`@keyframes shop-in`: fade + leve zoom-out 1.04→1, 400ms ease-out). Se reinicia sola al pasar de `display:none` a visible, sin JS adicional. Mismo lenguaje visual (paleta y easing suaves del juego).

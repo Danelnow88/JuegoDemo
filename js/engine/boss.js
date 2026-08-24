@@ -200,7 +200,8 @@
       // Recompensa escalada: el jefe es el contenido más difícil y financia ~1 mejora grande.
       shards += 50 + wave * 5;
       st.spawnExplosion(boss.x, boss.y, 60, boss.color, 1.4);
-      wave++;
+      // OJO: wave NO se incrementa aquí; game.js lo hace en skipShop() para que
+      // el HUD siga mostrando la oleada del jefe hasta salir de la tienda.
       st.triggerWaveVictory(true, bossName, bossColor);
       return { score, shards, wave, shake, boss: null };
     }

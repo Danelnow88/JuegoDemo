@@ -379,6 +379,7 @@
 
 
   function skipShop() {
+    wave++; // la oleada siguiente "arranca" recién al salir de la tienda
     state = 'playing';
     dom.shop.classList.add('hidden');
     nextWave();
@@ -764,8 +765,8 @@
     if (transition <= 0 && waveTimer <= 0 && !boss) {
       shards += 8 + wave * 2;
       triggerWaveVictory(false, null, null);
-      wave++;
-      waveTimer = Math.max(15, 25 - wave * 0.4); // arranca limpia la próxima oleada
+      // El incremento de oleada se difiere a skipShop(): el HUD no debe mostrar
+      // "OLEADA n+1" hasta que el jugador salga de la tienda.
     }
     if (transition > 0) {
       transition -= dt;

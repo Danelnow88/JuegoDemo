@@ -151,13 +151,48 @@ canvas {
   overflow: hidden;
 }
 .shop-screen.hidden { display: none !important; }
-/* Entrada de la tienda: fade + leve zoom. La animación se reinicia sola cada vez que
-   el elemento pasa de display:none a visible, así no requiere JS de transición. */
+/* Entrada de la tienda: fade + leve zoom del conjunto, título con caída y
+   asentamiento de tracking, secciones en cascada y barrido de luz superior.
+   Las animaciones se reinician solas al pasar de display:none a visible. */
 @keyframes shop-in {
-  from { opacity: 0; transform: scale(1.04); backdrop-filter: blur(0px); }
+  from { opacity: 0; transform: scale(1.04); }
   to   { opacity: 1; transform: scale(1); }
 }
+@keyframes shop-title-in {
+  from { opacity: 0; transform: translateY(-16px); letter-spacing: 7px; filter: blur(3px); }
+  60%  { filter: blur(0); }
+  to   { opacity: 1; transform: translateY(0); letter-spacing: 1px; }
+}
+@keyframes shop-rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes shop-sheen {
+  from { transform: translateX(-100%); opacity: 0; }
+  25%  { opacity: 1; }
+  to   { transform: translateX(100%); opacity: 0; }
+}
 .shop-screen:not(.hidden) { animation: shop-in 0.4s ease-out both; }
+.shop-screen:not(.hidden)::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(124,248,255,.85), rgba(202,167,255,.85), transparent);
+  box-shadow: 0 0 18px rgba(124,248,255,.5);
+  pointer-events: none;
+  z-index: 1;
+  animation: shop-sheen 0.55s ease-out both;
+}
+.shop-screen:not(.hidden) .shop-title {
+  animation: shop-title-in 0.45s cubic-bezier(.22, 1, .36, 1) both;
+}
+.shop-screen:not(.hidden) .shop-section {
+  animation: shop-rise 0.4s ease-out both;
+}
+.shop-screen:not(.hidden) .shop-section:nth-of-type(1),
+.shop-screen:not(.hidden) .shop-section:nth-of-type(2) { animation-delay: 0.08s; }
+.shop-screen:not(.hidden) .shop-section:nth-of-type(n+3) { animation-delay: 0.16s; }
 .shop-title {
   color: #ffcf76;
   font-size: 24px;
