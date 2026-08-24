@@ -510,6 +510,12 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 - Orden de carga: `... render/hud.js` → `engine/fx.js, drones.js, meteors.js, pickups.js` → `game.js`.
 - Verificación: `node --check` OK en todos los engine modules + game.js; smoke runtime **4/4** (spawn dentro de pantalla; recolección de shard con filtro; guardar vs equipar según inventario).
 
+### v40 — rebalance de habilidades: nerf quirúrgico a Lluvia Estelar (BOTI)
+- **Cooldown** `6 → 14s` (sigue siendo fuerte, pero ya no cada 6 segundos).
+- **Anti one-shot contra jefes**: nueva constante `METEOR_BOSS_DMG_MULT: 0.3` en `balance.js` — el daño de meteoro al jefe pasa de 30 fijo a **9 por impacto** (~108 máx por uso vs ~360 antes). Daño contra enemigos comunes intacto (40).
+- **Tests**: nuevo `tests/char_skills.js` (3/3) — cooldown, multiplicador anti-jefe y daño a comunes sin cambios.
+
+
 ### v39 — rango de activación por arma (attack range)
 - Nuevo campo **`range` (px) en cada arma** de `data/gameData.js` — centralizado en la config, sin hardcodeos.
 - `NV.shoot` solo dispara si hay objetivo y está dentro del alcance del arma; devuelve `false` si está fuera de rango o no hay objetivo, y `game.js` reintenta en ~1 frame (`MIN_FIRE_INTERVAL`) sin consumir la cadencia del arma ni reproducir sonido.

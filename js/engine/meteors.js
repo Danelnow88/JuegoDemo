@@ -27,7 +27,7 @@
       }
       if (boss && !boss.dead) {
         const d = Math.hypot(boss.x - m.x, boss.y - m.y);
-        if (d < m.radius + boss.radius) { boss.hp -= 30; boss.hitFlash = 0.2; }
+        if (d < m.radius + boss.radius) { boss.hp -= 30 * (NV.BALANCE.METEOR_BOSS_DMG_MULT || 1); boss.hitFlash = 0.2; }
       }
       if (m.y > H - 20) {
         m.dead = true;

@@ -18,7 +18,7 @@
   NV.CHARACTERS = {
     boti: {
       name: 'BOTI', color: '#7cf8ff', bodyColor: '#4a9eff', eyeColor: '#fff', size: 22,
-      special: 'meteor', maxCd: 6, passive: 'Regenera 1 HP cada 5s',
+      special: 'meteor', maxCd: 14, passive: 'Regenera 1 HP cada 5s',
       skillIcon: '☄️', skillName: 'Lluvia Estelar', skillDesc: 'Meteoritos que caen del cielo',
       stats: { hp: 120, speed: 200, armor: 0, luck: 0 },
     },
