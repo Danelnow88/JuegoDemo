@@ -799,7 +799,7 @@
   }
 
   function updateDrones(dt) {
-    drones = NV.updateDrones(dt, drones, player, bullets, MAX_BULLETS, findTarget);
+    drones = NV.updateDrones(dt, drones, player, bullets, MAX_BULLETS, findTarget, enemies, boss, 300);
   }
 
   function updateMeteors(dt) {
@@ -1023,6 +1023,22 @@
     for (const d of drones) {
       const dx = Math.cos(d.angle) * d.orbitRadius;
       const dy = Math.sin(d.angle) * d.orbitRadius;
+      // Línea de puntería: muestra a qué objetivo apunta cada dron (se desvanece)
+      if (d.aimLife > 0 && d.tx != null) {
+        ctx.strokeStyle = d.color || '#7cf8ff';
+        ctx.globalAlpha = (d.aimLife / 0.3) * 0.45;
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([6, 6]);
+        ctx.beginPath();
+        ctx.moveTo(player.x + dx, player.y + dy);
+        ctx.lineTo(d.tx, d.ty);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        // Marca en el punto del objetivo
+        ctx.globalAlpha = (d.aimLife / 0.3) * 0.7;
+        ctx.beginPath(); ctx.arc(d.tx, d.ty, 4, 0, Math.PI * 2); ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
       ctx.fillStyle = d.color;
       ctx.shadowBlur = 10;
       ctx.shadowColor = d.color;
