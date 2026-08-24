@@ -171,6 +171,13 @@
     if (dom.permBtn) dom.permBtn.addEventListener('click', openPermShop);
     if (dom.permBack) dom.permBack.addEventListener('click', closePermShop);
     window.addEventListener('resize', resizeCanvas);
+    // Rueda del mouse: arma anterior/siguiente (también funciona para todos los personajes,
+    // el inventario es compartido). passive:false para poder cancelar el scroll.
+    window.addEventListener('wheel', (e) => {
+      if (state !== 'playing' || paused) return;
+      cycleWeapon(e.deltaY > 0 ? 1 : -1);
+      e.preventDefault();
+    }, { passive: false });
 
     window.addEventListener('keydown', (e) => {
       if (e.code === 'ArrowLeft' || e.code === 'KeyA') moveLeft = true;
@@ -213,6 +220,18 @@
     function equipFromInventory(index) {
       if (index < 0 || !inventory[index] || inventory[index] === currentWeapon) return;
       currentWeapon = inventory[index];
+      addFloatText(W / 2, H / 2 - 40, 'EQUIPADO: ' + currentWeapon.name, RARITY_COLORS[currentWeapon.rarity]);
+      updateHUD();
+      sfx.pickup();
+    }
+
+    // === CAMBIO DE ARMA CON LA RUEDA DEL MOUSE (pistola base + inventario, circular) ===
+    function cycleWeapon(dir) {
+      if (state !== 'playing' || paused) return;
+      const list = [WEAPONS[0]].concat(inventory);
+      const next = NV.cycleWeapon(currentWeapon, list, dir);
+      if (!next || next === currentWeapon) return;
+      currentWeapon = next;
       addFloatText(W / 2, H / 2 - 40, 'EQUIPADO: ' + currentWeapon.name, RARITY_COLORS[currentWeapon.rarity]);
       updateHUD();
       sfx.pickup();

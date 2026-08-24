@@ -510,6 +510,14 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 - Orden de carga: `... render/hud.js` → `engine/fx.js, drones.js, meteors.js, pickups.js` → `game.js`.
 - Verificación: `node --check` OK en todos los engine modules + game.js; smoke runtime **4/4** (spawn dentro de pantalla; recolección de shard con filtro; guardar vs equipar según inventario).
 
+### v45 — cambio de arma con la rueda del mouse
+- **Rueda del mouse en partida**: rueda abajo = arma siguiente, arriba = anterior, ciclo circular sobre [pistola base + inventario]. Funciona para todos los personajes (el inventario es compartido). Ignorado en menús/pausa.
+- Lógica centralizada y pura: `NV.cycleWeapon(current, list, dir)` en `core/utils.js` (devuelve instancias por referencia, conserva nivel/rareza del arma del inventario).
+- El wrapper `cycleWeapon` en `game.js` reutiliza el mismo feedback que equipar por tecla (texto flotante + sonido + HUD).
+- Hint de tienda actualizado: "teclas 1-6 o rueda del mouse".
+- Tests: nuevo `tests/weapon_wheel.js` (5/5) — orden circular, dirección, identidad de instancia, casos límite.
+
+
 ### v41–v44 — rework de habilidades (kit de personajes + FX legibles)
 - **ENJAMBRE (v41)**: los drones targetean al enemigo/jefe más cercano al jugador dentro de **300px** (antes solo la órbita de 55px). VFX: línea de puntería punteada del dron al objetivo con marca, se desvanece en 0.3s. Test `tests/drone_targeting.js` (4).
 - **NOVA numérico (v42)**: aura de Fase Fantasma `12→40 dps`, radio `45→70px`, y ahora **también daña al jefe** (×`PHASE_AURA_BOSS_MULT 0.3`). Constantes en `balance.js`. VFX: zona de daño visible (relleno pulsante + borde rotante en guiones) separada del aura espectral del personaje. Test `tests/nova_aura.js` (3).
