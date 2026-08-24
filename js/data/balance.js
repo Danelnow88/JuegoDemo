@@ -25,6 +25,7 @@
     PHASE_AURA_DPS: 40,                // Fase Fantasma (NOVA): daño por segundo del aura espectral
     PHASE_AURA_RADIUS: 70,             // radio de la zona de daño del aura
     PHASE_AURA_BOSS_MULT: 0.3,         // multiplicador del aura contra el jefe (coherente con meteoro)
+    PHASE_DETONATION_MULT: 0.5,        // Detonación Espectral: % del DoT acumulado que pega el estallido final
     MAX_AGILITY: 2,                    // tope de la mejora de Agilidad (x2 = +100% aceleración/freno)
     AGILITY_PER_UPGRADE: 0.2,          // +0.2 por compra (5 compras llegan al tope)
     WEAPON_KILLS_PER_LEVEL: 6,         // ~6 puntos de progreso por nivel

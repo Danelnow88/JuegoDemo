@@ -701,7 +701,7 @@
 
     if (player.invuln > 0) { player.invuln -= dt; if (player.invuln < 0) player.invuln = 0; }
     if (player.stun > 0) { player.stun = Math.max(0, player.stun - dt); }
-    if (player.phase) { player.phase -= dt; if (player.phase <= 0) { player.phase = 0; player.invuln = 0; } }
+    if (player.phase) { player.phase -= dt; if (player.phase <= 0) { player.phase = 0; player.invuln = 0; detonatePhase(); } }
     if (player.bulwark > 0) { player.bulwark -= dt; if (player.bulwark < 0) player.bulwark = 0; }
     if (player.overdrive > 0) {
       player.overdrive -= dt;
@@ -768,11 +768,13 @@
         if (e.dead) continue;
         if (Math.hypot(e.x - player.x, e.y - player.y) < R) {
           e.hp -= DPS * dt;
+          e.phaseAcc = (e.phaseAcc || 0) + DPS * dt; // acumulado para la Detonación Espectral
           if (e.hp <= 0) killEnemy(e);
         }
       }
       if (boss && !boss.dead && Math.hypot(boss.x - player.x, boss.y - player.y) < R + 40) {
         boss.hp -= DPS * NV.BALANCE.PHASE_AURA_BOSS_MULT * dt;
+        boss.phaseAcc = (boss.phaseAcc || 0) + DPS * dt; // sin mult: la detonación ya aplica el suyo
       }
     }
 
@@ -806,6 +808,11 @@
 
   function updateDrones(dt) {
     drones = NV.updateDrones(dt, drones, player, bullets, MAX_BULLETS, findTarget, enemies, boss, 300);
+  }
+
+  // Detonación Espectral: golpe final al terminar la Fase Fantasma.
+  function detonatePhase() {
+    NV.detonatePhase(player, enemies, boss, shockwaves, { addFloatText, spawnExplosion, triggerFlash });
   }
 
   function updateMeteors(dt) {

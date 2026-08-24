@@ -80,4 +80,34 @@
     sfx.special();
     return { specialVFX, drones, shake };
   };
+
+  // ---- Detonación Espectral (NOVA): al terminar la Fase, golpe final = 50% del DoT acumulado ----
+  // phaseAcc lo acumula el aura en game.js. Enemigos: acc*0.5 directo; jefe: acc*0.5*mult anti-boss.
+  NV.detonatePhase = function (player, enemies, boss, shockwaves, cbs, balance) {
+    const B = balance || (window.NV && window.NV.BALANCE);
+    const MULT = B && B.PHASE_DETONATION_MULT != null ? B.PHASE_DETONATION_MULT : 0.5;
+    let hits = 0;
+    for (const e of enemies || []) {
+      if (e.dead) continue;
+      const acc = e.phaseAcc || 0;
+      if (acc > 0) {
+        e.hp -= acc * MULT;
+        if (cbs && cbs.addFloatText) cbs.addFloatText(e.x, e.y - 24, 'ESPECTRAL', '#caa7ff');
+        hits++;
+      }
+      e.phaseAcc = 0;
+    }
+    if (boss && !boss.dead && boss.phaseAcc > 0) {
+      boss.hp -= boss.phaseAcc * MULT * (B && B.PHASE_AURA_BOSS_MULT || 0.3);
+      if (cbs && cbs.addFloatText) cbs.addFloatText(boss.x, boss.y - 60, 'ESPECTRAL', '#caa7ff');
+      hits++;
+      boss.phaseAcc = 0;
+    }
+    // VFX de detonación bien diferenciado del aura: doble anillo espectral + estallido
+    NV.spawnShockwave(shockwaves || [], player.x, player.y, { maxRadius: 110, color: '#caa7ff', width: 6 });
+    NV.spawnShockwave(shockwaves || [], player.x, player.y, { maxRadius: 70, color: '#fff', width: 3 });
+    if (cbs && cbs.spawnExplosion) cbs.spawnExplosion(player.x, player.y, 30, '#caa7ff', 0.8);
+    if (cbs && cbs.triggerFlash) cbs.triggerFlash('#caa7ff');
+    return hits;
+  };
 })();

@@ -510,6 +510,13 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 - Orden de carga: `... render/hud.js` → `engine/fx.js, drones.js, meteors.js, pickups.js` → `game.js`.
 - Verificación: `node --check` OK en todos los engine modules + game.js; smoke runtime **4/4** (spawn dentro de pantalla; recolección de shard con filtro; guardar vs equipar según inventario).
 
+### v41–v44 — rework de habilidades (kit de personajes + FX legibles)
+- **ENJAMBRE (v41)**: los drones targetean al enemigo/jefe más cercano al jugador dentro de **300px** (antes solo la órbita de 55px). VFX: línea de puntería punteada del dron al objetivo con marca, se desvanece en 0.3s. Test `tests/drone_targeting.js` (4).
+- **NOVA numérico (v42)**: aura de Fase Fantasma `12→40 dps`, radio `45→70px`, y ahora **también daña al jefe** (×`PHASE_AURA_BOSS_MULT 0.3`). Constantes en `balance.js`. VFX: zona de daño visible (relleno pulsante + borde rotante en guiones) separada del aura espectral del personaje. Test `tests/nova_aura.js` (3).
+- **ROOK (v43)**: Muralla gana **Onda de Choque**: aturde 1s y empuja a enemigos en ≤120px al activar; el reflejo sube `20→30` (+50%). Nuevo **sistema reutilizable de shockwaves** (`fx.js`: spawn/update + render con doble anillo y easing ease-out). Test `tests/rook_shockwave.js` (4).
+- **NOVA Detonación Espectral (v44)**: al terminar la fase, estallido que pega **50% del DoT acumulado** (`PHASE_DETONATION_MULT`) por enemigo tocado (el jefe aplica además su mult anti-boss). Lógica testeable en `NV.detonatePhase`. VFX: doble anillo espectral (#caa7ff + blanco) + explosión + flash, claramente distinto del aura. Test `tests/nova_detonation.js` (4).
+
+
 ### v40 — rebalance de habilidades: nerf quirúrgico a Lluvia Estelar (BOTI)
 - **Cooldown** `6 → 14s` (sigue siendo fuerte, pero ya no cada 6 segundos).
 - **Anti one-shot contra jefes**: nueva constante `METEOR_BOSS_DMG_MULT: 0.3` en `balance.js` — el daño de meteoro al jefe pasa de 30 fijo a **9 por impacto** (~108 máx por uso vs ~360 antes). Daño contra enemigos comunes intacto (40).
