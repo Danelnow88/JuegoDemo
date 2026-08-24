@@ -19,25 +19,25 @@
     boti: {
       name: 'BOTI', color: '#7cf8ff', bodyColor: '#4a9eff', eyeColor: '#fff', size: 22,
       special: 'meteor', maxCd: 14, passive: 'Regenera 1 HP cada 5s',
-      skillIcon: '☄️', skillName: 'Lluvia Estelar', skillDesc: 'Meteoritos que caen del cielo',
+      skillIcon: '☄️', skillName: 'Lluvia Estelar', skillDesc: 'Meteoritos devastadores contra enemigos normales; recarga larga y daño reducido contra jefes',
       stats: { hp: 120, speed: 200, armor: 0, luck: 0 },
     },
     nova: {
       name: 'NOVA', color: '#caa7ff', bodyColor: '#9b59b6', eyeColor: '#ff0', size: 18,
       special: 'phase', maxCd: 7, passive: 'Daño +20%, recibe +20%', takeDmgMult: 1.2,
-      skillIcon: '👻', skillName: 'Fase Fantasma', skillDesc: 'Intangible 3s + rastro de daño',
+      skillIcon: '👻', skillName: 'Fase Fantasma', skillDesc: 'Aura espectral de área potente (afecta jefes); al terminar, detona un golpe final sobre lo alcanzado',
       stats: { hp: 80, speed: 280, armor: 0, luck: 5 },
     },
     rook: {
       name: 'ROOK', color: '#ffcf76', bodyColor: '#f39c12', eyeColor: '#000', size: 26,
       special: 'bulwark', maxCd: 12, passive: '-15% daño recibido', takeDmgMult: 0.85,
-      skillIcon: '🛡', skillName: 'Muralla', skillDesc: 'Invuln 3s + refleja balas',
+      skillIcon: '🛡', skillName: 'Muralla', skillDesc: 'Escudo que refleja balas con más fuerza; onda de choque que aturde y empuja al activarse',
       stats: { hp: 160, speed: 150, armor: 5, luck: 0 },
     },
     swarm: {
       name: 'ENJAMBRE', color: '#8dfaff', bodyColor: '#00d4aa', eyeColor: '#fff', size: 16,
       special: 'hivemind', maxCd: 10, passive: '15% esquiva', dodge: 0.15,
-      skillIcon: '🛸', skillName: 'Drones de Combate', skillDesc: '6 drones que orbitan y disparan (5s)',
+      skillIcon: '🛸', skillName: 'Drones de Combate', skillDesc: '6 drones escoltas que apuntan solos al enemigo o jefe más cercano a distancia',
       stats: { hp: 90, speed: 240, armor: 0, luck: 10 },
     },
   };

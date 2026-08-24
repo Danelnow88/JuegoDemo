@@ -370,6 +370,12 @@ canvas {
 .char-name { font-weight: bold; font-size: 14px; color: #7cf8ff; margin-bottom: 4px; }
 .char-tag { font-size: 11px; color: #caa7ff; margin-bottom: 6px; }
 .char-desc { font-size: 11px; color: #aaa; line-height: 1.3; }
+/* Resaltes semánticos de descripciones de personajes (misma paleta del juego):
+   rosa=ofensivo · dorado=defensa/utilidad · cian=control · gris itálica=limitación */
+.dmg-highlight { color: #ff5f9b; font-weight: bold; }
+.def-highlight { color: #ffcf76; font-weight: bold; }
+.cc-highlight { color: #7cf8ff; font-weight: bold; }
+.cd-note { color: #777; font-style: italic; }
 .char-stat { font-size: 11px; color: #7cf8ff; margin-bottom: 6px; font-weight: bold; }
 .go-stats { display: flex; gap: 16px; margin: 16px 0; }
 .go-stat { text-align: center; }
