@@ -29,10 +29,23 @@
       ctx.restore();
     }
 
-    // Fase Fantasma: aura espectral pulsante
+    // Fase Fantasma: zona de daño claramente legible + aura espectral pulsante
     if (player.phase > 0) {
-      const ghostPulse = 0.3 + Math.sin(frame * 0.3) * 0.2;
+      const R = (window.NV.BALANCE ? window.NV.BALANCE.PHASE_AURA_RADIUS : 70);
+      const zonePulse = 0.10 + Math.sin(frame * 0.35) * 0.05; // relleno tenue: "esta zona pega"
+      ctx.fillStyle = '#caa7ff';
+      ctx.globalAlpha = zonePulse;
+      ctx.beginPath(); ctx.arc(0, 0, R, 0, Math.PI * 2); ctx.fill();
+      // Borde rotante en guiones: gira para leerse como campo activo
       ctx.strokeStyle = '#caa7ff';
+      ctx.globalAlpha = 0.75;
+      ctx.lineWidth = 2.5;
+      ctx.setLineDash([14, 9]);
+      ctx.lineDashOffset = -frame * 1.4;
+      ctx.beginPath(); ctx.arc(0, 0, R, 0, Math.PI * 2); ctx.stroke();
+      ctx.setLineDash([]);
+      // Aura espectral original del personaje (intangibilidad)
+      const ghostPulse = 0.3 + Math.sin(frame * 0.3) * 0.2;
       ctx.globalAlpha = ghostPulse;
       ctx.lineWidth = 3;
       ctx.beginPath(); ctx.arc(0, 0, char.size + 20 + Math.sin(frame * 0.2) * 5, 0, Math.PI * 2); ctx.stroke();

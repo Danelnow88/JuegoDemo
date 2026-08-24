@@ -760,14 +760,18 @@
     updateDrones(dt);
     updateMeteors(dt);
 
-    // Aura de daño de Fase Fantasma (NOVA): daña a los enemigos cercanos
+    // Aura de daño de Fase Fantasma (NOVA): zona visible que daña enemigos cercanos y al jefe
     if (player.phase > 0) {
+      const R = NV.BALANCE.PHASE_AURA_RADIUS, DPS = NV.BALANCE.PHASE_AURA_DPS;
       for (const e of enemies) {
         if (e.dead) continue;
-        if (Math.hypot(e.x - player.x, e.y - player.y) < 45) {
-          e.hp -= 12 * dt;
+        if (Math.hypot(e.x - player.x, e.y - player.y) < R) {
+          e.hp -= DPS * dt;
           if (e.hp <= 0) killEnemy(e);
         }
+      }
+      if (boss && !boss.dead && Math.hypot(boss.x - player.x, boss.y - player.y) < R + 40) {
+        boss.hp -= DPS * NV.BALANCE.PHASE_AURA_BOSS_MULT * dt;
       }
     }
 
