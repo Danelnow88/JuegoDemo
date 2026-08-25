@@ -33,6 +33,14 @@
     return Math.round(base * (1 + (fus || 0) * s));
   };
 
+  // Precio de venta de un arma según su rareza, desde una tabla (balance). Si la rareza
+  // no está en la tabla, devuelve el valor mínimo. Puro y testeable.
+  NV.weaponSellValue = function (weapon, sellMap) {
+    if (!weapon || !sellMap) return 0;
+    const v = sellMap[weapon.rarity];
+    return typeof v === 'number' ? v : (sellMap.common || 0);
+  };
+
   // Disparo del arma actual: genera proyectiles amistosos (con crítico y tier visual).
   // state: { player, enemies, boss, bullets, currentWeapon, currentWeaponLevel,
   //          weaponVisualTier, BULLET_TIER_COLORS, MAX_BULLETS, permDamageBonus, playWeaponSound }

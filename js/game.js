@@ -104,6 +104,7 @@
   const MAX_WEAPON_FUSION = NV.BALANCE.MAX_WEAPON_FUSION;
   const WEAPON_FUSION_DMG = NV.BALANCE.WEAPON_FUSION_DMG;
   const WEAPON_FUSE_PRICE = NV.BALANCE.WEAPON_FUSE_PRICE;
+  const WEAPON_SELL_PRICES = NV.BALANCE.WEAPON_SELL_PRICES;
   function currentWeaponFusion() { return weaponFus[currentWeapon.id] || 0; }
   function weaponFusionLevel(id) { return weaponFus[id] || 0; }
   const WEAPON_KILLS_PER_LEVEL = NV.BALANCE.WEAPON_KILLS_PER_LEVEL;   // ~6 puntos de progreso por nivel
@@ -520,21 +521,26 @@
           renderInventory();
         });
 
-        // Botón quitar
-        const removeBtn = document.createElement('button');
-        removeBtn.className = 'inv-remove';
-        removeBtn.textContent = '✕';
-        removeBtn.title = 'Quitar del inventario';
-        removeBtn.addEventListener('click', (e) => {
+        // Botón vender: da 💎 según rareza (coherente con la economía; < compra siempre).
+        const sellBtn = document.createElement('button');
+        sellBtn.className = 'inv-remove';
+        sellBtn.textContent = '💰';
+        sellBtn.title = 'Vender por ' + NV.weaponSellValue(weapon, WEAPON_SELL_PRICES) + ' 💎';
+        sellBtn.addEventListener('click', (e) => {
           e.stopPropagation();
+          const val = NV.weaponSellValue(weapon, WEAPON_SELL_PRICES);
+          shards += val;
+          if (dom.shopShards) dom.shopShards.textContent = shards;
           inventory.splice(i, 1);
           if (currentWeapon === weapon) {
             currentWeapon = WEAPONS[0];
           }
+          addFloatText(W / 2, H / 2, '+' + val + ' 💎', '#ffcf76');
+          updateHUD();
           renderInventory();
           sfx.pickup();
         });
-        slot.appendChild(removeBtn);
+        slot.appendChild(sellBtn);
       } else {
         slot.classList.add('empty');
         slot.innerHTML = '<div class="inv-icon" style="opacity:0.2">•</div>';

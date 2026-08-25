@@ -20,6 +20,8 @@
     MAX_WEAPON_FUSION: 3,          // fusiones máximas por arma
     WEAPON_FUSION_DMG: 0.20,       // +20% de daño por nivel de fusión
     WEAPON_FUSE_PRICE: 15,         // precio de fusionar comprando duplicado en tienda
+    // Venta de armas (shards in-run, siempre < compra 25 para no farmear economías).
+    WEAPON_SELL_PRICES: { common: 6, uncommon: 9, rare: 12, epic: 16, legendary: 20 },
     // Cadencia de armas (fireRate se interpreta como frames a ~60fps)
     FIRE_FPS, MIN_FIRE_INTERVAL,
     WAVE_CADENCE_SCALE: 0.01,          // -1% de intervalo por oleada (máx -45% de factor)

@@ -510,6 +510,11 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 - Orden de carga: `... render/hud.js` → `engine/fx.js, drones.js, meteors.js, pickups.js` → `game.js`.
 - Verificación: `node --check` OK en todos los engine modules + game.js; smoke runtime **4/4** (spawn dentro de pantalla; recolección de shard con filtro; guardar vs equipar según inventario).
 
+### v50 — Tanda B2: venta de armas desde el inventario
+- El botón de "quitar" (✕) ahora es **vender** (💰): da 💎 según rareza, siempre por debajo del precio de compra (25) para no farmear economías.
+- Tabla centralizada `WEAPON_SELL_PRICES` en balance.js (common 6 · uncommon 9 · rare 12 · epic 16 · legendary 20); `NV.weaponSellValue(weapon, sellMap)` puro y testeable.
+- Vender libera el slot, y si era la equipada vuelve a Pistola. Muestra "+X 💎" y actualiza el contador de la tienda.
+- Visual: botón dorado coherente con la paleta (antes era una ✕ rosa de interfaz web). Tests `weapon_sell` 5/5.
 ### v50 — Tanda B1: fusión de armas repetidas
 - **Drops**: recoger un arma que ya poseés NO ocupa slot nuevo — sube su **nivel de fusión** (aviso "FUSIÓN Nv X"). Al alcanzar el tope, el drop queda en el suelo con "FUSIÓN MÁX".
 - **Daño**: `NV.weaponFusionDamage(base, fus, 0.2)` = +20% de daño por nivel de fusión (cap 3, aplicado sobre base+nivel, críticos incluidos). Puro y testeable.

@@ -309,12 +309,12 @@ canvas {
 .inv-slot .inv-remove {
   position: absolute;
   top: -6px; right: -6px;
-  width: 16px; height: 16px;
-  background: #ff5f9b;
-  color: #fff;
-  border: none;
+  width: 18px; height: 18px;
+  background: rgba(255, 207, 118, 0.15);
+  color: #ffcf76;
+  border: 1px solid rgba(255, 207, 118, 0.5);
   border-radius: 50%;
-  font-size: 9px;
+  font-size: 10px;
   line-height: 1;
   cursor: pointer;
   display: flex;
