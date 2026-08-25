@@ -510,6 +510,13 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 - Orden de carga: `... render/hud.js` → `engine/fx.js, drones.js, meteors.js, pickups.js` → `game.js`.
 - Verificación: `node --check` OK en todos los engine modules + game.js; smoke runtime **4/4** (spawn dentro de pantalla; recolección de shard con filtro; guardar vs equipar según inventario).
 
+### v47 — modo testing sin persistencia + tope de consumibles
+- **`index.html?fresh=1`**: arranca con permanentes y meta-shards en cero y **congela el guardado** (`metaFrozen`) — ideal para testear balance desde cero sin pisar el progreso real de `localStorage`. Sin el flag, todo funciona exactamente igual que antes.
+- **`NV.resetMeta()`** en consola: borra `neonVoidMeta` al instante (recargar aplica el reset).
+- **Tope de consumibles**: máximo **3 compras por tipo por visita** a la tienda (`CONSUMABLE_CAP`, contador `consumableBought` reseteado en `showShop`). La oferta muestra `(n/3)` y desaparece al agotarse — mismo patrón que los topes de mejoras. Los 3 consumibles unificados en una tabla declarativa (`consumableDefs`).
+- Tests: nuevo `tests/shop_meta.js` (4/4). Resto de suites verdes.
+
+
 ### v46b — fix HUD de oleada + transición de tienda pulida
 - **Fix real del orden**: el `wave++` se ejecutaba inmediatamente al ganar la oleada (tanto en la victoria normal como dentro de `boss.js` al morir el jefe), así que `updateHUD()` pintaba "OLEADA n+1" durante la celebración. Ahora el incremento vive únicamente en `skipShop()`: el HUD conserva el número y progreso de la oleada completada hasta que el jugador sale de la tienda.
 - **Transición con personalidad** (timing total ≤550ms, CSS puro): título que cae con blur→foco y asentamiento de letter-spacing; secciones en cascada (fade-up con retardos escalonados); barrido de luz superior en cian/violeta (paleta del juego) con glow.

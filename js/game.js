@@ -58,6 +58,9 @@
   // Compras por partida en la tienda de oleada (topes anti-acumulación infinita).
   let shopBought = {};
   const SHOP_CAPS = { hp: 8, armor: 5, luck: 7 }; // +25 HP ×8, +3 armadura ×5, +2 suerte ×7
+  // Tope de compras del mismo consumible POR VISITA a la tienda (se resetea en showShop).
+  const CONSUMABLE_CAP = 3;
+  let consumableBought = {};
 
   // Mejoras permanentes comprables con metaShards (afectan a TODOS los personajes).
   // El coste crece con el nivel y tienen un tope máximo (MAX_PERM_LEVEL).
@@ -136,7 +139,14 @@
   // === INICIALIZACIÓN ===
   function init() {
     console.log('[INIT] Iniciando...');
-    loadMeta();
+    if (/[?&]fresh=1/.test(window.location.search)) {
+      metaFrozen = true;
+      metaShards = 0;
+      permUpgrades = { damage: 0, speed: 0, hp: 0, armor: 0, luck: 0 };
+      console.log('[META] Modo ?fresh=1: mejoras permanentes y meta-shards en cero (no se guarda progreso).');
+    } else {
+      loadMeta();
+    }
     resizeCanvas();
 
     const charCards = document.querySelectorAll('.char-card');
@@ -267,9 +277,18 @@
       permUpgrades = saved.permUpgrades || { damage: 0, speed: 0, hp: 0, armor: 0, luck: 0 };
     } catch (e) { console.warn('[META] Error:', e); }
   }
+  // Modo testing (?fresh=1): empieza sin permanentes ni meta-shards y NO guarda,
+  // para tunear balance desde cero sin pisar el progreso real.
+  let metaFrozen = false;
   function saveMeta() {
+    if (metaFrozen) return;
     try { localStorage.setItem('neonVoidMeta', JSON.stringify({ metaShards, permUpgrades })); } catch (e) { console.warn('[META] Error:', e); }
   }
+  // Consola: NV.resetMeta() borra el progreso persistente al instante.
+  NV.resetMeta = function () {
+    try { localStorage.removeItem('neonVoidMeta'); console.log('[META] Progreso borrado. Recargá para empezar de cero.'); }
+    catch (e) { console.warn('[META] Error:', e); }
+  };
 
   function showMenu() {
     state = 'menu';
@@ -387,6 +406,7 @@
 
   function showShop() {
     state = 'shop';
+    consumableBought = {}; // el tope de consumibles es por visita a la tienda
     updateHUD(); // La habilidad no debe seguir pulsando fuera del combate.
     dom.shop.classList.remove('hidden');
     dom.shopShards.textContent = shards;
@@ -564,17 +584,24 @@
       }
     });
 
-    consumables.push({
-      icon: '🧪', name: 'Poción', desc: 'Cura 40 HP (tecla F en partida)',
-      price: 10, buy: () => { consumableItems.push({ type: 'potion', name: 'Poción', icon: '🧪' }); showBanner('Poción guardada (F para usar)', '#0f0'); },
-    });
-    consumables.push({
-            icon: '⚡', name: 'Overdrive', desc: '+50% velocidad 5s (tecla F)',
-      price: 18, buy: () => { consumableItems.push({ type: 'overdrive', name: 'Overdrive', icon: '⚡' }); showBanner('Overdrive guardado (F)', '#caa7ff'); },
-    });
-    consumables.push({
-            icon: '🛡', name: 'Escudo', desc: 'Invulnerable 2s (tecla F)',
-      price: 22, buy: () => { consumableItems.push({ type: 'shield', name: 'Escudo', icon: '🛡' }); showBanner('Escudo guardado (F)', '#ffcf76'); },
+    const consumableDefs = [
+      { key: 'potion',    icon: '🧪', name: 'Poción',    desc: 'Cura 40 HP (tecla F en partida)',   price: 10, banner: 'Poción guardada (F para usar)',  color: '#0f0' },
+      { key: 'overdrive', icon: '⚡', name: 'Overdrive', desc: '+50% velocidad 5s (tecla F)',       price: 18, banner: 'Overdrive guardado (F)',         color: '#caa7ff' },
+      { key: 'shield',    icon: '🛡', name: 'Escudo',    desc: 'Invulnerable 2s (tecla F)',         price: 22, banner: 'Escudo guardado (F)',            color: '#ffcf76' },
+    ];
+    consumableDefs.forEach((c) => {
+      const bought = consumableBought[c.key] || 0;
+      if (bought >= CONSUMABLE_CAP) return; // tope por visita: la oferta desaparece
+      consumables.push({
+        icon: c.icon, name: c.name,
+        desc: c.desc + ' (' + bought + '/' + CONSUMABLE_CAP + ')',
+        price: c.price,
+        buy: () => {
+          consumableItems.push({ type: c.key, name: c.name, icon: c.icon });
+          consumableBought[c.key] = (consumableBought[c.key] || 0) + 1;
+          showBanner(c.banner, c.color);
+        },
+      });
     });
 
     renderOffers(dom.upgradesOffers, upgrades);
