@@ -4,7 +4,27 @@
   'use strict';
   const NV = window.NV;
 
-  NV.drawEnemy = function (ctx, e, frame) {
+  // Ojos que miran al jugador: dos escleróticas blancas + pupilas orientadas.
+  // Rojos en élites. Da identidad de "criatura" a las formas geométricas.
+  NV.drawEnemyEyes = function (ctx, e, player) {
+    if (!player) return;
+    const r = e.radius;
+    const eyeR = Math.max(1.6, r * 0.18);
+    const sep = r * 0.34;               // separación entre ojos
+    const fwd = Math.atan2(player.y - e.y, player.x - e.x);
+    const ox = Math.cos(fwd) * sep * 0.4; // offset hacia el objetivo
+    const oy = Math.sin(fwd) * sep * 0.4;
+    for (const side of [-1, 1]) {
+      const ex = side * sep + ox * 0.5;
+      const ey = -r * 0.15 + oy * 0.5;
+      ctx.fillStyle = '#fff';
+      ctx.beginPath(); ctx.arc(ex, ey, eyeR, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = e.isElite ? '#ff2222' : '#10131c';
+      ctx.beginPath(); ctx.arc(ex + Math.cos(fwd) * eyeR * 0.45, ey + Math.sin(fwd) * eyeR * 0.45, eyeR * 0.55, 0, Math.PI * 2); ctx.fill();
+    }
+  };
+
+  NV.drawEnemy = function (ctx, e, frame, player) {
     ctx.save();
     ctx.translate(e.x, e.y);
     ctx.fillStyle = e.color;
@@ -49,6 +69,7 @@
     }
 
     ctx.shadowBlur = 0;
+    NV.drawEnemyEyes(ctx, e, player);
     ctx.restore();
   };
 })();

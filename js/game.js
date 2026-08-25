@@ -1275,7 +1275,7 @@
 
 
   function drawEnemy(e) {
-    NV.drawEnemy(ctx, e, frame);
+    NV.drawEnemy(ctx, e, frame, player);
   }
 
 
