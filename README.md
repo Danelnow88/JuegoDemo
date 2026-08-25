@@ -510,6 +510,10 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 - Orden de carga: `... render/hud.js` → `engine/fx.js, drones.js, meteors.js, pickups.js` → `game.js`.
 - Verificación: `node --check` OK en todos los engine modules + game.js; smoke runtime **4/4** (spawn dentro de pantalla; recolección de shard con filtro; guardar vs equipar según inventario).
 
+### v50 — Tanda C1: cofres del jefe
+- Al matar un jefe, suelta un **cofre de botín** dorado en su posición. Al tocarlo libera **1-3 pickups** (55% chance de shards de valor alto deja 3-6, 45% un arma aleatoria).
+- El cofre queda en el campo hasta recogerlo; expira tras 30s. Visual: cofre dorado pulsante con glow (reutiliza la paleta del jefe/tienda).
+- `NV.updateBossChests(dt, chests, player, pickups, weaponPickups, WEAPONS, addFloatText, pickupSfx)` puro y testeable en `pickups.js`; `spawnBossChest` se invoca desde `boss.js` al morir (callback opcional, no rompe la lógica de jefe existente). Tests `boss_chest` 7/7.
 ### v50 — Tanda B2: venta de armas desde el inventario
 - El botón de "quitar" (✕) ahora es **vender** (💰): da 💎 según rareza, siempre por debajo del precio de compra (25) para no farmear economías.
 - Tabla centralizada `WEAPON_SELL_PRICES` en balance.js (common 6 · uncommon 9 · rare 12 · epic 16 · legendary 20); `NV.weaponSellValue(weapon, sellMap)` puro y testeable.

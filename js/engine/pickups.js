@@ -80,4 +80,35 @@
     }
     return { weaponPickups: weaponPickups.filter((wp) => !wp.dead), currentWeapon };
   };
+// ---- Cofre de jefe: al matar al jefe suelta un cofre que al tocarlo libera 1-3 pickups ----
+  // Abre si el jugador está cerca; suelta shards (pickups) y/o armas (weaponPickups).
+  // Expira tras CHEST_TTL. Devuelve el array de cofres filtrado (no-muertos).
+  const CHEST_TTL = 30;
+  NV.updateBossChests = function (dt, bossChests, player, pickups, weaponPickups, WEAPONS, addFloatText, pickupSfx) {
+    const alive = [];
+    for (const c of bossChests) {
+      if (c.dead) continue;
+      c.timer = (c.timer || 0) + dt;
+      if (c.timer > CHEST_TTL) continue; // expira: se descarta
+      const d = Math.hypot(c.x - player.x, c.y - player.y);
+      if (d < 34) {
+        c.dead = true;
+        addFloatText(c.x, c.y - 18, 'TESORO DEL JEFE! 💎', '#ffd700');
+        const n = 1 + Math.floor(Math.random() * 3); // 1..3
+        for (let i = 0; i < n; i++) {
+          const ox = c.x + (Math.random() - 0.5) * 26;
+          const oy = c.y + (Math.random() - 0.5) * 26;
+          if (Math.random() < 0.55) {
+            pickups.push({ x: ox, y: oy, value: 3 + Math.floor(Math.random() * 4), dead: false });
+          } else {
+            weaponPickups.push({ x: ox, y: oy, weapon: WEAPONS[Math.floor(Math.random() * WEAPONS.length)], dead: false });
+          }
+        }
+        pickupSfx();
+      } else {
+        alive.push(c);
+      }
+    }
+    return alive;
+  };
 })();

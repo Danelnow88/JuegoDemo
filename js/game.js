@@ -33,7 +33,7 @@
   };
 
   // === ENTIDADES ===
-  let enemies = [], bullets = [], particles = [], pickups = [], floatTexts = [], shockwaves = [], trails = [], weaponPickups = [], drones = [], meteors = [];
+  let enemies = [], bullets = [], particles = [], pickups = [], floatTexts = [], shockwaves = [], trails = [], weaponPickups = [], drones = [], meteors = [], bossChests = [];
   const MAX_ENEMIES = NV.BALANCE.MAX_ENEMIES, MAX_BULLETS = NV.BALANCE.MAX_BULLETS, MAX_PARTICLES = NV.BALANCE.MAX_PARTICLES;
   // Presupuesto separado de balas por bando: evita que las balas enemigas
   // (p. ej. muchos ESCOPURAS) congele el disparo del jugador al saturar el buffer común.
@@ -330,7 +330,7 @@
     wave = 1; score = 0; shards = 0;
     shopBought = {};
     enemies = []; bullets = []; particles = []; pickups = [];
-    floatTexts = []; trails = []; weaponPickups = [];
+    floatTexts = []; trails = []; weaponPickups = []; bossChests = [];
     inventory = []; currentWeapon = WEAPONS[0]; consumableItems = [];
     weaponLevels = {}; weaponKills = {}; weaponFus = {}; fireTimer = 0;
         boss = null; shake = 0; hitstop = 0; flashAlpha = 0;
@@ -837,6 +837,7 @@
     updateParticles(dt);
     updatePickups(dt);
     updateWeaponPickups(dt);
+    updateBossChests(dt);
     updateFloatTexts(dt);
     updateTrails(dt);
     shockwaves = NV.updateShockwaves(dt, shockwaves);
@@ -938,9 +939,17 @@
       score, shards, wave, shake,
       MAX_BULLETS, MAX_ENEMY_BULLETS, enemyBulletCount, ENEMY_TYPES,
       spawnExplosion, showBanner, triggerFlash, triggerWaveVictory, addFloatText, sfx,
-      spawnBossProj, spawnMinion, runBossAttack,
+      spawnBossProj, spawnMinion, runBossAttack, spawnBossChest,
     });
     score = res.score; shards = res.shards; wave = res.wave; shake = res.shake; boss = res.boss;
+  }
+
+  // Cofre de jefe: queda en el campo hasta que el jugador lo toque.
+  function spawnBossChest(x, y) {
+    bossChests.push({ x, y, dead: false, timer: 0 });
+  }
+  function updateBossChests(dt) {
+    bossChests = NV.updateBossChests(dt, bossChests, player, pickups, weaponPickups, WEAPONS, addFloatText, sfx.pickup);
   }
 
     // === DIFICULTAD PROGRESIVA: críticos escalables con la oleada (PvE) ===
@@ -1119,6 +1128,26 @@
       ctx.fillText(wp.weapon.icon, wp.x, wp.y);
       ctx.font = '10px system-ui';
       ctx.fillText(wp.weapon.name, wp.x, wp.y + 15);
+    }
+
+    // Cofres de jefe: cofre dorado pulsante.
+    for (const c of bossChests) {
+      if (c.dead) continue;
+      const pulse = 0.6 + Math.sin(frame * 0.15) * 0.4;
+      ctx.save();
+      ctx.translate(c.x, c.y);
+      ctx.shadowBlur = 14;
+      ctx.shadowColor = '#ffd700';
+      ctx.fillStyle = '#ffcf76';
+      ctx.fillRect(-14, -11, 28, 22);
+      ctx.fillStyle = '#a06b18';
+      ctx.fillRect(-14, -11, 28, 4);
+      ctx.globalAlpha = 0.5 + pulse * 0.4;
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(-15, -12, 30, 24);
+      ctx.globalAlpha = 1;
+      ctx.restore();
     }
 
     for (const p of pickups) {
