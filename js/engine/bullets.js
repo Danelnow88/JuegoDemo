@@ -81,7 +81,7 @@
         }
         if (boss && !boss.dead && !b.dead) {
           const d = Math.hypot(b.x - boss.x, b.y - boss.y);
-          if (d < boss.radius + 4) { boss.hp -= b.damage; boss.hitFlash = Math.max(boss.hitFlash, 0.15); b.dead = true; hitstop = 0.03; }
+          if (d < boss.radius + 4) { boss.hp -= b.damage; boss.hitFlash = Math.max(boss.hitFlash, 0.15); b.dead = true; hitstop = 0.03; NV.bossHitReaction(boss, b.damage, addFloatText); }
         }
       }
     }

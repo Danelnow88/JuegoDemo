@@ -143,12 +143,26 @@
     }
   };
 
+  // ---- Reacción de dolor/enojo: golpe fuerte => globo de texto (con cooldown interno) ----
+  const BOSS_RAGE_TEXTS = ['@%$#!', '¡GRRR!', '😡', '💢', '#@!*', '¡¿QUÉ?!', '😤', '¡DUELE!'];
+  NV.bossHitReaction = function (boss, damage, addFloatText) {
+    if (!boss || boss.dead) return false;
+    if ((boss.rageCd || 0) > 0) return false;
+    // Solo reacciona a golpes contundentes (≥2.5% de su vida máxima).
+    if (damage < boss.maxHp * 0.025) return false;
+    const txt = BOSS_RAGE_TEXTS[Math.floor(Math.random() * BOSS_RAGE_TEXTS.length)];
+    addFloatText(boss.x, boss.y - boss.radius - 14, txt, '#ff5f5f');
+    boss.rageCd = 1.6;
+    return true;
+  };
+
   // ---- Movimiento/fases/muerte del jefe ----
   NV.updateBoss = function (dt, st) {
     const boss = st.boss;
     if (!boss || boss.dead) return { score: st.score, shards: st.shards, wave: st.wave, shake: st.shake, boss };
     const W = st.W, H = st.H;
     boss.timer += dt;
+    if ((boss.rageCd || 0) > 0) boss.rageCd -= dt;
 
     if (boss.pattern === 'chase') { boss.x = W / 2 + Math.sin(boss.timer * 0.3) * 200; }
     else if (boss.pattern === 'charge') { boss.x = W / 2 + Math.sin(boss.timer * 0.5) * 300; boss.y = 100 + Math.sin(boss.timer * 0.5) * 30; }
