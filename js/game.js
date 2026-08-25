@@ -98,6 +98,14 @@
   // Niveles por arma: cada derribo aporta "puntos de progreso" (weaponKills) que
   // pesan según la dificultad de la oleada (más difícil = más progreso), con tope.
   let weaponLevels = {}, weaponKills = {};
+  // Fusión de repetidas: duplicar un arma sube este contador (cap MAX_WEAPON_FUSION).
+  // Multiplica el daño vía NV.weaponFusionDamage. Reseteado por partida como weaponLevels.
+  let weaponFus = {};
+  const MAX_WEAPON_FUSION = NV.BALANCE.MAX_WEAPON_FUSION;
+  const WEAPON_FUSION_DMG = NV.BALANCE.WEAPON_FUSION_DMG;
+  const WEAPON_FUSE_PRICE = NV.BALANCE.WEAPON_FUSE_PRICE;
+  function currentWeaponFusion() { return weaponFus[currentWeapon.id] || 0; }
+  function weaponFusionLevel(id) { return weaponFus[id] || 0; }
   const WEAPON_KILLS_PER_LEVEL = NV.BALANCE.WEAPON_KILLS_PER_LEVEL;   // ~6 puntos de progreso por nivel
   const WEAPON_PROGRESS_SCALE = NV.BALANCE.WEAPON_PROGRESS_SCALE; // +6% de progreso por derribo, por oleada
   const WEAPON_PROGRESS_CAP = NV.BALANCE.WEAPON_PROGRESS_CAP;      // máx ~3 puntos de progreso por derribo
@@ -323,7 +331,7 @@
     enemies = []; bullets = []; particles = []; pickups = [];
     floatTexts = []; trails = []; weaponPickups = [];
     inventory = []; currentWeapon = WEAPONS[0]; consumableItems = [];
-    weaponLevels = {}; weaponKills = {}; fireTimer = 0;
+    weaponLevels = {}; weaponKills = {}; weaponFus = {}; fireTimer = 0;
         boss = null; shake = 0; hitstop = 0; flashAlpha = 0;
     transition = 0; paused = false; showStats = false;
     specialVFX = null; NV.musicTime = 0;
@@ -487,9 +495,11 @@
 
       if (i < inventory.length) {
         const weapon = inventory[i];
+        const fusLevel = weaponFusionLevel(weapon.id);
         slot.innerHTML = `
           <div class="inv-icon" style="color:${RARITY_COLORS[weapon.rarity]}">${weapon.icon}</div>
           <div class="inv-name">${weapon.name}</div>
+          ${fusLevel > 0 ? `<div class="inv-fuse">Fusión Nv${fusLevel}</div>` : ''}
         `;
         if (weapon === currentWeapon) {
           slot.classList.add('equipped');
@@ -565,23 +575,34 @@
     }
 
     WEAPONS.forEach(w => {
-      if (w !== currentWeapon && !inventory.includes(w)) {
-        weapons.push({
-          icon: "", name: w.name, weapon: w,
-          desc: w.rarity + ' | daño ' + w.damage + ' | ' + (w.pro || ''),
-          price: 25,
-          buy: () => {
-            if (inventory.length < INVENTORY_SLOTS) {
-              inventory.push(w);
-              addFloatText(W/2, H/2, '¡' + w.name + '!', RARITY_COLORS[w.rarity]);
-            } else {
-              currentWeapon = w;
-              addFloatText(W/2, H/2, 'EQUIPADO: ' + w.name, RARITY_COLORS[w.rarity]);
-            }
-            sfx.pickup();
-          },
-        });
-      }
+      const isCurrent = w === currentWeapon;
+      const owned = inventory.some((iw) => iw.id === w.id);
+      const fus = weaponFusionLevel(w.id);
+      // La equipada actual no se ofrece (conserva el comportamiento previo).
+      if (isCurrent) return;
+      // Poseída al tope de fusión: no se ofrece.
+      if (owned && fus >= MAX_WEAPON_FUSION) return;
+      const canFuse = owned && fus < MAX_WEAPON_FUSION;
+      weapons.push({
+        icon: "", name: w.name, weapon: w,
+        desc: canFuse
+          ? ('FUSIONAR: +' + Math.round(WEAPON_FUSION_DMG * 100) + '% daño (Nv' + (fus + 1) + '/' + MAX_WEAPON_FUSION + ')')
+          : (w.rarity + ' | daño ' + w.damage + ' | ' + (w.pro || '')),
+        price: canFuse ? WEAPON_FUSE_PRICE : 25,
+        buy: () => {
+          if (canFuse) {
+            weaponFus[w.id] = fus + 1;
+            addFloatText(W / 2, H / 2, w.name + ' FUSIONADO → Nv' + (fus + 1), '#ffd700');
+          } else if (inventory.length < INVENTORY_SLOTS) {
+            inventory.push(w);
+            addFloatText(W/2, H/2, '¡' + w.name + '!', RARITY_COLORS[w.rarity]);
+          } else {
+            currentWeapon = w;
+            addFloatText(W/2, H/2, 'EQUIPADO: ' + w.name, RARITY_COLORS[w.rarity]);
+          }
+          sfx.pickup();
+        },
+      });
     });
 
     const consumableDefs = [
@@ -841,6 +862,7 @@
       player, enemies, boss, bullets, currentWeapon,
       currentWeaponLevel, weaponVisualTier, BULLET_TIER_COLORS, MAX_BULLETS,
       permDamageBonus: permUpgrades.damage, playWeaponSound,
+      currentWeaponFusion: currentWeaponFusion(), fusionStep: WEAPON_FUSION_DMG,
     });
   }
 
@@ -959,8 +981,19 @@
     pickups = r.pickups; shards += r.shards;
   }
 
+  // Fusión de arma recogida: si ya la poseés, sube su nivel de fusión en vez de
+  // ocupar un slot. Devuelve {fused,level} | {maxed} | {fused:false,owned:false}.
+  function tryWeaponFusion(weapon) {
+    if (!inventory.some((w) => w.id === weapon.id)) return { fused: false, owned: false };
+    const cur = weaponFus[weapon.id] || 0;
+    if (cur >= MAX_WEAPON_FUSION) return { fused: false, maxed: true };
+    weaponFus[weapon.id] = cur + 1;
+    if (currentWeapon.id === weapon.id) updateHUD();
+    return { fused: true, level: cur + 1 };
+  }
+
   function updateWeaponPickups(dt) {
-    const r = NV.updateWeaponPickups(dt, weaponPickups, player, inventory, INVENTORY_SLOTS, currentWeapon, addFloatText, RARITY_COLORS, sfx.pickup);
+    const r = NV.updateWeaponPickups(dt, weaponPickups, player, inventory, INVENTORY_SLOTS, currentWeapon, addFloatText, RARITY_COLORS, sfx.pickup, tryWeaponFusion);
     weaponPickups = r.weaponPickups;
     if (currentWeapon !== r.currentWeapon) currentWeapon = r.currentWeapon;
   }

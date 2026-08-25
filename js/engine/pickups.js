@@ -38,22 +38,40 @@
 
   // ---- update de pickups de arma ----
   // devuelve { weaponPickups, currentWeapon } (currentWeapon reasignado por el wrapper si cambió)
-  NV.updateWeaponPickups = function (dt, weaponPickups, player, inventory, INVENTORY_SLOTS, currentWeapon, addFloatText, RARITY_COLORS, pickupSfx) {
+  // tryFusion(weapon) => { fused, level } | { maxed } | { owned:false }; retrocompatible si no se pasa.
+  NV.updateWeaponPickups = function (dt, weaponPickups, player, inventory, INVENTORY_SLOTS, currentWeapon, addFloatText, RARITY_COLORS, pickupSfx, tryFusion) {
     for (const wp of weaponPickups) {
       if (wp.dead) continue;
       const d = Math.hypot(wp.x - player.x, wp.y - player.y);
       if (d < 30) {
+        if (tryFusion) {
+          const r = tryFusion(wp.weapon);
+          if (r && r.fused) {
+            wp.dead = true;
+            addFloatText(wp.x, wp.y - 10, 'FUSIÓN Nv' + r.level, '#ffd700');
+            pickupSfx();
+            continue;
+          }
+          if (r && r.maxed) {
+            // Ya la tenés y está en el tope de fusión: no la consumes ni ocupás slot.
+            if (!wp.fullMsg || wp.fullMsg <= 0) {
+              addFloatText(wp.x, wp.y - 10, 'FUSIÓN MÁX', '#ff5f9b');
+              wp.fullMsg = 1.2;
+            }
+            continue;
+          }
+          // no poseída -> cae al flujo normal (guardar/llenar)
+        }
         if (inventory.length < INVENTORY_SLOTS) {
           wp.dead = true;
           inventory.push(wp.weapon);
           addFloatText(wp.x, wp.y - 10, 'GUARDADO', '#ffcf76');
           pickupSfx();
         } else {
-          // Inventario lleno: NO se recoge NI se auto-equipa. El cambio de arma
-          // es siempre una acción explícita del jugador (teclas/rueda/tienda).
+          // Inventario lleno: NO se recoge NI se auto-equipa.
           if (!wp.fullMsg || wp.fullMsg <= 0) {
             addFloatText(wp.x, wp.y - 10, 'INVENTARIO LLENO', '#ff5f9b');
-            wp.fullMsg = 1.2; // anti-spam del aviso mientras se pisa el drop
+            wp.fullMsg = 1.2;
           }
         }
       } else if (wp.fullMsg > 0) {

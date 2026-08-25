@@ -510,6 +510,12 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 - Orden de carga: `... render/hud.js` → `engine/fx.js, drones.js, meteors.js, pickups.js` → `game.js`.
 - Verificación: `node --check` OK en todos los engine modules + game.js; smoke runtime **4/4** (spawn dentro de pantalla; recolección de shard con filtro; guardar vs equipar según inventario).
 
+### v50 — Tanda B1: fusión de armas repetidas
+- **Drops**: recoger un arma que ya poseés NO ocupa slot nuevo — sube su **nivel de fusión** (aviso "FUSIÓN Nv X"). Al alcanzar el tope, el drop queda en el suelo con "FUSIÓN MÁX".
+- **Daño**: `NV.weaponFusionDamage(base, fus, 0.2)` = +20% de daño por nivel de fusión (cap 3, aplicado sobre base+nivel, críticos incluidos). Puro y testeable.
+- **Tienda**: comprar un arma repetida ahora ofrece **FUSIONAR** (15💎, más barato que comprar 25) subiendo el nivel; al máximo no se ofrece. Las ofertas no repetidas se compran igual que siempre.
+- **Visual**: badge dorado "Fusión NvX" en el slot del inventario (`inv-fuse`).
+- Constantes centralizadas en `balance.js`: `MAX_WEAPON_FUSION:3`, `WEAPON_FUSION_DMG:0.20`, `WEAPON_FUSE_PRICE:15`. Retrocompat: `updateWeaponPickups` acepta `tryFusion` opcional (tests viejos siguen verdes). Tests `weapon_fusion` 6/6.
 ### v49 — Tanda A: identidad visual y feedback (juego "vivo")
 - **A1 · Ojos**: todos los enemigos tienen ojos que **miran al jugador** (`NV.drawEnemyEyes`, esclerótica blanca + pupila orientada por `atan2`); pupilas rojas en élites. Firma `drawEnemy(ctx, e, frame, player)` extendida con retrocompatibilidad (sin player no dibuja ojos). Tests `enemy_eyes` 3/3.
 - **A2 · Reacción de jefes**: golpe ≥2,5% de su HP máx => globo de enojo (`@%$#!`, 😡, 💢…) sobre el jefe (`NV.bossHitReaction`) con cooldown de 1,6s decrementado en `updateBoss`. Conectado desde `bullets.js` al aplicar daño. Tests `boss_rage` 4/4.

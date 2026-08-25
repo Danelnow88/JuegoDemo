@@ -15,6 +15,11 @@
     MAX_PLAYER_BULLETS: 150, MAX_ENEMY_BULLETS: 120,
     // Progresión permanente
     MAX_PERM_LEVEL: 10,
+    // Fusión de armas repetidas: duplicar una arma que ya tenés sube su fusión
+    // (+ daño) en vez de sumar un slot. Techo bajo para no desbalancear la curva.
+    MAX_WEAPON_FUSION: 3,          // fusiones máximas por arma
+    WEAPON_FUSION_DMG: 0.20,       // +20% de daño por nivel de fusión
+    WEAPON_FUSE_PRICE: 15,         // precio de fusionar comprando duplicado en tienda
     // Cadencia de armas (fireRate se interpreta como frames a ~60fps)
     FIRE_FPS, MIN_FIRE_INTERVAL,
     WAVE_CADENCE_SCALE: 0.01,          // -1% de intervalo por oleada (máx -45% de factor)

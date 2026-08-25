@@ -26,6 +26,13 @@
     e.knockVelY = (e.knockVelY || 0) + Math.sin(angle) * kb;
   };
 
+  // Daño con multiplicador de fusión: las armas repetidas (fusionadas) escalan el daño
+  // base con un % por nivel de fusión. Puro y testeable. fus 0 => daño base.
+  NV.weaponFusionDamage = function (base, fus, step) {
+    const s = step || 0.2;
+    return Math.round(base * (1 + (fus || 0) * s));
+  };
+
   // Disparo del arma actual: genera proyectiles amistosos (con crítico y tier visual).
   // state: { player, enemies, boss, bullets, currentWeapon, currentWeaponLevel,
   //          weaponVisualTier, BULLET_TIER_COLORS, MAX_BULLETS, permDamageBonus, playWeaponSound }
@@ -56,10 +63,12 @@
       const angle = baseAngle + (i - (actualCount - 1) / 2) * spread;
       const crit = Math.random() < (0.1 + player.luck * 0.002);
       const baseDmg = weapon.damage + state.permDamageBonus * 2 + state.currentWeaponLevel(); // daño aditivo: base + meta + nivel de arma
+      // Fusión de repetidas: multiplicador extra (puro, cap en game.js).
+      const finalDmg = NV.weaponFusionDamage(baseDmg, state.currentWeaponFusion, state.fusionStep);
       bullets.push({
         x: player.x, y: player.y - 20,
         vx: Math.cos(angle) * weapon.speed, vy: Math.sin(angle) * weapon.speed,
-        damage: crit ? baseDmg * 2 : baseDmg,
+        damage: crit ? finalDmg * 2 : finalDmg,
         color: weapon.color, dead: false, isEnemy: false, pierce: weapon.pierce || 0,
         crit, stunChance: 0,
         // Estética de tier (visual; no se usa en colisiones). wid selecciona la forma.
