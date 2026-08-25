@@ -510,6 +510,13 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 - Orden de carga: `... render/hud.js` → `engine/fx.js, drones.js, meteors.js, pickups.js` → `game.js`.
 - Verificación: `node --check` OK en todos los engine modules + game.js; smoke runtime **4/4** (spawn dentro de pantalla; recolección de shard con filtro; guardar vs equipar según inventario).
 
+### v49 — Tanda A: identidad visual y feedback (juego "vivo")
+- **A1 · Ojos**: todos los enemigos tienen ojos que **miran al jugador** (`NV.drawEnemyEyes`, esclerótica blanca + pupila orientada por `atan2`); pupilas rojas en élites. Firma `drawEnemy(ctx, e, frame, player)` extendida con retrocompatibilidad (sin player no dibuja ojos). Tests `enemy_eyes` 3/3.
+- **A2 · Reacción de jefes**: golpe ≥2,5% de su HP máx => globo de enojo (`@%$#!`, 😡, 💢…) sobre el jefe (`NV.bossHitReaction`) con cooldown de 1,6s decrementado en `updateBoss`. Conectado desde `bullets.js` al aplicar daño. Tests `boss_rage` 4/4.
+- **A3 · Feedback ambiental**: campo de 90 estrellas con **parallax de 3 capas** contra la posición del jugador + titileo (`NV.drawStarfield` puro y determinista, canvas.js); **polvo de propulsión** cian detrás del jugador mientras desliza (Shift). Tests `ambient_fx` 4/4.
+- Robustez: `init()` tolera entornos sin `window.location` (sandboxes de tests).
+
+
 ### v48 — recoger armas nunca auto-equipa
 - **Fix**: con inventario lleno (6/6), pisar un drop de arma ya NO reemplaza/equipa la que tenías (antes la perdía y cambiaba sola). Ahora el drop queda en el suelo, avisa "INVENTARIO LLENO" (con anti-spam de 1.2s) y se recoge normalmente apenas liberes un slot.
 - El cambio de arma sigue siendo 100% explícito: teclas 1-6, rueda del mouse o tienda.

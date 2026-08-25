@@ -5,7 +5,7 @@ function t(desc, fn) { try { fn(); pass++; console.log('  ok  ' + desc); } catch
 const g = fs.readFileSync('js/game.js', 'utf8');
 
 t('?fresh=1: saltea loadMeta y congela guardado', () => {
-  if (!/\/\[\?&\]fresh=1\/\.test\(window\.location\.search\)/.test(g)) throw new Error('flag no detectado');
+  if (!/fresh=1/.test(g) || !/\.test\(\(window\.location && window\.location\.search\) \|\| ''\)/.test(g)) throw new Error('flag no detectado');
   const initIdx = g.indexOf('function init()');
   const initBody = g.slice(initIdx, g.indexOf('resizeCanvas();', initIdx));
   if (!initBody.includes('metaFrozen = true')) throw new Error('no congela en init');

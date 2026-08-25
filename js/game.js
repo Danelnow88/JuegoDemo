@@ -139,7 +139,7 @@
   // === INICIALIZACIÓN ===
   function init() {
     console.log('[INIT] Iniciando...');
-    if (/[?&]fresh=1/.test(window.location.search)) {
+    if (/[?&]fresh=1/.test((window.location && window.location.search) || '')) {
       metaFrozen = true;
       metaShards = 0;
       permUpgrades = { damage: 0, speed: 0, hp: 0, armor: 0, luck: 0 };
@@ -738,6 +738,10 @@
       const char = CHARACTERS[player.character];
       trails.push({ x: player.x, y: player.y, life: 0.3, color: player.color, size: char.size * 0.6 });
     }
+    // Polvo de propulsión al deslizar: chispas hacia atrás del movimiento.
+    if (sliding && frame % 2 === 0) {
+      spawnExplosion(player.x - (player.moveVx || 0) * 0.02, player.y - (player.moveVy || 0) * 0.02 + 8, 1, '#7cf8ff', 0.12);
+    }
 
     // Regeneración pasiva BOTI
     const char = CHARACTERS[player.character];
@@ -1024,6 +1028,7 @@
 
     ctx.fillStyle = '#050714';
     ctx.fillRect(0, 0, W, H);
+    NV.drawStarfield(ctx, W, H, frame, player.x, player.y);
 
     if (flashAlpha > 0 && flashColor) {
       ctx.fillStyle = flashColor;
