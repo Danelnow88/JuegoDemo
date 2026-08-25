@@ -43,15 +43,21 @@
       if (wp.dead) continue;
       const d = Math.hypot(wp.x - player.x, wp.y - player.y);
       if (d < 30) {
-        wp.dead = true;
         if (inventory.length < INVENTORY_SLOTS) {
+          wp.dead = true;
           inventory.push(wp.weapon);
           addFloatText(wp.x, wp.y - 10, 'GUARDADO', '#ffcf76');
+          pickupSfx();
         } else {
-          currentWeapon = wp.weapon;
-          addFloatText(wp.x, wp.y - 10, currentWeapon.name, RARITY_COLORS[currentWeapon.rarity]);
+          // Inventario lleno: NO se recoge NI se auto-equipa. El cambio de arma
+          // es siempre una acción explícita del jugador (teclas/rueda/tienda).
+          if (!wp.fullMsg || wp.fullMsg <= 0) {
+            addFloatText(wp.x, wp.y - 10, 'INVENTARIO LLENO', '#ff5f9b');
+            wp.fullMsg = 1.2; // anti-spam del aviso mientras se pisa el drop
+          }
         }
-        pickupSfx();
+      } else if (wp.fullMsg > 0) {
+        wp.fullMsg -= dt;
       }
     }
     return { weaponPickups: weaponPickups.filter((wp) => !wp.dead), currentWeapon };

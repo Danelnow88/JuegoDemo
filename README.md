@@ -510,6 +510,12 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 - Orden de carga: `... render/hud.js` → `engine/fx.js, drones.js, meteors.js, pickups.js` → `game.js`.
 - Verificación: `node --check` OK en todos los engine modules + game.js; smoke runtime **4/4** (spawn dentro de pantalla; recolección de shard con filtro; guardar vs equipar según inventario).
 
+### v48 — recoger armas nunca auto-equipa
+- **Fix**: con inventario lleno (6/6), pisar un drop de arma ya NO reemplaza/equipa la que tenías (antes la perdía y cambiaba sola). Ahora el drop queda en el suelo, avisa "INVENTARIO LLENO" (con anti-spam de 1.2s) y se recoge normalmente apenas liberes un slot.
+- El cambio de arma sigue siendo 100% explícito: teclas 1-6, rueda del mouse o tienda.
+- Tests: nuevo `tests/weapon_pickup.js` (4/4).
+
+
 ### v47 — modo testing sin persistencia + tope de consumibles
 - **`index.html?fresh=1`**: arranca con permanentes y meta-shards en cero y **congela el guardado** (`metaFrozen`) — ideal para testear balance desde cero sin pisar el progreso real de `localStorage`. Sin el flag, todo funciona exactamente igual que antes.
 - **`NV.resetMeta()`** en consola: borra `neonVoidMeta` al instante (recargar aplica el reset).
