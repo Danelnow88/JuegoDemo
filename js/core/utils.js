@@ -24,4 +24,29 @@
     return list[i];
   };
 
+  // Agrupa consumibles por tipo preservando el orden de primera aparición.
+  // Devuelve [{ type, name, icon, count }] para el HUD de slots.
+  NV.groupConsumables = function (items) {
+    const groups = [], byType = {};
+    for (const it of items || []) {
+      let g = byType[it.type];
+      if (!g) { g = { type: it.type, name: it.name, icon: it.icon, count: 0 }; byType[it.type] = g; groups.push(g); }
+      g.count++;
+    }
+    return groups;
+  };
+
+  // Índice circular seguro (para ciclar la selección de consumibles con teclas).
+  NV.cycleIndex = function (i, len, dir) {
+    if (!len || len <= 0) return 0;
+    return ((i + (dir > 0 ? 1 : -1)) % len + len) % len;
+  };
+
+  // Quita el PRIMER ítem del tipo dado y lo devuelve (null si no hay). No muta si falta.
+  NV.consumeByType = function (items, type) {
+    const idx = (items || []).findIndex((it) => it.type === type);
+    if (idx === -1) return null;
+    return items.splice(idx, 1)[0];
+  };
+
 })();

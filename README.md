@@ -510,6 +510,12 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 - Orden de carga: `... render/hud.js` → `engine/fx.js, drones.js, meteors.js, pickups.js` → `game.js`.
 - Verificación: `node --check` OK en todos los engine modules + game.js; smoke runtime **4/4** (spawn dentro de pantalla; recolección de shard con filtro; guardar vs equipar según inventario).
 
+### v54 — fixes de HUD y muerte (post-Tanda E)
+- **fix1**: game over por proyectil del jefe — el wrapper de `updateBullets` descartaba el flag `gameOver` retornado por el módulo, así que con BOTI la regen revivía al jugador en 0 HP durante peleas de jefe. Ahora el retorno se propaga.
+- **fix2**: combo de kills reubicado abajo-centro (se superponía con la barra/contador de oleada).
+- **fix3**: HUD de armas y consumibles rediseñado en **grillas 3×2 (6 slots)** dibujadas en canvas, slot equipado/seleccionado resaltado. Consumibles: se eligen con **Q** o **click directo sobre el slot**, se usan con F (`NV.groupConsumables`, `NV.consumeByType`, `NV.cycleIndex` en `core/utils.js`; reset de selección por partida).
+
+
 ### v53 — Tanda E final: combo, Kamikaze y pulido de proyectiles
 - **Combo de kills** (`kill_combo` 6/6): derribos en ventana <2s suben el contador; milestones cada ×5 dan +1💎, bonus de score escalable con tope, y se resetea al recibir daño. HUD con texto pulsante arcoíris.
 - **Enemigo Kamikaze** (`kamikaze` 6/6): nuevo tipo desde oleada 10 — se "arma" a <130px del jugador (mecha 1s, parpadeo), y al morir detona daño en área solo si estás cerca. Spawn filtrado por `minWave` para no alterar umbrales de los otros tipos.

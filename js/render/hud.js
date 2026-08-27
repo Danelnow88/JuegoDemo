@@ -32,42 +32,84 @@
     }
   };
 
-  // Panel superior derecho: arma + habilidad + consumibles.
-  NV.drawWeaponHUD = function (ctx, W, H, CHARACTERS, RARITY_COLORS, player, currentWeapon, currentWeaponLevel, consumableItems, showHUD) {
+  // Dibuja una grilla de celdas 3x2 reutilizable para paneles de slots.
+  function drawSlotGrid(ctx, gx, gy, entries, selIdx, cw, ch) {
+    const cols = 3, gap = 4;
+    for (let i = 0; i < 6; i++) {
+      const e = entries[i];
+      const x = gx + (i % cols) * (cw + gap), y = gy + Math.floor(i / cols) * (ch + gap);
+      const selected = i === selIdx && !!e;
+      ctx.fillStyle = selected ? 'rgba(124,248,255,0.22)' : (e ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.02)');
+      ctx.fillRect(x, y, cw, ch);
+      ctx.strokeStyle = selected ? '#7cf8ff' : (e ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.08)');
+      ctx.lineWidth = selected ? 2 : 1;
+      ctx.strokeRect(x, y, cw, ch);
+      if (e) {
+        ctx.font = 'bold 14px system-ui';
+        ctx.fillStyle = e.color || '#fff';
+        ctx.fillText(e.icon, x + 5, y + ch / 2 + 5);
+        if (e.badge) {
+          ctx.font = 'bold 9px system-ui';
+          ctx.textAlign = 'right';
+          ctx.fillStyle = '#fff';
+          ctx.fillText(e.badge, x + cw - 4, y + ch - 5);
+          ctx.textAlign = 'left';
+        }
+      }
+    }
+  }
+
+  // Panel derecho: ARMAS (grilla 6 slots) + HABILIDAD + CONSUMIBLES (grilla 6 slots con selección).
+  NV.drawWeaponHUD = function (ctx, W, H, CHARACTERS, RARITY_COLORS, player, currentWeapon, currentWeaponLevel, inventory, consumGroups, consumSel, showHUD) {
     if (!showHUD) return;
-    const weapon = currentWeapon;
     const char = CHARACTERS[player.character];
+    const weapon = currentWeapon;
     const iconColor = RARITY_COLORS[weapon.rarity];
-    const w = 118, h = 40;
-    const wx = W - w - 12, wy = 10;
+    const pw = 154, wh = 92, sh = 40, chh = 92;
+    const wx = W - pw - 10, wy = 10;
 
     ctx.textAlign = 'left';
 
-    // === ARMA (panel pequeño) ===
+    // === ARMAS: cabecera (arma equipada) + grilla de inventario (teclas 1-6) ===
     ctx.fillStyle = 'rgba(0,0,0,0.72)';
     ctx.strokeStyle = iconColor; ctx.lineWidth = 1.5;
-    ctx.fillRect(wx, wy, w, h); ctx.strokeRect(wx, wy, w, h);
+    ctx.fillRect(wx, wy, pw, wh); ctx.strokeRect(wx, wy, pw, wh);
     ctx.font = 'bold 15px system-ui';
     ctx.fillStyle = iconColor;
-    ctx.fillText(weapon.emoji, wx + 7, wy + 24);
+    ctx.fillText(weapon.emoji, wx + 7, wy + 17);
     ctx.font = 'bold 9px system-ui';
     ctx.fillStyle = '#fff';
-    ctx.fillText(weapon.name, wx + 30, wy + 16);
+    ctx.fillText(weapon.name, wx + 27, wy + 12);
     ctx.font = '8px system-ui';
     ctx.fillStyle = '#aaa';
-    ctx.fillText('Nv ' + currentWeaponLevel() + ' · teclas 1-6', wx + 30, wy + 30);
+    ctx.fillText('Nv ' + currentWeaponLevel() + ' · rueda o teclas 1-6', wx + 27, wy + 23);
+    drawSlotGrid(ctx, wx + 5, wy + 28, inventory.map((wItem, i) => ({
+      icon: wItem.emoji,
+      color: RARITY_COLORS[wItem.rarity],
+      badge: String(i + 1),
+      equipped: wItem === weapon,
+    })), -1, 45, 28);
+    // El arma equipada se resalta aparte (puede ser la Pistola base, fuera del inventario).
+    for (let i = 0; i < 6 && i < inventory.length; i++) {
+      if (inventory[i] === weapon) {
+        const gx = wx + 5 + (i % 3) * 49, gy = wy + 28 + Math.floor(i / 3) * 32;
+        ctx.strokeStyle = iconColor; ctx.lineWidth = 2;
+        ctx.strokeRect(gx, gy, 45, 28);
+        break;
+      }
+    }
 
     // === HABILIDAD (panel pequeño + relleno de cooldown) ===
-    const sy = wy + h + 6;
+    const sy = wy + wh + 6;
     ctx.fillStyle = 'rgba(0,0,0,0.72)';
     ctx.strokeStyle = char.color; ctx.lineWidth = 1.5;
-    ctx.fillRect(wx, sy, w, h); ctx.strokeRect(wx, sy, w, h);
+    ctx.fillRect(wx, sy, pw, sh); ctx.strokeRect(wx, sy, pw, sh);
 
     const cd = player.specialCd > 0 ? 1 - player.specialCd / char.maxCd : 1;
-    const fillH = Math.max(0, Math.min(1, cd)) * (h - 2);
+    const fillH = Math.max(0, Math.min(1, cd)) * (sh - 2);
     ctx.globalAlpha = 0.55;
     ctx.fillStyle = char.color;
-    ctx.fillRect(wx + 1, sy + h - 1 - fillH, w - 2, fillH);
+    ctx.fillRect(wx + 1, sy + sh - 1 - fillH, pw - 2, fillH);
     ctx.globalAlpha = 1;
 
     ctx.font = 'bold 15px system-ui';
@@ -76,25 +118,25 @@
     ctx.font = 'bold 8px system-ui';
     ctx.fillStyle = cd >= 1 ? '#fff' : '#aaa';
     ctx.fillText(cd >= 1 ? '¡LISTO! ✓' : 'CD ' + Math.ceil(player.specialCd) + 's', wx + 30, sy + 16);
-    ctx.font = '8px system-ui';
-    ctx.fillStyle = '#aaa';
     ctx.fillText(char.skillName, wx + 30, sy + 30);
 
-    // === CONSUMIBLES (indicador con la tecla F) ===
-    if (consumableItems.length > 0) {
-      const cy = sy + h + 6;
-      ctx.fillStyle = 'rgba(0,0,0,0.72)';
-      ctx.strokeStyle = '#7cf8ff'; ctx.lineWidth = 1.5;
-      ctx.fillRect(wx, cy, w, h); ctx.strokeRect(wx, cy, w, h);
-      ctx.font = 'bold 15px system-ui';
-      ctx.fillText(consumableItems[0].icon, wx + 7, cy + 24);
-      ctx.font = 'bold 9px system-ui';
-      ctx.fillStyle = '#fff';
-      ctx.fillText('x' + consumableItems.length, wx + 30, cy + 16);
-      ctx.font = '8px system-ui';
-      ctx.fillStyle = '#aaa';
-      ctx.fillText('F: usar consumible', wx + 30, cy + 30);
-    }
+    // === CONSUMIBLES: grilla por TIPO (selección con Q, uso con F) ===
+    const cy = sy + sh + 6;
+    ctx.fillStyle = 'rgba(0,0,0,0.72)';
+    ctx.strokeStyle = '#7cf8ff'; ctx.lineWidth = 1.5;
+    ctx.fillRect(wx, cy, pw, chh); ctx.strokeRect(wx, cy, pw, chh);
+    ctx.font = 'bold 9px system-ui';
+    ctx.fillStyle = consumGroups.length ? '#7cf8ff' : '#555';
+    ctx.fillText(consumGroups.length ? 'F usar · Q elegir' : 'SIN CONSUMIBLES', wx + 7, cy + 13);
+    drawSlotGrid(ctx, wx + 5, cy + 18, consumGroups.slice(0, 6).map((g) => ({
+      icon: g.icon,
+      color: '#fff',
+      badge: 'x' + g.count,
+    })), consumGroups.length ? consumSel : -1, 45, 28);
+    // Rects para hit-test de click en game.js (selección de consumible con el mouse).
+    NV.consumSlotRects = consumGroups.slice(0, 6).map((g, i) => ({
+      type: g.type, x: wx + 5 + (i % 3) * 49, y: cy + 18 + Math.floor(i / 3) * 32, w: 45, h: 28,
+    }));
   };
 
     // Combo de kills (E1): contador ABAJO-CENTRO (libre de paneles laterales y barra de oleada).

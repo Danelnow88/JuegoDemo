@@ -53,6 +53,7 @@
   let inventory = [];
   const INVENTORY_SLOTS = 6;
   let consumableItems = [];
+  let consumSel = 0; // índice del tipo de consumible seleccionado (cicla con Q, usa F)
   const CONSUMABLES = NV.CONSUMABLES;
 
   // === PROGRESIÓN PERMANENTE ===
@@ -203,6 +204,19 @@
       cycleWeapon(e.deltaY > 0 ? 1 : -1);
       e.preventDefault();
     }, { passive: false });
+    // Click sobre un slot de consumible (HUD): lo selecciona como activo.
+    canvas.addEventListener('click', (e) => {
+      if (state !== 'playing' || paused || !NV.consumSlotRects) return;
+      const rect = canvas.getBoundingClientRect();
+      const mx = (e.clientX - rect.left) / scaleX, my = (e.clientY - rect.top) / scaleY;
+      for (let i = 0; i < NV.consumSlotRects.length; i++) {
+        const r = NV.consumSlotRects[i];
+        if (mx >= r.x && mx <= r.x + r.w && my >= r.y && my <= r.y + r.h) {
+          if (consumSel !== i) { consumSel = i; sfx.pickup(); }
+          return;
+        }
+      }
+    });
 
     window.addEventListener('keydown', (e) => {
       if (e.code === 'ArrowLeft' || e.code === 'KeyA') moveLeft = true;
@@ -217,6 +231,12 @@
       if (e.code === 'KeyP') togglePause();
       if (e.code === 'KeyF' && state === 'playing' && !paused) {
         useConsumable();
+        e.preventDefault();
+      }
+      if (e.code === 'KeyQ' && state === 'playing' && !paused) {
+        // Cicla el consumible seleccionado (el resaltado en el HUD muestra cuál se usa con F).
+        const groups = NV.groupConsumables(consumableItems);
+        if (groups.length) { consumSel = NV.cycleIndex(consumSel, groups.length, -1); sfx.pickup(); }
         e.preventDefault();
       }
       const digit = /^Digit([1-6])$/.exec(e.code);
@@ -342,6 +362,7 @@
     enemies = []; bullets = []; particles = []; pickups = [];
     floatTexts = []; trails = []; weaponPickups = []; bossChests = [];
     inventory = []; currentWeapon = WEAPONS[0]; consumableItems = [];
+    consumSel = 0;
     weaponLevels = {}; weaponKills = {}; weaponFus = {}; fireTimer = 0;
         boss = null; shake = 0; hitstop = 0; flashAlpha = 0;
     transition = 0; paused = false; showStats = false;
@@ -451,7 +472,11 @@
 // === CONSUMIBLES (se usan con la tecla F en partida) ===
   function useConsumable() {
     if (state !== 'playing' || paused || consumableItems.length === 0) return;
-    const item = consumableItems.shift();
+    // Usa el TIPO seleccionado (elegido con Q / click en el HUD), no siempre el primero.
+    const groups = NV.groupConsumables(consumableItems);
+    consumSel = Math.min(consumSel, groups.length - 1);
+    const item = NV.consumeByType(consumableItems, groups[consumSel].type);
+    if (!item) { consumSel = Math.max(0, consumSel - 1); return; }
     if (item.type === 'potion') {
       player.hp = Math.min(player.maxHp, player.hp + CONSUMABLES.potion.hp);
       addFloatText(player.x, player.y, '+40 HP', '#0f0');
@@ -1428,7 +1453,7 @@
 
 
   function drawWeaponHUD() {
-    NV.drawWeaponHUD(ctx, W, H, CHARACTERS, RARITY_COLORS, player, currentWeapon, currentWeaponLevel, consumableItems, showHUD);
+    NV.drawWeaponHUD(ctx, W, H, CHARACTERS, RARITY_COLORS, player, currentWeapon, currentWeaponLevel, inventory, NV.groupConsumables(consumableItems), consumSel, showHUD);
   }
 
 
