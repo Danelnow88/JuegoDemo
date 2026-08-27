@@ -510,6 +510,12 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 - Orden de carga: `... render/hud.js` → `engine/fx.js, drones.js, meteors.js, pickups.js` → `game.js`.
 - Verificación: `node --check` OK en todos los engine modules + game.js; smoke runtime **4/4** (spawn dentro de pantalla; recolección de shard con filtro; guardar vs equipar según inventario).
 
+### v53 — Tanda E final: combo, Kamikaze y pulido de proyectiles
+- **Combo de kills** (`kill_combo` 6/6): derribos en ventana <2s suben el contador; milestones cada ×5 dan +1💎, bonus de score escalable con tope, y se resetea al recibir daño. HUD con texto pulsante arcoíris.
+- **Enemigo Kamikaze** (`kamikaze` 6/6): nuevo tipo desde oleada 10 — se "arma" a <130px del jugador (mecha 1s, parpadeo), y al morir detona daño en área solo si estás cerca. Spawn filtrado por `minWave` para no alterar umbrales de los otros tipos.
+- **Proyectil refleja tu arma** (`bullet_polish` 5/5): las balas crecen +2% por nivel de arma y +6% por nivel de fusión (tope 40%, solo estético vía `NV.bulletSizeGrowth`); armas fusionadas disparan con **halo dorado** identificable.
+- Corregido harness de `weapon_range.js` que ya no cargaba `balance.js` tras D2.
+
 ### v52 — Tanda D1: nuevos consumibles
 - Se suman **4 consumibles** (total 7), usando la tecla F, con tope por visita respetado por el contador existente:
   - 💣 **Bomba**: daña 25% del HP máx a todos los enemigos y al jefe (piso 1, no mata directo sino que deja al borde).

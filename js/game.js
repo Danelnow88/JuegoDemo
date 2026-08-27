@@ -1303,8 +1303,8 @@
       }
       // Proyectil del jugador con identidad por arma.
       const def = BULLET_DEFS[b.wid] || BULLET_DEFS.pistol;
-      // Crecimiento por tier: solo a partir de tier 3 (nivel 30+) y por % pequeño.
-      const g = Math.max(0, (b.tier || 0) - 2) * 0.05;
+      // Crecimiento visual: nivel/fusión del arma + tier alto (nivel 30+), solo estético.
+      const g = (b.growth || 0) + Math.max(0, (b.tier || 0) - 2) * 0.05;
       if (b.tier > 0) {
         ctx.shadowColor = b.glowColor || b.color;
         ctx.shadowBlur = 8 + b.tier; // glow compacto, no infla tanto

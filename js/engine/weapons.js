@@ -41,6 +41,13 @@
     return typeof v === 'number' ? v : (sellMap.common || 0);
   };
 
+  // Crecimiento VISUAL del proyectil por nivel de arma y fusión (no afecta colisiones):
+  // +2% de tamaño por nivel sobre 1 y +6% por nivel de fusión, con tope. Puro y testeable.
+  NV.bulletSizeGrowth = function (level, fus) {
+    const lv = Math.max(0, (level || 1) - 1);
+    return Math.min(0.4, lv * 0.02 + (fus || 0) * 0.06);
+  };
+
   // Disparo del arma actual: genera proyectiles amistosos (con crítico y tier visual).
   // state: { player, enemies, boss, bullets, currentWeapon, currentWeaponLevel,
   //          weaponVisualTier, BULLET_TIER_COLORS, MAX_BULLETS, permDamageBonus, playWeaponSound }
@@ -64,7 +71,7 @@
 
     // Estética por tier del arma (solo visual).
     const vTier = state.weaponVisualTier();
-    const glowColor = state.BULLET_TIER_COLORS[vTier];
+    const glowColor = (state.currentWeaponFusion || 0) > 0 ? '#ffd700' : state.BULLET_TIER_COLORS[vTier];
 
     for (let i = 0; i < actualCount; i++) {
       if (bullets.length >= state.MAX_BULLETS) break;
@@ -81,6 +88,8 @@
         crit, stunChance: 0,
         // Estética de tier (visual; no se usa en colisiones). wid selecciona la forma.
         tier: vTier, glowColor, wid: weapon.id,
+        // Crecimiento por nivel/fusión + halo dorado si el arma está fusionada.
+        growth: NV.bulletSizeGrowth(state.currentWeaponLevel(), state.currentWeaponFusion),
       });
     }
     state.playWeaponSound(weapon);
