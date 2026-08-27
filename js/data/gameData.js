@@ -112,4 +112,12 @@
     { name: 'MUTANTE', hp: 380, radius: 52, color: '#32cd32', speed: 32, pattern: 'split', attack: 'split', shape: 'hex', stunChance: 0.1 },
     { name: 'APOCALIPSIS', hp: 800, radius: 75, color: '#ff1493', speed: 22, pattern: 'rage', attack: 'rage', shape: 'rock', stunChance: 0.18 },
   ];
+
+  // Eventos de oleada aleatorios (cada ~3 oleadas): modifican la run sin tocar las mecánicas base.
+  NV.WAVE_EVENTS = {
+    elites:  { name: 'DIAS DE ÉLITES',   color: '#ff0',    desc: '¡Más élites' },
+    payday:  { name: 'DÍA DE PAGO',      color: '#7cf8ff', desc: 'Drops de 💎 x2' },
+    fog:     { name: 'NEBLINA',          color: '#caa7ff', desc: 'Visibilidad reducida' },
+    mines:   { name: 'CAMPO MINADO',     color: '#ff5f9b', desc: '¡Enemigos explosivos!' },
+  };
 })();

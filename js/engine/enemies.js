@@ -28,16 +28,20 @@
       knockbackRes: type.knockbackRes || 0, knockVelX: 0, knockVelY: 0,
       damage: (type.damage || 10) + dmgScale, shield: type.shield || false, shieldCd: 0, resist: type.resist || 0,
       shootTimer: 0, stunChance: type.stunChance || 0,
+      // Evento CAMPO MINADO: algunos enemigos detonan en cadena al morir.
+      mine: !!(st.waveEvent === 'mines' && Math.random() < 0.5),
     });
   };
 
-  // ---- Spawn élite (cada 2 oleadas, desde la 2) ----
+  // ---- Spawn élite (cada 2 oleadas, desde la 3) ----
   NV.spawnElite = function (st) {
     if (st.wave < 3) return;
     if (st.wave % 2 === 0) return;
     if (st.boss && !st.boss.dead) return; // no élites durante un jefe
+    // Evento LLUVIA DE ÉLITES: 1 élite extra (3 en vez de 2) en cada spawn.
+    const count = st.waveEvent === 'elites' ? 3 : 2;
     const startIndex = ((st.wave / 2 - 1) * 2) % st.ELITE_TYPES.length;
-    for (let i = 0; i < 2; i++) {
+    for (let i = 0; i < count; i++) {
       if (st.enemies.length >= st.MAX_ENEMIES) break;
       const elite = st.ELITE_TYPES[(startIndex + i) % st.ELITE_TYPES.length];
       const side = Math.random() < 0.5 ? 0 : st.W;
@@ -89,6 +93,17 @@
       st.pickups.push({ x: e.x, y: e.y, type: 'shard', value: 3, dead: false });
     } else if (Math.random() < 0.15 + st.player.luck * 0.01) {
       st.pickups.push({ x: e.x, y: e.y, type: 'shard', dead: false });
+    }
+    // Evento DÍA DE PAGO: cada derribo suelta además un shard extra de valor 2.
+    if (st.waveEvent === 'payday') {
+      st.pickups.push({ x: e.x + 6, y: e.y + 6, type: 'shard', value: 2, dead: false });
+    }
+    // Evento CAMPO MINADO: el enemigo mina explota al morir (área, daño al jugador si está cerca).
+    if (e.mine) {
+      st.spawnExplosion(e.x, e.y, 26, '#ff5f9b', 0.9);
+      if (st.computePlayerHit && Math.hypot(e.x - st.player.x, e.y - st.player.y) < 90) {
+        st.computePlayerHit(20);
+      }
     }
     st.sfx.explosion();
     return score;

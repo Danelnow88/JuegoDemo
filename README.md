@@ -510,6 +510,11 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 - Orden de carga: `... render/hud.js` → `engine/fx.js, drones.js, meteors.js, pickups.js` → `game.js`.
 - Verificación: `node --check` OK en todos los engine modules + game.js; smoke runtime **4/4** (spawn dentro de pantalla; recolección de shard con filtro; guardar vs equipar según inventario).
 
+### v51 — Tanda C2: eventos de oleada aleatorios
+- **Selección**: cada ~3 oleadas (no-jefe) se elige un evento aleatorio (sin repetir el anterior), anunciado con banner `⚠` + flash del color del evento.
+- **4 eventos** (`WAVE_EVENTS` en gameData): `elites` (spawn de 3 élites por lote en vez de 2) · `payday` (cada derribo suelta un shard extra de valor 2 = drops x2) · `fog` (niebla: velo oscuro + viñeta radial centrada en el jugador) · `mines` (50% de enemigos marcados que explotan en área al morir, dañando al jugador si está a <90px).
+- Se resetea por partida y se liga a spawn (élites/minas) y a kills (payday). Los eventos son modificadores de la run, sin tocar mecánicas base.
+- Tests `wave_events` 4/4.
 ### v50 — Tanda C1: cofres del jefe
 - Al matar un jefe, suelta un **cofre de botín** dorado en su posición. Al tocarlo libera **1-3 pickups** (55% chance de shards de valor alto deja 3-6, 45% un arma aleatoria).
 - El cofre queda en el campo hasta recogerlo; expira tras 30s. Visual: cofre dorado pulsante con glow (reutiliza la paleta del jefe/tienda).

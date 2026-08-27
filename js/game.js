@@ -45,6 +45,9 @@
 
   // === PROGRESO ===
   let wave = 1, score = 0, shards = 0, waveTimer = 0, spawnTimer = 0, boss = null, transition = 0;
+  // Evento de oleada activo (null si no hay): modifica la run de esa oleada.
+  let waveEvent = null;
+  const WAVE_EVENTS = NV.WAVE_EVENTS;
 
   // === INVENTARIO ===
   let inventory = [];
@@ -328,6 +331,7 @@
     player.xp = 0; player.level = 1; player.xpToNext = 100;
 
     wave = 1; score = 0; shards = 0;
+    waveEvent = null;
     shopBought = {};
     enemies = []; bullets = []; particles = []; pickups = [];
     floatTexts = []; trails = []; weaponPickups = []; bossChests = [];
@@ -361,11 +365,27 @@
       spawnExplosion(boss.x, boss.y, 40, boss.color, 1);
     } else {
       boss = null;
-      showBanner('OLEADA ' + wave, '#7cf8ff');
-      triggerFlash('#7cf8ff');
+      // Evento aleatorio cada ~3 oleadas (no-jefe): anuncia y setea el modificador.
+      waveEvent = (wave % 3 === 0) ? pickWaveEvent() : null;
+      const ev = waveEvent ? WAVE_EVENTS[waveEvent] : null;
+      if (ev) {
+        showBanner('⚠ ' + ev.name, ev.color);
+        triggerFlash(ev.color);
+      } else {
+        showBanner('OLEADA ' + wave, '#7cf8ff');
+        triggerFlash('#7cf8ff');
+      }
     }
     sfx.wave();
     updateHUD();
+  }
+
+  // Elige un evento de oleada al azar (sin repetir el de la oleada anterior).
+  function pickWaveEvent() {
+    const keys = Object.keys(WAVE_EVENTS);
+    let ev;
+    do { ev = keys[Math.floor(Math.random() * keys.length)]; } while (ev === waveEvent && keys.length > 1);
+    return ev;
   }
 
   function showBanner(text, color) {
@@ -906,11 +926,11 @@
   }
 
   function spawnEnemy() {
-    NV.spawnEnemy({ enemies, MAX_ENEMIES, boss, wave, ENEMY_TYPES, W, H });
+    NV.spawnEnemy({ enemies, MAX_ENEMIES, boss, wave, ENEMY_TYPES, W, H, waveEvent });
   }
 
   function spawnElite() {
-    NV.spawnElite({ enemies, MAX_ENEMIES, boss, wave, ELITE_TYPES, W, H });
+    NV.spawnElite({ enemies, MAX_ENEMIES, boss, wave, ELITE_TYPES, W, H, waveEvent });
   }
 
   function spawnWeaponPickup() {
@@ -921,6 +941,7 @@
     score = NV.killEnemy({
       e, score, player, weaponLevels, weaponKills, currentWeapon,
       WEAPON_KILLS_PER_LEVEL, addFloatText, spawnExplosion, triggerFlash, sfx, pickups, weaponKillProgress,
+      waveEvent, computePlayerHit,
     });
   }
 
@@ -1256,6 +1277,20 @@
     ctx.globalAlpha = 1;
 
     drawPlayer();
+    // Evento NEBLINA: velo oscuro con viñeta que reduce la visibilidad periférica.
+    if (waveEvent === 'fog' && state === 'playing') {
+      ctx.save();
+      ctx.fillStyle = 'rgba(8, 10, 22, 0.35)';
+      ctx.fillRect(0, 0, W, H);
+      const rx = W * 0.3, ry = H * 0.35; // elipse clara centrada en el jugador
+      const g = ctx.createRadialGradient(player.x, player.y, Math.min(rx, ry) * 0.4, player.x, player.y, Math.max(W, H) * 0.75);
+      g.addColorStop(0, 'rgba(8, 10, 22, 0)');
+      g.addColorStop(1, 'rgba(8, 10, 22, 0.85)');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, W, H);
+      ctx.restore();
+    }
+
     if (showHUD) {
       drawSpecialCooldown();
       drawWeaponHUD();
