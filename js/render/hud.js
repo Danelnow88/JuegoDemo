@@ -97,10 +97,10 @@
     }
   };
 
-    // Combo de kills (E1): contador grande arriba-centro con barra de tiempo restante.
-  NV.drawCombo = function (ctx, W, combo) {
+    // Combo de kills (E1): contador ABAJO-CENTRO (libre de paneles laterales y barra de oleada).
+  NV.drawCombo = function (ctx, W, H, combo) {
     if (!combo || combo.count < 2) return; // no molesta con 0/1
-    const cx = W / 2, y = 40;
+    const cx = W / 2, y = H - 64;
     const heat = Math.min(1, combo.count / 15); // escala: mas kills = mas caliente
     const col = heat > 0.66 ? '#ff5f5f' : heat > 0.33 ? '#ffd700' : '#7cf8ff';
     const pulse = 1 + Math.min(0.35, combo.timer * 0.12); // latido mientras queda ventana
@@ -112,10 +112,11 @@
     ctx.shadowColor = col; ctx.shadowBlur = 12;
     ctx.fillText('COMBO x' + combo.count, cx, y);
     ctx.shadowBlur = 0;
+    const barW = 60;
     ctx.fillStyle = 'rgba(255,255,255,0.25)';
-    ctx.fillRect(cx - 30, y + 7, 60, 3);
+    ctx.fillRect(cx - barW / 2, y + 7, barW, 3);
     ctx.fillStyle = col;
-    ctx.fillRect(cx - 30, y + 7, 60 * Math.max(0, combo.timer / 2), 3);
+    ctx.fillRect(cx - barW / 2, y + 7, barW * Math.max(0, combo.timer / 2), 3);
     ctx.restore();
   };
 

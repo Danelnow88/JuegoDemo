@@ -1349,7 +1349,7 @@
 
     if (showHUD) {
       drawSpecialCooldown();
-    NV.drawCombo(ctx, W, killCombo);
+    NV.drawCombo(ctx, W, H, killCombo);
       drawWeaponHUD();
     }
 
