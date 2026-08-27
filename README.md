@@ -510,6 +510,14 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 - Orden de carga: `... render/hud.js` → `engine/fx.js, drones.js, meteors.js, pickups.js` → `game.js`.
 - Verificación: `node --check` OK en todos los engine modules + game.js; smoke runtime **4/4** (spawn dentro de pantalla; recolección de shard con filtro; guardar vs equipar según inventario).
 
+### v52 — Tanda D1: nuevos consumibles
+- Se suman **4 consumibles** (total 7), usando la tecla F, con tope por visita respetado por el contador existente:
+  - 💣 **Bomba**: daña 25% del HP máx a todos los enemigos y al jefe (piso 1, no mata directo sino que deja al borde).
+  - ⏱ **Congelante**: enemigos lentos 50% por 4s (nuevo campo `slowUntil`, factor `spd` en updateEnemies).
+  - 🧲 **Imán**: acerca todos los shards/armas del campo al jugador.
+  - 🎯 **Recompensa**: 10s, cada derribo da score doble y +1 shard (campo `player.bounty`, decrementado por frame).
+- Lógica pura testeable: `NV.voidBomb`, `NV.freezeEnemies` (enemies.js), `NV.magnetCollect` (pickups.js); bounty integrado en `NV.killEnemy`.
+- Precios coherentes con la economía (26-34💎): son poderosos pero consumibles de una vez. Tests `consumables` 6/6.
 ### v51 — Tanda C2: eventos de oleada aleatorios
 - **Selección**: cada ~3 oleadas (no-jefe) se elige un evento aleatorio (sin repetir el anterior), anunciado con banner `⚠` + flash del color del evento.
 - **4 eventos** (`WAVE_EVENTS` en gameData): `elites` (spawn de 3 élites por lote en vez de 2) · `payday` (cada derribo suelta un shard extra de valor 2 = drops x2) · `fog` (niebla: velo oscuro + viñeta radial centrada en el jugador) · `mines` (50% de enemigos marcados que explotan en área al morir, dañando al jugador si está a <90px).

@@ -94,6 +94,12 @@
     } else if (Math.random() < 0.15 + st.player.luck * 0.01) {
       st.pickups.push({ x: e.x, y: e.y, type: 'shard', dead: false });
     }
+    // Consumible RECOMPENSA: +1 shard y score doble por derribo durante su duración.
+    if (st.player.bounty > 0) {
+      score += e.score; // doble (ya sumamos el base arriba)
+      st.pickups.push({ x: e.x, y: e.y, type: 'shard', value: 1, dead: false });
+      st.addFloatText(st.player.x, st.player.y - 20, 'BOUNTY +1💎', '#ffd700');
+    }
     // Evento DÍA DE PAGO: cada derribo suelta además un shard extra de valor 2.
     if (st.waveEvent === 'payday') {
       st.pickups.push({ x: e.x + 6, y: e.y + 6, type: 'shard', value: 2, dead: false });
@@ -107,6 +113,15 @@
     }
     st.sfx.explosion();
     return score;
+  };
+
+  // ---- Consumibles: bomba de vacío y congelante ----
+  NV.voidBomb = function (enemies, boss) {
+    for (const e of enemies) { if (!e.dead) e.hp = Math.max(1, e.hp - Math.round(e.maxHp * 0.25)); }
+    if (boss && !boss.dead) boss.hp = Math.max(1, boss.hp - Math.round(boss.maxHp * 0.25));
+  };
+  NV.freezeEnemies = function (enemies, duration) {
+    for (const e of enemies) { if (!e.dead) e.slowUntil = duration; }
   };
 
   // ---- Update de todos los enemigos (comportamientos, daño al jugador) ----
@@ -128,20 +143,23 @@
             if (e.stun > 0) e.stun -= dt;
             if (e.shieldCd > 0) e.shieldCd = Math.max(0, e.shieldCd - dt);
       const stunned = e.stun > 0;
+      // Congelante: algunos enemigos ralentizados (slowUntil).
+      if (e.slowUntil > 0) e.slowUntil -= dt;
+      const spd = e.speed * (e.slowUntil > 0 ? 0.5 : 1);
       if (!stunned) {
         if (e.behavior === 'chase') {
           const angle = Math.atan2(st.player.y - e.y, st.player.x - e.x);
-          e.x += Math.cos(angle) * e.speed * dt + kbx * dt;
-          e.y += Math.sin(angle) * e.speed * dt + kby2 * dt;
+          e.x += Math.cos(angle) * spd * dt + kbx * dt;
+          e.y += Math.sin(angle) * spd * dt + kby2 * dt;
         } else if (e.behavior === 'erratic') {
           e.erraticTimer -= dt;
           if (e.erraticTimer <= 0) { e.angle += (Math.random() - 0.5) * 3; e.erraticTimer = 0.5; }
-          e.x += (Math.cos(e.angle) * e.speed + kbx) * dt;
-          e.y += (Math.sin(e.angle) * e.speed + kby2) * dt;
+          e.x += (Math.cos(e.angle) * spd + kbx) * dt;
+          e.y += (Math.sin(e.angle) * spd + kby2) * dt;
         } else if (e.behavior === 'swarm') {
           const angle = Math.atan2(st.player.y - e.y, st.player.x - e.x);
-          e.x += (Math.cos(angle) * e.speed + kbx) * dt;
-          e.y += (Math.sin(angle) * e.speed + kby2) * dt;
+          e.x += (Math.cos(angle) * spd + kbx) * dt;
+          e.y += (Math.sin(angle) * spd + kby2) * dt;
           for (const other of enemies) {
             if (other !== e && !other.dead && Math.hypot(other.x - e.x, other.y - e.y) < e.radius * 4) {
               const oa = Math.atan2(other.y - e.y, other.x - e.x);
@@ -153,15 +171,15 @@
           const angle = Math.atan2(st.player.y - e.y, st.player.x - e.x);
           const dist = Math.hypot(st.player.x - e.x, st.player.y - e.y);
           if (dist > e.radius + 30) {
-            e.x += Math.cos(angle) * e.speed * dt + kbx * dt;
-            e.y += Math.sin(angle) * e.speed * dt + kby2 * dt;
+            e.x += Math.cos(angle) * spd * dt + kbx * dt;
+            e.y += Math.sin(angle) * spd * dt + kby2 * dt;
           }
         } else if (e.behavior === 'ranged') {
           const dist = Math.hypot(st.player.x - e.x, st.player.y - e.y);
           if (dist > 170) {
             const angle = Math.atan2(st.player.y - e.y, st.player.x - e.x);
-            e.x += Math.cos(angle) * e.speed * 0.5 * dt + kbx * dt;
-            e.y += Math.sin(angle) * e.speed * 0.5 * dt + kby2 * dt;
+            e.x += Math.cos(angle) * spd * 0.5 * dt + kbx * dt;
+            e.y += Math.sin(angle) * spd * 0.5 * dt + kby2 * dt;
           } else {
             for (const other of enemies) {
               if (other === e || other.dead) continue;

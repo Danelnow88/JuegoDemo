@@ -457,6 +457,21 @@
     } else if (item.type === 'shield') {
       player.invuln = CONSUMABLES.shield.duration;
       addFloatText(player.x, player.y, 'ESCUDO', '#ffcf76');
+    } else if (item.type === 'bomb') {
+      NV.voidBomb(enemies, boss);
+      addFloatText(player.x, player.y, '¡BOMBA DE VACÍO!', '#ff5f9b');
+      triggerFlash('#ff5f9b');
+    } else if (item.type === 'freeze') {
+      NV.freezeEnemies(enemies, 4);
+      addFloatText(player.x, player.y, '¡CONGELADO!', '#caa7ff');
+      triggerFlash('#caa7ff');
+    } else if (item.type === 'magnet') {
+      const n = NV.magnetCollect(pickups, weaponPickups, player);
+      addFloatText(player.x, player.y, 'IMÁN (' + n + ')', '#7cf8ff');
+    } else if (item.type === 'bounty') {
+      player.bounty = 10;
+      addFloatText(player.x, player.y, 'RECOMPENSA 10s', '#ffd700');
+      triggerFlash('#ffd700');
     }
     triggerFlash('#7cf8ff');
     sfx.pickup();
@@ -635,6 +650,10 @@
       { key: 'potion',    icon: '🧪', name: 'Poción',    desc: 'Cura 40 HP (tecla F en partida)',   price: 10, banner: 'Poción guardada (F para usar)',  color: '#0f0' },
       { key: 'overdrive', icon: '⚡', name: 'Overdrive', desc: '+50% velocidad 5s (tecla F)',       price: 18, banner: 'Overdrive guardado (F)',         color: '#caa7ff' },
       { key: 'shield',    icon: '🛡', name: 'Escudo',    desc: 'Invulnerable 2s (tecla F)',         price: 22, banner: 'Escudo guardado (F)',            color: '#ffcf76' },
+      { key: 'bomb',      icon: '💣', name: 'Bomba',     desc: 'Daña 25% HP a todos (tecla F)',     price: 34, banner: 'Bomba guardada (F)',              color: '#ff5f9b' },
+      { key: 'freeze',    icon: '⏱', name: 'Congelante',desc: 'Enemigos lentos 50% por 4s (F)',    price: 26, banner: 'Congelante guardado (F)',         color: '#caa7ff' },
+      { key: 'magnet',    icon: '🧲', name: 'Imán',      desc: 'Atrae todos los shards/armas (F)',  price: 20, banner: 'Imán guardado (F)',               color: '#7cf8ff' },
+      { key: 'bounty',    icon: '🎯', name: 'Recompensa',desc: '10s: kills dan +1 💎 y x2 score(F)',price: 30, banner: 'Recompensa guardada (F)',         color: '#ffd700' },
     ];
     consumableDefs.forEach((c) => {
       const bought = consumableBought[c.key] || 0;
@@ -805,6 +824,7 @@
       player.overdrive -= dt;
       if (player.overdrive <= 0) { player.speed /= 1.5; triggerFlash('#caa7ff'); }
     }
+    if (player.bounty > 0) { player.bounty -= dt; if (player.bounty <= 0) player.bounty = 0; }
     if (player.specialCd > 0) player.specialCd -= dt;
 
     fireTimer -= dt;
