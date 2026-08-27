@@ -1060,7 +1060,7 @@
       computePlayerHit, addFloatText, killEnemy, applyKnockback, spawnExplosion, gameOver,
     });
     bullets = res.bullets; shake = res.shake; hitstop = res.hitstop;
-    if (res.gameOver) return;
+    if (res.gameOver) { gameOver(); return; }
   }
 
   function updateParticles(dt) {
