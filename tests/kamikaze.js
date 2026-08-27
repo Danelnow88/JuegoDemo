@@ -1,0 +1,95 @@
+// Tests E2: Kamikaze — existe como tipo, detona al morir (área) y se arma/detona en update.
+const fs = require('fs'), vm = require('vm');
+let pass = 0, fail = 0;
+function t(desc, fn) { try { fn(); pass++; console.log('  ok  ' + desc); } catch (e) { fail++; console.log('  FAIL ' + desc + ' -> ' + e.message); } }
+function load(f, sbx) { vm.runInNewContext(fs.readFileSync(f, 'utf8'), sbx, { filename: f }); }
+
+const sbx = { window: { NV: {} }, console, Math };
+load('js/data/balance.js', sbx);
+load('js/data/gameData.js', sbx);
+load('js/engine/enemies.js', sbx);
+const NV = sbx.window.NV;
+
+function mkKami(x, y) {
+  return {
+    x, y, hp: 40, maxHp: 40, speed: 100, radius: 10, color: '#ff5f3d', shape: 'triangle',
+    score: 22, xp: 22, dead: false, behavior: 'kami', angle: 0, erraticTimer: 0,
+    knockbackRes: 0.2, knockVelX: 0, knockVelY: 0, damage: 14, shield: false, shieldCd: 0,
+    resist: 0, shootTimer: 0, stunChance: 0, slowUntil: 0, stun: 0,
+  };
+}
+function baseSt(enemy, hits) {
+  return {
+    enemies: [enemy],
+    player: { x: 400, y: 400, xp: 0, xpToNext: 10, level: 1, maxHp: 100, hp: 80, luck: 0, invuln: 0, stun: 0 },
+    bullets: [], MAX_BULLETS: 50, MAX_ENEMY_BULLETS: 50, enemyBulletCount: () => 0,
+    computePlayerHit: (dmg) => { hits.push(dmg); return { dmg }; },
+    addFloatText: () => {}, spawnExplosion: (px, py, n, c) => booms.push([px, py, c]),
+    sfx: { explosion: () => {}, levelup: () => {} }, triggerFlash: () => {},
+    pickups: [], weaponLevels: {}, weaponKills: {}, WEAPON_KILLS_PER_LEVEL: 5,
+    weaponKillProgress: () => 1, currentWeapon: { id: 'pistol', name: 'Pistola' },
+    waveEvent: null, shake: 0, W: 800, H: 600, MAX_ENEMIES: 40, boss: null, wave: 5,
+    ENEMY_TYPES: NV.ENEMY_TYPES,
+  };
+}
+let booms = [];
+
+t('tipo KAMIKAZE definido en ENEMY_TYPES con behavior kami', () => {
+  const k = NV.ENEMY_TYPES.find((x) => x.id === 'kamikaze');
+  if (!k || k.behavior !== 'kami') throw new Error('tipo ausente o mal comportamiento');
+});
+
+t('killEnemy de un kamikaze cercano detona y daña en área', () => {
+  booms = []; const hits = [];
+  const e = mkKami(430, 415); // ~34px del jugador
+  const st = baseSt(e, hits); st.e = e;
+  NV.killEnemy(st);
+  if (!booms.some((b) => b[2] === '#ff5f3d')) throw new Error('sin explosión kamikaze');
+  if (hits.length !== 1 || hits[0] !== 24) throw new Error('hits=' + JSON.stringify(hits));
+});
+
+t('kamikaze lejano al morir explota pero NO golpea al jugador', () => {
+  booms = []; const hits = [];
+  const e = mkKami(100, 100);
+  const st = baseSt(e, hits); st.e = e;
+  NV.killEnemy(st);
+  if (hits.length !== 0) throw new Error('daño fuera de área');
+  if (!booms.length) throw new Error('debería explotar igual');
+});
+
+t('updateEnemies: a <130px se arma con mecha y al agotarse llama onKill', () => {
+  booms = []; const kills = [];
+  const e = mkKami(450, 420); // <130px
+  const st = baseSt(e, []);
+  st.onKill = (k) => kills.push(k);
+  let r = NV.updateEnemies(0.3, st); // t=0.3s
+  if (!e.armed || Math.abs(e.fuse - 0.5) > 0.01) throw new Error('mecha incorrecta: ' + e.fuse);
+  if (kills.length !== 0) throw new Error('detonó antes de tiempo');
+  NV.updateEnemies(0.6, st); // cruza los 0.8s totales
+  if (kills.length !== 1 || !kills[0].dead) throw new Error('onKill no disparado');
+});
+
+t('updateEnemies: lejos del jugador NO se arma', () => {
+  const e = mkKami(700, 700); // ~424px
+  const st = baseSt(e, []);
+  NV.updateEnemies(0.2, st);
+  if (e.armed) throw new Error('se armó estando lejos');
+});
+
+t('spawn: kamikaze aparece desde oleada 10 y los demas tipos mantienen su umbral', () => {
+  function poolAt(wave) { return NV.ENEMY_TYPES.filter((ty) => (ty.minWave || 1) <= wave).map((t) => t.id); }
+  const w5 = poolAt(5), w9 = poolAt(9), w10 = poolAt(10);
+  if (w5.includes('kamikaze')) throw new Error('kamikaze antes de tiempo (w5)');
+  if (w5.join(',') !== 'drone,runner,tank') throw new Error('w5=' + w5.join(','));
+  if (!w9.includes('swarmlet') || w9.includes('kamikaze')) throw new Error('w9=' + w9.join(','));
+  if (!w10.includes('kamikaze')) throw new Error('kamikaze no entra en w10');
+  // Spawn headless con oleada >=10: deben salir kamikazes entre los generados.
+  const spawned = [];
+  for (let i = 0; i < 200; i++) {
+    NV.spawnEnemy({ enemies: spawned, MAX_ENEMIES: 200, boss: null, wave: 12, ENEMY_TYPES: NV.ENEMY_TYPES, W: 800, H: 600, waveEvent: null });
+  }
+  if (!spawned.some((e2) => e2.behavior === 'kami')) throw new Error('ningun kamikaze generado en w12');
+});
+
+console.log('RESULT kamikaze: pass=' + pass + ' fail=' + fail);
+process.exit(fail ? 1 : 0);

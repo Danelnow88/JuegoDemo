@@ -30,6 +30,17 @@
     ctx.fillStyle = e.color;
     ctx.shadowBlur = e.isElite ? 14 : 10;
     ctx.shadowColor = e.color;
+    // KAMIKAZE armado: parpadeo rápido + anillo de mecha expansivo (aviso claro de peligro)
+    if (e.armed) {
+      const blink = 0.45 + Math.sin(frame * 0.55) * 0.55;
+      ctx.globalAlpha = blink;
+      ctx.strokeStyle = '#ff5f3d';
+      ctx.lineWidth = 2.5;
+      ctx.shadowBlur = 16; ctx.shadowColor = '#ff5f3d';
+      ctx.beginPath(); ctx.arc(0, 0, e.radius + 6 + (0.8 - Math.max(e.fuse, 0)) * 12, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = Math.sin(frame * 0.55) > 0 ? '#ffffff' : '#ff5f3d';
+      ctx.shadowColor = '#ffffff';
+    }
 
     const r = e.radius;
     if (e.shape === 'hex') {

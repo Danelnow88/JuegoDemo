@@ -82,13 +82,14 @@
 
   // === ENEMIGOS BÁSICOS (7 tipos) ===
   NV.ENEMY_TYPES = [
-    { id: 'drone', name: 'DRON', hp: 25, speed: 75, radius: 11, color: '#f07bad', shape: 'circle', score: 10, xp: 10, behavior: 'chase', knockbackRes: 0, damage: 12 },
-    { id: 'runner', name: 'CORREDOR', hp: 15, speed: 145, radius: 9, color: '#ffcf76', shape: 'triangle', score: 15, xp: 15, behavior: 'chase', knockbackRes: 0.3, damage: 10 },
-    { id: 'tank', name: 'TANQUE', hp: 60, speed: 40, radius: 20, color: '#ef9d49', shape: 'hex', score: 30, xp: 35, behavior: 'chase', knockbackRes: 0.8, damage: 18, resist: 3 },
-    { id: 'shielder', name: 'ESCUDO', hp: 35, speed: 65, radius: 14, color: '#caa7ff', shape: 'diamond', score: 25, xp: 30, behavior: 'shield', knockbackRes: 0.6, damage: 8, shield: true },
-    { id: 'swarmlet', name: 'ENJAMBITO', hp: 10, speed: 115, radius: 7, color: '#22d3ee', shape: 'atom', score: 8, xp: 8, behavior: 'swarm', knockbackRes: 0.1, damage: 8 },
-    { id: 'spitter', name: 'ESCOPURAS', hp: 22, speed: 50, radius: 13, color: '#6dc4c0', shape: 'rock', score: 18, xp: 25, behavior: 'ranged', knockbackRes: 0.4, damage: 15, stunChance: 0.2 },
-    { id: 'wisp', name: 'ESPÍRITU', hp: 12, speed: 160, radius: 6, color: '#4ade80', shape: 'dot', score: 6, xp: 6, behavior: 'erratic', knockbackRes: 0.2, damage: 6 },
+    { id: 'drone', name: 'DRON', hp: 25, speed: 75, radius: 11, color: '#f07bad', shape: 'circle', score: 10, xp: 10, behavior: 'chase', knockbackRes: 0, damage: 12, minWave: 1 },
+    { id: 'runner', name: 'CORREDOR', hp: 15, speed: 145, radius: 9, color: '#ffcf76', shape: 'triangle', score: 15, xp: 15, behavior: 'chase', knockbackRes: 0.3, damage: 10, minWave: 1 },
+    { id: 'tank', name: 'TANQUE', hp: 60, speed: 40, radius: 20, color: '#ef9d49', shape: 'hex', score: 30, xp: 35, behavior: 'chase', knockbackRes: 0.8, damage: 18, minWave: 3, resist: 3 },
+    { id: 'shielder', name: 'ESCUDO', hp: 35, speed: 65, radius: 14, color: '#caa7ff', shape: 'diamond', score: 25, xp: 30, behavior: 'shield', knockbackRes: 0.6, damage: 8, minWave: 6, shield: true },
+    { id: 'swarmlet', name: 'ENJAMBITO', hp: 10, speed: 115, radius: 7, color: '#22d3ee', shape: 'atom', score: 8, xp: 8, behavior: 'swarm', knockbackRes: 0.1, damage: 8, minWave: 9 },
+    { id: 'spitter', name: 'ESCOPURAS', hp: 22, speed: 50, radius: 13, color: '#6dc4c0', shape: 'rock', score: 18, xp: 25, behavior: 'ranged', knockbackRes: 0.4, damage: 15, minWave: 12, stunChance: 0.2 },
+    { id: 'wisp', name: 'ESPÍRITU', hp: 12, speed: 160, radius: 6, color: '#4ade80', shape: 'dot', score: 6, xp: 6, behavior: 'erratic', knockbackRes: 0.2, damage: 6, minWave: 15 },
+    { id: 'kamikaze', name: 'KAMIKAZE', hp: 20, speed: 125, radius: 10, color: '#ff5f3d', shape: 'triangle', score: 22, xp: 22, behavior: 'kami', knockbackRes: 0.2, damage: 14, minWave: 10 },
   ];
 
   // === ÉLITES (8 tipos) ===

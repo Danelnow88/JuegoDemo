@@ -1,7 +1,7 @@
 // Tests de rango de activación por arma (v39).
 const fs = require('fs'), vm = require('vm');
 const sbx = { window: { NV: {} }, console, Math };
-for (const f of ['js/data/gameData.js', 'js/engine/weapons.js']) vm.runInNewContext(fs.readFileSync(f, 'utf8'), sbx, { filename: f });
+for (const f of ['js/data/balance.js', 'js/data/gameData.js', 'js/engine/weapons.js']) vm.runInNewContext(fs.readFileSync(f, 'utf8'), sbx, { filename: f });
 const NV = sbx.window.NV;
 let pass = 0, fail = 0;
 function t(desc, fn) { try { fn(); pass++; console.log('  ok  ' + desc); } catch (e) { fail++; console.log('  FAIL ' + desc + ' -> ' + e.message); } }

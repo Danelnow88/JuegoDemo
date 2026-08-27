@@ -1000,6 +1000,7 @@
     const res = NV.updateEnemies(dt, {
       enemies, player, bullets, MAX_BULLETS, MAX_ENEMY_BULLETS, shake,
       enemyBulletCount, computePlayerHit, addFloatText,
+      onKill: (e) => killEnemy(e), // autodestrucción de kamikazes: mismo camino que un kill normal
     });
     enemies = res.enemies; shake = res.shake;
     if (res.gameOver) { gameOver(); return; }

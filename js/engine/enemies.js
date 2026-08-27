@@ -10,8 +10,9 @@
   NV.spawnEnemy = function (st) {
     if (st.enemies.length >= st.MAX_ENEMIES) return;
     if (st.boss && !st.boss.dead) return;
-    const waveTier = Math.min(6, Math.floor(st.wave / 3));
-    const available = st.ENEMY_TYPES.slice(0, 2 + waveTier);
+    // Pool por oleada: cada tipo tiene su minWave. Los umbrales reproducen el
+    // desbloqueo escalonado original (slice por índice); kamikaze entra desde la 10.
+    const available = st.ENEMY_TYPES.filter((t) => (t.minWave || 1) <= st.wave);
     const type = available[Math.floor(Math.random() * available.length)];
     const side = Math.random() < 0.5 ? 0 : st.W;
     const y = 80 + Math.random() * (st.H - 200);
@@ -111,6 +112,13 @@
         st.computePlayerHit(20);
       }
     }
+    // KAMIKAZE: siempre detona al morir (por disparo o por autodetonacion).
+    if (e.behavior === 'kami') {
+      st.spawnExplosion(e.x, e.y, 34, '#ff5f3d', 1.1);
+      if (st.computePlayerHit && Math.hypot(e.x - st.player.x, e.y - st.player.y) < 95) {
+        st.computePlayerHit(24);
+      }
+    }
     st.sfx.explosion();
     return score;
   };
@@ -165,6 +173,25 @@
           const angle = Math.atan2(st.player.y - e.y, st.player.x - e.x);
           e.x += Math.cos(angle) * spd * dt + kbx * dt;
           e.y += Math.sin(angle) * spd * dt + kby2 * dt;
+        } else if (e.behavior === 'kami') {
+          // KAMIKAZE: persigue; a <130px se arma (mecha 0.8s, parpadeo) y detonan.
+          const angle = Math.atan2(st.player.y - e.y, st.player.x - e.x);
+          const dist = Math.hypot(st.player.x - e.x, st.player.y - e.y);
+          if (!e.armed && dist < 130) { e.armed = true; e.fuse = 0.8; }
+          if (e.armed) {
+            e.fuse -= dt;
+            const creep = spd * 0.3 * dt; // avanza lento mientras está armado
+            e.x += Math.cos(angle) * creep;
+            e.y += Math.sin(angle) * creep;
+            if (e.fuse <= 0) {
+              e.dead = true;
+              if (st.onKill) st.onKill(e); // pasa por killEnemy: puntos/drops/explosión
+              continue;
+            }
+          } else {
+            e.x += Math.cos(angle) * spd * dt + kbx * dt;
+            e.y += Math.sin(angle) * spd * dt + kby2 * dt;
+          }
         } else if (e.behavior === 'erratic') {
           e.erraticTimer -= dt;
           if (e.erraticTimer <= 0) { e.angle += (Math.random() - 0.5) * 3; e.erraticTimer = 0.5; }
