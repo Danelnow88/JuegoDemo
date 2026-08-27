@@ -82,6 +82,7 @@
 
   const RARITY_COLORS = NV.RARITY_COLORS;
   let currentWeapon = WEAPONS[0], fireTimer = 0;
+  let killCombo = { count: 0, timer: 0 }; // combo de kills (E1)
   // Cadencia determinista (en segundos). fireRate se interpreta como frames a ~60fps.
   const FIRE_FPS = NV.BALANCE.FIRE_FPS;                 // frames por segundo asumidos en fireRate
   const MIN_FIRE_INTERVAL = NV.BALANCE.MIN_FIRE_INTERVAL; // ~0.0667s -> máx ~15 disparos/s (piso anti-congestión)
@@ -337,6 +338,7 @@
     wave = 1; score = 0; shards = 0;
     waveEvent = null;
     shopBought = {};
+    killCombo = { count: 0, timer: 0 };
     enemies = []; bullets = []; particles = []; pickups = [];
     floatTexts = []; trails = []; weaponPickups = []; bossChests = [];
     inventory = []; currentWeapon = WEAPONS[0]; consumableItems = [];
@@ -848,6 +850,7 @@
       if (player.overdrive <= 0) { player.speed /= 1.5; triggerFlash('#caa7ff'); }
     }
     if (player.bounty > 0) { player.bounty -= dt; if (player.bounty <= 0) player.bounty = 0; }
+    NV.comboTick(killCombo, dt);
     if (player.specialCd > 0) player.specialCd -= dt;
 
     fireTimer -= dt;
@@ -986,6 +989,11 @@
       WEAPON_KILLS_PER_LEVEL, addFloatText, spawnExplosion, triggerFlash, sfx, pickups, weaponKillProgress,
       waveEvent, computePlayerHit,
     });
+    // Combo de kills: bonus escalable por encadenar derribos (<2s entre ellos).
+    const cb = NV.comboOnKill(killCombo);
+    score += cb.bonusScore;
+    if (cb.gemBonus) shards += cb.gemBonus;
+    if (cb.count >= 3) addFloatText(e.x, e.y - 25, 'COMBO x' + cb.count + (cb.milestone ? ' 💎+1' : ''), '#ffd700');
   }
 
   function updateEnemies(dt) {
@@ -1020,7 +1028,11 @@
   // La "suerte" del jugador reduce la chance de crítico enemigo.
   function enemyCritChance() { return NV.enemyCritChance(wave, player); }
   function calcEnemyDamage(base) { return NV.calcEnemyDamage(base, enemyCritChance); }
-  function computePlayerHit(base) { return NV.computePlayerHit(base, { player, CHARACTERS, calcEnemyDamage }); }
+  function computePlayerHit(base) {
+    const r = NV.computePlayerHit(base, { player, CHARACTERS, calcEnemyDamage });
+    if (!r.dodged) { killCombo.count = 0; killCombo.timer = 0; } // recibir daño corta el combo
+    return r;
+  }
 
   // === PROYECTILES Y ATAQUES DISTINTOS POR JEFE ===
   function spawnBossProj(b, speed, damage, count, spread, color, radius) {
@@ -1336,6 +1348,7 @@
 
     if (showHUD) {
       drawSpecialCooldown();
+    NV.drawCombo(ctx, W, killCombo);
       drawWeaponHUD();
     }
 

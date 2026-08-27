@@ -115,6 +115,20 @@
     return score;
   };
 
+  // ---- Combo de kills (E1): encadena derribos con <2s entre ellos ----
+  // combo = { count, timer } (estado en game.js). Devuelve bonus a aplicar.
+  NV.comboOnKill = function (combo) {
+    combo.count = combo.timer > 0 ? combo.count + 1 : 1;
+    combo.timer = 2;
+    const milestone = combo.count % 5 === 0; // cada 5: +1 💎
+    return { count: combo.count, bonusScore: Math.min(50, 2 * combo.count), gemBonus: milestone ? 1 : 0, milestone };
+  };
+
+  NV.comboTick = function (combo, dt) {
+    if (combo.timer > 0) { combo.timer -= dt; if (combo.timer < 0) { combo.timer = 0; combo.count = 0; } }
+    return combo;
+  };
+
   // ---- Consumibles: bomba de vacío y congelante ----
   NV.voidBomb = function (enemies, boss) {
     for (const e of enemies) { if (!e.dead) e.hp = Math.max(1, e.hp - Math.round(e.maxHp * 0.25)); }
