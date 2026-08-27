@@ -518,6 +518,13 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
   - 🎯 **Recompensa**: 10s, cada derribo da score doble y +1 shard (campo `player.bounty`, decrementado por frame).
 - Lógica pura testeable: `NV.voidBomb`, `NV.freezeEnemies` (enemies.js), `NV.magnetCollect` (pickups.js); bounty integrado en `NV.killEnemy`.
 - Precios coherentes con la economía (26-34💎): son poderosos pero consumibles de una vez. Tests `consumables` 6/6.
+### v52 — Tanda D: permanentes nuevas (crítico, esquiva, regeneración, codicia)
+- `PERM_UPGRADES` pasa de 5 a **9 mejoras** (mismas reglas: nivel 10, coste progresivo). Bases: Crítico 45 · Esquiva 40 · Regeneración 38 · Codicia 42 — coherentes con la economía lenta de meta-shards.
+- Hooks: crítico propio `+0.5%/nivel` en el roll de disparo (`weapons.js`); esquiva `+0.4%/nivel` sumada a la pasiva del personaje (`computePlayerHit`); regeneración `+0.2 HP/s/nivel` solo fuera de peligro (<170px de un enemigo corta la regen y resetea el acumulador) en `game.js`; codicia `+3% drop/nivel` en el roll de shards básicos (`killEnemy`).
+- Constantes centralizadas en `balance.js` (`CRIT_PERM_CHANCE/DODGE_PERM_CHANCE/REGEN_PERM_HPSEC/GREED_PERM_DROP`). Defaults de `permUpgrades` extendidos (incluido modo `?fresh=1`) y stats aplicados tanto al elegir personaje como en `startGame`.
+- Tests: nuevo `tests/perm_upgrades.js` (6/6, con Math.random determinista para esquiva); arnés de `tests/consumables.js` actualizado para cargar `balance/gameData` (requerido por los nuevos hooks).
+
+
 ### v51 — Tanda C2: eventos de oleada aleatorios
 - **Selección**: cada ~3 oleadas (no-jefe) se elige un evento aleatorio (sin repetir el anterior), anunciado con banner `⚠` + flash del color del evento.
 - **4 eventos** (`WAVE_EVENTS` en gameData): `elites` (spawn de 3 élites por lote en vez de 2) · `payday` (cada derribo suelta un shard extra de valor 2 = drops x2) · `fog` (niebla: velo oscuro + viñeta radial centrada en el jugador) · `mines` (50% de enemigos marcados que explotan en área al morir, dañando al jugador si está a <90px).

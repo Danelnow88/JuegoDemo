@@ -57,7 +57,7 @@
 
   // === PROGRESIÓN PERMANENTE ===
   let metaShards = 0;
-  let permUpgrades = { damage: 0, speed: 0, hp: 0, armor: 0, luck: 0 };
+  let permUpgrades = { damage: 0, speed: 0, hp: 0, armor: 0, luck: 0, crit: 0, dodge: 0, regen: 0, greed: 0 };
   // Compras por partida en la tienda de oleada (topes anti-acumulación infinita).
   let shopBought = {};
   const SHOP_CAPS = { hp: 8, armor: 5, luck: 7 }; // +25 HP ×8, +3 armadura ×5, +2 suerte ×7
@@ -154,7 +154,7 @@
     if (/[?&]fresh=1/.test((window.location && window.location.search) || '')) {
       metaFrozen = true;
       metaShards = 0;
-      permUpgrades = { damage: 0, speed: 0, hp: 0, armor: 0, luck: 0 };
+      permUpgrades = { damage: 0, speed: 0, hp: 0, armor: 0, luck: 0, crit: 0, dodge: 0, regen: 0, greed: 0 };
       console.log('[META] Modo ?fresh=1: mejoras permanentes y meta-shards en cero (no se guarda progreso).');
     } else {
       loadMeta();
@@ -175,6 +175,8 @@
         player.speed *= (1 + permUpgrades.speed * 0.15);
         player.armor = (char.stats ? char.stats.armor : 0) + (permUpgrades.armor || 0);
         player.luck = (char.stats ? char.stats.luck : 0) + permUpgrades.luck * 10;
+        player.permCrit = permUpgrades.crit; player.permDodge = permUpgrades.dodge;
+        player.permRegen = permUpgrades.regen; player.permGreed = permUpgrades.greed;
         player.maxCd = char.maxCd;
         dom.sound.textContent = NV.soundOn ? '🔊 SONIDO' : '🔇 SONIDO';
         dom.sound.classList.toggle('off', !NV.soundOn);
@@ -286,7 +288,7 @@
     try {
       const saved = JSON.parse(localStorage.getItem('neonVoidMeta') || '{}');
       metaShards = saved.metaShards || 0;
-      permUpgrades = saved.permUpgrades || { damage: 0, speed: 0, hp: 0, armor: 0, luck: 0 };
+      permUpgrades = saved.permUpgrades || { damage: 0, speed: 0, hp: 0, armor: 0, luck: 0, crit: 0, dodge: 0, regen: 0, greed: 0 };
     } catch (e) { console.warn('[META] Error:', e); }
   }
   // Modo testing (?fresh=1): empieza sin permanentes ni meta-shards y NO guarda,
@@ -326,6 +328,8 @@
     player.speed = char.stats.speed * (1 + permUpgrades.speed * 0.15);
     player.armor = (char.stats.armor || 0) + (permUpgrades.armor || 0);
     player.luck = (char.stats.luck || 0) + permUpgrades.luck * 10;
+    player.permCrit = permUpgrades.crit || 0; player.permDodge = permUpgrades.dodge || 0;
+    player.permRegen = permUpgrades.regen || 0; player.permGreed = permUpgrades.greed || 0;
     player.specialCd = 0; player.invuln = 0; player.overdrive = 0; player.stun = 0;
     player.moveVx = 0; player.moveVy = 0; slideHeld = false; player.agility = 1;
     player.xp = 0; player.level = 1; player.xpToNext = 100;
@@ -814,6 +818,25 @@
     if (char.passive.includes('Regenera') && frame % 300 === 0 && player.hp < player.maxHp) {
       player.hp = Math.min(player.maxHp, player.hp + 1);
       addFloatText(player.x, player.y - 40, '+1', '#7cf8ff');
+    }
+
+    // Regeneración permanente (+0.2 HP/s por nivel, solo fuera de peligro)
+    if ((player.permRegen || 0) > 0 && player.hp < player.maxHp && state !== 'gameover') {
+      let inDanger = false;
+      for (const e of enemies) {
+        if (!e.dead && Math.hypot(e.x - player.x, e.y - player.y) < 170) { inDanger = true; break; }
+      }
+      if (!inDanger) {
+        player.regenAcc = (player.regenAcc || 0) + NV.BALANCE.REGEN_PERM_HPSEC * player.permRegen * dt;
+        if (player.regenAcc >= 1) {
+          const heal = Math.floor(player.regenAcc);
+          player.hp = Math.min(player.maxHp, player.hp + heal);
+          player.regenAcc -= heal;
+          addFloatText(player.x, player.y - 40, '+' + heal, '#7cf8ff');
+        }
+      } else {
+        player.regenAcc = 0; // el peligro corta la regeneración
+      }
     }
 
     if (player.invuln > 0) { player.invuln -= dt; if (player.invuln < 0) player.invuln = 0; }

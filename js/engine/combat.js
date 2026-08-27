@@ -18,7 +18,9 @@
   // Daño que recibe el jugador: crítica → armadura (plano) → pasiva del personaje → esquiva.
   NV.computePlayerHit = function (base, st) {
     const char = st.CHARACTERS[st.player.character];
-    if ((char.dodge || 0) > 0 && Math.random() < char.dodge) {
+    // Esquiva: pasiva del personaje + mejora permanente (+0.4%/nivel).
+    const dodge = (char.dodge || 0) + (st.player.permDodge || 0) * NV.BALANCE.DODGE_PERM_CHANCE;
+    if (dodge > 0 && Math.random() < dodge) {
       return { dodged: true };
     }
     const c = st.calcEnemyDamage(base);

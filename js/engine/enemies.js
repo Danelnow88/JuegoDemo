@@ -91,7 +91,7 @@
     if (e.isElite) {
       // El élite garantiza shards de mayor valor: matarlo es una decisión económica.
       st.pickups.push({ x: e.x, y: e.y, type: 'shard', value: 3, dead: false });
-    } else if (Math.random() < 0.15 + st.player.luck * 0.01) {
+    } else if (Math.random() < 0.15 + st.player.luck * 0.01 + (st.player.permGreed || 0) * NV.BALANCE.GREED_PERM_DROP) {
       st.pickups.push({ x: e.x, y: e.y, type: 'shard', dead: false });
     }
     // Consumible RECOMPENSA: +1 shard y score doble por derribo durante su duración.

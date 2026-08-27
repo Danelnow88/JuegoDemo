@@ -15,6 +15,11 @@
     MAX_PLAYER_BULLETS: 150, MAX_ENEMY_BULLETS: 120,
     // Progresión permanente
     MAX_PERM_LEVEL: 10,
+    // Nuevas permanentes (por nivel): chance de crítico propio / esquiva / HP/s regen / % extra de drop
+    CRIT_PERM_CHANCE: 0.005,
+    DODGE_PERM_CHANCE: 0.004,
+    REGEN_PERM_HPSEC: 0.2,
+    GREED_PERM_DROP: 0.03,
     // Fusión de armas repetidas: duplicar una arma que ya tenés sube su fusión
     // (+ daño) en vez de sumar un slot. Techo bajo para no desbalancear la curva.
     MAX_WEAPON_FUSION: 3,          // fusiones máximas por arma

@@ -5,6 +5,8 @@ function t(d, fn) { try { fn(); pass++; console.log('  ok  ' + d); } catch (e) {
 
 function load() {
   const sbx = { window: { NV: {} }, console, Math };
+  vm.runInNewContext(fs.readFileSync('js/data/balance.js', 'utf8'), sbx, { filename: 'b' });
+  vm.runInNewContext(fs.readFileSync('js/data/gameData.js', 'utf8'), sbx, { filename: 'g' });
   vm.runInNewContext(fs.readFileSync('js/engine/enemies.js', 'utf8'), sbx, { filename: 'e' });
   vm.runInNewContext(fs.readFileSync('js/engine/pickups.js', 'utf8'), sbx, { filename: 'p' });
   return sbx.window.NV;

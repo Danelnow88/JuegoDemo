@@ -69,7 +69,7 @@
     for (let i = 0; i < actualCount; i++) {
       if (bullets.length >= state.MAX_BULLETS) break;
       const angle = baseAngle + (i - (actualCount - 1) / 2) * spread;
-      const crit = Math.random() < (0.1 + player.luck * 0.002);
+      const crit = Math.random() < (0.1 + player.luck * 0.002 + (player.permCrit || 0) * NV.BALANCE.CRIT_PERM_CHANCE);
       const baseDmg = weapon.damage + state.permDamageBonus * 2 + state.currentWeaponLevel(); // daño aditivo: base + meta + nivel de arma
       // Fusión de repetidas: multiplicador extra (puro, cap en game.js).
       const finalDmg = NV.weaponFusionDamage(baseDmg, state.currentWeaponFusion, state.fusionStep);
