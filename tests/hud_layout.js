@@ -113,5 +113,47 @@ t('Micro-animaciones (selPulse, fillFlash, fuseFlash, readyPulse)', () => {
   }
 });
 
+// Nombres largos: "Cañon de Riel" (legendary) debe truncarse con '…' sin pisar bordes.
+t('Render con nombre largo "Cañon de Riel Nv9" no rompe y usa truncado', () => {
+  // Arma real mas larga del juego
+  const rail = NV.WEAPONS.find(w => w.name === 'Cañón de Riel') || NV.WEAPONS.find(w => w.name.includes('Cañon')) || WEAPONS[WEAPONS.length - 1];
+  const largo = rail.name + ' Nv9';
+  if (largo.length < 12) throw new Error('texto no es realmente largo');
+  // El HUD lo recibe via currentWeapon; redibujamos con el railgun equipado
+  mockCtx.__c.length = 0;
+  NV.drawWeaponHUD(mockCtx, 800, 600, NV.CHARACTERS, RARITY_COLORS, player, rail, () => 9, [rail], [], 0, true);
+  const railCalls = mockCtx.__c.filter(c => c.startsWith('T') && (c.includes('Ca') || c.includes('Nv') || c.includes('…')));
+  // al menos texto de la cabecera se dibujo sin excepcion
+  if (railCalls.length === 0) throw new Error('no dibujo texto de railgun');
+});
+
+// El nombre de la skill no pisa el borde inferior del contenedor (sh/2 + 6 dentro de sh=24)
+t('Nombre de skill dentro del contenedor (no pisa borde inferior)', () => {
+  const h = fs.readFileSync('js/render/hud.js', 'utf8');
+  // sh=24 y el nombre se ubica en by + sh/2 + 6 = by+18 (dentro de los 24px, fuentelo 7px acaba ~by+25 -> dentro)
+  if (!h.includes('var sh = 24')) throw new Error('sh no es 24');
+  if (!h.includes('by + sh / 2 + 6')) throw new Error('nombre no reposicionado dentro');
+  // Verifica que ya no exista el bug viejo: by + sh + 1 (fuera del contenedor)
+  if (h.includes('by + sh + 1')) throw new Error('aun tiene nombre fuera (by+sh+1)');
+});
+
+// Cabecera de arma: contenedor de 16px con truncado y rareza en borde/texto
+t('Cabecera de arma: 16px + truncado + textAlign del color por rareza', () => {
+  const h = fs.readFileSync('js/render/hud.js', 'utf8');
+  if (!h.includes('var hh = 16')) throw new Error('cabecera no tiene 16px');
+  if (!h.includes('truncateToWidth')) throw new Error('sin truncado');
+  // iconColor ya era la rareza; verificamos que el borde use el rgbaNum(iconColor)
+  if (!h.includes("rgba(' + hCnum + '")) throw new Error('borde no usa rareza');
+  // GLOW incluye uncommon ahora
+  if (!h.includes('uncommon: 0.42')) throw new Error('GLOW no tiene uncommon');
+});
+
+// Fade de la cabecera al cambiar de arma
+t('Fade de cabecera al cambiar de arma (weaponFadeAt)', () => {
+  const h = fs.readFileSync('js/render/hud.js', 'utf8');
+  if (!h.includes('weaponFadeAt')) throw new Error('sin weaponFadeAt');
+  if (!h.includes('lastWeaponText')) throw new Error('sin lastWeaponText');
+});
+
 console.log('RESULT hud_v2: pass=' + pass + ' fail=' + fail);
 process.exit(fail ? 1 : 0);

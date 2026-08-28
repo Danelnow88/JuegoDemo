@@ -41,7 +41,9 @@
     fillFlash: {},
     fuseFlash: {},
     lastCd: null,
-    readyPulse: 0
+    readyPulse: 0,
+    lastWeaponText: null,
+    weaponFadeAt: 0
   };
   function nowMs() {
     if (typeof performance !== 'undefined' && typeof performance.now === 'function') return performance.now();
@@ -49,7 +51,7 @@
   }
   function easeOut(t) { return 1 - (1 - t) * (1 - t); }
 
-  var GLOW_BY_RARITY = { common: 0.32, rare: 0.52, epic: 0.76, legendary: 1 };
+  var GLOW_BY_RARITY = { common: 0.32, uncommon: 0.42, rare: 0.52, epic: 0.76, legendary: 1 };
 
   function roundedFill(ctx, x, y, w, h, r) {
     if (typeof ctx.roundRect === 'function') { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); ctx.fill(); return; }
@@ -74,6 +76,25 @@
     return '124,248,255';
   }
 
+  function truncateToWidth(ctx, text, font, maxW) {
+    ctx.font = font;
+    if (typeof ctx.measureText === 'function' && ctx.measureText(text).width <= maxW) return text;
+    var approx = function (t) { if (typeof ctx.measureText === 'function') return ctx.measureText(t).width; return t.length * 4.5; };
+    if (approx(text) <= maxW) return text;
+    var out = text;
+    while (out.length > 1 && approx(out + '\u2026') > maxW) { out = out.slice(0, -1); }
+    return out + '\u2026';
+  }
+  function vyBaseline(ctx, font, yTop, h) {
+    ctx.font = font;
+    var m = null;
+    try { if (typeof ctx.measureText === 'function') m = ctx.measureText('Mg'); } catch (e) { m = null; }
+    if (m && typeof m.actualBoundingBoxAscent === 'number') {
+      var asc = m.actualBoundingBoxAscent, desc = m.actualBoundingBoxDescent;
+      return yTop + (h - (asc + desc)) / 2 + asc;
+    }
+    return yTop + h / 2 + 1;
+  }
   function drawSlotRow(ctx, gx, gy, entries, selIdx, equippedIdx, eqColor, cw, ch, gap, key) {
     var RAD = 5;
     var now = nowMs();
@@ -187,14 +208,23 @@
     var hCnum = rgbaNum(iconColor);
     ctx.fillStyle = 'rgba(0,0,0,0.62)';
     ctx.strokeStyle = 'rgba(' + hCnum + ',0.45)'; ctx.lineWidth = 1.5;
-    ctx.fillRect(bx, by, pw, 6);
-    ctx.strokeRect(bx, by, pw, 6);
-    ctx.font = 'bold 7px system-ui'; ctx.fillStyle = iconColor; ctx.shadowColor = iconColor; ctx.shadowBlur = 4;
-    ctx.fillText(weapon.emoji + ' ' + weapon.name + ' Nv' + currentWeaponLevel(), bx + 3, by + 5);
+    var hh = 16;
+    var htxt = weapon.emoji + ' ' + weapon.name + ' Nv' + currentWeaponLevel();
+    if (ANIM.lastWeaponText !== htxt) { ANIM.lastWeaponText = htxt; ANIM.weaponFadeAt = nowMs(); }
+    var wf = ANIM.weaponFadeAt ? Math.max(0, 1 - (nowMs() - ANIM.weaponFadeAt) / 300) : 1;
+    ctx.shadowColor = iconColor; ctx.shadowBlur = 3 + 6 * wf;
+    roundedFill(ctx, bx, by, pw, hh, 5);
+    roundedStroke(ctx, bx, by, pw, hh, 5);
     ctx.shadowBlur = 0;
-    drawSlotRow(ctx, bx, by + 9, wEntries, -1, equippedIdx, iconColor, cw, ch, gap, 'w');
+    var hfont = 'bold 8px system-ui';
+    ctx.fillStyle = iconColor; ctx.globalAlpha = 0.5 + 0.5 * wf;
+    var fitted = truncateToWidth(ctx, htxt, hfont, pw - 12);
+    ctx.font = hfont; ctx.textAlign = 'left';
+    ctx.fillText(fitted, bx + 6, vyBaseline(ctx, hfont, by + 2, hh - 4));
+    ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+    drawSlotRow(ctx, bx, by + hh + 3, wEntries, -1, equippedIdx, iconColor, cw, ch, gap, 'w');
 
-    by += 9 + ch + gap + 3;
+    by += 16 + 3 + ch + gap + 3;
     if (consumGroups.length) {
       var cEntries = consumGroups.slice(0, 6).map(function (g) { return { icon: g.icon, color: '#7cf8ff', glow: 0.5, badge: 'x' + g.count }; });
       drawSlotRow(ctx, bx, by, cEntries, consumGroups.length ? consumSel : -1, -1, null, cw, ch, gap, 'c');
@@ -210,7 +240,7 @@
     }
 
     by += ch + gap + 5;
-    var sh = 16;
+    var sh = 24;
     var cd = player.specialCd > 0 ? 1 - player.specialCd / char.maxCd : 1;
     if (ANIM.lastCd !== null && ANIM.lastCd > 0 && player.specialCd <= 0) { ANIM.readyPulse = nowMs(); }
     ANIM.lastCd = player.specialCd;
@@ -230,12 +260,13 @@
     ctx.font = 'bold 11px system-ui';
     ctx.fillStyle = (cd >= 1 || rt > 0) ? char.color : '#9a9a9a';
     ctx.shadowColor = char.color; ctx.shadowBlur = cd >= 1 || rt > 0 ? (6 + 14 * rt) : 0;
-    ctx.fillText(char.skillIcon, bx + 4, by + sh / 2 + 3);
-    ctx.font = 'bold 7px system-ui';
+    ctx.fillText(char.skillIcon, bx + 5, vyBaseline(ctx, 'bold 12px system-ui', by, sh));
+    ctx.font = 'bold 8px system-ui';
     ctx.fillStyle = cd >= 1 ? (rt > 0 ? '#fff' : char.color) : '#aaa';
-    if (rt > 0) { ctx.font = 'bold 8px system-ui'; }
-    ctx.fillText(cd >= 1 ? 'LISTO' : 'CD ' + Math.ceil(player.specialCd) + 's', bx + 20, by + sh / 2 + 1);
-    ctx.fillText(char.skillName, bx + 20, by + sh + 1);
+    ctx.fillText(cd >= 1 ? 'LISTO' : 'CD ' + Math.ceil(player.specialCd) + 's', bx + 22, by + sh / 2 - 3);
+    ctx.font = 'bold 7px system-ui';
+    ctx.fillStyle = cd >= 1 ? char.color : '#ddd';
+    ctx.fillText(char.skillName, bx + 22, by + sh / 2 + 6);
     ctx.shadowBlur = 0;
   };
 

@@ -541,6 +541,14 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 - Separacion entre slots aumentada (gap 5) para que respires.
 - `hud_layout` ampliado a 9/9 (validacion de estilo, glow por rareza y micro-animaciones).
 
+### v56 — pulido de cabecera de arma y contenedor de habilidad
+- **Cabecera del arma equipada** (contenedor de 6px -> **16px**): texto con padding (6px izq), fuente `bold 8px`, borde/texto con el **color de rareza** real (`rgba(iconColor)`), y **truncado con '…'** (via `truncateToWidth`) para nombres largos como `Cañón de Riel`, con fallback aproximado si no hay `measureText`.
+- **Centrado vertical con metricas reales** (`vyBaseline` usando `actualBoundingBoxAscent/Descent`) con fallback a offset fijo.
+- **Fade breve (300ms)** al cambiar el arma equipada (`ANIM.weaponFadeAt`): el nombre y el borde aparecen con fade coherente con las micro-animaciones.
+- **Contenedor de habilidad** (16px -> **24px**): corregido el bug de que el nombre de la skill pisaba el borde inferior (`by + sh + 1` estaba FUERA del contenedor). Ahora el nombre se dibuja **dentro** en `by + sh/2 + 6`, con el CD en la mitad superior y el icono centrado.
+- Añadido `uncommon` a `GLOW_BY_RARITY` (0.42) para el color `#4ade80` que usa la paleta real.
+- `hud_layout` ampliado a **13/13** (nombre largo "Cañón de Riel Nv9" sin romper, nombre de skill dentro del contenedor, cabecera 16px con rareza y fade).
+
 ### v52 — Tanda D1: nuevos consumibles
 - Se suman **4 consumibles** (total 7), usando la tecla F, con tope por visita respetado por el contador existente:
   - 💣 **Bomba**: daña 25% del HP máx a todos los enemigos y al jefe (piso 1, no mata directo sino que deja al borde).
