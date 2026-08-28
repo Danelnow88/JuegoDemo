@@ -43,6 +43,19 @@
     WEAPON_KILLS_PER_LEVEL: 6,         // ~6 puntos de progreso por nivel
     WEAPON_PROGRESS_SCALE: 0.06,       // +6% de progreso por derribo, por oleada
     WEAPON_PROGRESS_CAP: 3,            // máx ~3 puntos de progreso por derribo
+
+    // Duración de oleada normal (segundos, cuenta regresiva): 25 - wave*0.4, piso 15.
+    // ÚNICA fuente de verdad: nextWave y la barra de progreso leen de acá.
+    WAVE_TIME_BASE: 25,
+    WAVE_TIME_DECAY: 0.4,
+    WAVE_TIME_MIN: 15,
+  };
+  // Duración base de la oleada (sin bonus de evento). Fórmula original fiel:
+  // max(15, 25 - wave*0.4). ÚNICA fuente de verdad: nextWave y la barra de
+  // progreso leen de acá (elimina la duplicación que era bug latente).
+  NV.waveDuration = function (wave) {
+    const B = NV.BALANCE;
+    return Math.max(B.WAVE_TIME_MIN, B.WAVE_TIME_BASE - wave * B.WAVE_TIME_DECAY);
   };
   Object.freeze(NV.BALANCE);
 })();

@@ -383,7 +383,7 @@
 
   function nextWave() {
     console.log('[WAVE] Oleada ' + wave);
-    waveTimer = Math.max(15, 25 - wave * 0.4);
+    waveTimer = NV.waveDuration(wave);
     spawnTimer = 0;
     enemies = []; bullets = []; pickups = []; shockwaves = [];
 
@@ -1201,7 +1201,7 @@
 
     // Barra de progreso de oleada
     if (showHUD && state === 'playing' && !boss) {
-      const maxWaveTimer = Math.max(15, 25 - wave * 0.4);
+      const maxWaveTimer = NV.waveDuration(wave);
       const progress = Math.max(0, Math.min(1, 1 - (waveTimer / maxWaveTimer)));
       const barW = 200, barH = 6;
       const barX = (W - barW) / 2, barY = 10;
