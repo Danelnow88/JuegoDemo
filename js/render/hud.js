@@ -32,91 +32,216 @@
     }
   };
 
-    // Dibuja una fila horizontal de 6 celdas (HUD minimalista de una sola linea).
-  function drawSlotRow(ctx, gx, gy, entries, selIdx, equippedIdx, eqColor, cw, ch, gap) {
-    for (let i = 0; i < 6; i++) {
-      const e = entries[i];
-      const x = gx + i * (cw + gap);
-      const selected = i === selIdx && !!e;
-      const equipped = i === equippedIdx;
-      ctx.fillStyle = selected || equipped ? 'rgba(124,248,255,0.25)' : (e ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.03)');
-      ctx.fillRect(x, gy, cw, ch);
-      ctx.strokeStyle = equipped && eqColor ? eqColor : selected ? '#7cf8ff' : (e ? 'rgba(255,255,255,0.30)' : 'rgba(255,255,255,0.08)');
-      ctx.lineWidth = selected || equipped ? 2 : 1;
-      ctx.strokeRect(x, gy, cw, ch);
+    
+  var ANIM = {
+    lastSel: {},
+    lastFill: {},
+    lastFuse: {},
+    selPulse: {},
+    fillFlash: {},
+    fuseFlash: {},
+    lastCd: null,
+    readyPulse: 0
+  };
+  function nowMs() {
+    if (typeof performance !== 'undefined' && typeof performance.now === 'function') return performance.now();
+    return Date.now();
+  }
+  function easeOut(t) { return 1 - (1 - t) * (1 - t); }
+
+  var GLOW_BY_RARITY = { common: 0.32, rare: 0.52, epic: 0.76, legendary: 1 };
+
+  function roundedFill(ctx, x, y, w, h, r) {
+    if (typeof ctx.roundRect === 'function') { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); ctx.fill(); return; }
+    ctx.fillRect(x, y, w, h);
+  }
+  function roundedStroke(ctx, x, y, w, h, r) {
+    if (typeof ctx.roundRect === 'function') { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); ctx.stroke(); return; }
+    ctx.strokeRect(x, y, w, h);
+  }
+  function slotGradient(ctx, x, y, w, h, c) {
+    if (typeof ctx.createLinearGradient === 'function') {
+      var g = ctx.createLinearGradient(x, y, x + w, y + h);
+      g.addColorStop(0, 'rgba(' + c + ',0.16)');
+      g.addColorStop(1, 'rgba(' + c + ',0.02)');
+      return g;
+    }
+    return null;
+  }
+  function rgbaNum(hex, a) {
+    var h = hex.replace('#', '');
+    if (h.length === 6) { return parseInt(h.substr(0, 2), 16) + ',' + parseInt(h.substr(2, 2), 16) + ',' + parseInt(h.substr(4, 2), 16); }
+    return '124,248,255';
+  }
+
+  function drawSlotRow(ctx, gx, gy, entries, selIdx, equippedIdx, eqColor, cw, ch, gap, key) {
+    var RAD = 5;
+    var now = nowMs();
+    var filled = entries.map(function (e) { return !!e; });
+    var fuses = entries.map(function (e) { return e && e.fuse ? e.fuse : 0; });
+    if (ANIM.lastFill[key]) {
+      for (var i = 0; i < 6; i++) {
+        if (!ANIM.lastFill[key][i] && filled[i]) { ANIM.fillFlash[key + ':' + i] = now; }
+      }
+    }
+    ANIM.lastFill[key] = filled;
+    if (ANIM.lastFuse[key]) {
+      for (var j = 0; j < 6; j++) {
+        if ((ANIM.lastFuse[key][j] || 0) < fuses[j]) { ANIM.fuseFlash[key + ':' + j] = now; }
+      }
+    }
+    ANIM.lastFuse[key] = fuses;
+    if (ANIM.lastSel[key] !== undefined && ANIM.lastSel[key] !== selIdx && selIdx >= 0 && entries[selIdx]) {
+      ANIM.selPulse[key] = now;
+    }
+    ANIM.lastSel[key] = selIdx;
+
+    var selectionPulseT = 1;
+    if (ANIM.selPulse[key]) { selectionPulseT = Math.max(0, 1 - (now - ANIM.selPulse[key]) / 320); }
+
+    for (var k = 0; k < 6; k++) {
+      var e = entries[k];
+      var x = gx + k * (cw + gap), y = gy;
+      var selected = k === selIdx && !!e;
+      var equipped = k === equippedIdx;
+      var glow = e ? (e.glow !== undefined ? e.glow : 0.3) : 0;
+      var cnum = rgbaNum(e ? e.color : '#7cf8ff');
+      var pulseA = selected ? easeOut(selectionPulseT) : 0;
+      var scale = 1 + 0.13 * pulseA;
+      var ccx = x + cw / 2, ccy = y + ch / 2;
+      var usedGlow = (equipped ? glow + 0.3 : selected ? glow + 0.35 : glow);
+      var grad = slotGradient(ctx, x, y, cw, ch, cnum);
+      ctx.save();
+      if (scale > 1.01) { ctx.translate(ccx, ccy); ctx.scale(scale, scale); ctx.translate(-ccx, -ccy); }
+      ctx.globalAlpha = 0.92;
+      ctx.fillStyle = grad || (e ? 'rgba(' + cnum + ',0.10)' : 'rgba(255,255,255,0.03)');
+      roundedFill(ctx, x, y, cw, ch, RAD);
+      ctx.globalAlpha = 1;
+      ctx.lineWidth = (selected || equipped) ? 2 : 1;
+      ctx.strokeStyle = selected || equipped
+        ? (equipped && eqColor ? eqColor : '#7cf8ff')
+        : (e ? 'rgba(' + cnum + ',' + (0.28 + glow * 0.35).toFixed(2) + ')' : 'rgba(255,255,255,0.08)');
+      ctx.shadowColor = selected || equipped ? (equipped && eqColor ? eqColor : '#7cf8ff') : '#7cf8ff';
+      ctx.shadowBlur = selected || equipped ? 6 + 12 * (usedGlow * pulseA + glow * 0.4) * 2 : 3 + usedGlow * 6;
+      roundedStroke(ctx, x, y, cw, ch, RAD);
+      ctx.shadowBlur = 0;
+      if (e && typeof ctx.roundRect === 'function') {
+        ctx.fillStyle = 'rgba(255,255,255,0.05)';
+        ctx.beginPath(); ctx.roundRect(x, y, cw, 3, RAD); ctx.fill();
+      }
       if (e) {
         ctx.font = 'bold 14px system-ui';
         ctx.fillStyle = e.color || '#fff';
         ctx.textAlign = 'center';
-        ctx.fillText(e.icon, x + cw / 2, gy + ch / 2 + 4);
+        ctx.shadowColor = e.color || '#7cf8ff';
+        ctx.shadowBlur = selected || equipped ? 10 + 10 * (glow * pulseA) : 5 + glow * 6;
+        ctx.fillText(e.icon, x + cw / 2, y + ch / 2 + 4);
+        ctx.shadowBlur = 0;
         if (e.badge !== undefined && e.badge !== '') {
-          ctx.font = 'bold 9px system-ui';
+          ctx.font = 'bold 8px system-ui';
           ctx.textAlign = 'right';
           ctx.fillStyle = '#fff';
-          ctx.fillText(e.badge, x + cw - 3, gy + ch - 3);
+          ctx.fillText(e.badge, x + cw - 3, y + ch - 3);
         }
         ctx.textAlign = 'left';
+      }
+      ctx.restore();
+      var flT = 0;
+      if (ANIM.fillFlash[key + ':' + k]) {
+        flT = Math.max(0, 1 - (now - ANIM.fillFlash[key + ':' + k]) / 260);
+        if (flT === 0) delete ANIM.fillFlash[key + ':' + k];
+      }
+      var fuT = 0;
+      if (ANIM.fuseFlash[key + ':' + k]) {
+        fuT = Math.max(0, 1 - (now - ANIM.fuseFlash[key + ':' + k]) / 300);
+        if (fuT === 0) delete ANIM.fuseFlash[key + ':' + k];
+      }
+      if (flT > 0) {
+        ctx.fillStyle = 'rgba(255,255,255,' + (flT * 0.45).toFixed(2) + ')';
+        roundedFill(ctx, x, y, cw, ch, RAD);
+      }
+      if (fuT > 0) {
+        ctx.fillStyle = 'rgba(255,207,118,' + (fuT * 0.5).toFixed(2) + ')';
+        roundedFill(ctx, x, y, cw, ch, RAD);
       }
     }
   }
 
-  // Panel derecho minimalista: tres tiras horizontales finas de 6 slots en una sola fila.
-  // Orden vertical: ARMAS (slot 0 = pistola fija) + nombre/nivel -> CONSUMIBLES -> HABILIDAD.
+
   NV.drawWeaponHUD = function (ctx, W, H, CHARACTERS, RARITY_COLORS, player, currentWeapon, currentWeaponLevel, inventory, consumGroups, consumSel, showHUD) {
     if (!showHUD) return;
-    const char = CHARACTERS[player.character];
-    const weapon = currentWeapon;
-    const iconColor = RARITY_COLORS[weapon.rarity];
-    const cw = 20, ch = 20, gap = 3;
-    const pw = 6 * (cw + gap) - gap;
-    const bx = W - pw - 8;
-    let by = 10;
+    var char = CHARACTERS[player.character];
+    var weapon = currentWeapon;
+    var iconColor = RARITY_COLORS[weapon.rarity];
+    var cw = 22, ch = 22, gap = 5;
+    var pw = 6 * (cw + gap) - gap;
+    var bx = W - pw - 10;
+    var by = 10;
     ctx.textAlign = 'left';
-    const pistol = NV.WEAPONS[0];
-    const wEntries = [{ icon: pistol.emoji, color: RARITY_COLORS[pistol.rarity] }].concat(
-      inventory.slice(0, 5).map((wItem) => ({ icon: wItem.emoji, color: RARITY_COLORS[wItem.rarity] }))
+    var pistol = NV.WEAPONS[0];
+    var wEntries = [{ icon: pistol.emoji, color: RARITY_COLORS[pistol.rarity], glow: GLOW_BY_RARITY[pistol.rarity] || 0.3, fuse: 0 }].concat(
+      inventory.slice(0, 5).map(function (wItem) { return { icon: wItem.emoji, color: RARITY_COLORS[wItem.rarity], glow: GLOW_BY_RARITY[wItem.rarity] || 0.3, fuse: wItem.fuseLevel || 0 }; })
     );
-    let equippedIdx = weapon === pistol ? 0 : inventory.indexOf(weapon) + 1;
+    var equippedIdx = weapon === pistol ? 0 : inventory.indexOf(weapon) + 1;
     if (equippedIdx < 0 || equippedIdx > 5) equippedIdx = -1;
-    ctx.fillStyle = 'rgba(0,0,0,0.72)'; ctx.strokeStyle = iconColor; ctx.lineWidth = 1.5;
-    ctx.fillRect(bx, by, pw, 6); ctx.strokeRect(bx, by, pw, 6);
-    ctx.font = 'bold 7px system-ui'; ctx.fillStyle = iconColor;
+    var hCnum = rgbaNum(iconColor);
+    ctx.fillStyle = 'rgba(0,0,0,0.62)';
+    ctx.strokeStyle = 'rgba(' + hCnum + ',0.45)'; ctx.lineWidth = 1.5;
+    ctx.fillRect(bx, by, pw, 6);
+    ctx.strokeRect(bx, by, pw, 6);
+    ctx.font = 'bold 7px system-ui'; ctx.fillStyle = iconColor; ctx.shadowColor = iconColor; ctx.shadowBlur = 4;
     ctx.fillText(weapon.emoji + ' ' + weapon.name + ' Nv' + currentWeaponLevel(), bx + 3, by + 5);
-    drawSlotRow(ctx, bx, by + 8, wEntries, -1, equippedIdx, iconColor, cw, ch, gap);
-    by += 8 + ch + gap + 3;
+    ctx.shadowBlur = 0;
+    drawSlotRow(ctx, bx, by + 9, wEntries, -1, equippedIdx, iconColor, cw, ch, gap, 'w');
+
+    by += 9 + ch + gap + 3;
     if (consumGroups.length) {
-      const cEntries = consumGroups.slice(0, 6).map((g) => ({ icon: g.icon, color: '#fff', badge: 'x' + g.count }));
-      drawSlotRow(ctx, bx, by, cEntries, consumGroups.length ? consumSel : -1, -1, null, cw, ch, gap);
-      NV.consumSlotRects = consumGroups.slice(0, 6).map((g, i) => ({ type: g.type, x: bx + i * (cw + gap), y: by, w: cw, h: ch }));
-      ctx.font = 'bold 7px system-ui'; ctx.fillStyle = '#7cf8ff';
-      ctx.fillText('F usar - Q/E elegir', bx, by + ch + 3);
+      var cEntries = consumGroups.slice(0, 6).map(function (g) { return { icon: g.icon, color: '#7cf8ff', glow: 0.5, badge: 'x' + g.count }; });
+      drawSlotRow(ctx, bx, by, cEntries, consumGroups.length ? consumSel : -1, -1, null, cw, ch, gap, 'c');
+      NV.consumSlotRects = consumGroups.slice(0, 6).map(function (g, i) { return { type: g.type, x: bx + i * (cw + gap), y: by, w: cw, h: ch }; });
+      ctx.font = 'bold 7px system-ui'; ctx.fillStyle = '#7cf8ff'; ctx.shadowColor = '#7cf8ff'; ctx.shadowBlur = 3;
+      ctx.fillText('F usar - Q/E elegir', bx, by + ch + 4);
+      ctx.shadowBlur = 0;
     } else {
       NV.consumSlotRects = [];
-      drawSlotRow(ctx, bx, by, [], -1, -1, null, cw, ch, gap);
+      drawSlotRow(ctx, bx, by, [], -1, -1, null, cw, ch, gap, 'c');
       ctx.font = 'bold 7px system-ui'; ctx.fillStyle = '#555'; ctx.textAlign = 'center';
       ctx.fillText('SIN CONSUMIBLES', bx + pw / 2, by + ch / 2 + 3); ctx.textAlign = 'left';
     }
-    by += ch + gap + 3;
-    const sh = 14;
-    ctx.fillStyle = 'rgba(0,0,0,0.72)';
-    ctx.strokeStyle = char.color; ctx.lineWidth = 1.5;
-    ctx.fillRect(bx, by, pw, sh); ctx.strokeRect(bx, by, pw, sh);
-    const cd = player.specialCd > 0 ? 1 - player.specialCd / char.maxCd : 1;
-    const fillW = Math.max(0, Math.min(1, cd)) * (pw - 2);
-    ctx.globalAlpha = 0.55; ctx.fillStyle = char.color;
-    ctx.fillRect(bx + 1, by + 1, fillW, sh - 2);
-    ctx.globalAlpha = 1;
+
+    by += ch + gap + 5;
+    var sh = 16;
+    var cd = player.specialCd > 0 ? 1 - player.specialCd / char.maxCd : 1;
+    if (ANIM.lastCd !== null && ANIM.lastCd > 0 && player.specialCd <= 0) { ANIM.readyPulse = nowMs(); }
+    ANIM.lastCd = player.specialCd;
+    var rt = ANIM.readyPulse ? Math.max(0, 1 - (nowMs() - ANIM.readyPulse) / 500) : 0;
+    var sCnum = rgbaNum(char.color);
+    ctx.fillStyle = 'rgba(0,0,0,0.62)';
+    ctx.strokeStyle = 'rgba(' + sCnum + ',' + (0.4 + rt * 0.5).toFixed(2) + ')';
+    ctx.lineWidth = 1.5 + rt * 1.5;
+    ctx.shadowColor = cd >= 1 || rt > 0 ? char.color : '#000';
+    ctx.shadowBlur = rt > 0 ? 18 * rt : (cd >= 1 ? 8 : 0);
+    ctx.fillRect(bx, by, pw, sh);
+    if (typeof ctx.roundRect === 'function') { ctx.beginPath(); ctx.roundRect(bx, by, pw, sh, 5); ctx.stroke(); } else { ctx.strokeRect(bx, by, pw, sh); }
+    var fillW = Math.max(0, Math.min(1, cd)) * (pw - 2);
+    var grad = slotGradient(ctx, bx, by, fillW, sh - 2, sCnum);
+    ctx.globalAlpha = 0.8; ctx.fillStyle = grad || char.color; ctx.fillRect(bx + 1, by + 1, fillW, sh - 2); ctx.globalAlpha = 1;
+    ctx.shadowBlur = 0;
     ctx.font = 'bold 11px system-ui';
-    ctx.fillStyle = char.color;
+    ctx.fillStyle = (cd >= 1 || rt > 0) ? char.color : '#9a9a9a';
+    ctx.shadowColor = char.color; ctx.shadowBlur = cd >= 1 || rt > 0 ? (6 + 14 * rt) : 0;
     ctx.fillText(char.skillIcon, bx + 4, by + sh / 2 + 3);
     ctx.font = 'bold 7px system-ui';
-    ctx.fillStyle = cd >= 1 ? '#fff' : '#aaa';
+    ctx.fillStyle = cd >= 1 ? (rt > 0 ? '#fff' : char.color) : '#aaa';
+    if (rt > 0) { ctx.font = 'bold 8px system-ui'; }
     ctx.fillText(cd >= 1 ? 'LISTO' : 'CD ' + Math.ceil(player.specialCd) + 's', bx + 20, by + sh / 2 + 1);
-    ctx.fillText(char.skillName, bx + 20, by + sh);
+    ctx.fillText(char.skillName, bx + 20, by + sh + 1);
+    ctx.shadowBlur = 0;
   };
 
-  NV.drawSlotRow = drawSlotRow;  // Combo de kills (E1): contador ABAJO-CENTRO (libre de paneles laterales y barra de oleada).
-  NV.drawCombo = function (ctx, W, H, combo) {
+  NV.drawSlotRow = drawSlotRow;
+
+NV.drawCombo = function (ctx, W, H, combo) {
     if (!combo || combo.count < 2) return;
     const x = 10, y = 20;
     const heat = Math.min(1, combo.count / 15);

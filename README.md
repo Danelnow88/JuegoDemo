@@ -530,6 +530,17 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 - **Ciclado de consumibles bidireccional**: `Q` cicla en un sentido y `E` en el opuesto (antes solo Q hacia adelante).
 - Nuevo test `hud_layout` 6/6; `consum_hud` actualizado a la nueva estructura de filas.
 
+### v55 — estetica del HUD: vidrio neon con luz interior
+- **Rediseno visual** de los 3 HUDs (armas, consumibles, habilidad) coherente con el lenguaje del HUD DOM (stats/HP): bordes redondeados (`roundRect`, fallback a `rect`), gradiente sutil por slot (`createLinearGradient` cian-tenue), luz superior interior y glow refinado.
+- **Glow escalado por rareza** (`GLOW_BY_RARITY`: common 0.32 / rare 0.52 / epic 0.76 / legendary 1): una legendaria brilla mas que una comun, usando `shadowColor`+`shadowBlur` del color del slot.
+- **Micro-animaciones** efimeras (solo render, estado en closure `ANIM` dentro del IIFE, sin tocar hit-test/geometria):
+  - **Pulso de seleccion** al ciclar consumibles (Q/E) o equipar arma: scale-up breve + fade del glow en el slot que pasa a estar activo.
+  - **Flash de llenado**: cuando un slot vacio se llena (arma nueva o consumible) parpadea en blanco.
+  - **Flash de fusion**: cuando el nivel de fusion de una arma sube, el slot parpadea en dorado.
+  - **Pulso de "listo"** en la skill al terminar el cooldown: brillo extra en el slot de habilidad.
+- Separacion entre slots aumentada (gap 5) para que respires.
+- `hud_layout` ampliado a 9/9 (validacion de estilo, glow por rareza y micro-animaciones).
+
 ### v52 — Tanda D1: nuevos consumibles
 - Se suman **4 consumibles** (total 7), usando la tecla F, con tope por visita respetado por el contador existente:
   - 💣 **Bomba**: daña 25% del HP máx a todos los enemigos y al jefe (piso 1, no mata directo sino que deja al borde).

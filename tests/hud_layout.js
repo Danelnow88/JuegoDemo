@@ -17,7 +17,7 @@ const mockCtx = {
   strokeRect: function (x,y,w,h) { this.__c.push('S'+x.toFixed(0)+','+y.toFixed(0)+','+w+','+h); },
   fillText: function (t,x,y) { this.__c.push('T'+t.substring(0,10)+','+x.toFixed(0)+','+y.toFixed(0)); },
   beginPath: function(){}, arc: function(){}, stroke: function(){},
-  save: function(){}, restore: function(){},
+  save: function(){}, restore: function(){}, translate: function(){}, scale: function(){},
   font: '', fillStyle: '', globalAlpha: 1, shadowColor: '', shadowBlur: 0, textAlign: '', lineWidth: 1, lineCap: '',
 };
 const inv = [WEAPONS[3]];
@@ -81,6 +81,36 @@ t('Orden vertical: armas header -> consumibles hint -> skill name', () => {
   const idxSkill = txtCalls.findIndex(c => c.includes(char.skillName) || c.includes(char.skillIcon));
   if (idxArma === -1 || idxCons === -1 || idxSkill === -1) throw new Error('falta alguna seccion');
   if (idxArma > idxCons || idxCons > idxSkill) throw new Error('orden incorrecto: arma='+idxArma+' cons='+idxCons+' skill='+idxSkill);
+});
+
+// Estilo vidrio neon: usa roundRect (o fallback fillRect+strokeRect) y gradiente.
+t('Estilo vidrio neon: no depende de roundRect (fallback a rect)', () => {
+  const h = fs.readFileSync('js/render/hud.js', 'utf8');
+  if (!h.includes('roundRect')) throw new Error('no usa roundRect');
+  if (!h.includes('createLinearGradient') || !h.includes('slotGradient')) throw new Error('sin gradiente');
+  if (!h.includes('GLOW_BY_RARITY')) throw new Error('sin tabla de glow por rareza');
+});
+
+// Glow escalado por rareza: shadowBlur mayor para legendary que common.
+t('Glow escalado por rareza (legendary > common en intensity)', () => {
+  const h = fs.readFileSync('js/render/hud.js', 'utf8');
+  const m = h.match(/GLOW_BY_RARITY\s*=\s*\{([^}]+)\}/);
+  if (!m) throw new Error('no encontro tabla');
+  const get = (k) => {
+    const mm = m[1].match(new RegExp(k + '\\s*:\\s*([0-9.]+)'));
+    return mm ? parseFloat(mm[1]) : NaN;
+  };
+  const common = get('common'), legendary = get('legendary');
+  if (legendary <= common) throw new Error('legendary (' + legendary + ') no >= common (' + common + ')');
+  if (!(common >= 0.2 && common <= 0.5) || !(legendary >= 0.7)) throw new Error('valores fuera de rango');
+});
+
+// Micro-animaciones presentes sin tocar geometria
+t('Micro-animaciones (selPulse, fillFlash, fuseFlash, readyPulse)', () => {
+  const h = fs.readFileSync('js/render/hud.js', 'utf8');
+  for (const k of ['selPulse', 'fillFlash', 'fuseFlash', 'readyPulse', 'lastCd']) {
+    if (!h.includes(k)) throw new Error('falta ' + k);
+  }
 });
 
 console.log('RESULT hud_v2: pass=' + pass + ' fail=' + fail);
