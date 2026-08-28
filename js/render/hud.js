@@ -225,49 +225,63 @@
     drawSlotRow(ctx, bx, by + hh + 3, wEntries, -1, equippedIdx, iconColor, cw, ch, gap, 'w');
 
     by += 16 + 3 + ch + gap + 3;
-    if (consumGroups.length) {
-      var cEntries = consumGroups.slice(0, 6).map(function (g) { return { icon: g.icon, color: '#7cf8ff', glow: 0.5, badge: 'x' + g.count }; });
-      drawSlotRow(ctx, bx, by, cEntries, consumGroups.length ? consumSel : -1, -1, null, cw, ch, gap, 'c');
-      NV.consumSlotRects = consumGroups.slice(0, 6).map(function (g, i) { return { type: g.type, x: bx + i * (cw + gap), y: by, w: cw, h: ch }; });
-      ctx.font = 'bold 7px system-ui'; ctx.fillStyle = '#7cf8ff'; ctx.shadowColor = '#7cf8ff'; ctx.shadowBlur = 3;
-      ctx.fillText('F usar - Q/E elegir', bx, by + ch + 4);
-      ctx.shadowBlur = 0;
-    } else {
-      NV.consumSlotRects = [];
-      drawSlotRow(ctx, bx, by, [], -1, -1, null, cw, ch, gap, 'c');
-      ctx.font = 'bold 7px system-ui'; ctx.fillStyle = '#555'; ctx.textAlign = 'center';
-      ctx.fillText('SIN CONSUMIBLES', bx + pw / 2, by + ch / 2 + 3); ctx.textAlign = 'left';
-    }
 
-    by += ch + gap + 5;
-    var sh = 24;
-    var cd = player.specialCd > 0 ? 1 - player.specialCd / char.maxCd : 1;
-    if (ANIM.lastCd !== null && ANIM.lastCd > 0 && player.specialCd <= 0) { ANIM.readyPulse = nowMs(); }
-    ANIM.lastCd = player.specialCd;
-    var rt = ANIM.readyPulse ? Math.max(0, 1 - (nowMs() - ANIM.readyPulse) / 500) : 0;
-    var sCnum = rgbaNum(char.color);
-    ctx.fillStyle = 'rgba(0,0,0,0.62)';
-    ctx.strokeStyle = 'rgba(' + sCnum + ',' + (0.4 + rt * 0.5).toFixed(2) + ')';
-    ctx.lineWidth = 1.5 + rt * 1.5;
-    ctx.shadowColor = cd >= 1 || rt > 0 ? char.color : '#000';
-    ctx.shadowBlur = rt > 0 ? 18 * rt : (cd >= 1 ? 8 : 0);
-    ctx.fillRect(bx, by, pw, sh);
-    if (typeof ctx.roundRect === 'function') { ctx.beginPath(); ctx.roundRect(bx, by, pw, sh, 5); ctx.stroke(); } else { ctx.strokeRect(bx, by, pw, sh); }
-    var fillW = Math.max(0, Math.min(1, cd)) * (pw - 2);
-    var grad = slotGradient(ctx, bx, by, fillW, sh - 2, sCnum);
-    ctx.globalAlpha = 0.8; ctx.fillStyle = grad || char.color; ctx.fillRect(bx + 1, by + 1, fillW, sh - 2); ctx.globalAlpha = 1;
+  var consY = by; // fila de consumibles
+  if (consumGroups.length) {
+    var cEntries = consumGroups.slice(0, 6).map(function (g) { return { icon: g.icon, color: '#7cf8ff', glow: 0.5, badge: 'x' + g.count }; });
+    drawSlotRow(ctx, bx, consY, cEntries, consumGroups.length ? consumSel : -1, -1, null, cw, ch, gap, 'c');
+    NV.consumSlotRects = consumGroups.slice(0, 6).map(function (g, i) { return { type: g.type, x: bx + i * (cw + gap), y: consY, w: cw, h: ch }; });
+    ctx.font = 'bold 7px system-ui'; ctx.fillStyle = '#7cf8ff'; ctx.shadowColor = '#7cf8ff'; ctx.shadowBlur = 3;
+    ctx.fillText('F usar - Q/E elegir', bx, consY + 28);
     ctx.shadowBlur = 0;
-    ctx.font = 'bold 11px system-ui';
-    ctx.fillStyle = (cd >= 1 || rt > 0) ? char.color : '#9a9a9a';
-    ctx.shadowColor = char.color; ctx.shadowBlur = cd >= 1 || rt > 0 ? (6 + 14 * rt) : 0;
-    ctx.fillText(char.skillIcon, bx + 5, vyBaseline(ctx, 'bold 12px system-ui', by, sh));
-    ctx.font = 'bold 8px system-ui';
-    ctx.fillStyle = cd >= 1 ? (rt > 0 ? '#fff' : char.color) : '#aaa';
-    ctx.fillText(cd >= 1 ? 'LISTO' : 'CD ' + Math.ceil(player.specialCd) + 's', bx + 22, by + sh / 2 - 3);
-    ctx.font = 'bold 7px system-ui';
-    ctx.fillStyle = cd >= 1 ? char.color : '#ddd';
-    ctx.fillText(char.skillName, bx + 22, by + sh / 2 + 6);
-    ctx.shadowBlur = 0;
+  } else {
+    NV.consumSlotRects = [];
+    drawSlotRow(ctx, bx, consY, [], -1, -1, null, cw, ch, gap, 'c');
+    ctx.font = 'bold 7px system-ui'; ctx.fillStyle = '#555'; ctx.textAlign = 'center';
+    ctx.fillText('SIN CONSUMIBLES', bx + pw / 2, consY + ch / 2 + 3); ctx.textAlign = 'left';
+  }
+
+  // === HABILIDAD: slot cuadrado 22x22 (mismo tam que un slot) + anillo de cooldown ===
+  var ssy = consY + 38;         // bajo el hint, con separacion
+  var sl = 22;                  // igual a un slot de armas/consumibles
+  var cd = player.specialCd > 0 ? 1 - player.specialCd / char.maxCd : 1;
+  if (ANIM.lastCd !== null && ANIM.lastCd > 0 && player.specialCd <= 0) { ANIM.readyPulse = nowMs(); }
+  ANIM.lastCd = player.specialCd;
+  var rt = ANIM.readyPulse ? Math.max(0, 1 - (nowMs() - ANIM.readyPulse) / 500) : 0;
+  var sCnum = rgbaNum(char.color);
+  var skillGrad = slotGradient(ctx, bx, ssy, sl, sl, sCnum);
+  ctx.fillStyle = skillGrad || 'rgba(' + sCnum + ',0.12)';
+  roundedFill(ctx, bx, ssy, sl, sl, 5);
+  // icono centrado
+  ctx.font = 'bold 13px system-ui'; ctx.textAlign = 'center';
+  ctx.fillStyle = (cd >= 1 || rt > 0) ? char.color : '#9a9a9a';
+  ctx.shadowColor = char.color; ctx.shadowBlur = (cd >= 1) ? (6 + 10 * rt) : 0;
+  ctx.fillText(char.skillIcon, bx + sl / 2, vyBaseline(ctx, 'bold 13px system-ui', ssy, sl));
+  ctx.shadowBlur = 0; ctx.textAlign = 'left';
+  // anillo de progreso (se completa con el cooldown): base atenuada + aro de avance
+  var rcx = bx + sl / 2, rcy = ssy + sl / 2, rrad = sl / 2 + 1, rstart = -Math.PI / 2;
+  ctx.globalAlpha = 0.9; ctx.lineCap = 'round';
+  ctx.strokeStyle = 'rgba(' + sCnum + ',0.18)'; ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.arc(rcx, rcy, rrad, 0, Math.PI * 2); ctx.stroke();
+  // glow atenuado mientras carga, pleno + pulso al listo
+  var ren = rstart + (cd >= 1 ? Math.PI * 2 : Math.max(0.06, cd * Math.PI * 2));
+  ctx.strokeStyle = cd >= 1 ? char.color : 'rgba(' + sCnum + ',' + (0.4 + rt * 0.4).toFixed(2) + ')';
+  ctx.lineWidth = cd >= 1 ? 3 : 2.5;
+  ctx.shadowColor = char.color; ctx.shadowBlur = cd >= 1 ? (8 + 14 * rt) : 2.5;
+  ctx.beginPath(); ctx.arc(rcx, rcy, rrad, rstart, ren); ctx.stroke();
+  ctx.shadowBlur = 0; ctx.globalAlpha = 1; ctx.lineCap = 'butt';
+  // texto a la derecha (aprovecha el ancho sobrante): CD/LISTO + nombre truncado
+  var tx = bx + sl + 8;
+  var maxTxt = pw - (sl + 14);
+  ctx.font = 'bold 8px system-ui';
+  ctx.fillStyle = cd >= 1 ? char.color : '#aaa';
+  ctx.fillText(cd >= 1 ? 'LISTO' : 'CD ' + Math.ceil(player.specialCd) + 's', tx, ssy + 8);
+  ctx.font = 'bold 7px system-ui';
+  ctx.fillStyle = cd >= 1 ? char.color : '#ddd';
+  var fitted = truncateToWidth(ctx, char.skillName, 'bold 7px system-ui', maxTxt);
+  ctx.fillText(fitted, tx, ssy + 16);
+  ctx.shadowBlur = 0;
+
   };
 
   NV.drawSlotRow = drawSlotRow;

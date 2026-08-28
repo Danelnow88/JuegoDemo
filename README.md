@@ -549,6 +549,14 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 - Añadido `uncommon` a `GLOW_BY_RARITY` (0.42) para el color `#4ade80` que usa la paleta real.
 - `hud_layout` ampliado a **13/13** (nombre largo "Cañón de Riel Nv9" sin romper, nombre de skill dentro del contenedor, cabecera 16px con rareza y fade).
 
+### v57 — HUD de habilidad como slot con anillo de cooldown
+- El contenedor ancho de habilidad se reemplaza por un **slot cuadrado 22×22** (mismo tamaño que los slots de armas/consumibles, vidrio neón del color del personaje) + icono de skill centrado.
+- **Anillo de progreso de cooldown** alrededor del slot: aro que se completa 0→360° con la recarga; glow atenuado mientras carga, glow pleno + pulso solo al quedar listo (transición perceptible, no aparición seca).
+- El espacio sobrante de la fila se aprovecha a la derecha del slot: estado "CD Xs"/"LISTO" (8px) y **nombre de la skill con truncado** (`truncateToWidth` + "…"), mismo criterio que la cabecera de arma — "Lluvia Estelar" ya no se corta ni pisa bordes.
+- El hint "F usar · Q/E elegir" pasó a una **línea dedicada** (consY+28) con aire real entre consumibles y habilidad: ya no lo pisa el contenedor.
+- Lógica de cooldown/uso intacta (`specialCd`/`maxCd`/`rt` sin cambios); solo representación visual. Tests `hud_layout` 13/13 (agrega skill 22×22 + anillo + truncado).
+
+
 ### v52 — Tanda D1: nuevos consumibles
 - Se suman **4 consumibles** (total 7), usando la tecla F, con tope por visita respetado por el contador existente:
   - 💣 **Bomba**: daña 25% del HP máx a todos los enemigos y al jefe (piso 1, no mata directo sino que deja al borde).

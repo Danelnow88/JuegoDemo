@@ -127,14 +127,18 @@ t('Render con nombre largo "Cañon de Riel Nv9" no rompe y usa truncado', () => 
   if (railCalls.length === 0) throw new Error('no dibujo texto de railgun');
 });
 
-// El nombre de la skill no pisa el borde inferior del contenedor (sh/2 + 6 dentro de sh=24)
-t('Nombre de skill dentro del contenedor (no pisa borde inferior)', () => {
+// Skill: slot cuadrado 22x22 con anillo de cooldown, nombre truncado a la derecha (no pisa bordes)
+t('Skill: slot 22x22 + anillo de cooldown + nombre truncado (no contenedor ancho viejo)', () => {
   const h = fs.readFileSync('js/render/hud.js', 'utf8');
-  // sh=24 y el nombre se ubica en by + sh/2 + 6 = by+18 (dentro de los 24px, fuentelo 7px acaba ~by+25 -> dentro)
-  if (!h.includes('var sh = 24')) throw new Error('sh no es 24');
-  if (!h.includes('by + sh / 2 + 6')) throw new Error('nombre no reposicionado dentro');
-  // Verifica que ya no exista el bug viejo: by + sh + 1 (fuera del contenedor)
-  if (h.includes('by + sh + 1')) throw new Error('aun tiene nombre fuera (by+sh+1)');
+  if (!h.includes('var sl = 22')) throw new Error('slot de skill no es 22px');
+  if (h.includes('var sh = 24')) throw new Error('quedo el contenedor ancho viejo (sh=24)');
+  if (!h.includes('ctx.arc(rcx, rcy, rrad')) throw new Error('sin anillo de progreso de cooldown');
+  // glow diferenciado: atenuado cargando, pleno + pulso al listo
+  if (!h.includes('8 + 14 * rt')) throw new Error('sin pulso de listo en el anillo');
+  // nombre de skill truncado con el mismo truncateToWidth de la cabecera
+  if (!h.includes('truncateToWidth(ctx, char.skillName')) throw new Error('skill name sin truncado');
+  // texto "CD Xs"/"LISTO" a la derecha del slot, no debajo
+  if (!h.includes("'LISTO' : 'CD '")) throw new Error('sin indicador CD/LISTO');
 });
 
 // Cabecera de arma: contenedor de 16px con truncado y rareza en borde/texto
