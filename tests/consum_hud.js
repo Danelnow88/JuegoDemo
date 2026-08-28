@@ -29,9 +29,9 @@ t('cycleIndex: cicla selección en ambos sentidos sin salirse', () => {
   if (NV.cycleIndex(5, 0, 1) !== 0) throw new Error('lista vacía segura');
 });
 
-t('HUD dibuja 2 grillas y expone rects de slots para el click', () => {
+t('HUD dibuja filas horizontales (drawSlotRow) y expone rects para el click', () => {
   const h = fs.readFileSync('js/render/hud.js', 'utf8');
-  if ((h.match(/drawSlotGrid/g) || []).length < 2) throw new Error('faltan grillas');
+  if ((h.match(/drawSlotRow/g) || []).length < 2) throw new Error('faltan filas horizontales de slots');
   if (!h.includes('NV.consumSlotRects')) throw new Error('sin rects para hit-test');
 });
 

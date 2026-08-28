@@ -1,4 +1,4 @@
-// ===== RENDER: HUD en canvas (cooldown especial, panel de arma, stats) =====
+﻿// ===== RENDER: HUD en canvas (cooldown especial, panel de arma, stats) =====
 // Funciones de dibujo PUROS. game.js aporta ctx y los valores de su closure al llamarlas.
 (() => {
   'use strict';
@@ -32,137 +32,112 @@
     }
   };
 
-  // Dibuja una grilla de celdas 3x2 reutilizable para paneles de slots.
-  function drawSlotGrid(ctx, gx, gy, entries, selIdx, cw, ch) {
-    const cols = 3, gap = 4;
+    // Dibuja una fila horizontal de 6 celdas (HUD minimalista de una sola linea).
+  function drawSlotRow(ctx, gx, gy, entries, selIdx, equippedIdx, eqColor, cw, ch, gap) {
     for (let i = 0; i < 6; i++) {
       const e = entries[i];
-      const x = gx + (i % cols) * (cw + gap), y = gy + Math.floor(i / cols) * (ch + gap);
+      const x = gx + i * (cw + gap);
       const selected = i === selIdx && !!e;
-      ctx.fillStyle = selected ? 'rgba(124,248,255,0.22)' : (e ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.02)');
-      ctx.fillRect(x, y, cw, ch);
-      ctx.strokeStyle = selected ? '#7cf8ff' : (e ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.08)');
-      ctx.lineWidth = selected ? 2 : 1;
-      ctx.strokeRect(x, y, cw, ch);
+      const equipped = i === equippedIdx;
+      ctx.fillStyle = selected || equipped ? 'rgba(124,248,255,0.25)' : (e ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.03)');
+      ctx.fillRect(x, gy, cw, ch);
+      ctx.strokeStyle = equipped && eqColor ? eqColor : selected ? '#7cf8ff' : (e ? 'rgba(255,255,255,0.30)' : 'rgba(255,255,255,0.08)');
+      ctx.lineWidth = selected || equipped ? 2 : 1;
+      ctx.strokeRect(x, gy, cw, ch);
       if (e) {
         ctx.font = 'bold 14px system-ui';
         ctx.fillStyle = e.color || '#fff';
-        ctx.fillText(e.icon, x + 5, y + ch / 2 + 5);
-        if (e.badge) {
+        ctx.textAlign = 'center';
+        ctx.fillText(e.icon, x + cw / 2, gy + ch / 2 + 4);
+        if (e.badge !== undefined && e.badge !== '') {
           ctx.font = 'bold 9px system-ui';
           ctx.textAlign = 'right';
           ctx.fillStyle = '#fff';
-          ctx.fillText(e.badge, x + cw - 4, y + ch - 5);
-          ctx.textAlign = 'left';
+          ctx.fillText(e.badge, x + cw - 3, gy + ch - 3);
         }
+        ctx.textAlign = 'left';
       }
     }
   }
 
-  // Panel derecho: ARMAS (grilla 6 slots) + HABILIDAD + CONSUMIBLES (grilla 6 slots con selección).
+  // Panel derecho minimalista: tres tiras horizontales finas de 6 slots en una sola fila.
+  // Orden vertical: ARMAS (slot 0 = pistola fija) + nombre/nivel -> CONSUMIBLES -> HABILIDAD.
   NV.drawWeaponHUD = function (ctx, W, H, CHARACTERS, RARITY_COLORS, player, currentWeapon, currentWeaponLevel, inventory, consumGroups, consumSel, showHUD) {
     if (!showHUD) return;
     const char = CHARACTERS[player.character];
     const weapon = currentWeapon;
     const iconColor = RARITY_COLORS[weapon.rarity];
-    const pw = 154, wh = 92, sh = 40, chh = 92;
-    const wx = W - pw - 10, wy = 10;
-
+    const cw = 20, ch = 20, gap = 3;
+    const pw = 6 * (cw + gap) - gap;
+    const bx = W - pw - 8;
+    let by = 10;
     ctx.textAlign = 'left';
-
-    // === ARMAS: cabecera (arma equipada) + grilla de inventario (teclas 1-6) ===
-    ctx.fillStyle = 'rgba(0,0,0,0.72)';
-    ctx.strokeStyle = iconColor; ctx.lineWidth = 1.5;
-    ctx.fillRect(wx, wy, pw, wh); ctx.strokeRect(wx, wy, pw, wh);
-    ctx.font = 'bold 15px system-ui';
-    ctx.fillStyle = iconColor;
-    ctx.fillText(weapon.emoji, wx + 7, wy + 17);
-    ctx.font = 'bold 9px system-ui';
-    ctx.fillStyle = '#fff';
-    ctx.fillText(weapon.name, wx + 27, wy + 12);
-    ctx.font = '8px system-ui';
-    ctx.fillStyle = '#aaa';
-    ctx.fillText('Nv ' + currentWeaponLevel() + ' · rueda o teclas 1-6', wx + 27, wy + 23);
-    drawSlotGrid(ctx, wx + 5, wy + 28, inventory.map((wItem, i) => ({
-      icon: wItem.emoji,
-      color: RARITY_COLORS[wItem.rarity],
-      badge: String(i + 1),
-      equipped: wItem === weapon,
-    })), -1, 45, 28);
-    // El arma equipada se resalta aparte (puede ser la Pistola base, fuera del inventario).
-    for (let i = 0; i < 6 && i < inventory.length; i++) {
-      if (inventory[i] === weapon) {
-        const gx = wx + 5 + (i % 3) * 49, gy = wy + 28 + Math.floor(i / 3) * 32;
-        ctx.strokeStyle = iconColor; ctx.lineWidth = 2;
-        ctx.strokeRect(gx, gy, 45, 28);
-        break;
-      }
+    const pistol = NV.WEAPONS[0];
+    const wEntries = [{ icon: pistol.emoji, color: RARITY_COLORS[pistol.rarity] }].concat(
+      inventory.slice(0, 5).map((wItem) => ({ icon: wItem.emoji, color: RARITY_COLORS[wItem.rarity] }))
+    );
+    let equippedIdx = weapon === pistol ? 0 : inventory.indexOf(weapon) + 1;
+    if (equippedIdx < 0 || equippedIdx > 5) equippedIdx = -1;
+    ctx.fillStyle = 'rgba(0,0,0,0.72)'; ctx.strokeStyle = iconColor; ctx.lineWidth = 1.5;
+    ctx.fillRect(bx, by, pw, 6); ctx.strokeRect(bx, by, pw, 6);
+    ctx.font = 'bold 7px system-ui'; ctx.fillStyle = iconColor;
+    ctx.fillText(weapon.emoji + ' ' + weapon.name + ' Nv' + currentWeaponLevel(), bx + 3, by + 5);
+    drawSlotRow(ctx, bx, by + 8, wEntries, -1, equippedIdx, iconColor, cw, ch, gap);
+    by += 8 + ch + gap + 3;
+    if (consumGroups.length) {
+      const cEntries = consumGroups.slice(0, 6).map((g) => ({ icon: g.icon, color: '#fff', badge: 'x' + g.count }));
+      drawSlotRow(ctx, bx, by, cEntries, consumGroups.length ? consumSel : -1, -1, null, cw, ch, gap);
+      NV.consumSlotRects = consumGroups.slice(0, 6).map((g, i) => ({ type: g.type, x: bx + i * (cw + gap), y: by, w: cw, h: ch }));
+      ctx.font = 'bold 7px system-ui'; ctx.fillStyle = '#7cf8ff';
+      ctx.fillText('F usar - Q/E elegir', bx, by + ch + 3);
+    } else {
+      NV.consumSlotRects = [];
+      drawSlotRow(ctx, bx, by, [], -1, -1, null, cw, ch, gap);
+      ctx.font = 'bold 7px system-ui'; ctx.fillStyle = '#555'; ctx.textAlign = 'center';
+      ctx.fillText('SIN CONSUMIBLES', bx + pw / 2, by + ch / 2 + 3); ctx.textAlign = 'left';
     }
-
-    // === HABILIDAD (panel pequeño + relleno de cooldown) ===
-    const sy = wy + wh + 6;
+    by += ch + gap + 3;
+    const sh = 14;
     ctx.fillStyle = 'rgba(0,0,0,0.72)';
     ctx.strokeStyle = char.color; ctx.lineWidth = 1.5;
-    ctx.fillRect(wx, sy, pw, sh); ctx.strokeRect(wx, sy, pw, sh);
-
+    ctx.fillRect(bx, by, pw, sh); ctx.strokeRect(bx, by, pw, sh);
     const cd = player.specialCd > 0 ? 1 - player.specialCd / char.maxCd : 1;
-    const fillH = Math.max(0, Math.min(1, cd)) * (sh - 2);
-    ctx.globalAlpha = 0.55;
-    ctx.fillStyle = char.color;
-    ctx.fillRect(wx + 1, sy + sh - 1 - fillH, pw - 2, fillH);
+    const fillW = Math.max(0, Math.min(1, cd)) * (pw - 2);
+    ctx.globalAlpha = 0.55; ctx.fillStyle = char.color;
+    ctx.fillRect(bx + 1, by + 1, fillW, sh - 2);
     ctx.globalAlpha = 1;
-
-    ctx.font = 'bold 15px system-ui';
+    ctx.font = 'bold 11px system-ui';
     ctx.fillStyle = char.color;
-    ctx.fillText(char.skillIcon, wx + 7, sy + 24);
-    ctx.font = 'bold 8px system-ui';
+    ctx.fillText(char.skillIcon, bx + 4, by + sh / 2 + 3);
+    ctx.font = 'bold 7px system-ui';
     ctx.fillStyle = cd >= 1 ? '#fff' : '#aaa';
-    ctx.fillText(cd >= 1 ? '¡LISTO! ✓' : 'CD ' + Math.ceil(player.specialCd) + 's', wx + 30, sy + 16);
-    ctx.fillText(char.skillName, wx + 30, sy + 30);
-
-    // === CONSUMIBLES: grilla por TIPO (selección con Q, uso con F) ===
-    const cy = sy + sh + 6;
-    ctx.fillStyle = 'rgba(0,0,0,0.72)';
-    ctx.strokeStyle = '#7cf8ff'; ctx.lineWidth = 1.5;
-    ctx.fillRect(wx, cy, pw, chh); ctx.strokeRect(wx, cy, pw, chh);
-    ctx.font = 'bold 9px system-ui';
-    ctx.fillStyle = consumGroups.length ? '#7cf8ff' : '#555';
-    ctx.fillText(consumGroups.length ? 'F usar · Q elegir' : 'SIN CONSUMIBLES', wx + 7, cy + 13);
-    drawSlotGrid(ctx, wx + 5, cy + 18, consumGroups.slice(0, 6).map((g) => ({
-      icon: g.icon,
-      color: '#fff',
-      badge: 'x' + g.count,
-    })), consumGroups.length ? consumSel : -1, 45, 28);
-    // Rects para hit-test de click en game.js (selección de consumible con el mouse).
-    NV.consumSlotRects = consumGroups.slice(0, 6).map((g, i) => ({
-      type: g.type, x: wx + 5 + (i % 3) * 49, y: cy + 18 + Math.floor(i / 3) * 32, w: 45, h: 28,
-    }));
+    ctx.fillText(cd >= 1 ? 'LISTO' : 'CD ' + Math.ceil(player.specialCd) + 's', bx + 20, by + sh / 2 + 1);
+    ctx.fillText(char.skillName, bx + 20, by + sh);
   };
 
-    // Combo de kills (E1): contador ABAJO-CENTRO (libre de paneles laterales y barra de oleada).
+  NV.drawSlotRow = drawSlotRow;  // Combo de kills (E1): contador ABAJO-CENTRO (libre de paneles laterales y barra de oleada).
   NV.drawCombo = function (ctx, W, H, combo) {
-    if (!combo || combo.count < 2) return; // no molesta con 0/1
-    const cx = W / 2, y = H - 64;
-    const heat = Math.min(1, combo.count / 15); // escala: mas kills = mas caliente
+    if (!combo || combo.count < 2) return;
+    const x = 10, y = 20;
+    const heat = Math.min(1, combo.count / 15);
     const col = heat > 0.66 ? '#ff5f5f' : heat > 0.33 ? '#ffd700' : '#7cf8ff';
-    const pulse = 1 + Math.min(0.35, combo.timer * 0.12); // latido mientras queda ventana
+    const pulse = 1 + Math.min(0.35, combo.timer * 0.12);
     ctx.save();
-    ctx.textAlign = 'center';
-    ctx.font = 'bold ' + Math.round(22 * pulse) + "px 'Courier New', monospace";
+    ctx.textAlign = 'left';
+    ctx.font = 'bold ' + Math.round(18 * pulse) + "px 'Courier New', monospace";
     ctx.globalAlpha = 0.95;
     ctx.fillStyle = col;
-    ctx.shadowColor = col; ctx.shadowBlur = 12;
-    ctx.fillText('COMBO x' + combo.count, cx, y);
+    ctx.shadowColor = col; ctx.shadowBlur = 10;
+    ctx.fillText('x' + combo.count, x, y);
     ctx.shadowBlur = 0;
-    const barW = 60;
+    const barW = 36;
     ctx.fillStyle = 'rgba(255,255,255,0.25)';
-    ctx.fillRect(cx - barW / 2, y + 7, barW, 3);
+    ctx.fillRect(x, y + 5, barW, 2);
     ctx.fillStyle = col;
-    ctx.fillRect(cx - barW / 2, y + 7, barW * Math.max(0, combo.timer / 2), 3);
+    ctx.fillRect(x, y + 5, barW * Math.max(0, combo.timer / 2), 2);
     ctx.restore();
   };
-
-  // Panel TAB de estadísticas.
+  // Panel TAB de estadÃ­sticas.
   NV.drawStats = function (ctx, CHARACTERS, RARITY_COLORS, player, currentWeapon, currentWeaponLevel, weaponVisualTier, BULLET_TIER_COLORS, permUpgrades, inventory, INVENTORY_SLOTS, consumableItems) {
     const char = CHARACTERS[player.character];
     const weapon = currentWeapon;
@@ -177,7 +152,7 @@
     ctx.fillStyle = '#fff';
     ctx.font = 'bold 14px system-ui';
     ctx.textAlign = 'left';
-    ctx.fillText('ESTADÍSTICAS', panelX + 10, panelY + 20);
+    ctx.fillText('ESTADÃSTICAS', panelX + 10, panelY + 20);
 
     ctx.font = '12px system-ui';
     ctx.fillStyle = '#aaa';
@@ -190,9 +165,10 @@
       `Velocidad: ${Math.round(player.speed)}  |  Suerte: ${player.luck}`,
       `Agilidad: ${player.agility.toFixed(2)}x (maniobralidad)`,
       `Arma: ${weapon.name} (${weapon.rarity}) | Nv ${currentWeaponLevel()}` + (weaponVisualTier() > 0 ? ` | Tier ${weaponVisualTier()} (${BULLET_TIER_COLORS[weaponVisualTier()]})` : ''),
-      `Daño: ${weapon.damage + permUpgrades.damage * 2 + currentWeaponLevel()}`,
+      `DaÃ±o: ${weapon.damage + permUpgrades.damage * 2 + currentWeaponLevel()}`,
       `Inventario: ${inventory.length}/${INVENTORY_SLOTS}  |  Consumibles: ${consumableItems.length}`,
     ];
     lines.forEach((line, i) => ctx.fillText(line, panelX + 10, panelY + 45 + i * 18));
   };
 })();
+

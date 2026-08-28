@@ -239,6 +239,12 @@
         if (groups.length) { consumSel = NV.cycleIndex(consumSel, groups.length, -1); sfx.pickup(); }
         e.preventDefault();
       }
+      if (e.code === 'KeyE' && state === 'playing' && !paused) {
+        // Cicla en sentido inverso al Q para poder movernos en ambos sentidos entre tipos.
+        const groups = NV.groupConsumables(consumableItems);
+        if (groups.length) { consumSel = NV.cycleIndex(consumSel, groups.length, +1); sfx.pickup(); }
+        e.preventDefault();
+      }
       const digit = /^Digit([1-6])$/.exec(e.code);
       if (digit && state === 'playing' && !paused) {
         equipFromInventory(parseInt(digit[1], 10) - 1);

@@ -522,6 +522,14 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 - **Proyectil refleja tu arma** (`bullet_polish` 5/5): las balas crecen +2% por nivel de arma y +6% por nivel de fusión (tope 40%, solo estético vía `NV.bulletSizeGrowth`); armas fusionadas disparan con **halo dorado** identificable.
 - Corregido harness de `weapon_range.js` que ya no cargaba `balance.js` tras D2.
 
+### v54 — pulido del HUD (tanda de mejoras visuales)
+- **Combo reubicado a la esquina superior izquierda** (`hud_layout`): antes estaba abajo-centro; ahora `x=10,y=20`, con barra de caducidad al lado.
+- **HUD de armas y consumibles minimalista**: dos tiras horizontales finas de **6 slots en una sola fila** (antes grillas 3x2 grandes), cada una de ~20px de alto. Mismo lenguaje visual (fill/glow cian para slot activo).
+- **Slot 0 de armas = Pistola inicial fija**; los 6 slots se llenan con la pistola y el inventario de armas recogidas, en vez de arrancar vacios.
+- **Orden vertical de los 3 HUDs**: armas -> consumibles -> habilidad con su cooldown (antes la habilidad quedaba entre armas y consumibles).
+- **Ciclado de consumibles bidireccional**: `Q` cicla en un sentido y `E` en el opuesto (antes solo Q hacia adelante).
+- Nuevo test `hud_layout` 6/6; `consum_hud` actualizado a la nueva estructura de filas.
+
 ### v52 — Tanda D1: nuevos consumibles
 - Se suman **4 consumibles** (total 7), usando la tecla F, con tope por visita respetado por el contador existente:
   - 💣 **Bomba**: daña 25% del HP máx a todos los enemigos y al jefe (piso 1, no mata directo sino que deja al borde).
