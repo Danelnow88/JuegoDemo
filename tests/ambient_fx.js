@@ -14,7 +14,9 @@ t('drawStarfield existe y dibuja sin crash', () => {
   if (typeof NV.drawStarfield !== 'function') throw new Error('ausente');
   const ctx = mkCtx();
   NV.drawStarfield(ctx, 800, 600, 0, 400, 300);
-  if (ctx.arcs.length < 50) throw new Error('muy pocas estrellas: ' + ctx.arcs.length);
+  if (ctx.arcs.length < 140) throw new Error('muy pocas estrellas: ' + ctx.arcs.length);
+  const avgR = ctx.arcs.reduce((s, a) => s + a[2], 0) / ctx.arcs.length;
+  if (avgR > 0.75) throw new Error('partículas demasiado grandes/promedio: ' + avgR);
 });
 
 t('determinista: misma entrada => mismas posiciones', () => {

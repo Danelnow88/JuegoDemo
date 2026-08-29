@@ -571,6 +571,11 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 - **Colisiones intactas**: las hitboxes siguen usando los datos reales (`e.x/e.y/e.radius`) en los sistemas de balas, enemigos, armas y especiales; el temblor existe únicamente en render.
 - **Verificación concreta**: `tests/enemy_eyes.js` confirma no-mutación del enemigo, offset visual acotado y que `game.js` pasa `NV.rhythm` solo al render mientras `bullets.js` conserva colisión real.
 
+### v63 — Starfield más fino y denso
+- **Más detalle ambiental**: el starfield existente sube de 90 a 160 partículas deterministas, sin crear un sistema nuevo.
+- **Partículas más pequeñas**: los radios base bajan para que el fondo se vea más fino y granular; la respuesta a graves/agudos se conserva pero con menor tamaño máximo.
+- **Verificación concreta**: `tests/ambient_fx.js` exige más de 140 partículas, radio promedio bajo, determinismo, parallax y diferenciación graves/agudos.
+
 ### v54 — fixes de HUD y muerte (post-Tanda E)
 - **fix1**: game over por proyectil del jefe — el wrapper de `updateBullets` descartaba el flag `gameOver` retornado por el módulo, así que con BOTI la regen revivía al jugador en 0 HP durante peleas de jefe. Ahora el retorno se propaga.
 - **fix2**: combo de kills reubicado abajo-centro (se superponía con la barra/contador de oleada).
