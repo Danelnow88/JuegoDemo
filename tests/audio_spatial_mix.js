@@ -7,7 +7,7 @@ function sandbox() {
   const pans = [];
   const gainApi = () => ({ value: 0.6, setValueAtTime(){}, linearRampToValueAtTime(){}, exponentialRampToValueAtTime(){}, cancelScheduledValues(){} });
   const ctx = {
-    createOscillator: () => ({ connect(){}, start(){}, stop(){}, type:'', frequency: { setValueAtTime(){} } }),
+    createOscillator: () => ({ connect(){}, start(){}, stop(){}, type:'', frequency: { setValueAtTime(){}, exponentialRampToValueAtTime(){} } }),
     createGain: () => ({ connect(){}, gain: gainApi() }),
     createBiquadFilter: () => ({ connect(){}, type:'', Q:{value:0}, frequency: gainApi() }),
     createStereoPanner: () => ({ connect(){}, pan: { setValueAtTime(v){ pans.push(v); } } }),

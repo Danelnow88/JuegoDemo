@@ -264,7 +264,11 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 - `sfx.heartbeat(intensity)` — pulso grave de HP crítico, conectado desde `game.js` con timer para no quedar sonando al recuperarse.
 - `sfx.bossAttack.<tipo>()` — sonido de ataque por cada tipo de jefe (`repeater`, `heavy`, `summon`, `spread`, `beam`, `volley`, `bomb`, `orbs`, `split`, `rage`).
 - `sfx.bossEnter()` y `sfx.bossPhaseShift()` — entrada del jefe y transición a FASE 2.
-- `playWeaponSound(weapon, opts)` — sonido distinto por arma, con anti-fatiga en SMG/railgun y paneo opcional.
+- `playWeaponSound(weapon, opts)` — sonido distinto por arma, con dos vías de síntesis:
+  - **Realistas** (pistol, rifle, smg, shotgun, sniper, flamethrower, railgun): tiro real procedural vía `playGunshot` (crack de ruido blanco alto-pass + cuerpo marrón bajo-pass + punch sine grave con caída de pitch), sin contenido melódico.
+  - **Futuristas** (laser, plasma): identidad synth/energética conservada con cuerpo ruidoso.
+  - **Intermedio** (bow): orgánico, casi sin crack.
+  - Anti-fatiga en SMG/railgun y paneo opcional (Tarea 5/6).
 - `NV.panForX(x, worldWidth)` y `NV.setChannelVolume(channel, value)` — spatialización básica y volúmenes relativos por canal.
 
 ### Música synthwave

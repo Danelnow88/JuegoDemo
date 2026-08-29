@@ -204,6 +204,84 @@
     src.connect(filter); filter.connect(gain); gain.connect(NV.audioCtx.destination);
     src.start(); src.stop(NV.audioCtx.currentTime + dur);
   }
+  // === RUIDO PARA TIROS (Bloque 1: disparos realistas) ===
+  // Crea buffer de ruido blanco o marrón (marrón = integración con fuga, espectro
+  // más "rojo"/cuerpo, mucho menos silbante que el blanco puro).
+  function createNoiseBuffer(dur, shape) {
+    const len = Math.max(1, Math.floor(NV.audioCtx.sampleRate * dur));
+    const buffer = NV.audioCtx.createBuffer(1, len, NV.audioCtx.sampleRate);
+    const data = buffer.getChannelData(0);
+    if (shape === 'brown') {
+      let last = 0;
+      for (let i = 0; i < len; i++) {
+        const w = (Math.random() * 2 - 1);
+        last = (last + 0.02 * w) / 1.02;
+        let v = last * 3.5;
+        if (v > 1) v = 1; else if (v < -1) v = -1;
+        data[i] = v;
+      }
+    } else {
+      for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * 0.5;
+    }
+    return buffer;
+  }
+  // Ruido filtrado con forma, filtro y canal configurables; soporta paneo.
+  function scheduleFilteredNoise(dur, vol, opts) {
+    if (!NV.audioCtx || !NV.soundOn) return;
+    opts = opts || {};
+    const shape = opts.shape || 'white';
+    const durMs = Math.max(0.01, dur);
+    const buffer = createNoiseBuffer(durMs, shape);
+    const src = NV.audioCtx.createBufferSource();
+    const filter = NV.audioCtx.createBiquadFilter();
+    const gain = NV.audioCtx.createGain();
+    src.buffer = buffer;
+    filter.type = opts.filterType || 'lowpass';
+    filter.frequency.setValueAtTime(opts.filterFreq || (shape === 'brown' ? 600 : 3000), NV.audioCtx.currentTime);
+    if (opts.filterQ) filter.Q.value = opts.filterQ;
+    gain.gain.setValueAtTime(vol || 0.04, NV.audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, NV.audioCtx.currentTime + durMs);
+    src.connect(filter); filter.connect(gain);
+    connectOutput(gain, opts.channel, opts);
+    src.start(); src.stop(NV.audioCtx.currentTime + durMs + 0.01);
+  }
+  // Disparo procedural: crack (ruido blanco alto-pass abreviado) + cuerpo (marrón
+  // bajo-pass) + punch (sine grave con caída de pitch). Sin samples, sin melódico.
+  function playGunshot(cfg) {
+    if (!NV.audioCtx || !NV.soundOn) return;
+    cfg = cfg || {};
+    const now = NV.audioCtx.currentTime;
+    const base = { channel: cfg.channel, pan: cfg.pan, x: cfg.x, worldWidth: cfg.worldWidth };
+    if (cfg.crack && cfg.crack.vol > 0) {
+      scheduleFilteredNoise(cfg.crack.dur, cfg.crack.vol, {
+        shape: cfg.crack.shape || 'white',
+        filterType: 'highpass',
+        filterFreq: cfg.crack.hp || 1000,
+        ...base,
+      });
+    }
+    if (cfg.body && cfg.body.vol > 0) {
+      scheduleFilteredNoise(cfg.body.dur, cfg.body.vol, {
+        shape: 'brown',
+        filterType: 'lowpass',
+        filterFreq: cfg.body.lp || 900,
+        ...base,
+      });
+    }
+    if (cfg.punch && cfg.punch.vol > 0) {
+      const osc = NV.audioCtx.createOscillator();
+      const g = NV.audioCtx.createGain();
+      const f0 = cfg.punch.freq;
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(f0, now);
+      osc.frequency.exponentialRampToValueAtTime(Math.max(28, f0 * 0.5), now + cfg.punch.dur);
+      g.gain.setValueAtTime(cfg.punch.vol, now);
+      g.gain.exponentialRampToValueAtTime(0.001, now + cfg.punch.dur);
+      osc.connect(g);
+      connectOutput(g, cfg.channel, { pan: base.pan, x: base.x, worldWidth: base.worldWidth });
+      osc.start(now); osc.stop(now + cfg.punch.dur + 0.01);
+    }
+  }
   function scheduleDrum(type, dur, vol) {
     if (!NV.audioCtx || !NV.soundOn) return;
     if (type === 'noise') { scheduleNoise(dur, vol); return; }
@@ -403,26 +481,84 @@
     scheduleNoise(0.3, 0.06);
   };
 
-  // Sonido distintivo por tipo de arma
-  // opts?: { crit, fusion, channel } → variación de timbre/pitch (Tarea 1).
+  // Sonido distintivo por tipo de arma, por categoría (Bloque 1 rework de disparos):
+  //  - realistas (pistol, rifle, smg, shotgun, sniper, flamethrower, railgun): tiro real,
+  //    ruido (crack + cuerpo marrón) + punch grave, sin contenido melódico.
+  //  - futuristas (laser, plasma): identidad synth/energética conservada + cuerpo ruidoso.
+  //  - intermedio (bow): orgánico, casi sin crack, con cuerpo y punch suave.
+  // opts?: { crit, fusion, channel, pan, x, worldWidth } → variación/paneo (Tarea 1/6).
   // playWeaponSound(weapon) sigue funcionando (backwards compatible).
   function playWeaponSound(weapon, opts) {
     if (!NV.soundOn) return;
     opts = opts || {};
     const fus = opts.fusion > 0 ? 1 + opts.fusion * 0.05 : 1; // pitch ↑ +5% por nivel de fusión
     const vol = (opts.crit ? 1.15 : 1) * (opts.fusion ? 1 + opts.fusion * 0.03 : 1);
+    const base = { channel: opts.channel, pan: opts.pan, x: opts.x, worldWidth: opts.worldWidth };
     switch (weapon.id) {
-      case 'pistol': playToneEx(880, 0.08, 'square', 0.03 * vol, opts); break;
-      case 'rifle': playToneEx(640, 0.07, 'square', 0.035 * vol, opts); break;
-      case 'smg': playToneEx(990, 0.04, 'square', rapidFireVolume('smg', 0.028 * vol), opts); break;
-      case 'shotgun': scheduleNoise(0.18, 0.07); playToneEx(170 * fus, 0.18, 'sawtooth', 0.09 * vol, opts); break;
-      case 'sniper': playToneEx(110, 0.45, 'square', 0.11 * vol, opts); scheduleNoise(0.25, 0.05); break;
-      case 'laser': playToneEx(1250, 0.12, 'sine', 0.045 * vol, opts); break;
-      case 'plasma': playToneEx(720, 0.1, 'triangle', 0.05 * vol, opts); break;
-      case 'flamethrower': scheduleNoise(0.14, 0.05); playToneEx(95 * fus, 0.13, 'sawtooth', 0.08 * vol, opts); break;
-      case 'bow': playToneEx(430, 0.09, 'sine', 0.045 * vol, opts); break;
-      case 'railgun': playToneEx(150 * fus, 0.5, 'sawtooth', rapidFireVolume('railgun', 0.12 * vol), opts); scheduleNoise(0.3, rapidFireVolume('railgun', 0.06)); break;
-            default: playToneEx(880, 0.08, 'square', 0.03 * vol, opts);
+      // ---- REALISTAS: tiro real procedural ----
+      case 'pistol':
+        playGunshot({ ...base,
+          crack: { dur: 0.014, vol: 0.075 * vol, hp: 1000 },
+          body: { dur: 0.05, vol: 0.09 * vol, lp: 1100 },
+          punch: { freq: 85 * fus, dur: 0.09, vol: 0.05 * vol },
+        }); break;
+      case 'rifle':
+        playGunshot({ ...base,
+          crack: { dur: 0.01, vol: 0.07 * vol, hp: 900 },
+          body: { dur: 0.04, vol: 0.085 * vol, lp: 1000 },
+          punch: { freq: 90 * fus, dur: 0.07, vol: 0.048 * vol },
+        }); break;
+      case 'smg':
+        playGunshot({ ...base,
+          crack: { dur: 0.008, vol: rapidFireVolume('smg', 0.05 * vol), hp: 1200 },
+          body: { dur: 0.03, vol: rapidFireVolume('smg', 0.06 * vol), lp: 1200 },
+          punch: { freq: 75 * fus, dur: 0.05, vol: rapidFireVolume('smg', 0.042 * vol) },
+        }); break;
+      case 'shotgun':
+        playGunshot({ ...base,
+          crack: { dur: 0.02, vol: 0.1 * vol, hp: 700 },
+          body: { dur: 0.02, vol: 0.12 * vol, lp: 800 },
+          punch: { freq: 55 * fus, dur: 0.18, vol: 0.1 * vol },
+        }); break;
+      case 'sniper':
+        playGunshot({ ...base,
+          crack: { dur: 0.008, vol: 0.09 * vol, hp: 800 },
+          body: { dur: 0.12, vol: 0.1 * vol, lp: 600 },
+          punch: { freq: 50 * fus, dur: 0.45, vol: 0.09 * vol },
+        }); break;
+      case 'flamethrower':
+        playGunshot({ ...base,
+          crack: { dur: 0.015, vol: 0.02 * vol, hp: 300 },
+          body: { dur: 0.18, vol: 0.07 * vol, lp: 500 },
+          punch: { freq: 65 * fus, dur: 0.12, vol: 0.04 * vol },
+        }); break;
+      case 'railgun':
+        playGunshot({ ...base,
+          crack: { dur: 0.02, vol: rapidFireVolume('railgun', 0.12 * vol), hp: 600 },
+          body: { dur: 0.1, vol: rapidFireVolume('railgun', 0.1 * vol), lp: 700 },
+          punch: { freq: 45 * fus, dur: 0.5, vol: rapidFireVolume('railgun', 0.1 * vol) },
+        }); break;
+      // ---- FUTURISTAS: identidad synth/energética + cuerpo ruidoso ----
+      case 'laser':
+        playToneEx(1250, 0.12, 'sine', 0.045 * vol, opts);
+        scheduleFilteredNoise(0.02, 0.03 * vol, { shape: 'brown', filterType: 'lowpass', filterFreq: 1500, ...base });
+        break;
+      case 'plasma':
+        playToneEx(720, 0.1, 'triangle', 0.05 * vol, opts);
+        scheduleFilteredNoise(0.02, 0.03 * vol, { shape: 'brown', filterType: 'lowpass', filterFreq: 1400, ...base });
+        break;
+      // ---- INTERMEDIO: bow orgánico (cuerpo+punta, casi sin crack) ----
+      case 'bow':
+        playToneEx(430, 0.09, 'sine', 0.05 * vol, opts);
+        scheduleFilteredNoise(0.025, 0.04 * vol, { shape: 'brown', filterType: 'lowpass', filterFreq: 1000, ...base });
+        playGunshot({ ...base, punch: { freq: 120 * fus, dur: 0.06, vol: 0.03 * vol } });
+        break;
+      default:
+        playGunshot({ ...base,
+          crack: { dur: 0.014, vol: 0.07 * vol, hp: 1000 },
+          body: { dur: 0.05, vol: 0.08 * vol, lp: 1000 },
+          punch: { freq: 80 * fus, dur: 0.09, vol: 0.05 * vol },
+        });
     }
   }
 
