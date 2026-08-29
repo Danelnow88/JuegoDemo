@@ -273,10 +273,12 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 
 ### Música synthwave
 - Generada proceduralmente con osciladores, filtros y ruido.
-- Estructura: kick + snare + hi-hat + bajo (sawtooth) + lead melódico.
+- **Oleada normal**: breakbeat crudo (D&B) con preset de groove rotativo, swing humano, quiebres/rolls y dobles kicks según intensidad; acordes y bajo con textura sucia/sobresaturada (`scheduleDirtyNote`/`scheduleDirtyChord`).
+- **Tienda**: estilo boom-bap (kick 1&3, clap 2&4) con swing y aire, acordes cálidos orgánicos (triangle/sine, lowpass cerrado, sin saturación).
+- **Menú**: capa ambiental propia; **Boss**: capa boss con textura sucia.
 - `updateMusic(dt)` incrementa la intensidad según si hay jefe en pantalla.
 - `updateMusic(dt)` también tiene capas `menu`/`shop` propias y una capa extra ligera activada por combo.
-- Patrón de 16 steps (`DRUM_PATTERN`), acorde raíz rotativo (`CHORD_ROOTS`) y drone atmosférico continuo.
+- Patrón de 16 steps, acorde raíz rotativo (`CHORD_ROOTS`) y drone atmosférico continuo (la batería ya no usa un patrón fijo).
 
 ---
 
@@ -593,6 +595,12 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 - `playWeaponSound` y `enemyDeath` aceptan `{ x, worldWidth }`/`pan` para paneo estéreo básico con `StereoPannerNode` cuando está disponible.
 - Muertes de enemigos/jefes y disparos del jugador pasan posición horizontal desde `game.js`.
 - `NV.setChannelVolume(channel, value)` ajusta volumen relativo sobre los canales del mixer; `NV.masterVolume` queda expuesto para tests/futuros sliders.
+
+### Audio Rework v2 — disparos realistas + música con carácter (bloques 1-3)
+- **Bloque 1 · Disparos por categoría**: nueva cadena `playGunshot(config)` (crack de ruido blanco alto-pass + cuerpo marrón bajo-pass + punch sine grave con caída de pitch). Armás realistas (pistol, rifle, smg, shotgun, sniper, flamethrower, railgun) usan tiro real sin contenido melódico; futuristas (laser, plasma) conservan identidad synth con cuerpo ruidoso; `bow` intermedio orgánico. Anti-fatiga de cadencia intacto.
+- **Bloque 2 · Música de oleada normal**: breakbeats con variación (preset de groove rotativo por compás), swing humano (desplazamiento de off-beats), quiebres/rolls amen y dobles kicks según intensidad; acordes y bajo con textura "sucia" (osciladores desintonizados + saturación por ganancia `overdrive`). Estructura por intensidad (intro → groove → drop).
+- **Bloque 3 · Música de tienda**: estilo boom-bap (kick en 1&3, clap en 2&4) con swing y aire (fill solo cada 4 compases); acordes cálidos orgánicos (triangle+sine con lowpass cerrado, sin saturación), bajo sine con swing y lead tibio espaciado. El flujo de tienda queda separado del menú.
+- Solo `js/audio/synth.js` (música + disparos) + tests/README; sin tocar el resto del audio ni game/enemies/bullets/boss.
 
 
 ### v52 — Tanda D1: nuevos consumibles

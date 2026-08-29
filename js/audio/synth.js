@@ -428,6 +428,8 @@
         scheduleNormalStep(step, stepDur, NV.musicState.intensity, comboLayer, layers);
       } else if (phase === 'boss') {
         scheduleBossStep(step, stepDur, NV.musicState.intensity, layers);
+      } else if (phase === 'shop') {
+        scheduleShopStep(step, stepDur, layers, comboLayer);
       } else {
         scheduleMenuStep(step, stepDur, layers, comboLayer);
       }
@@ -503,6 +505,62 @@
     if (step % 8 === 0 || (intensity > 0.7 && step % 4 === 0)) {
       const n = layers.lead[Math.floor(step / 2) % layers.lead.length];
       scheduleDirtyNote(n, 0.25, 0.04 + intensity * 0.02, t, 'music');
+    }
+  }
+  // Acorde orgánico y cálido (tienda): triangle+sine detuned, lowpass cerrado, sin saturación.
+  function scheduleWarmChord(freq, dur, vol, at, channel) {
+    if (!NV.audioCtx || !NV.soundOn) return;
+    const ctx = NV.audioCtx;
+    const t = (at == null) ? ctx.currentTime : at;
+    const inGain = ctx.createGain();
+    const filter = ctx.createBiquadFilter();
+    const out = ctx.createGain();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(1400, t);
+    out.gain.setValueAtTime(vol || 0.03, t);
+    out.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    const defs = [['triangle', 0], ['sine', 0], ['triangle', 1200]];
+    for (const [ty, c] of defs) {
+      const osc = ctx.createOscillator();
+      osc.type = ty;
+      osc.frequency.setValueAtTime(freq * Math.pow(2, c / 1200), t);
+      osc.connect(inGain); osc.start(t); osc.stop(t + dur);
+    }
+    inGain.connect(filter); filter.connect(out);
+    connectOutput(out, channel, {});
+  }
+  // Tienda: estilo boom-bap (kick 1&3, clap 2&4) con swing, aire y acordes cálidos (Bloque 3).
+  function scheduleShopStep(step, stepDur, layers, comboLayer) {
+    if (!NV.audioCtx || !NV.soundOn) return;
+    const now = NV.audioCtx.currentTime;
+    const swing = (step % 8 === 2 || step % 8 === 6) ? stepDur * 0.22 : 0; // swing en off-beats (8ths)
+    const t = now + swing;
+    const bar = NV.musicState.bar || 0;
+    // Boom-bap: kick en 1 y 3, clap/snare en 2 y 4 (no metronómico, con swing)
+    if (step === 0 || step === 8) scheduleDrumAt('kick', 0.12, 0.1, t);
+    if (step === 4 || step === 12) scheduleDrumAt('noise', 0.12, 0.058, t);
+    // Hi-hat con swing y acento alterno (aire)
+    if (step % 2 === 0) {
+      const openHat = step % 16 === 14;
+      const acc = (step === 0 || step === 8) ? 0.032 : 0.018;
+      scheduleNoteAt('square', openHat ? 11000 : 7200, openHat ? 0.05 : 0.025, acc, t, 'music');
+    }
+    // Aire: solo un fill suave cada 4 compases, sin relleno constante
+    if (bar % 4 === 3 && step === 14) scheduleDrumAt('noise', 0.14, 0.05, t);
+    // Acordes cálidos/organicos cada compás
+    if (step % 8 === 0) {
+      const root = layers.chordRoots[Math.floor(step / 8) % layers.chordRoots.length];
+      scheduleWarmChord(root * 2, 1.2, 0.04, t, 'music');
+    }
+    // Bajo con swing (sine cálido, relajado)
+    if (step % 4 === 0) {
+      const b = layers.bass[Math.floor(step / 4) % layers.bass.length];
+      if (b) scheduleNoteAt('sine', b, 0.45, 0.03, t, 'music');
+    }
+    // Lead tibio y espaciado
+    if (step % 16 === 4) {
+      const n = layers.lead[Math.floor(step / 16) % layers.lead.length];
+      scheduleNoteAt('triangle', n, 0.4, 0.028, t, 'music');
     }
   }
   // Menú/Tienda: placeholder genérico (Bloque 3 lo convierte en boom-bap cálido).
