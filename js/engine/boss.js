@@ -216,7 +216,7 @@
       // Recompensa escalada: el jefe es el contenido más difícil y financia ~1 mejora grande.
       shards += 50 + wave * 5;
       st.spawnExplosion(boss.x, boss.y, 60, boss.color, 1.4);
-      if (st.sfx && st.sfx.enemyDeath) st.sfx.enemyDeath('boss');
+      if (st.sfx && st.sfx.enemyDeath) st.sfx.enemyDeath('boss', { x: boss.x, worldWidth: st.W || 900 });
       // Cofre de botín: 1-3 pickups al tocarlo (callback opcional en game.js).
       if (typeof st.spawnBossChest === 'function') st.spawnBossChest(boss.x, boss.y);
       // OJO: wave NO se incrementa aquí; game.js lo hace en skipShop() para que

@@ -1008,6 +1008,7 @@
       player, enemies, boss, bullets, currentWeapon,
       currentWeaponLevel, weaponVisualTier, BULLET_TIER_COLORS, MAX_BULLETS,
       permDamageBonus: permUpgrades.damage, playWeaponSound,
+      audioPosition: { x: player.x, worldWidth: W },
       currentWeaponFusion: currentWeaponFusion(), fusionStep: WEAPON_FUSION_DMG,
     });
   }
@@ -1060,7 +1061,7 @@
     score = NV.killEnemy({
       e, score, player, weaponLevels, weaponKills, currentWeapon,
       WEAPON_KILLS_PER_LEVEL, addFloatText, spawnExplosion, triggerFlash, sfx, pickups, weaponKillProgress,
-      waveEvent, computePlayerHit,
+      waveEvent, computePlayerHit, W,
     });
     // Combo de kills: bonus escalable por encadenar derribos (<2s entre ellos).
     const cb = NV.comboOnKill(killCombo);

@@ -45,7 +45,7 @@ t('playerHit es no fatal: distinto de sfx.damage y con ducking más suave', () =
 
 t('enemies.js conecta muerte normal/elite y daño no fatal a SFX nuevos', () => {
   const src = fs.readFileSync('js/engine/enemies.js', 'utf8');
-  if (!src.includes("sfx.enemyDeath(e.isElite ? 'elite' : 'normal')")) throw new Error('killEnemy no usa enemyDeath por tipo');
+  if (!src.includes("sfx.enemyDeath(e.isElite ? 'elite' : 'normal',")) throw new Error('killEnemy no usa enemyDeath por tipo');
   if (!src.includes('st.sfx.playerHit') || !src.includes('st.player.hp > 0')) throw new Error('updateEnemies no usa playerHit no fatal');
 });
 
@@ -56,7 +56,7 @@ t('bullets.js conecta proyectiles enemigos a playerHit solo si no es fatal', () 
 
 t('boss.js conecta muerte de jefe a enemyDeath("boss")', () => {
   const src = fs.readFileSync('js/engine/boss.js', 'utf8');
-  if (!src.includes("st.sfx.enemyDeath('boss')")) throw new Error('muerte de jefe no usa enemyDeath boss');
+  if (!src.includes("st.sfx.enemyDeath('boss',")) throw new Error('muerte de jefe no usa enemyDeath boss');
 });
 
 t('game.js maneja heartbeat crítico con timer y reset al recuperarse', () => {

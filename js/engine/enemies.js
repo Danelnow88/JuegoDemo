@@ -119,8 +119,8 @@
         st.computePlayerHit(24);
       }
     }
-    if (st.sfx.enemyDeath) st.sfx.enemyDeath(e.isElite ? 'elite' : 'normal');
-    else st.sfx.explosion(e.isElite ? 'elite' : 'normal');
+    if (st.sfx.enemyDeath) st.sfx.enemyDeath(e.isElite ? 'elite' : 'normal', { x: e.x, worldWidth: st.W || 900 });
+    else st.sfx.explosion(e.isElite ? 'elite' : 'normal', { x: e.x, worldWidth: st.W || 900 });
     return score;
   };
 

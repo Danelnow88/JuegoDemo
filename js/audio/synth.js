@@ -96,6 +96,30 @@
     return (NV.mixer && NV.mixer[name]) || NV.audioCtx.destination;
   }
 
+  function panForX(x, worldWidth) {
+    if (typeof x !== 'number') return 0;
+    const w = worldWidth || 900;
+    return Math.max(-1, Math.min(1, (x / w) * 2 - 1));
+  }
+
+  function connectOutput(node, channel, opts) {
+    opts = opts || {};
+    const target = (channel && channelFor(channel)) || channelFor('sfxPlayer');
+    if (NV.audioCtx && typeof NV.audioCtx.createStereoPanner === 'function' && (typeof opts.pan === 'number' || typeof opts.x === 'number')) {
+      const pan = NV.audioCtx.createStereoPanner();
+      pan.pan.setValueAtTime(typeof opts.pan === 'number' ? opts.pan : panForX(opts.x, opts.worldWidth), NV.audioCtx.currentTime);
+      node.connect(pan); pan.connect(target);
+    } else {
+      node.connect(target);
+    }
+  }
+
+  function setChannelVolume(name, value) {
+    if (!Object.prototype.hasOwnProperty.call(MASTER_VOLUME, name)) return;
+    MASTER_VOLUME[name] = Math.max(0, Math.min(1, value));
+    if (NV.mixer && NV.mixer[name]) NV.mixer[name].gain.value = MASTER_VOLUME[name] * CHANNELS[name];
+  }
+
   // Ducking temporal: atenúa `byChannel` a `to` hasta `until` segundos de audioCtx.
   function duck(byChannel, to, secs) {
     if (!NV.mixer) return;
@@ -246,7 +270,7 @@
     // Restaurar ducking si venció su duración (audio adaptativo de capas - Tarea 1)
     restoreDucking();
   }
-    function playTone(freq, dur, type, vol, channel) {
+  function playTone(freq, dur, type, vol, channel, opts) {
     if (!NV.audioCtx || !NV.soundOn) return;
     const ctx = NV.audioCtx;
     const osc = ctx.createOscillator();
@@ -258,8 +282,7 @@
     gain.gain.setValueAtTime(vol || 0.03, ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
     osc.connect(gain);
-    const target = (channel && channelFor(channel)) || channelFor('sfxPlayer');
-    gain.connect(target);
+    connectOutput(gain, channel, opts);
     osc.start();
     osc.stop(ctx.currentTime + dur);
   }
@@ -271,7 +294,7 @@
     opts = opts || {};
     const det = typeof opts.detune === 'number' ? opts.detune : ((Math.random() * 2 - 1) * 0.008);
     const f = freq * (1 + det);
-    return playTone(f, dur, type, vol, opts.channel);
+    return playTone(f, dur, type, vol, opts.channel, opts);
   }
   const rapidFireFatigue = {};
   function rapidFireVolume(id, baseVol) {
@@ -287,21 +310,22 @@
   }
   const sfx = {
     // SFX existentes: redirigidos a canales con ducking automático.
-    explosion: (enemyType) => { sfx.enemyDeath(enemyType || 'normal'); },
-    enemyDeath: (enemyType) => {
+    explosion: (enemyType, opts) => { sfx.enemyDeath(enemyType || 'normal', opts); },
+    enemyDeath: (enemyType, opts) => {
+      opts = opts || {};
       const kind = enemyType || 'normal';
       if (kind === 'boss') {
         duck('music', 0.12, 0.35);
         scheduleNoise(0.38, 0.08);
-        playTone(70, 0.42, 'sawtooth', 0.13, 'sfxEnemies');
-        playTone(110, 0.25, 'triangle', 0.08, 'sfxEnemies');
+        playTone(70, 0.42, 'sawtooth', 0.13, 'sfxEnemies', opts);
+        playTone(110, 0.25, 'triangle', 0.08, 'sfxEnemies', opts);
       } else if (kind === 'elite') {
         scheduleNoise(0.14, 0.055);
-        playTone(165, 0.22, 'sawtooth', 0.085, 'sfxEnemies');
-        playTone(95, 0.18, 'square', 0.055, 'sfxEnemies');
+        playTone(165, 0.22, 'sawtooth', 0.085, 'sfxEnemies', opts);
+        playTone(95, 0.18, 'square', 0.055, 'sfxEnemies', opts);
       } else {
-        playTone(220, 0.12, 'square', 0.045, 'sfxEnemies');
-        playTone(140, 0.14, 'sawtooth', 0.035, 'sfxEnemies');
+        playTone(220, 0.12, 'square', 0.045, 'sfxEnemies', opts);
+        playTone(140, 0.14, 'sawtooth', 0.035, 'sfxEnemies', opts);
       }
     },
     pickup: () => playTone(1320, 0.12, 'square', 0.04, 'sfxUI'),
@@ -423,6 +447,9 @@
   NV.playToneEx = playToneEx;
   NV.duck = duck;
   NV.channelFor = channelFor;
+  NV.panForX = panForX;
+  NV.setChannelVolume = setChannelVolume;
   NV.mixerChannels = CHANNELS;
+  NV.masterVolume = MASTER_VOLUME;
   NV.sfx = sfx;
 })();

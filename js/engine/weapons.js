@@ -92,6 +92,6 @@
         growth: NV.bulletSizeGrowth(state.currentWeaponLevel(), state.currentWeaponFusion),
       });
     }
-    state.playWeaponSound(weapon);
+    state.playWeaponSound(weapon, state.audioPosition || { x: player.x, worldWidth: state.W || 900 });
   };
 })();
