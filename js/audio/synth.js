@@ -13,8 +13,6 @@
     intensity: 0,
     combo: 0,        // kills sin morir → capas musicales de intensidad (Tarea 1 - audio adaptativo)
     phase: 'normal', // 'normal' | 'boss' | 'shop' | 'menu' (manejado por game.js)
-    bar: 0,          // contador de compases (16 steps) para quiebres/estructura
-    groove: 0,       // preset de groove rotativo para breakbeats variados (Bloque 2)
   };
   NV.musicTime = 0;
 
@@ -70,20 +68,9 @@
   //  - sfxPlayer:    disparos, habilidad, recibir daño, heartbeat
   //  - sfxEnemies:   muerte de enemigos, ataques de jefe
   //  - sfxAmbient:   eventos de Tanda C, cofres, combos
-  const CHANNELS = { music:0.45, sfxUI:0.7, sfxPlayer:1.0, sfxEnemies:0.8, sfxAmbient:0.6 };
+  const CHANNELS = { music:0.6, sfxUI:0.7, sfxPlayer:0.9, sfxEnemies:0.8, sfxAmbient:0.6 };
   // Volubilidad maestra por canal (0..1), configurable futuro -> sliders.
   const MASTER_VOLUME = { music:1, sfxUI:1, sfxPlayer:1, sfxEnemies:1, sfxAmbient:1 };
-  // EQ leve por canal para separar espectros y evitar enmascaramiento con disparos:
-  //  - music:        lowpass → recorta agudos altos (banda del crack del disparo).
-  //  - sfxPlayer:    highshelf/lowshelf → refuerza crack (agudo) y punch (grave).
-  // Aplica sobre el canal completo (música de oleada vs. todos los SFX de jugador).
-  const CHANNEL_EQ = {
-    music: [{ type:'lowpass', freq:6200, q:0.7 }],
-    sfxPlayer: [
-      { type:'highshelf', freq:6000, gain:5 },
-      { type:'lowshelf', freq:170, gain:4 },
-    ],
-  };
 
   // Ducking: un canal puede ser atenuado temporalmente por un evento de otro canal.
   // Usado por SFX importantes (daño, victoria, combo) para bajar la música.
@@ -98,20 +85,7 @@
     for (const ch in CHANNELS) {
       const g = ctx.createGain();
       g.gain.value = CHANNELS[ch];
-      let node = g;
-      const eqs = CHANNEL_EQ[ch];
-      if (eqs) {
-        for (const spec of eqs) {
-          const f = ctx.createBiquadFilter();
-          f.type = spec.type;
-          if (f.frequency) f.frequency.value = spec.freq;
-          if (f.Q && spec.q != null) f.Q.value = spec.q;
-          if (f.gain && spec.gain !== undefined) f.gain.value = spec.gain;
-          node.connect(f);
-          node = f;
-        }
-      }
-      node.connect(ctx.destination);
+      g.connect(ctx.destination);
       mixer[ch] = g;
     }
     NV.mixer = mixer;
@@ -230,84 +204,6 @@
     src.connect(filter); filter.connect(gain); gain.connect(NV.audioCtx.destination);
     src.start(); src.stop(NV.audioCtx.currentTime + dur);
   }
-  // === RUIDO PARA TIROS (Bloque 1: disparos realistas) ===
-  // Crea buffer de ruido blanco o marrón (marrón = integración con fuga, espectro
-  // más "rojo"/cuerpo, mucho menos silbante que el blanco puro).
-  function createNoiseBuffer(dur, shape) {
-    const len = Math.max(1, Math.floor(NV.audioCtx.sampleRate * dur));
-    const buffer = NV.audioCtx.createBuffer(1, len, NV.audioCtx.sampleRate);
-    const data = buffer.getChannelData(0);
-    if (shape === 'brown') {
-      let last = 0;
-      for (let i = 0; i < len; i++) {
-        const w = (Math.random() * 2 - 1);
-        last = (last + 0.02 * w) / 1.02;
-        let v = last * 3.5;
-        if (v > 1) v = 1; else if (v < -1) v = -1;
-        data[i] = v;
-      }
-    } else {
-      for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * 0.5;
-    }
-    return buffer;
-  }
-  // Ruido filtrado con forma, filtro y canal configurables; soporta paneo.
-  function scheduleFilteredNoise(dur, vol, opts) {
-    if (!NV.audioCtx || !NV.soundOn) return;
-    opts = opts || {};
-    const shape = opts.shape || 'white';
-    const durMs = Math.max(0.01, dur);
-    const buffer = createNoiseBuffer(durMs, shape);
-    const src = NV.audioCtx.createBufferSource();
-    const filter = NV.audioCtx.createBiquadFilter();
-    const gain = NV.audioCtx.createGain();
-    src.buffer = buffer;
-    filter.type = opts.filterType || 'lowpass';
-    filter.frequency.setValueAtTime(opts.filterFreq || (shape === 'brown' ? 600 : 3000), NV.audioCtx.currentTime);
-    if (opts.filterQ) filter.Q.value = opts.filterQ;
-    gain.gain.setValueAtTime(vol || 0.04, NV.audioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, NV.audioCtx.currentTime + durMs);
-    src.connect(filter); filter.connect(gain);
-    connectOutput(gain, opts.channel, opts);
-    src.start(); src.stop(NV.audioCtx.currentTime + durMs + 0.01);
-  }
-  // Disparo procedural: crack (ruido blanco alto-pass abreviado) + cuerpo (marrón
-  // bajo-pass) + punch (sine grave con caída de pitch). Sin samples, sin melódico.
-  function playGunshot(cfg) {
-    if (!NV.audioCtx || !NV.soundOn) return;
-    cfg = cfg || {};
-    const now = NV.audioCtx.currentTime;
-    const base = { channel: cfg.channel, pan: cfg.pan, x: cfg.x, worldWidth: cfg.worldWidth };
-    if (cfg.crack && cfg.crack.vol > 0) {
-      scheduleFilteredNoise(cfg.crack.dur, cfg.crack.vol, {
-        shape: cfg.crack.shape || 'white',
-        filterType: 'highpass',
-        filterFreq: cfg.crack.hp || 1000,
-        ...base,
-      });
-    }
-    if (cfg.body && cfg.body.vol > 0) {
-      scheduleFilteredNoise(cfg.body.dur, cfg.body.vol, {
-        shape: 'brown',
-        filterType: 'lowpass',
-        filterFreq: cfg.body.lp || 900,
-        ...base,
-      });
-    }
-    if (cfg.punch && cfg.punch.vol > 0) {
-      const osc = NV.audioCtx.createOscillator();
-      const g = NV.audioCtx.createGain();
-      const f0 = cfg.punch.freq;
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(f0, now);
-      osc.frequency.exponentialRampToValueAtTime(Math.max(28, f0 * 0.5), now + cfg.punch.dur);
-      g.gain.setValueAtTime(cfg.punch.vol, now);
-      g.gain.exponentialRampToValueAtTime(0.001, now + cfg.punch.dur);
-      osc.connect(g);
-      connectOutput(g, cfg.channel, { pan: base.pan, x: base.x, worldWidth: base.worldWidth });
-      osc.start(now); osc.stop(now + cfg.punch.dur + 0.01);
-    }
-  }
   function scheduleDrum(type, dur, vol) {
     if (!NV.audioCtx || !NV.soundOn) return;
     if (type === 'noise') { scheduleNoise(dur, vol); return; }
@@ -323,110 +219,6 @@
     osc.connect(filter); filter.connect(gain); gain.connect(NV.audioCtx.destination);
     osc.start(); osc.stop(NV.audioCtx.currentTime + dur);
   }
-  // === HELPERS DE MÚSICA (Bloque 2/3) ===
-  // Nota con tiempo de arranque explícito (permite swing humano) y canal multicanal.
-  function scheduleNoteAt(type, freq, dur, vol, at, channel) {
-    if (!NV.audioCtx || !NV.soundOn) return;
-    const ctx = NV.audioCtx;
-    const t = (at == null) ? ctx.currentTime : at;
-    const osc = ctx.createOscillator();
-    const filter = ctx.createBiquadFilter();
-    const gain = ctx.createGain();
-    osc.type = type;
-    osc.frequency.setValueAtTime(freq, t);
-    filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(3000, t);
-    gain.gain.setValueAtTime(vol || 0.03, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
-    osc.connect(filter); filter.connect(gain);
-    connectOutput(gain, channel, {});
-    osc.start(t); osc.stop(t + dur);
-  }
-  // Tambor con tiempo de arranque explícito (swing).
-  function scheduleDrumAt(type, dur, vol, at) {
-    if (!NV.audioCtx || !NV.soundOn) return;
-    const ctx = NV.audioCtx;
-    const t = (at == null) ? ctx.currentTime : at;
-    if (type === 'noise') { scheduleNoiseDur(dur, vol, t); return; }
-    const osc = ctx.createOscillator();
-    const filter = ctx.createBiquadFilter();
-    const gain = ctx.createGain();
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(type === 'kick' ? 60 : 120, t);
-    filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(type === 'kick' ? 150 : 4000, t);
-    gain.gain.setValueAtTime(vol || 0.04, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
-    osc.connect(filter); filter.connect(gain); gain.connect(channelFor('music'));
-    osc.start(t); osc.stop(t + dur);
-  }
-  // Ruido blanco con tiempo de arranque explícito (reutiliza el buffer de scheduleNoise).
-  function scheduleNoiseDur(dur, vol, at) {
-    if (!NV.audioCtx || !NV.soundOn) return;
-    const ctx = NV.audioCtx;
-    const t = (at == null) ? ctx.currentTime : at;
-    const buffer = ctx.createBuffer(1, ctx.sampleRate * dur, ctx.sampleRate);
-    const data = buffer.getChannelData(0);
-    for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * 0.5;
-    const src = ctx.createBufferSource();
-    const filter = ctx.createBiquadFilter();
-    const gain = ctx.createGain();
-    src.buffer = buffer;
-    filter.type = 'bandpass';
-    filter.frequency.setValueAtTime(1500, t);
-    gain.gain.setValueAtTime(vol || 0.04, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
-    src.connect(filter); filter.connect(gain); gain.connect(channelFor('music'));
-    src.start(t); src.stop(t + dur);
-  }
-  // Nota con textura sucia: 3 osciladores desintonizados + saturación por ganancia.
-  function scheduleDirtyNote(freq, dur, vol, at, channel) {
-    if (!NV.audioCtx || !NV.soundOn) return;
-    const ctx = NV.audioCtx;
-    const t = (at == null) ? ctx.currentTime : at;
-    const inGain = ctx.createGain();
-    const drive = ctx.createGain();
-    const filter = ctx.createBiquadFilter();
-    const out = ctx.createGain();
-    drive.gain.value = 1.6;            // saturación suave (aprox. overdrive)
-    filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(2400, t);
-    out.gain.setValueAtTime(vol || 0.04, t);
-    out.gain.exponentialRampToValueAtTime(0.001, t + dur);
-    for (const cents of [-6, 3, 8]) {  // detune leve → espesor/punk
-      const osc = ctx.createOscillator();
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(freq * Math.pow(2, cents / 1200), t);
-      osc.connect(inGain); osc.start(t); osc.stop(t + dur);
-    }
-    inGain.connect(drive); drive.connect(filter); filter.connect(out);
-    connectOutput(out, channel, {});
-  }
-  // Acorde textural cálido/sucio: detune amplio + capa saw/triangle.
-  function scheduleDirtyChord(freq, dur, vol, at, channel) {
-    if (!NV.audioCtx || !NV.soundOn) return;
-    const ctx = NV.audioCtx;
-    const t = (at == null) ? ctx.currentTime : at;
-    const inGain = ctx.createGain();
-    const drive = ctx.createGain();
-    const filter = ctx.createBiquadFilter();
-    const out = ctx.createGain();
-    drive.gain.value = 1.3;
-    filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(1800, t);
-    out.gain.setValueAtTime(vol || 0.03, t);
-    out.gain.exponentialRampToValueAtTime(0.001, t + dur);
-    const defs = [['sawtooth', 0], ['sawtooth', 700], ['triangle', 1200]];
-    for (const [ty, c] of defs) {
-      const osc = ctx.createOscillator();
-      osc.type = ty;
-      osc.frequency.setValueAtTime(freq * Math.pow(2, c / 1200), t);
-      osc.connect(inGain); osc.start(t); osc.stop(t + dur);
-    }
-    inGain.connect(drive); drive.connect(filter); filter.connect(out);
-    connectOutput(out, channel, {});
-  }
-
   function updateMusic(dt) {
     if (!NV.audioCtx || !NV.soundOn) return;
     const gameState = NV.getState ? NV.getState() : 'playing';
@@ -446,16 +238,27 @@
       NV.musicState.lastBeat = NV.musicTime;
       NV.musicState.step = (NV.musicState.step + 1) % 16;
       const step = NV.musicState.step;
-      if (step === 0) NV.musicState.bar++;
-      const phase = NV.musicState.phase;
-      if (phase === 'normal') {
-        scheduleNormalStep(step, stepDur, NV.musicState.intensity, comboLayer, layers);
-      } else if (phase === 'boss') {
-        scheduleBossStep(step, stepDur, NV.musicState.intensity, layers);
-      } else if (phase === 'shop') {
-        scheduleShopStep(step, stepDur, layers, comboLayer);
-      } else {
-        scheduleMenuStep(step, stepDur, layers, comboLayer);
+      // Kick (808 punch)
+      if (layers.drums[0][step]) scheduleDrum('kick', 0.1, 0.1 + NV.musicState.intensity * 0.05);
+      // Snare (808 clap)
+      if (layers.drums[1][step]) scheduleDrum('noise', 0.15, 0.06 + NV.musicState.intensity * 0.03);
+      // Hi-hats
+      if (layers.drums[2][step]) scheduleNote('square', 8000 + (step % 3) * 3000, 0.03, 0.02 + NV.musicState.intensity * 0.015 + comboLayer * 0.012);
+      // Capa extra por combo: arpegio fino en contratiempos, aparece progresivamente
+      // sin cambiar la base de la oleada.
+      if (comboLayer > 0.25 && step % 2 === 1) {
+        const note = layers.lead[(step + Math.floor(NV.musicState.combo || 0)) % layers.lead.length] * 2;
+        scheduleNote('triangle', note, 0.06, 0.012 + comboLayer * 0.018);
+      }
+      // Bajo cada 4 steps (subby sawtooth)
+      if (step % 4 === 0) {
+        const bassIdx = Math.floor(step / 4) % layers.bass.length;
+        if (layers.bass[bassIdx]) scheduleNote(isMenuLike ? 'sine' : 'sawtooth', layers.bass[bassIdx], isMenuLike ? 0.5 : 0.2, (isMenuLike ? 0.025 : 0.05) + NV.musicState.intensity * 0.02);
+      }
+      // Lead melódico (guitarra synth) → solo cada 8 steps
+      if (step % 8 === 0 || (NV.musicState.intensity > 0.7 && step % 4 === 0)) {
+        const note = layers.lead[Math.floor(step / 2) % layers.lead.length];
+        scheduleNote('sawtooth', note, 0.25, 0.04 + NV.musicState.intensity * 0.02 + comboLayer * 0.012);
       }
     }
         // Drone atmosférico continuo (loop)
@@ -467,143 +270,6 @@
     // Restaurar ducking si venció su duración (audio adaptativo de capas - Tarea 1)
     restoreDucking();
   }
-  // === PROGRAMACIÓN POR FASE ===
-  // Oleada NORMAL: breakbeat crudo con variación, textura sucia y estructura por intensidad (Bloque 2).
-  function scheduleNormalStep(step, stepDur, intensity, comboLayer, layers) {
-    if (!NV.audioCtx || !NV.soundOn) return;
-    const now = NV.audioCtx.currentTime;
-    const swing = (step % 2 === 1) ? stepDur * 0.18 : 0; // swing humano en fuera de beat
-    const t = now + swing;
-    const inten = intensity;
-    // Rotar preset de groove cada compás → breakbeat NO fijo/repetitivo
-    if (step === 0) NV.musicState.groove = Math.floor(Math.random() * 3);
-    const groove = NV.musicState.groove || 0;
-
-    // ---- Batería (D&B) ----
-    if (step === 0 || step === 4 || step === 8 || step === 12) {
-      if (Math.random() < 0.92) scheduleDrumAt('kick', 0.1, 0.1 + inten * 0.05, t);
-    } else if (inten > 0.7 && (step === 6 || step === 14)) {
-      scheduleDrumAt('kick', 0.06, 0.06, t + stepDur * 0.5); // doble 16th
-    }
-    if (step === 4 || step === 12) {
-      scheduleDrumAt('noise', 0.15, 0.06 + inten * 0.035, t);
-    } else if (inten > 0.6 && step === 8) {
-      scheduleDrumAt('noise', 0.08, 0.04, t); // fill
-    } else if (groove === 1 && step === 15) {
-      scheduleDrumAt('noise', 0.18, 0.07, t); // roll tipo amen al cerrar compás
-    }
-    // Hi-hat: swing, acentos y open hat ocasional
-    if (step % 2 === 0) {
-      const open = inten > 0.5 && step % 8 === 6;
-      const hatVol = open ? 0.032 : 0.014 + inten * 0.012 + (step % 8 === 0 ? 0.012 : 0);
-      scheduleNoteAt('square', open ? 12000 : 8000 + (step % 3) * 3000, open ? 0.06 : 0.03, hatVol, t, 'music');
-    }
-    // ---- Bajo con saturación ----
-    if (step % 2 === 0) {
-      const b = layers.bass[Math.floor(step / 2) % layers.bass.length];
-      if (b) scheduleDirtyNote(b, 0.32, 0.045 + inten * 0.025, t, 'music');
-    }
-    // ---- Acorde de textura sucia cada compás ----
-    if (step % 4 === 0) {
-      const root = layers.chordRoots[Math.floor(step / 4) % layers.chordRoots.length];
-      scheduleDirtyChord(root * 2, 0.9, 0.02 + inten * 0.02, t, 'music');
-    }
-    // ---- Capa granular por combo ----
-    if (comboLayer > 0.2 && step % 2 === 1) {
-      const n = layers.lead[(step + Math.floor(comboLayer * 10)) % layers.lead.length] * 2;
-      scheduleNoteAt('triangle', n, 0.05, 0.01 + comboLayer * 0.016, t, 'music');
-    }
-  }
-  // Oleada de BOSS: mantiene la capa boss (patrones propios), ahora con textura sucia.
-  function scheduleBossStep(step, stepDur, intensity, layers) {
-    if (!NV.audioCtx || !NV.soundOn) return;
-    const now = NV.audioCtx.currentTime;
-    const t = now;
-    if (layers.drums[0][step]) scheduleDrumAt('kick', 0.1, 0.1 + intensity * 0.05, t);
-    if (layers.drums[1][step]) scheduleDrumAt('noise', 0.15, 0.06 + intensity * 0.03, t);
-    if (layers.drums[2][step]) scheduleNoteAt('square', 8000 + (step % 3) * 3000, 0.03, 0.02 + intensity * 0.015, t, 'music');
-    if (step % 4 === 0) {
-      const b = layers.bass[Math.floor(step / 4) % layers.bass.length];
-      if (b) scheduleDirtyNote(b, 0.2, 0.05 + intensity * 0.02, t, 'music');
-    }
-    if (step % 8 === 0 || (intensity > 0.7 && step % 4 === 0)) {
-      const n = layers.lead[Math.floor(step / 2) % layers.lead.length];
-      scheduleDirtyNote(n, 0.25, 0.04 + intensity * 0.02, t, 'music');
-    }
-  }
-  // Acorde orgánico y cálido (tienda): triangle+sine detuned, lowpass cerrado, sin saturación.
-  function scheduleWarmChord(freq, dur, vol, at, channel) {
-    if (!NV.audioCtx || !NV.soundOn) return;
-    const ctx = NV.audioCtx;
-    const t = (at == null) ? ctx.currentTime : at;
-    const inGain = ctx.createGain();
-    const filter = ctx.createBiquadFilter();
-    const out = ctx.createGain();
-    filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(1400, t);
-    out.gain.setValueAtTime(vol || 0.03, t);
-    out.gain.exponentialRampToValueAtTime(0.001, t + dur);
-    const defs = [['triangle', 0], ['sine', 0], ['triangle', 1200]];
-    for (const [ty, c] of defs) {
-      const osc = ctx.createOscillator();
-      osc.type = ty;
-      osc.frequency.setValueAtTime(freq * Math.pow(2, c / 1200), t);
-      osc.connect(inGain); osc.start(t); osc.stop(t + dur);
-    }
-    inGain.connect(filter); filter.connect(out);
-    connectOutput(out, channel, {});
-  }
-  // Tienda: estilo boom-bap (kick 1&3, clap 2&4) con swing, aire y acordes cálidos (Bloque 3).
-  function scheduleShopStep(step, stepDur, layers, comboLayer) {
-    if (!NV.audioCtx || !NV.soundOn) return;
-    const now = NV.audioCtx.currentTime;
-    const swing = (step % 8 === 2 || step % 8 === 6) ? stepDur * 0.22 : 0; // swing en off-beats (8ths)
-    const t = now + swing;
-    const bar = NV.musicState.bar || 0;
-    // Boom-bap: kick en 1 y 3, clap/snare en 2 y 4 (no metronómico, con swing)
-    if (step === 0 || step === 8) scheduleDrumAt('kick', 0.12, 0.1, t);
-    if (step === 4 || step === 12) scheduleDrumAt('noise', 0.12, 0.058, t);
-    // Hi-hat con swing y acento alterno (aire)
-    if (step % 2 === 0) {
-      const openHat = step % 16 === 14;
-      const acc = (step === 0 || step === 8) ? 0.032 : 0.018;
-      scheduleNoteAt('square', openHat ? 11000 : 7200, openHat ? 0.05 : 0.025, acc, t, 'music');
-    }
-    // Aire: solo un fill suave cada 4 compases, sin relleno constante
-    if (bar % 4 === 3 && step === 14) scheduleDrumAt('noise', 0.14, 0.05, t);
-    // Acordes cálidos/organicos cada compás
-    if (step % 8 === 0) {
-      const root = layers.chordRoots[Math.floor(step / 8) % layers.chordRoots.length];
-      scheduleWarmChord(root * 2, 1.2, 0.04, t, 'music');
-    }
-    // Bajo con swing (sine cálido, relajado)
-    if (step % 4 === 0) {
-      const b = layers.bass[Math.floor(step / 4) % layers.bass.length];
-      if (b) scheduleNoteAt('sine', b, 0.45, 0.03, t, 'music');
-    }
-    // Lead tibio y espaciado
-    if (step % 16 === 4) {
-      const n = layers.lead[Math.floor(step / 16) % layers.lead.length];
-      scheduleNoteAt('triangle', n, 0.4, 0.028, t, 'music');
-    }
-  }
-  // Menú/Tienda: placeholder genérico (Bloque 3 lo convierte en boom-bap cálido).
-  function scheduleMenuStep(step, stepDur, layers, comboLayer) {
-    if (!NV.audioCtx || !NV.soundOn) return;
-    const now = NV.audioCtx.currentTime;
-    const t = now;
-    if (layers.drums[0][step]) scheduleDrumAt('kick', 0.1, 0.1, t);
-    if (layers.drums[2][step]) scheduleNoteAt('square', 8000 + (step % 3) * 3000, 0.03, 0.02, t, 'music');
-    if (step % 4 === 0) {
-      const b = layers.bass[Math.floor(step / 4) % layers.bass.length];
-      if (b) scheduleNoteAt('sine', b, 0.5, 0.025, t, 'music');
-    }
-    if (step % 8 === 0) {
-      const n = layers.lead[Math.floor(step / 2) % layers.lead.length];
-      scheduleNoteAt('sawtooth', n, 0.25, 0.04, t, 'music');
-    }
-  }
-
   function playTone(freq, dur, type, vol, channel, opts) {
     if (!NV.audioCtx || !NV.soundOn) return;
     const ctx = NV.audioCtx;
@@ -737,91 +403,26 @@
     scheduleNoise(0.3, 0.06);
   };
 
-  // Sonido distintivo por tipo de arma, por categoría (Bloque 1 rework de disparos):
-  //  - realistas (pistol, rifle, smg, shotgun, sniper, flamethrower, railgun): tiro real,
-  //    ruido (crack + cuerpo marrón) + punch grave, sin contenido melódico.
-  //  - futuristas (laser, plasma): identidad synth/energética conservada + cuerpo ruidoso.
-  //  - intermedio (bow): orgánico, casi sin crack, con cuerpo y punch suave.
-  // opts?: { crit, fusion, channel, pan, x, worldWidth } → variación/paneo (Tarea 1/6).
+  // Sonido distintivo por tipo de arma
+  // opts?: { crit, fusion, channel } → variación de timbre/pitch (Tarea 1).
   // playWeaponSound(weapon) sigue funcionando (backwards compatible).
   function playWeaponSound(weapon, opts) {
     if (!NV.soundOn) return;
     opts = opts || {};
-    // Ducking de música por disparo: baja la música brevemente para que el tiro
-    // no compita a volumen pleno. Duración según cadencia (rápidas= corto).
-    if (weapon && NV.mixer) {
-      const d = (weapon.id === 'sniper' || weapon.id === 'railgun') ? 0.28
-        : (weapon.id === 'smg' ? 0.09 : (weapon.id === 'shotgun' ? 0.16 : 0.13));
-      duck('music', 0.3, d);
-    }
     const fus = opts.fusion > 0 ? 1 + opts.fusion * 0.05 : 1; // pitch ↑ +5% por nivel de fusión
     const vol = (opts.crit ? 1.15 : 1) * (opts.fusion ? 1 + opts.fusion * 0.03 : 1);
-    const base = { channel: opts.channel, pan: opts.pan, x: opts.x, worldWidth: opts.worldWidth };
     switch (weapon.id) {
-      // ---- REALISTAS: tiro real procedural ----
-      case 'pistol':
-        playGunshot({ ...base,
-          crack: { dur: 0.014, vol: 0.075 * vol, hp: 1000 },
-          body: { dur: 0.05, vol: 0.09 * vol, lp: 1100 },
-          punch: { freq: 85 * fus, dur: 0.09, vol: 0.05 * vol },
-        }); break;
-      case 'rifle':
-        playGunshot({ ...base,
-          crack: { dur: 0.01, vol: 0.07 * vol, hp: 900 },
-          body: { dur: 0.04, vol: 0.085 * vol, lp: 1000 },
-          punch: { freq: 90 * fus, dur: 0.07, vol: 0.048 * vol },
-        }); break;
-      case 'smg':
-        playGunshot({ ...base,
-          crack: { dur: 0.008, vol: rapidFireVolume('smg', 0.05 * vol), hp: 1200 },
-          body: { dur: 0.03, vol: rapidFireVolume('smg', 0.06 * vol), lp: 1200 },
-          punch: { freq: 75 * fus, dur: 0.05, vol: rapidFireVolume('smg', 0.042 * vol) },
-        }); break;
-      case 'shotgun':
-        playGunshot({ ...base,
-          crack: { dur: 0.02, vol: 0.1 * vol, hp: 700 },
-          body: { dur: 0.02, vol: 0.12 * vol, lp: 800 },
-          punch: { freq: 55 * fus, dur: 0.18, vol: 0.1 * vol },
-        }); break;
-      case 'sniper':
-        playGunshot({ ...base,
-          crack: { dur: 0.008, vol: 0.09 * vol, hp: 800 },
-          body: { dur: 0.12, vol: 0.1 * vol, lp: 600 },
-          punch: { freq: 50 * fus, dur: 0.45, vol: 0.09 * vol },
-        }); break;
-      case 'flamethrower':
-        playGunshot({ ...base,
-          crack: { dur: 0.015, vol: 0.02 * vol, hp: 300 },
-          body: { dur: 0.18, vol: 0.07 * vol, lp: 500 },
-          punch: { freq: 65 * fus, dur: 0.12, vol: 0.04 * vol },
-        }); break;
-      case 'railgun':
-        playGunshot({ ...base,
-          crack: { dur: 0.02, vol: rapidFireVolume('railgun', 0.12 * vol), hp: 600 },
-          body: { dur: 0.1, vol: rapidFireVolume('railgun', 0.1 * vol), lp: 700 },
-          punch: { freq: 45 * fus, dur: 0.5, vol: rapidFireVolume('railgun', 0.1 * vol) },
-        }); break;
-      // ---- FUTURISTAS: identidad synth/energética + cuerpo ruidoso ----
-      case 'laser':
-        playToneEx(1250, 0.12, 'sine', 0.045 * vol, opts);
-        scheduleFilteredNoise(0.02, 0.03 * vol, { shape: 'brown', filterType: 'lowpass', filterFreq: 1500, ...base });
-        break;
-      case 'plasma':
-        playToneEx(720, 0.1, 'triangle', 0.05 * vol, opts);
-        scheduleFilteredNoise(0.02, 0.03 * vol, { shape: 'brown', filterType: 'lowpass', filterFreq: 1400, ...base });
-        break;
-      // ---- INTERMEDIO: bow orgánico (cuerpo+punta, casi sin crack) ----
-      case 'bow':
-        playToneEx(430, 0.09, 'sine', 0.05 * vol, opts);
-        scheduleFilteredNoise(0.025, 0.04 * vol, { shape: 'brown', filterType: 'lowpass', filterFreq: 1000, ...base });
-        playGunshot({ ...base, punch: { freq: 120 * fus, dur: 0.06, vol: 0.03 * vol } });
-        break;
-      default:
-        playGunshot({ ...base,
-          crack: { dur: 0.014, vol: 0.07 * vol, hp: 1000 },
-          body: { dur: 0.05, vol: 0.08 * vol, lp: 1000 },
-          punch: { freq: 80 * fus, dur: 0.09, vol: 0.05 * vol },
-        });
+      case 'pistol': playToneEx(880, 0.08, 'square', 0.03 * vol, opts); break;
+      case 'rifle': playToneEx(640, 0.07, 'square', 0.035 * vol, opts); break;
+      case 'smg': playToneEx(990, 0.04, 'square', rapidFireVolume('smg', 0.028 * vol), opts); break;
+      case 'shotgun': scheduleNoise(0.18, 0.07); playToneEx(170 * fus, 0.18, 'sawtooth', 0.09 * vol, opts); break;
+      case 'sniper': playToneEx(110, 0.45, 'square', 0.11 * vol, opts); scheduleNoise(0.25, 0.05); break;
+      case 'laser': playToneEx(1250, 0.12, 'sine', 0.045 * vol, opts); break;
+      case 'plasma': playToneEx(720, 0.1, 'triangle', 0.05 * vol, opts); break;
+      case 'flamethrower': scheduleNoise(0.14, 0.05); playToneEx(95 * fus, 0.13, 'sawtooth', 0.08 * vol, opts); break;
+      case 'bow': playToneEx(430, 0.09, 'sine', 0.045 * vol, opts); break;
+      case 'railgun': playToneEx(150 * fus, 0.5, 'sawtooth', rapidFireVolume('railgun', 0.12 * vol), opts); scheduleNoise(0.3, rapidFireVolume('railgun', 0.06)); break;
+            default: playToneEx(880, 0.08, 'square', 0.03 * vol, opts);
     }
   }
 
