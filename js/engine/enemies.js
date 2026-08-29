@@ -119,7 +119,8 @@
         st.computePlayerHit(24);
       }
     }
-    st.sfx.explosion();
+    if (st.sfx.enemyDeath) st.sfx.enemyDeath(e.isElite ? 'elite' : 'normal');
+    else st.sfx.explosion(e.isElite ? 'elite' : 'normal');
     return score;
   };
 
@@ -256,6 +257,7 @@
         } else {
           const damage = hit.dmg;
           st.player.hp -= damage;
+          if (st.sfx && st.sfx.playerHit && st.player.hp > 0) st.sfx.playerHit();
           st.player.invuln = 0.5;
           if (e.stunChance && Math.random() < e.stunChance) { st.player.stun = 0.6; addFloatText(st.player.x, st.player.y - 30, 'STUN', '#ff0'); }
           shake = Math.max(shake, hit.crit ? 0.3 : 0.15);

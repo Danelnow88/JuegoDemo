@@ -84,6 +84,7 @@
   const RARITY_COLORS = NV.RARITY_COLORS;
   let currentWeapon = WEAPONS[0], fireTimer = 0;
   let killCombo = { count: 0, timer: 0 }; // combo de kills (E1)
+  let heartbeatTimer = 0, heartbeatWasCritical = false;
   // Cadencia determinista (en segundos). fireRate se interpreta como frames a ~60fps.
   const FIRE_FPS = NV.BALANCE.FIRE_FPS;                 // frames por segundo asumidos en fireRate
   const MIN_FIRE_INTERVAL = NV.BALANCE.MIN_FIRE_INTERVAL; // ~0.0667s -> máx ~15 disparos/s (piso anti-congestión)
@@ -370,6 +371,7 @@
     waveEvent = null;
     shopBought = {};
     killCombo = { count: 0, timer: 0 };
+    heartbeatTimer = 0; heartbeatWasCritical = false;
     enemies = []; bullets = []; particles = []; pickups = [];
     floatTexts = []; trails = []; weaponPickups = []; bossChests = [];
     inventory = []; currentWeapon = WEAPONS[0]; consumableItems = [];
@@ -830,6 +832,21 @@
 
     updateMusic(dt);
 
+    // Heartbeat crítico: pulso grave solo mientras el HP está bajo; al recuperarse
+    // se resetea el timer para que no quede sonando de fondo ni encadene pulsos.
+    const hpRatio = player.maxHp > 0 ? player.hp / player.maxHp : 1;
+    if (hpRatio > 0 && hpRatio <= 0.3 && state === 'playing') {
+      heartbeatTimer -= dt;
+      if (!heartbeatWasCritical || heartbeatTimer <= 0) {
+        heartbeatWasCritical = true;
+        heartbeatTimer = 1.15;
+        if (sfx.heartbeat) sfx.heartbeat(1 - hpRatio / 0.3);
+      }
+    } else {
+      heartbeatWasCritical = false;
+      heartbeatTimer = 0;
+    }
+
     const dx = (moveRight ? 1 : 0) - (moveLeft ? 1 : 0);
     const dy = (moveDown ? 1 : 0) - (moveUp ? 1 : 0);
     const len = Math.hypot(dx, dy);
@@ -1099,6 +1116,7 @@
       bullets, W, H, player, enemies, boss, shake, hitstop,
       MAX_BULLETS, CHARACTERS, SHIELD_COOLDOWN,
       computePlayerHit, addFloatText, killEnemy, applyKnockback, spawnExplosion, gameOver,
+      sfx,
     });
     bullets = res.bullets; shake = res.shake; hitstop = res.hitstop;
     if (res.gameOver) { gameOver(); return; }

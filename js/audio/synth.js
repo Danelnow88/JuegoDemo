@@ -255,9 +255,26 @@
   }
   const sfx = {
     // SFX existentes: redirigidos a canales con ducking automático.
-    explosion: (enemyType) => { playTone(110, 0.25, 'sawtooth', 0.06, 'sfxEnemies'); },
+    explosion: (enemyType) => { sfx.enemyDeath(enemyType || 'normal'); },
+    enemyDeath: (enemyType) => {
+      const kind = enemyType || 'normal';
+      if (kind === 'boss') {
+        duck('music', 0.12, 0.35);
+        scheduleNoise(0.38, 0.08);
+        playTone(70, 0.42, 'sawtooth', 0.13, 'sfxEnemies');
+        playTone(110, 0.25, 'triangle', 0.08, 'sfxEnemies');
+      } else if (kind === 'elite') {
+        scheduleNoise(0.14, 0.055);
+        playTone(165, 0.22, 'sawtooth', 0.085, 'sfxEnemies');
+        playTone(95, 0.18, 'square', 0.055, 'sfxEnemies');
+      } else {
+        playTone(220, 0.12, 'square', 0.045, 'sfxEnemies');
+        playTone(140, 0.14, 'sawtooth', 0.035, 'sfxEnemies');
+      }
+    },
     pickup: () => playTone(1320, 0.12, 'square', 0.04, 'sfxUI'),
     damage: () => { duck('music', 0.2, 0.18); playTone(80, 0.15, 'square', 0.07, 'sfxPlayer'); },
+    playerHit: () => { duck('music', 0.32, 0.12); playTone(135, 0.11, 'sawtooth', 0.075, 'sfxPlayer'); playTone(82, 0.18, 'triangle', 0.045, 'sfxPlayer'); },
     special: () => playTone(660, 0.4, 'triangle', 0.05, 'sfxPlayer'),
     levelup: () => playTone(523, 0.1, 'square', 0.05, 'sfxUI'),
     wave: () => playTone(440, 0.3, 'triangle', 0.06, 'sfxUI'),

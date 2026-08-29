@@ -248,10 +248,13 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 - `sfx.pickup()` — pickup genérico.
 - `sfx.special()` — uso de habilidad especial.
 - `sfx.wave()` — inicio de oleada / victoria.
-- `sfx.damage()` — daño al jugador.
+- `sfx.damage()` — game over / daño fatal.
+- `sfx.playerHit()` — daño no fatal al jugador (feedback negativo separado del game over).
 - `sfx.levelup()` — subida de nivel.
-- `sfx.explosion()` — muerte de enemigo.
+- `sfx.explosion(tipo)` / `sfx.enemyDeath(tipo)` — muerte diferenciada por enemigo común, élite o jefe.
+- `sfx.heartbeat(intensity)` — pulso grave de HP crítico, conectado desde `game.js` con timer para no quedar sonando al recuperarse.
 - `sfx.bossAttack.<tipo>()` — sonido de ataque por cada tipo de jefe (`repeater`, `heavy`, `summon`, `spread`, `beam`, `volley`, `bomb`, `orbs`, `split`, `rage`).
+- `sfx.bossEnter()` y `sfx.bossPhaseShift()` — entrada del jefe y transición a FASE 2.
 - `playWeaponSound(weapon)` — sonido distinto por arma.
 
 ### Música synthwave
@@ -555,6 +558,12 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 - El espacio sobrante de la fila se aprovecha a la derecha del slot: estado "CD Xs"/"LISTO" (8px) y **nombre de la skill con truncado** (`truncateToWidth` + "…"), mismo criterio que la cabecera de arma — "Lluvia Estelar" ya no se corta ni pisa bordes.
 - El hint "F usar · Q/E elegir" pasó a una **línea dedicada** (consY+28) con aire real entre consumibles y habilidad: ya no lo pisa el contenedor.
 - Lógica de cooldown/uso intacta (`specialCd`/`maxCd`/`rt` sin cambios); solo representación visual. Tests `hud_layout` 13/13 (agrega skill 22×22 + anillo + truncado).
+
+### Audio Tarea 4 — SFX de combate diferenciado + heartbeat crítico
+- `sfx.enemyDeath(tipo)` diferencia muerte de enemigo común, élite y jefe; `sfx.explosion(tipo)` queda como alias retrocompatible hacia esa lógica.
+- `sfx.playerHit()` se conecta a daño no fatal recibido por contacto enemigo y proyectiles enemigos; `sfx.damage()` queda reservado para game over.
+- Heartbeat crítico: `game.js` dispara `sfx.heartbeat(intensity)` solo cuando el HP está por debajo del 30%, con timer de pulso y reset inmediato al recuperarse para evitar loops residuales.
+- La muerte del jefe dispara `enemyDeath('boss')` además de la explosión visual y el cofre existente. Test nuevo `audio_combat_sfx` 7/7.
 
 
 ### v52 — Tanda D1: nuevos consumibles

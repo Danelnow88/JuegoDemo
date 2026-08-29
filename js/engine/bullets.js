@@ -41,6 +41,7 @@
             } else {
               const damage = hit.dmg;
               player.hp -= damage;
+              if (st.sfx && st.sfx.playerHit && player.hp > 0) st.sfx.playerHit();
               if (b.stunChance && Math.random() < b.stunChance) { player.stun = 0.6; addFloatText(player.x, player.y - 30, 'STUN', '#ff0'); }
               shake = Math.max(shake, hit.crit ? 0.3 : 0.1);
               addFloatText(player.x, player.y - 20, '-' + damage + (hit.crit ? ' ★CRIT' : ''), hit.crit ? '#ff0' : '#ff5f9b');
