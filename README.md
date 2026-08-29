@@ -1023,3 +1023,9 @@ JuegoDemo/
 - NV.rhythm.onsetEvt/kickEvt/snareEvt: score del último pick confirmado (sin decay).
 - Tempo con plegado de octava 70-180 BPM: blast beats (~16/s) y half-times ya no congelan/corrompen tempoBpm.
 - Diagnóstico: tests/rhythm_diag_styles.js (onsetRate: blast 16/s, techno 3.5/s, lofi 1/s; tempo 160/130/99 BPM).
+
+### Bloque 3 - Caracter musical (density/punch/accent + soft-knee)
+- NV.rhythm publica density (onsetRate suavizado), punch (transitoriedad de graves) y accent (downbeat via PLL de fase contra tempoBpm).
+- Ganancia adaptativa 1/(1+density/8): estilos espaciados conservan golpe pleno; blast beats se atenuan y el acento de downbeat lleva el pulso (sin estroboscopio).
+- Soft-knee en el alfa (lineal hasta 75% del tope, compresion exponencial encima): elimina el clip duro que saturaba ~45% de frames en deathcore.
+- Verificacion: tests/rhythm_diag_styles.js mide alpha real de render por perfil (deathcore: media 0.26, sd>=0.04, 0% saturados).

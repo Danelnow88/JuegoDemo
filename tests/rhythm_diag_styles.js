@@ -29,6 +29,7 @@ function simulate(name, pattern, seconds, fps) {
   const st = NV.rhythmFreshState();
   const n = Math.floor(seconds * fps);
   const rec = { onset: [], kick: [], snare: [], hats: [], energy: [], flux: [] };
+  const feed = [];
   let t = 0;
   for (let f = 0; f < n; f++) {
     t += 1 / fps;
@@ -44,6 +45,7 @@ function simulate(name, pattern, seconds, fps) {
       }
     }
     if (!data) data = new Uint8Array(LEN).fill(Math.round(20)); // suelo constante
+    feed.push(data);
     NV.rhythmAnalyze(st, data, t);
     rec.onset.push(st.onset); rec.kick.push(st.kick); rec.snare.push(st.snare);
     rec.hats.push(st.hats); rec.energy.push(st.energy); rec.flux.push(st.spectralFlux);
@@ -54,7 +56,38 @@ function simulate(name, pattern, seconds, fps) {
   console.log('  onset media=' + mo.toFixed(3) + ' sd=' + so.toFixed(3) + ' | kick media=' + mk.toFixed(3) + ' sd=' + sk.toFixed(3) + ' | hats media=' + mh.toFixed(3) + ' | energy media=' + me.toFixed(3));
   console.log('  onsetRate=' + st.onsetRate.toFixed(1) + '/s tempoBpm=' + st.tempoBpm.toFixed(0));
   console.log('  => ratio senal (sd/media) onset=' + (so / mo).toFixed(2) + '  (<0.5 = aplanado)');
+  measureAlpha(name, feed);
   return st;
+}
+
+// ---- Medición de ALPHA REAL de render por perfil (Bloque 3): corre el
+// pipeline completo y pasa el estado por drawRhythmLayer cada frame con un
+// stub de canvas, midiendo lastAlpha (media, sd, % de frames saturados).
+function mkStubCtx() {
+  return { ops: [], createRadialGradient(){ return { addColorStop(){} }; }, fillRect(){ this.ops.push('fill'); }, strokeRect(){ this.ops.push('stroke'); }, save(){}, restore(){}, set fillStyle(v){}, get fillStyle(){return '';}, globalAlpha: 1, globalCompositeOperation: '', strokeStyle: '', lineWidth: 1 };
+}
+function measureAlpha(name, feed) {
+  const st = NV.rhythmFreshState();
+  const alphas = [];
+  let t = 0;
+  for (const d of feed) {
+    t += 1 / 60;
+    NV.rhythmAnalyze(st, d, t);
+    Object.assign(NV.rhythm, {
+      enabled: true, state: 'listening', maxAlpha: 0.32, intensityCap: 0.55,
+      energy: st.energy, beat: st.beat, bass: st.bass, mids: st.mids, highs: st.highs,
+      kick: st.kick, snare: st.snare, hats: st.hats, onset: st.onset,
+      onsetRate: st.onsetRate, density: st.density, accent: st.accent, punch: st.punch,
+      tempoBpm: st.tempoBpm, forceHue: null,
+    });
+    NV.drawRhythmLayer(mkStubCtx(), 900, 520, Math.floor(t * 60));
+    alphas.push(NV.rhythm.lastAlpha);
+  }
+  const m = alphas.reduce((a, b) => a + b, 0) / alphas.length;
+  const sd = Math.sqrt(alphas.reduce((a, b) => a + (b - m) ** 2, 0) / alphas.length);
+  const sat = alphas.filter((a) => a >= 0.319).length / alphas.length;
+  console.log('ALPHA ' + name + ': media=' + m.toFixed(3) + ' sd=' + sd.toFixed(3) + ' saturados=' + (sat * 100).toFixed(1) + '%');
+  return { m, sd, sat };
 }
 
 // blast beats: 16 golpes/s alternando kick+snare, energía total casi constante
@@ -96,6 +129,7 @@ for (let i = 0; i < 240; i++) {
   const st = NV.rhythmFreshState();
   const n = 17 * 60;
   const rec = { onset: [], kick: [], hats: [], energy: [] };
+  const feed = [];
   let t = 0;
   for (let f = 0; f < n; f++) {
     t += 1 / 60;
@@ -111,6 +145,7 @@ for (let i = 0; i < 240; i++) {
     }
     NV.rhythmAnalyze(st, d, t);
     rec.onset.push(st.onset); rec.kick.push(st.kick); rec.hats.push(st.hats); rec.energy.push(st.energy);
+    feed.push(d);
   }
   const stat = (a) => { const m = a.reduce((x, y) => x + y, 0) / a.length; const sd = Math.sqrt(a.reduce((x, y) => x + (y - m) ** 2, 0) / a.length); return [m, sd]; };
   const [mo, so] = stat(rec.onset), [mk, sk] = stat(rec.kick), [mh, sh] = stat(rec.hats), [me] = stat(rec.energy);
@@ -118,4 +153,5 @@ for (let i = 0; i < 240; i++) {
   console.log('  onset media=' + mo.toFixed(3) + ' sd=' + so.toFixed(3) + ' | kick media=' + mk.toFixed(3) + ' sd=' + sk.toFixed(3) + ' | hats media=' + mh.toFixed(3) + ' sd=' + sh.toFixed(3) + ' | energy media=' + me.toFixed(3));
   console.log('  onsetRate=' + st.onsetRate.toFixed(1) + '/s tempoBpm=' + st.tempoBpm.toFixed(0));
   console.log('  => ratio senal onset=' + (so / mo).toFixed(2) + ' kick=' + (sk / mk).toFixed(2) + ' hats=' + (sh / mh).toFixed(2));
+  measureAlpha('DEATHCORE', feed);
 })();

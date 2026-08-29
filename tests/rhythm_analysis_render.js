@@ -159,6 +159,61 @@ t('umbrales robustos: transientes conservan contraste bajo densidad extrema', ()
   if (min > 0.35) throw new Error('sin contraste entre golpes (todo al tope): min=' + min.toFixed(3));
 });
 
+// ---- Bloque 3: carácter (density/punch/accent) y alpha no saturado ----
+function mkAlphaCtx() {
+  return { gradients: [], ops: [], createRadialGradient(){ const g = { stops: [], addColorStop(o, c){ this.stops.push([o, c]); } }; this.gradients.push(g); return g; }, fillRect(){ this.ops.push('fill'); }, strokeRect(){ this.ops.push('stroke'); }, save(){}, restore(){} };
+}
+
+t('caracter: density/punch/accent publicados y alpha respira sin saturar en deathcore', () => {
+  const NV = loadNV();
+  const st = NV.rhythmFreshState();
+  const LEN = 128;
+  let t = 0; const alphas = [];
+  for (let f = 0; f < 900; f++) {
+    t += 1 / 60;
+    const d = new Uint8Array(LEN);
+    d.fill(0);
+    for (let i = 15; i < LEN; i++) d[i] = 170;
+    for (let i = 1; i < 12; i++) d[i] = 60;
+    const h = blastFrames(t);
+    if (h) for (const b of h.bands) for (let i = b[0]; i < b[1]; i++) d[i] = Math.min(255, Math.max(d[i], Math.round(80 + b[2] * h.dec)));
+    NV.rhythmAnalyze(st, d, t);
+    Object.assign(NV.rhythm, {
+      enabled: true, state: 'listening', maxAlpha: 0.32, intensityCap: 0.55,
+      energy: st.energy, beat: st.beat, bass: st.bass, mids: st.mids, highs: st.highs,
+      kick: st.kick, snare: st.snare, hats: st.hats, onset: st.onset,
+      onsetRate: st.onsetRate, density: st.density, accent: st.accent, punch: st.punch,
+      tempoBpm: st.tempoBpm, forceHue: null,
+    });
+    NV.drawRhythmLayer(mkAlphaCtx(), 900, 520, Math.floor(t * 60));
+    if (t > 8) alphas.push(NV.rhythm.lastAlpha);
+  }
+  if (!(st.density > 8)) throw new Error('density no refleja blast: ' + st.density.toFixed(2));
+  if (!(st.punch > 0.3)) throw new Error('punch no refleja kicks: ' + st.punch.toFixed(3));
+  if (!(st.accent > 0.2)) throw new Error('accent inactivo: ' + st.accent.toFixed(3));
+  const m = alphas.reduce((a, b) => a + b, 0) / alphas.length;
+  const sd = Math.sqrt(alphas.reduce((a, b) => a + (b - m) ** 2, 0) / alphas.length);
+  const satShare = alphas.filter((a) => a >= 0.319).length / alphas.length;
+  if (m > 0.30) throw new Error('alpha saturado (clavado al tope): media=' + m.toFixed(3));
+  if (satShare > 0.15) throw new Error('demasiados frames saturados: ' + (satShare * 100).toFixed(1) + '%');
+  if (sd < 0.045) throw new Error('alpha plano (sin respiracion): sd=' + sd.toFixed(4));
+});
+
+t('ganancia por densidad: estilo espaciado conserva golpe pleno, blast lo atenúa', () => {
+  const NV = loadNV();
+  const sparse = Object.assign({}, NV.rhythm, { density: 1.2, accent: 0.9, beat: 0.8, onset: 0.8, energy: 0.45 });
+  const blast = Object.assign({}, NV.rhythm, { density: 16, accent: 0.3, beat: 0.8, onset: 0.8, energy: 0.45 });
+  const a = (r) => {
+    const gain = 1 / (1 + (r.density || 0) / 8);
+    const beatEff = r.beat * gain * (0.55 + 0.45 * r.accent);
+    const onsetEff = r.onset * gain * (0.5 + 0.5 * r.accent);
+    return beatEff * 0.2 + onsetEff * 0.22;
+  };
+  if (!(a(sparse) > a(blast) * 2.2)) throw new Error('ganancia no diferencia densidades: ' + a(sparse).toFixed(3) + ' vs ' + a(blast).toFixed(3));
+  if (!(a(sparse) > 0.25)) throw new Error('estilo espaciado quedo debil: ' + a(sparse).toFixed(3));
+});
+
+
 t('drawRhythmLayer no dibuja si está apagado o sin listening', () => {
   const NV = loadNV();
   const ctx = mkCtx();

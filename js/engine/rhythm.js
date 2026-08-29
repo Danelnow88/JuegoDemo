@@ -35,6 +35,14 @@
     onset: 0, kick: 0, snare: 0, hats: 0, spectralFlux: 0, tempoBpm: 0,
     onsetRate: 0,            // eventos percusivos por segundo (ventana 2s)
     onsetEvt: 0, kickEvt: 0, snareEvt: 0, // score del último pick (sin decay)
+    // "Carácter" musical (Bloque 3): densidad percusiva, punch de graves y
+    // acento de downbeat. Alimentan la ganancia de render.
+    density: 0,              // onsetRate suavizado (~5s de integración)
+    punch: 0,                // transitoriedad de graves (0..1)
+    accent: 0,               // 1 = golpe alineado a la grilla estimada
+    lastAlpha: 0,            // alfa del último draw (verificación/medición)
+    _phase: 0,               // fase contra la grilla de tempo (PLL simple)
+    _lastNow: 0,
     lastBeatAt: 0, lastOnsetAt: 0,
     lastShakeAt: -99,
     thresholdRel: 1.35,      // energía de graves vs. línea base P55 para disparar beat
@@ -246,6 +254,23 @@
     if (freshOnset > 0 || freshKick > 0 || freshSnare > 0) evt.push(now);
     while (evt.length && evt[0] < now - 2) evt.shift();
     state.onsetRate = evt.length / 2;
+    // ---- Carácter (Bloque 3): densidad suavizada, punch de graves y acento.
+    state.density += (state.onsetRate - state.density) * 0.04; // ~5s para converger
+    state.punch = Math.max(state.punch * 0.9, Math.min(1, kickFlux * 2.5));
+    // PLL de downbeat: avanzamos la fase con el tempo estimado y, cuando un
+    // golpe fuerte cae cerca del borde de grilla (fase < 0.35), la re-anclamos.
+    // Un golpe en fase => acento pleno; fuera de fase => acento parcial. Así el
+    // render marca el pulso fuerte en vez de estroboscopiar cada blast hit.
+    const nowS = nowSec || 0;
+    const dt = Math.max(0, Math.min(0.1, nowS - (state._lastNow || nowS)));
+    state._lastNow = nowS;
+    const bpm = state.tempoBpm || 120;
+    state._phase = ((state._phase || 0) + (bpm / 60) * dt) % 1;
+    if (state.accent > 0.01) state.accent *= Math.pow(0.86, dt * 60);
+    if (freshKick > 0.45 || freshOnset > 0.5) {
+      if (state._phase < 0.35) { state.accent = 1; state._phase = 0.02; }
+      else if (state.accent < 0.5) state.accent = 0.5;
+    }
     state.spectralFlux = Math.min(1, flux * 2.8);
     state.onset = Math.max(state.onset * 0.72, freshOnset);
     state.kick = Math.max(state.kick * 0.66, freshKick);
@@ -414,7 +439,23 @@
     const snare = Math.min(cap, Math.max(0, r.snare || 0));
     const hats = Math.min(cap, Math.max(0, r.hats || 0));
     const onset = Math.min(cap, Math.max(0, r.onset || 0));
-    const alpha = Math.min(r.maxAlpha || 0.32, 0.045 + energy * 0.34 + beat * 0.2 + onset * 0.22);
+    // Ganancia adaptativa por densidad (Bloque 3): con percusión espaciada cada
+    // golpe pesa pleno; con blast beats (density alta) los golpes individuales
+    // se atenúan y el acento de downbeat lleva el pulso — evita el muro plano
+    // saturado en deathcore sin silenciar los estilos espaciados.
+    const gain = 1 / (1 + (r.density || 0) / 8);
+    const accent = Math.min(1, Math.max(0, r.accent || 0));
+    const punch = Math.min(cap, Math.max(0, r.punch || 0));
+    const beatEff = beat * gain * (0.55 + 0.45 * accent);
+    const onsetEff = onset * gain * (0.5 + 0.5 * accent);
+    // Soft-knee: lineal hasta el 75% del tope, compresión exponencial suave
+    // encima. Un clip duro a maxAlpha aplanaba el brillo en deathcore (la
+    // energía vive alta => ~45% de los frames exactamente en el cap, sin
+    // variación perceptible); el knee conserva variación cerca del tope.
+    const knee = (r.maxAlpha || 0.32) * 0.75;
+    const raw = 0.045 + energy * 0.34 + beatEff * 0.2 + onsetEff * 0.22 + punch * 0.05;
+    const alpha = raw <= knee ? raw : knee + ((r.maxAlpha || 0.32) - knee) * (1 - Math.exp(-(raw - knee) / 0.09));
+    r.lastAlpha = alpha; // expuesto para verificación/medición de variación real
     if (alpha <= 0.01) return;
 
     const lowDom = bass + kick * 0.8;
