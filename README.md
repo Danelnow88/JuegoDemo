@@ -1015,3 +1015,11 @@ JuegoDemo/
 - **Diagnóstico jitter**: activo 40%% del tiempo pero amp media 0.83px a ~5.5Hz -> shimmer subpixel invisible. Fix: amp hasta 4.5px (base por energía sostenida + golpes), osc ~3Hz. Expuesto como NV.rhythm.jitterAmp/jitterActive; sigue siendo 100%% visual (no muta e.x/e.y/hitbox).
 - **Diagnóstico hue**: mezclas realistas de 5 géneros caían en hue 143-201 (todo verde/cian) por colapso de la mezcla lineal; el blend screen sobre #01030d NO sesga (verificado matemáticamente por canal dominante). Fix: hue por banda dominante (argmax) con anclas 205/55/320, transición parcial a la secundaria y deriva lenta (~1 ciclo/24s). Después: bass=203, mids=90, highs=300.
 - **Prueba forzada**: NV.rhythm.forceHue fija hue puro (0/60/120/180/240/300) verificado por test.
+
+### Bloque 2 - Onset profesional (peak-picking causal + refractario + onsetRate + plegado de octava)
+- Peak-picking causal (max local sobre 3 frames previos): un golpe = un evento, sin multi-disparo. La ventana simétrica ±3 del textbook pierde golpes a densidad blast (>8.5 ev/s).
+- Período refractario ~50ms por detector (onset/kick/snare).
+- NV.rhythm.onsetRate: eventos percusivos/s (ventana 2s) = densidad percusiva real.
+- NV.rhythm.onsetEvt/kickEvt/snareEvt: score del último pick confirmado (sin decay).
+- Tempo con plegado de octava 70-180 BPM: blast beats (~16/s) y half-times ya no congelan/corrompen tempoBpm.
+- Diagnóstico: tests/rhythm_diag_styles.js (onsetRate: blast 16/s, techno 3.5/s, lofi 1/s; tempo 160/130/99 BPM).

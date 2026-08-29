@@ -29,8 +29,12 @@ t('transiente grave puntual dispara kick mucho más que sostenido', () => {
   for (let i = 0; i < 10; i++) NV.rhythmAnalyze(st, quiet, i / 20);
   const kick = addRange(bins(18), 1, 7, 255);
   NV.rhythmAnalyze(st, kick, 0.55);
+  // Ventana causal: el pico se confirma en el mismo frame del transiente.
   if (st.kick < 0.7) throw new Error('kick débil: ' + st.kick);
   if (st.onset < 0.45) throw new Error('onset débil: ' + st.onset);
+  if (st.kickEvt < 0.7) throw new Error('kickEvt débil: ' + st.kickEvt);
+  for (let i = 1; i <= 4; i++) NV.rhythmAnalyze(st, quiet, 0.55 + i / 20);
+  if (st.onsetRate < 0.4 || st.onsetRate > 2) throw new Error('onsetRate implausible para golpe único: ' + st.onsetRate);
 });
 
 t('transiente medio/agudo dispara snare sin parecer kick', () => {
@@ -40,8 +44,9 @@ t('transiente medio/agudo dispara snare sin parecer kick', () => {
   for (let i = 0; i < 10; i++) NV.rhythmAnalyze(st, quiet, i / 20);
   const snare = addRange(addRange(bins(15), 18, 46, 245), 80, 127, 160);
   NV.rhythmAnalyze(st, snare, 0.6);
-  if (st.snare < 0.65) throw new Error('snare débil: ' + st.snare);
-  if (st.kick > 0.25) throw new Error('snare confundido con kick: ' + st.kick);
+  if (st.snareEvt < 0.65) throw new Error('snare débil: ' + st.snareEvt);
+  if (st.kickEvt > 0.25) throw new Error('snare confundido con kick: ' + st.kickEvt);
+  for (let i = 1; i <= 4; i++) NV.rhythmAnalyze(st, quiet, 0.6 + i / 20);
 });
 
 t('pulsos regulares estiman tempo aproximado', () => {
@@ -50,11 +55,41 @@ t('pulsos regulares estiman tempo aproximado', () => {
   const quiet = bins(12);
   const kick = addRange(bins(12), 1, 7, 255);
   let now = 0;
-  for (let p = 0; p < 8; p++) {
+  for (let p = 0; p < 10; p++) {
     NV.rhythmAnalyze(st, quiet, now); now += 0.22;
     NV.rhythmAnalyze(st, kick, now); now += 0.28; // pulso cada ~0.5s => ~120 BPM
   }
   if (st.tempoBpm < 95 || st.tempoBpm > 145) throw new Error('tempo fuera de rango: ' + st.tempoBpm);
+  if (st.onsetRate < 1 || st.onsetRate > 3.5) throw new Error('onsetRate implausible para 2 Hz: ' + st.onsetRate);
+});
+
+t('blast beats: onsetRate alto y refractario evita multi-disparo por golpe', () => {
+  const NV = loadNV();
+  const st = NV.rhythmFreshState();
+  const LEN = 128;
+  let t = 0; const onsets = [];
+  for (let f = 0; f < 700; f++) {
+    t += 1 / 60;
+    const d = new Uint8Array(LEN);
+    d.fill(0);
+    for (let i = 15; i < LEN; i++) d[i] = 170;   // muro sostenido
+    for (let i = 1; i < 12; i++) d[i] = 60;
+    if (t >= 2) {
+      const ph = (t - 2) % 0.0625;               // blast 16 Hz
+      const dec = Math.exp(-ph * 22);
+      const isKick = Math.floor((t - 2) / 0.0625) % 2 === 0;
+      const lo = isKick ? 1 : 15, hi = isKick ? 12 : 46, amp = isKick ? 220 : 190;
+      for (let i = lo; i < hi; i++) d[i] = Math.min(255, Math.max(d[i], Math.round(80 + amp * dec)));
+      for (let i = 80; i < LEN; i++) d[i] = Math.min(255, Math.max(d[i], Math.round(80 + 150 * dec)));
+    }
+    NV.rhythmAnalyze(st, d, t);
+    if (t > 6) onsets.push(st.onset);
+  }
+  if (st.onsetRate < 8) throw new Error('onsetRate no refleja densidad blast: ' + st.onsetRate.toFixed(2));
+  const max = Math.max(...onsets), min = Math.min(...onsets);
+  if (min > 0.35) throw new Error('envelope sin contraste entre golpes: min=' + min.toFixed(3));
+  if (max < 0.45) throw new Error('golpes no detectados en blast: max=' + max.toFixed(3));
+  if (!(st.tempoBpm > 70 && st.tempoBpm < 180)) throw new Error('tempo sin plegado de octava en blast: ' + st.tempoBpm.toFixed(1));
 });
 
 t('shake reactivo solo aparece en onset fuerte y queda acotado', () => {

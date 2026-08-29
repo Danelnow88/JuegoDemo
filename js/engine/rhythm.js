@@ -33,16 +33,20 @@
     // Valores analizados por frame (0..1), publicados para la capa de render.
     beat: 0, bass: 0, mids: 0, highs: 0, energy: 0, peak: 0,
     onset: 0, kick: 0, snare: 0, hats: 0, spectralFlux: 0, tempoBpm: 0,
+    onsetRate: 0,            // eventos percusivos por segundo (ventana 2s)
+    onsetEvt: 0, kickEvt: 0, snareEvt: 0, // score del último pick (sin decay)
     lastBeatAt: 0, lastOnsetAt: 0,
     lastShakeAt: -99,
-    thresholdRel: 1.35,      // energía de graves vs. media móvil para disparar beat
+    thresholdRel: 1.35,      // energía de graves vs. línea base P55 para disparar beat
     // Internos de suavizado / detección.
     _bassHist: null,
     _hist: null,             // historias móviles para umbrales robustos + AGC
+    _pp: null,               // buffers de peak-picking (máximo local ±3 frames)
+    _evtTimes: null,         // tiempos de eventos percusivos (para onsetRate)
     _prevBands: null,
     _onsetTimes: null,
     energyRaw: 0,            // energía cruda pre-AGC (diagnóstico en consola)
-    dynRange: 0,             // rango dinámico observable P95-P10 (diagnóstico)
+    dynRange: 0,             // rango dinámico observable P95-P05 (diagnóstico)
     // Límites de seguridad (Bloque 3, "regla de oro"): el efecto NUNCA compite con
     // enemigos/balas/HUD. Se usan como tope duro de saturación y opacidad.
     intensityCap: 0.55,
@@ -55,6 +59,8 @@
     s._bassHist = new Array(44).fill(0);
     s._prevBands = { bass: 0, mids: 0, highs: 0, kick: 0, snare: 0, hats: 0 };
     s._onsetTimes = [];
+    s._pp = { flux: [], kick: [], snare: [], lastFlux: -9, lastKick: -9, lastSnare: -9 };
+    s._evtTimes = [];
     return s;
   }
 
@@ -133,6 +139,23 @@
   // Con mediana como ancla, "energía" = posición relativa dentro del rango del
   // propio tema. Se preserva parte del volumen absoluto (factor `loud`) para
   // no borrar la diferencia perceptual suave/fuerte entre géneros.
+  // Peak-picking causal: el frame es evento solo si su flujo supera a los 3
+  // frames previos (ventana local) y pasa el umbral + refractario del caller.
+  // NOTA: la ventana simétrica ±3 (textbook) es inviable a densidad extrema:
+  // con blast a 16Hz (golpe cada 3-4 frames) la ventana de 7 siempre contiene
+  // 2+ picos y el más nuevo rechaza al central => se pierden la mayoría de los
+  // golpes. La ventana causal + refractario de 50ms garantiza exactamente un
+  // evento por golpe sin multi-disparo, con latencia cero.
+  function peakPick(buf, val) {
+    buf.push(val);
+    if (buf.length > 4) buf.shift();
+    if (buf.length < 4) return null;
+    const c = buf[3];
+    // Tolerante a empates: dos golpes idénticos consecutivos (patrón periódico
+    // estricto) producen flujos iguales; exigir c > previo los perdería todos.
+    for (let i = 0; i < 3; i++) if (buf[i] > c) return null;
+    return c;
+  }
   function agcEnergy(state, hist) {
     state.energyRaw = state.energy;
     pushHist(hist.energy, state.energy);
@@ -154,9 +177,17 @@
     let sum = 0, n = 0;
     for (let i = 1; i < state._onsetTimes.length; i++) {
       const d = state._onsetTimes[i] - state._onsetTimes[i - 1];
-      if (d >= 0.24 && d <= 1.2) { sum += d; n++; }
+      if (d < 0.03 || d > 2.5) continue;
+      // Plegado de octava: los blast beats (IOI ~60ms) y los half-times (IOI
+      // >1s) caen fuera del rango musical útil; se pliegan por ×2 al rango
+      // 70-180 BPM antes de promediar, si no el tempo quedaba congelado en
+      // metal extremo (los intervalos < 0.24s se descartaban) o disparado.
+      let bpm = 60 / d;
+      while (bpm < 70) bpm *= 2;
+      while (bpm > 180) bpm /= 2;
+      sum += bpm; n++;
     }
-    if (n) state.tempoBpm += ((60 / (sum / n)) - state.tempoBpm) * 0.28;
+    if (n) state.tempoBpm += ((sum / n) - state.tempoBpm) * 0.28;
   }
   // Convierte un Uint8Array de frecuencias (getByteFrequencyData) en valores de banda.
   NV.rhythmAnalyze = function (state, data, nowSec) {
@@ -179,15 +210,43 @@
     const highFlux = posFlux(hatBand, prev.hats);
     const flux = kickFlux * 0.48 + snareFlux * 0.34 + highFlux * 0.18;
     pushHist(hist.flux, flux); pushHist(hist.kick, kickFlux); pushHist(hist.snare, snareFlux);
-    // Umbrales robustos (mediana + k·MAD) en lugar de EMA: ver nota en robustThr.
+    // ---- Peak-picking (Bloque 2): un transiente solo cuenta si su flujo es
+    // máximo local sobre la ventana previa y supera el umbral robusto, con
+    // período refractario de ~50ms por detector (ver nota en peakPick: la
+    // ventana simétrica textbook pierde golpes a densidad blast). Sin esto, un
+    // mismo golpe disparaba scores en varios frames consecutivos (inflando la
+    // media que alimenta el umbral adaptativo) y a densidad extrema los
+    // envelopes nunca bajaban entre golpes.
+    const pp = state._pp || (state._pp = { flux: [], kick: [], snare: [], lastFlux: -9, lastKick: -9, lastSnare: -9 });
+    const now = nowSec || 0;
     const onsetFloor = 0.018;
-    const onsetScore = Math.max(0, flux - robustThr(hist.flux, 2.6, onsetFloor)) / 0.22;
-    const kickScore = Math.max(0, kickFlux - robustThr(hist.kick, 2.8, 0.018)) / 0.2;
-    const snareScore = Math.max(0, snareFlux - robustThr(hist.snare, 2.6, 0.018)) / 0.2;
+    let freshOnset = 0, freshKick = 0, freshSnare = 0;
+    const pkFlux = peakPick(pp.flux, flux);
+    const pkKick = peakPick(pp.kick, kickFlux);
+    const pkSnare = peakPick(pp.snare, snareFlux);
+    if (pkFlux != null) {
+      const thr = robustThr(hist.flux, 2.6, onsetFloor);
+      if (flux >= thr && now - pp.lastFlux > 0.05) { pp.lastFlux = now; freshOnset = Math.min(1, (flux - thr) / 0.22); }
+    }
+    if (pkKick != null) {
+      const thr = robustThr(hist.kick, 2.8, 0.018);
+      if (kickFlux >= thr && now - pp.lastKick > 0.05) { pp.lastKick = now; freshKick = Math.min(1, (kickFlux - thr) / 0.2); }
+    }
+    if (pkSnare != null) {
+      const thr = robustThr(hist.snare, 2.6, 0.018);
+      if (snareFlux >= thr && now - pp.lastSnare > 0.05) { pp.lastSnare = now; freshSnare = Math.min(1, (snareFlux - thr) / 0.2); }
+    }
+    // Último pick sin decay: score del transiente confirmado más reciente
+    // (lo consumen shake/lógica por evento; los envelopes de render son otros).
+    if (freshOnset > 0) state.onsetEvt = freshOnset;
+    if (freshKick > 0) state.kickEvt = freshKick;
+    if (freshSnare > 0) state.snareEvt = freshSnare;
+    // onsetRate: densidad percusiva real (eventos/segundo en ventana de 2s).
+    const evt = state._evtTimes || (state._evtTimes = []);
+    if (freshOnset > 0 || freshKick > 0 || freshSnare > 0) evt.push(now);
+    while (evt.length && evt[0] < now - 2) evt.shift();
+    state.onsetRate = evt.length / 2;
     state.spectralFlux = Math.min(1, flux * 2.8);
-    const freshOnset = Math.min(1, onsetScore);
-    const freshKick = Math.min(1, kickScore);
-    const freshSnare = Math.min(1, snareScore);
     state.onset = Math.max(state.onset * 0.72, freshOnset);
     state.kick = Math.max(state.kick * 0.66, freshKick);
     state.snare = Math.max(state.snare * 0.66, freshSnare);

@@ -52,6 +52,7 @@ function simulate(name, pattern, seconds, fps) {
   const [mo, so] = stat(rec.onset), [mk, sk] = stat(rec.kick), [mh, sh] = stat(rec.hats), [me] = stat(rec.energy);
   console.log(name);
   console.log('  onset media=' + mo.toFixed(3) + ' sd=' + so.toFixed(3) + ' | kick media=' + mk.toFixed(3) + ' sd=' + sk.toFixed(3) + ' | hats media=' + mh.toFixed(3) + ' | energy media=' + me.toFixed(3));
+  console.log('  onsetRate=' + st.onsetRate.toFixed(1) + '/s tempoBpm=' + st.tempoBpm.toFixed(0));
   console.log('  => ratio senal (sd/media) onset=' + (so / mo).toFixed(2) + '  (<0.5 = aplanado)');
   return st;
 }
@@ -115,5 +116,6 @@ for (let i = 0; i < 240; i++) {
   const [mo, so] = stat(rec.onset), [mk, sk] = stat(rec.kick), [mh, sh] = stat(rec.hats), [me] = stat(rec.energy);
   console.log('DEATHCORE (muro sostenido + blast 16Hz) -- TU CASO');
   console.log('  onset media=' + mo.toFixed(3) + ' sd=' + so.toFixed(3) + ' | kick media=' + mk.toFixed(3) + ' sd=' + sk.toFixed(3) + ' | hats media=' + mh.toFixed(3) + ' sd=' + sh.toFixed(3) + ' | energy media=' + me.toFixed(3));
+  console.log('  onsetRate=' + st.onsetRate.toFixed(1) + '/s tempoBpm=' + st.tempoBpm.toFixed(0));
   console.log('  => ratio senal onset=' + (so / mo).toFixed(2) + ' kick=' + (sk / mk).toFixed(2) + ' hats=' + (sh / mh).toFixed(2));
 })();
