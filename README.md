@@ -1029,3 +1029,10 @@ JuegoDemo/
 - Ganancia adaptativa 1/(1+density/8): estilos espaciados conservan golpe pleno; blast beats se atenuan y el acento de downbeat lleva el pulso (sin estroboscopio).
 - Soft-knee en el alfa (lineal hasta 75% del tope, compresion exponencial encima): elimina el clip duro que saturaba ~45% de frames en deathcore.
 - Verificacion: tests/rhythm_diag_styles.js mide alpha real de render por perfil (deathcore: media 0.26, sd>=0.04, 0% saturados).
+
+### Bloque 4a - Jitter de enemigos escalonado y por banda espectral
+- NV.enemyRhythmBand(e): banda asignada estable por hash (sub 15%% / graves 35%% / medios 30%% / agudos 20%%), solo lectura, sin mutar al enemigo.
+- Cada enemigo reacciona a la envolvente de SU banda + transientes de su banda (kick/snare/hats), con umbral de participación individual 0.18-0.70 => percusión suave = muy pocos tiemblan; intensa = casi todos.
+- Fase individual por hash => nunca sincronizados; amplitudes heterogéneas (sd ~1.2px, 179 valores únicos en 300 enemigos).
+- 100%% visual: offsets solo en ctx.translate; colisiones siguen usando e.x/e.y reales.
+- Diagnóstico: tests/rhythm_diag_jitter.js (participantes: lofi 1%%, techno 76%%, deathcore 100%%; solo-agudos activa solo la banda agudos).

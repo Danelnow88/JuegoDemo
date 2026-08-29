@@ -41,14 +41,78 @@ t('temblor rítmico de enemigos es 100% visual: no muta posición/hitbox/datos',
   const ctx = mkCtx();
   const e = { x: 120, y: 80, radius: 14, color: '#fff', shape: 'dot', hp: 30, speed: 70, behavior: 'chase' };
   const before = JSON.stringify(e);
-  const rhythm = { enabled: true, state: 'listening', onset: 1, kick: 0.8, snare: 0.5, hats: 0.4, energy: 0.5 };
+  // Todas las bandas con energía: la banda asignada de este enemigo (hash) es
+  // cualquiera de las 4, y con señal plena en todas debe temblar con fuerza.
+  const rhythm = { enabled: true, state: 'listening', onset: 1, kick: 0.8, snare: 0.5, hats: 0.4, bass: 0.9, mids: 0.9, highs: 0.9, energy: 0.5 };
   NV.drawEnemy(ctx, e, 42, { x: 300, y: 80 }, rhythm);
   if (JSON.stringify(e) !== before) throw new Error('drawEnemy mutó datos de gameplay');
   const tr = ctx.translations[0];
   if (!tr || (tr.x === e.x && tr.y === e.y)) throw new Error('no hubo offset visual');
   if (Math.abs(tr.x - e.x) > 4.6 || Math.abs(tr.y - e.y) > 2.9) throw new Error('offset visual excesivo');
   if (!rhythm.jitterActive || !(rhythm.jitterAmp >= 2)) throw new Error('jitter imperceptible: amp=' + rhythm.jitterAmp);
+  if (!['sub', 'graves', 'medios', 'agudos'].includes(rhythm.jitterBand)) throw new Error('banda asignada inválida: ' + rhythm.jitterBand);
 });
+
+// ---- Bloque 4a: asignación de banda + participación escalonada ----
+t('distribución de bandas ~ 15/35/30/20 sobre población variada', () => {
+  const cnt = { sub: 0, graves: 0, medios: 0, agudos: 0 };
+  const N = 800;
+  for (let i = 0; i < N; i++) {
+    const e = { x: (i * 37) % 900, y: (i * 91) % 520, radius: 8 + (i % 5) * 2 };
+    cnt[NV.enemyRhythmBand(e)]++;
+  }
+  const p = Object.fromEntries(Object.entries(cnt).map(([k, v]) => [k, v / N]));
+  if (Math.abs(p.sub - 0.15) > 0.08 || Math.abs(p.graves - 0.35) > 0.08 || Math.abs(p.medios - 0.30) > 0.08 || Math.abs(p.agudos - 0.20) > 0.08) {
+    throw new Error('distribución fuera de tolerancia: ' + JSON.stringify(p));
+  }
+});
+
+t('participación escalonada: percusión suave => pocos enemigos, intensa => casi todos', () => {
+  const mk = (i) => ({ x: (i * 53) % 900, y: (i * 137) % 520, radius: 10, color: '#fff', shape: 'dot' });
+  const N = 300;
+  const measure = (rhythm) => {
+    let active = 0; const amps = [];
+    for (let i = 0; i < N; i++) {
+      const e = mk(i);
+      const ctx = mkCtx();
+      NV.drawEnemy(ctx, e, 12, null, rhythm);
+      const tr = ctx.translations[0];
+      if (tr && (tr.x !== e.x || tr.y !== e.y)) { active++; amps.push(Math.hypot(tr.x - e.x, tr.y - e.y)); }
+    }
+    return { active, amps };
+  };
+  const soft = measure({ enabled: true, state: 'listening', onset: 0.15, kick: 0.1, snare: 0.05, hats: 0.05, bass: 0.2, mids: 0.15, highs: 0.1, energy: 0.2 });
+  const hard = measure({ enabled: true, state: 'listening', onset: 0.9, kick: 0.9, snare: 0.8, hats: 0.8, bass: 0.9, mids: 0.8, highs: 0.8, energy: 0.7 });
+  const softShare = soft.active / N, hardShare = hard.active / N;
+  if (softShare > 0.35) throw new Error('percusión suave activa demasiados: ' + (softShare * 100).toFixed(1) + '%');
+  if (hardShare < 0.8) throw new Error('percusión intensa no activa a casi todos: ' + (hardShare * 100).toFixed(1) + '%');
+  // Amplitudes heterogéneas (sd > 0) y fases distintas (no todos idénticos).
+  const uniq = new Set(hard.amps.map((a) => a.toFixed(2)));
+  const m = hard.amps.reduce((a, b) => a + b, 0) / hard.amps.length;
+  const sd = Math.sqrt(hard.amps.reduce((a, b) => a + (b - m) ** 2, 0) / hard.amps.length);
+  if (uniq.size < 10) throw new Error('amplitudes casi uniformes: ' + uniq.size + ' valores únicos');
+  if (!(sd > 0.5)) throw new Error('sin heterogeneidad de amplitud: sd=' + sd.toFixed(3));
+});
+
+t('selectividad por banda: señal solo-agudos mueve a los agudos, no a los graves', () => {
+  const mk = (i) => ({ x: (i * 53) % 900, y: (i * 137) % 520, radius: 10, color: '#fff', shape: 'dot' });
+  const rhythm = { enabled: true, state: 'listening', onset: 0.2, kick: 0, snare: 0, hats: 0.95, bass: 0, mids: 0, highs: 0.95, energy: 0.4 };
+  let actAgudos = 0, nAgudos = 0, actGraves = 0, nGraves = 0;
+  for (let i = 0; i < 300; i++) {
+    const e = mk(i);
+    const band = NV.enemyRhythmBand(e);
+    const ctx = mkCtx();
+    NV.drawEnemy(ctx, e, 12, null, rhythm);
+    const tr = ctx.translations[0];
+    const active = !!(tr && (tr.x !== e.x || tr.y !== e.y));
+    if (band === 'agudos') { nAgudos++; if (active) actAgudos++; }
+    if (band === 'graves') { nGraves++; if (active) actGraves++; }
+  }
+  if (nAgudos < 30 || nGraves < 30) throw new Error('muestra insuficiente');
+  if (actGraves > nGraves * 0.1) throw new Error('enemigos de graves tiemblan con señal de agudos: ' + actGraves + '/' + nGraves);
+  if (actAgudos < nAgudos * 0.6) throw new Error('enemigos de agudos no responden: ' + actAgudos + '/' + nAgudos);
+});
+
 
 t('jitter inactivo sin rhythm habilitado o con música casi silenciosa', () => {
   const ctx = mkCtx();
