@@ -246,8 +246,17 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 
 ### Efectos de sonido (`sfx`)
 - `sfx.pickup()` — pickup genérico.
+- `sfx.consume(type)` — uso de consumible, con color tímbrico por tipo.
+- `sfx.shopBuy()` / `sfx.shopSell()` — compra y venta en tienda/inventario.
+- `sfx.fuse(level)` — fusión o mejora de arma.
+- `sfx.playerLevelUp()` / `sfx.levelup()` — subida de nivel del jugador (`levelup` queda como alias legacy).
+- `sfx.wheelSelect()` — selección/ciclado de arma o consumible.
 - `sfx.special()` — uso de habilidad especial.
 - `sfx.wave()` — inicio de oleada / victoria.
+- `sfx.waveEvent(eventKey)` — firma sonora de eventos Tanda C (`mines`, `fog`, `elites`, `payday`).
+- `sfx.combo(count)` — hook de combo que además alimenta capas adaptativas de música.
+- `sfx.countdown(sec)` — cuenta regresiva de los últimos 3 segundos en oleadas normales.
+- `sfx.victory(wave, opts)` — fanfarria genérica o grande en hitos/jefes.
 - `sfx.damage()` — game over / daño fatal.
 - `sfx.playerHit()` — daño no fatal al jugador (feedback negativo separado del game over).
 - `sfx.levelup()` — subida de nivel.
@@ -255,12 +264,14 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 - `sfx.heartbeat(intensity)` — pulso grave de HP crítico, conectado desde `game.js` con timer para no quedar sonando al recuperarse.
 - `sfx.bossAttack.<tipo>()` — sonido de ataque por cada tipo de jefe (`repeater`, `heavy`, `summon`, `spread`, `beam`, `volley`, `bomb`, `orbs`, `split`, `rage`).
 - `sfx.bossEnter()` y `sfx.bossPhaseShift()` — entrada del jefe y transición a FASE 2.
-- `playWeaponSound(weapon)` — sonido distinto por arma.
+- `playWeaponSound(weapon, opts)` — sonido distinto por arma, con anti-fatiga en SMG/railgun y paneo opcional.
+- `NV.panForX(x, worldWidth)` y `NV.setChannelVolume(channel, value)` — spatialización básica y volúmenes relativos por canal.
 
 ### Música synthwave
 - Generada proceduralmente con osciladores, filtros y ruido.
 - Estructura: kick + snare + hi-hat + bajo (sawtooth) + lead melódico.
 - `updateMusic(dt)` incrementa la intensidad según si hay jefe en pantalla.
+- `updateMusic(dt)` también tiene capas `menu`/`shop` propias y una capa extra ligera activada por combo.
 - Patrón de 16 steps (`DRUM_PATTERN`), acorde raíz rotativo (`CHORD_ROOTS`) y drone atmosférico continuo.
 
 ---
@@ -564,6 +575,20 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 - `sfx.playerHit()` se conecta a daño no fatal recibido por contacto enemigo y proyectiles enemigos; `sfx.damage()` queda reservado para game over.
 - Heartbeat crítico: `game.js` dispara `sfx.heartbeat(intensity)` solo cuando el HP está por debajo del 30%, con timer de pulso y reset inmediato al recuperarse para evitar loops residuales.
 - La muerte del jefe dispara `enemyDeath('boss')` además de la explosión visual y el cofre existente. Test nuevo `audio_combat_sfx` 7/7.
+
+### Audio Tarea 5 — UI/eventos/adaptativo/anti-fatiga/menú
+- SFX nuevos conectados: `consume`, `fuse`, `shopBuy`, `shopSell`, `playerLevelUp`, `wheelSelect`.
+- Eventos Tanda C con firma propia: Campo Minado, Neblina, Días de Élites y Día de Pago.
+- `sfx.combo(count)` actualiza `musicState.combo` para sumar una capa musical ligera de arpegio/hi-hat según racha.
+- `sfx.countdown(sec)` suena solo en los últimos 3 segundos de oleadas normales (no jefes).
+- `sfx.victory(wave, opts)` diferencia fanfarria genérica y fanfarria grande en hitos/jefes.
+- Anti-fatiga: SMG y Cañón de Riel aplican auto-atenuación leve cuando se disparan a cadencia sostenida.
+- Menú/tienda tienen ambiente musical propio (`menu`/`shop`), distinto de la oleada normal y de jefe.
+
+### Audio Tarea 6 — spatialización básica y volúmenes relativos
+- `playWeaponSound` y `enemyDeath` aceptan `{ x, worldWidth }`/`pan` para paneo estéreo básico con `StereoPannerNode` cuando está disponible.
+- Muertes de enemigos/jefes y disparos del jugador pasan posición horizontal desde `game.js`.
+- `NV.setChannelVolume(channel, value)` ajusta volumen relativo sobre los canales del mixer; `NV.masterVolume` queda expuesto para tests/futuros sliders.
 
 
 ### v52 — Tanda D1: nuevos consumibles
