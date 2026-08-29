@@ -24,9 +24,19 @@
     }
   };
 
-  NV.drawEnemy = function (ctx, e, frame, player) {
+  NV.drawEnemy = function (ctx, e, frame, player, rhythm) {
     ctx.save();
-    ctx.translate(e.x, e.y);
+    let rx = 0, ry = 0;
+    if (rhythm && rhythm.enabled && rhythm.state === 'listening') {
+      const pulse = Math.min(1, Math.max(0, (rhythm.onset || 0) * 0.55 + (rhythm.kick || 0) * 0.35 + (rhythm.snare || 0) * 0.25 + (rhythm.hats || 0) * 0.18));
+      if (pulse > 0.02) {
+        const seed = ((e.x || 0) * 12.9898 + (e.y || 0) * 78.233 + (e.radius || 1) * 37.719) % 6.28318;
+        const amp = Math.min(2.4, 0.35 + pulse * 2.15);
+        rx = Math.sin((frame || 0) * 0.57 + seed) * amp;
+        ry = Math.cos((frame || 0) * 0.49 + seed * 1.7) * amp * 0.62;
+      }
+    }
+    ctx.translate(e.x + rx, e.y + ry);
     ctx.fillStyle = e.color;
     ctx.shadowBlur = e.isElite ? 14 : 10;
     ctx.shadowColor = e.color;

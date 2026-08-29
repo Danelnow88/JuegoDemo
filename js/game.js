@@ -1547,7 +1547,7 @@
 
 
   function drawEnemy(e) {
-    NV.drawEnemy(ctx, e, frame, player);
+    NV.drawEnemy(ctx, e, frame, player, NV.rhythm);
   }
 
 

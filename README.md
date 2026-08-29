@@ -566,6 +566,11 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 - **Control de legibilidad**: sigue reutilizando el `shake` existente del juego con `Math.max`, sin sistema de cámara paralelo y sin vibrar por energía sostenida.
 - **Verificación concreta**: `tests/rhythm_onset.js` exige un impulso fuerte dentro de `[0.18, 0.26]`, cero durante cooldown y cero ante señal sostenida/onset viejo.
 
+### v62 — Temblor rítmico visual de enemigos
+- **100% decorativo**: `NV.drawEnemy(ctx,e,frame,player,rhythm)` aplica un offset local pequeño solo en `ctx.translate(e.x + rx, e.y + ry)`. No muta `e.x`, `e.y`, `radius`, HP, IA, velocidad ni ningún dato de gameplay.
+- **Colisiones intactas**: las hitboxes siguen usando los datos reales (`e.x/e.y/e.radius`) en los sistemas de balas, enemigos, armas y especiales; el temblor existe únicamente en render.
+- **Verificación concreta**: `tests/enemy_eyes.js` confirma no-mutación del enemigo, offset visual acotado y que `game.js` pasa `NV.rhythm` solo al render mientras `bullets.js` conserva colisión real.
+
 ### v54 — fixes de HUD y muerte (post-Tanda E)
 - **fix1**: game over por proyectil del jefe — el wrapper de `updateBullets` descartaba el flag `gameOver` retornado por el módulo, así que con BOTI la regen revivía al jugador en 0 HP durante peleas de jefe. Ahora el retorno se propaga.
 - **fix2**: combo de kills reubicado abajo-centro (se superponía con la barra/contador de oleada).
