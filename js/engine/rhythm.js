@@ -39,8 +39,8 @@
     _bassMean: 0,
     // Límites de seguridad (Bloque 3, "regla de oro"): el efecto NUNCA compite con
     // enemigos/balas/HUD. Se usan como tope duro de saturación y opacidad.
-    intensityCap: 0.35,
-    maxAlpha: 0.18,
+    intensityCap: 0.55,
+    maxAlpha: 0.32,
     onStateChange: null,     // callback para la UI (estado -> menú)
   };
 
@@ -234,12 +234,12 @@
   NV.drawRhythmLayer = function (ctx, w, h, frame) {
     const r = NV.rhythm;
     if (!r || !r.enabled || r.state !== 'listening') return;
-    const cap = r.intensityCap || 0.35;
+    const cap = r.intensityCap || 0.55;
     const energy = Math.min(cap, Math.max(0, r.energy || 0));
     const beat = Math.min(cap, Math.max(0, r.beat || 0));
     const bass = Math.min(cap, Math.max(0, r.bass || 0));
     const highs = Math.min(cap, Math.max(0, r.highs || 0));
-    const alpha = Math.min(r.maxAlpha || 0.18, 0.025 + energy * 0.28 + beat * 0.18);
+    const alpha = Math.min(r.maxAlpha || 0.32, 0.045 + energy * 0.42 + beat * 0.28);
     if (alpha <= 0.01) return;
 
     ctx.save();
@@ -248,17 +248,18 @@
     const cy = h * (0.5 + Math.cos((frame || 0) * 0.005) * 0.08);
     const rad = Math.max(w, h) * (0.55 + bass * 0.25 + beat * 0.18);
     const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, rad);
-    g.addColorStop(0, `rgba(124,248,255,${alpha})`);
-    g.addColorStop(0.45, `rgba(202,167,255,${alpha * (0.55 + highs)})`);
-    g.addColorStop(1, 'rgba(5,7,20,0)');
+    g.addColorStop(0, `rgba(78,232,255,${alpha})`);
+    g.addColorStop(0.38, `rgba(202,92,255,${alpha * (0.72 + highs * 0.35)})`);
+    g.addColorStop(0.7, `rgba(255,74,180,${alpha * 0.32})`);
+    g.addColorStop(1, 'rgba(1,3,13,0)');
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, w, h);
 
     // Pulso mínimo en bordes: comunica beat sin tapar proyectiles/enemigos.
     if (beat > 0.015) {
-      ctx.globalAlpha = Math.min(0.12, beat * 0.32);
-      ctx.strokeStyle = '#7cf8ff';
-      ctx.lineWidth = 2 + beat * 5;
+      ctx.globalAlpha = Math.min(0.22, beat * 0.42);
+      ctx.strokeStyle = '#4ee8ff';
+      ctx.lineWidth = 2 + beat * 7;
       ctx.strokeRect(6, 6, w - 12, h - 12);
     }
     ctx.restore();

@@ -63,13 +63,22 @@ t('drawRhythmLayer no dibuja si está apagado o sin listening', () => {
 t('drawRhythmLayer dibuja solo fondo sutil con alfa acotado', () => {
   const NV = loadNV();
   const ctx = mkCtx();
-  Object.assign(NV.rhythm, { enabled: true, state: 'listening', energy: 1, beat: 1, bass: 1, highs: 1, maxAlpha: 0.18, intensityCap: 0.35 });
+  Object.assign(NV.rhythm, { enabled: true, state: 'listening', energy: 1, beat: 1, bass: 1, highs: 1, maxAlpha: 0.32, intensityCap: 0.55 });
   NV.drawRhythmLayer(ctx, 900, 520, 10);
   if (!ctx.ops.includes('gradient')) throw new Error('sin gradiente');
   if (!ctx.ops.some((op) => Array.isArray(op) && op[0] === 'fillRect')) throw new Error('sin fill de fondo');
   const stroke = ctx.ops.find((op) => Array.isArray(op) && op[0] === 'strokeRect');
   if (!stroke) throw new Error('sin pulso de borde');
-  if (stroke[5] > 0.121) throw new Error('alfa invasivo: ' + stroke[5]);
+  if (stroke[5] > 0.221) throw new Error('alfa invasivo: ' + stroke[5]);
+  if (ctx._lineWidth > 6) throw new Error('borde demasiado grueso: ' + ctx._lineWidth);
+});
+
+t('game.js usa fondo galaxia mas oscuro para contraste sin aclarar combate', () => {
+  const g = fs.readFileSync('js/game.js', 'utf8');
+  if (!g.includes("ctx.fillStyle = '#01030d'")) throw new Error('fondo galaxia no aplicado');
+  const bg = g.indexOf("ctx.fillStyle = '#01030d'");
+  const star = g.indexOf('NV.drawStarfield(ctx, W, H, frame, player.x, player.y)', bg);
+  if (!(star > bg)) throw new Error('fondo no precede starfield');
 });
 
 t('game.js integra drawRhythmLayer después del starfield y antes de gameplay/HUD', () => {

@@ -533,6 +533,11 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 - **UI y persistencia**: panel en el menú con explicación clara de permisos y botones “Capturar pestaña”, “Usar micrófono”, “Detener”. Preferencia en `localStorage` bajo `neonVoidRhythm`, separada de `neonVoidMeta`.
 - **Tests**: `tests/external_audio_capture.js` (8/8) y `tests/rhythm_analysis_render.js` (7/7), más `node --check` de `game.js`, `dom.js` y `rhythm.js`.
 
+### v56 — Mayor contraste para visuales rítmicos
+- **Fondo de oleada más oscuro**: el clear base del canvas pasa de `#050714` a `#01030d` (azul-negro tipo galaxia) para aumentar contraste sin aclarar la zona de combate.
+- **Efecto reactivo más visible**: `js/engine/rhythm.js` sube topes seguros (`intensityCap: 0.55`, `maxAlpha: 0.32`), intensifica el gradiente radial con cian/violeta/rosa y eleva el pulso de borde hasta `0.22` de alfa máximo. Sigue dibujándose antes de enemigos/balas/HUD/FX de habilidades.
+- **Legibilidad protegida por tests**: `tests/rhythm_analysis_render.js` verifica orden de capa, fondo oscuro y límites del pulso para que el efecto siga siendo de fondo.
+
 ### v54 — fixes de HUD y muerte (post-Tanda E)
 - **fix1**: game over por proyectil del jefe — el wrapper de `updateBullets` descartaba el flag `gameOver` retornado por el módulo, así que con BOTI la regen revivía al jugador en 0 HP durante peleas de jefe. Ahora el retorno se propaga.
 - **fix2**: combo de kills reubicado abajo-centro (se superponía con la barra/contador de oleada).

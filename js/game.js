@@ -1255,7 +1255,9 @@
     resizeCanvas();
     ctx.setTransform(scaleX, 0, 0, scaleY, 0, 0);
 
-    ctx.fillStyle = '#050714';
+    // Fondo galaxia más oscuro: mejora el contraste de los visuales rítmicos
+    // sin aclarar el campo donde se leen enemigos, balas y HUD.
+    ctx.fillStyle = '#01030d';
     ctx.fillRect(0, 0, W, H);
     NV.drawStarfield(ctx, W, H, frame, player.x, player.y);
     if (NV.drawRhythmLayer) NV.drawRhythmLayer(ctx, W, H, frame);
