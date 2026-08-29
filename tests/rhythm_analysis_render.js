@@ -53,8 +53,11 @@ t('drawRhythmLayer cambia paleta por banda dominante y tempo mueve el centro', (
   NV.drawRhythmLayer(fast, 900, 520, 100);
   const lowColor = low.gradients[0].stops[0][1], highColor = high.gradients[0].stops[0][1];
   if (lowColor === highColor) throw new Error('paleta no cambia por dominancia');
-  if (!lowColor.includes('78,232,255')) throw new Error('paleta grave inesperada: ' + lowColor);
-  if (!highColor.includes('189,249,255')) throw new Error('paleta aguda inesperada: ' + highColor);
+  if (!lowColor.startsWith('hsla(') || !highColor.startsWith('hsla(')) throw new Error('paleta no usa hue dinámico');
+  const hueOf = (c) => Number((c.match(/hsla\((\d+)/) || [])[1]);
+  const lowHue = hueOf(lowColor), highHue = hueOf(highColor);
+  if (!(lowHue >= 0 && lowHue <= 360 && highHue >= 0 && highHue <= 360)) throw new Error('hue fuera de rango');
+  if (Math.abs(lowHue - highHue) < 35) throw new Error('hues demasiado parecidos: ' + lowHue + '/' + highHue);
   if (JSON.stringify(high.gradients[0].args.slice(0, 2)) === JSON.stringify(fast.gradients[0].args.slice(0, 2))) throw new Error('tempo no mueve el centro');
 });
 

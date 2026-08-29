@@ -317,13 +317,18 @@
     const lowDom = bass + kick * 0.8;
     const midDom = mids + snare * 0.65;
     const highDom = highs + hats * 0.75;
-    const palette = (highDom > lowDom && highDom > midDom)
-      ? { core: '#bdf9ff', mid: '#ff7adf', outer: '#4ee8ff', edge: '#bdf9ff' }
-      : (midDom > lowDom)
-        ? { core: '#d45cff', mid: '#ff4ab4', outer: '#7cf8ff', edge: '#ff7adf' }
-        : { core: '#4ee8ff', mid: '#7c5cff', outer: '#1d4dff', edge: '#4ee8ff' };
     const tempo = Math.max(60, Math.min(190, r.tempoBpm || 96));
     const tempoRate = tempo / 120;
+    const domSum = Math.max(0.001, lowDom + midDom + highDom);
+    // Hue armónico continuo: graves/medios/agudos empujan a zonas distintas,
+    // onset y tempo rotan suavemente. Saturación/luz controladas evitan combinaciones feas.
+    const hue = wrapHue((lowDom * 205 + midDom * 292 + highDom * 38) / domSum + onset * 42 + (tempo - 120) * 0.32);
+    const sat = Math.round(62 + Math.min(20, energy * 24 + onset * 10));
+    const light = Math.round(55 + Math.min(12, highs * 10 + onset * 8));
+    const coreColor = hsla(hue, sat, light + 8, alpha);
+    const midColor = hsla(hue + 34 + snare * 18, sat + 3, light + 2, alpha * (0.68 + highs * 0.32));
+    const outerColor = hsla(hue + 72 + hats * 20, Math.max(52, sat - 7), Math.max(42, light - 8), alpha * (0.28 + hats * 0.18));
+    const edgeColor = hsla(hue + 18, sat, Math.min(74, light + 10), 1);
 
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
@@ -332,9 +337,9 @@
     const cy = h * (0.5 + Math.cos(phase * 0.83) * (0.055 + midDom * 0.03));
     const rad = Math.max(w, h) * (0.52 + bass * 0.24 + beat * 0.16 + highDom * 0.08);
     const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, rad);
-    g.addColorStop(0, `rgba(${hexRgb(palette.core)},${alpha})`);
-    g.addColorStop(0.36, `rgba(${hexRgb(palette.mid)},${alpha * (0.68 + highs * 0.32)})`);
-    g.addColorStop(0.72, `rgba(${hexRgb(palette.outer)},${alpha * (0.28 + hats * 0.18)})`);
+    g.addColorStop(0, coreColor);
+    g.addColorStop(0.36, midColor);
+    g.addColorStop(0.72, outerColor);
     g.addColorStop(1, 'rgba(1,3,13,0)');
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, w, h);
@@ -342,17 +347,15 @@
     // Pulso mínimo en bordes: comunica beat sin tapar proyectiles/enemigos.
     if (beat > 0.015) {
       ctx.globalAlpha = Math.min(0.22, beat * 0.42);
-      ctx.strokeStyle = palette.edge;
+      ctx.strokeStyle = edgeColor;
       ctx.lineWidth = 2 + beat * 7;
       ctx.strokeRect(6, 6, w - 12, h - 12);
     }
     ctx.restore();
   };
 
-  function hexRgb(hex) {
-    const h = hex.charAt(0) === '#' ? hex.slice(1) : hex;
-    return `${parseInt(h.slice(0, 2), 16)},${parseInt(h.slice(2, 4), 16)},${parseInt(h.slice(4, 6), 16)}`;
-  }
+  function wrapHue(v) { return ((v % 360) + 360) % 360; }
+  function hsla(h, s, l, a) { return `hsla(${Math.round(wrapHue(h))},${Math.round(s)}%,${Math.round(l)}%,${Math.max(0, Math.min(1, a))})`; }
 
   // Alias público orientado a la feature: separa semánticamente esta captura externa
   // del audio synth/SFX interno del juego.

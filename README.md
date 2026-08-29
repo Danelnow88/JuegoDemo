@@ -576,6 +576,12 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 - **Partículas más pequeñas**: los radios base bajan para que el fondo se vea más fino y granular; la respuesta a graves/agudos se conserva pero con menor tamaño máximo.
 - **Verificación concreta**: `tests/ambient_fx.js` exige más de 140 partículas, radio promedio bajo, determinismo, parallax y diferenciación graves/agudos.
 
+### v64 — Paleta rítmica libre con armonía HSL
+- **Colores dinámicos sin paleta fija**: `NV.drawRhythmLayer` ahora deriva un hue continuo desde dominancia de graves/medios/agudos, onset y tempo. Ya no queda limitado a cian/violeta/rosa.
+- **Armonía controlada**: los stops usan relaciones análogas suaves (`hue`, `hue+34`, `hue+72`) con saturación/luminosidad acotadas para evitar combinaciones estridentes o feas.
+- **Legibilidad preservada**: alfa máximo, intensidad y orden de capa siguen acotados; la paleta ilumina el fondo sin competir con balas/enemigos/HUD.
+- **Verificación concreta**: `tests/rhythm_analysis_render.js` exige `hsla(...)`, hues distintos para perfiles musicales distintos, hue en rango y movimiento por tempo.
+
 ### v54 — fixes de HUD y muerte (post-Tanda E)
 - **fix1**: game over por proyectil del jefe — el wrapper de `updateBullets` descartaba el flag `gameOver` retornado por el módulo, así que con BOTI la regen revivía al jugador en 0 HP durante peleas de jefe. Ahora el retorno se propaga.
 - **fix2**: combo de kills reubicado abajo-centro (se superponía con la barra/contador de oleada).
