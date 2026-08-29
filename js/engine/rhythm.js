@@ -320,9 +320,13 @@
     const tempo = Math.max(60, Math.min(190, r.tempoBpm || 96));
     const tempoRate = tempo / 120;
     const domSum = Math.max(0.001, lowDom + midDom + highDom);
-    // Hue armónico continuo: graves/medios/agudos empujan a zonas distintas,
-    // onset y tempo rotan suavemente. Saturación/luz controladas evitan combinaciones feas.
-    const hue = wrapHue((lowDom * 205 + midDom * 292 + highDom * 38) / domSum + onset * 42 + (tempo - 120) * 0.32);
+    // Hue de espectro completo: dominancia al cuadrado (agudiza qué banda gana)
+    // y anclas separadas en la rueda (graves->cian, medios->amarillo/naranja,
+    // agudos->violeta/magenta) para variación clara y perceptible entre temas.
+    const lw = lowDom * lowDom, mw = midDom * midDom, hw = highDom * highDom;
+    const wSum = Math.max(0.0001, lw + mw + hw);
+    const hue = wrapHue((lw * 190 + mw * 55 + hw * 300) / wSum + onset * 36 + (tempo - 120) * 0.5);
+    r.hue = Math.round(hue); // expuesto para diagnóstico/logging en consola del navegador
     const sat = Math.round(62 + Math.min(20, energy * 24 + onset * 10));
     const light = Math.round(55 + Math.min(12, highs * 10 + onset * 8));
     const coreColor = hsla(hue, sat, light + 8, alpha);

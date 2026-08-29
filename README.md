@@ -998,3 +998,9 @@ JuegoDemo/
     │   └── special.js     # NV.useSpecial (habilidades: meteor/phase/bulwark/hivemind)
     └── game.js         # Motor restante (lógica, render, estado de entidades) — IIFE
 ```
+
+### v65 — Hue de espectro completo (fix variación perceptible)
+- **Diagnóstico medible**: `tests/rhythm_hue_diag.js` simula perfiles FFT sintéticos (graves/medios/agudos/balanceado) por el pipeline real e imprime bandas y hue. Antes: bass=198, mids=217 (casi iguales), highs=110 -> todo comprimido en azules/verdes (~110 grados de spread).
+- **Fix**: dominancia al cuadrado + anclas separadas en la rueda (graves->cian ~190, medios->amarillo/naranja ~55, agudos->violeta/magenta ~300), rotación suave por onset/tempo. Después: bass=171, mids=77, highs=258, balanceado=170 (spread ~181 grados).
+- **Exposición**: `NV.rhythm.hue` queda publicado por frame para log en consola del navegador.
+- **Verificación concreta**: `tests/rhythm_analysis_render.js` nuevo caso exige spread >= 150 entre perfiles, medios < 120 y agudos > 220.

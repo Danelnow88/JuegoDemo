@@ -70,6 +70,27 @@ t('rhythmTick lee AnalyserNode y actualiza energy', () => {
   if (!(NV.rhythm.energy > 0.4)) throw new Error('tick no analizó');
 });
 
+t('hue usa espectro completo: spread >= 150 entre perfiles de banda dominante', () => {
+  const NV = loadNV();
+  const profiles = {
+    bass:  { bass: 0.9, mids: 0.15, highs: 0.08, kick: 0.7, snare: 0, hats: 0 },
+    mids:  { bass: 0.2, mids: 0.85, highs: 0.18, kick: 0, snare: 0.6, hats: 0.1 },
+    highs: { bass: 0.12, mids: 0.19, highs: 0.9, kick: 0, snare: 0.1, hats: 0.7 },
+  };
+  const hues = {};
+  for (const [name, p] of Object.entries(profiles)) {
+    const ctx = mkCtx();
+    Object.assign(NV.rhythm, { enabled: true, state: 'listening', energy: 0.45, beat: 0.2, onset: 0, tempoBpm: 96, maxAlpha: 0.32, intensityCap: 0.55 }, p);
+    NV.drawRhythmLayer(ctx, 900, 520, 100);
+    hues[name] = Number((ctx.gradients[0].stops[0][1].match(/hsla\((\d+)/) || [])[1]);
+  }
+  const list = Object.values(hues);
+  const spread = Math.max(...list) - Math.min(...list);
+  if (spread < 150) throw new Error('hue comprimido: ' + JSON.stringify(hues) + ' spread=' + spread);
+  if (!(hues.mids < 120)) throw new Error('medios deberian caer en amarillo/naranja: ' + hues.mids);
+  if (!(hues.highs > 220)) throw new Error('agudos deberian caer en violeta/magenta: ' + hues.highs);
+});
+
 t('drawRhythmLayer no dibuja si está apagado o sin listening', () => {
   const NV = loadNV();
   const ctx = mkCtx();
