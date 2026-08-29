@@ -283,6 +283,7 @@
 
   // Impulso de screen-shake reactivo, reutilizable por game.js con su variable `shake`.
   // Usa SOLO onsets fuertes recientes y cooldown corto: energía sostenida no vibra.
+  // Capado para ser notorio pero no mareante ni perjudicar puntería/legibilidad.
   NV.rhythmShakeBoost = function (state, nowSec) {
     const r = state || NV.rhythm;
     if (!r || !r.enabled || r.state !== 'listening') return 0;
@@ -290,9 +291,9 @@
     if (now - (r.lastShakeAt || -99) < 0.18) return 0;
     if (now - (r.lastOnsetAt || -99) > 0.09) return 0;
     const hit = Math.max(r.kick || 0, (r.snare || 0) * 0.75, (r.onset || 0) * 0.65);
-    if (hit < 0.58) return 0;
+    if (hit < 0.5) return 0;
     r.lastShakeAt = now;
-    return Math.min(0.16, 0.035 + hit * 0.11);
+    return Math.min(0.26, 0.055 + hit * 0.18);
   };
 
   // Capa decorativa de fondo. Debe llamarse después del fondo/starfield y antes de

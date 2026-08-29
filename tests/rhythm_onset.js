@@ -62,7 +62,7 @@ t('shake reactivo solo aparece en onset fuerte y queda acotado', () => {
   const st = NV.rhythm;
   Object.assign(st, { enabled: true, state: 'listening', kick: 0.9, snare: 0.1, onset: 0.8, lastOnsetAt: 1.0, lastShakeAt: -99 });
   const boost = NV.rhythmShakeBoost(st, 1.03);
-  if (boost < 0.08 || boost > 0.16) throw new Error('boost fuera de rango: ' + boost);
+  if (boost < 0.18 || boost > 0.26) throw new Error('boost fuera de rango: ' + boost);
   const immediate = NV.rhythmShakeBoost(st, 1.08);
   if (immediate !== 0) throw new Error('cooldown no respetado: ' + immediate);
 });
