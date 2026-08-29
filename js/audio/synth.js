@@ -273,12 +273,28 @@
       }
     },
     pickup: () => playTone(1320, 0.12, 'square', 0.04, 'sfxUI'),
+    consume: (type) => {
+      const f = type === 'bomb' ? 180 : type === 'freeze' ? 520 : type === 'overdrive' ? 900 : type === 'bounty' ? 740 : 620;
+      duck('music', 0.42, 0.08);
+      playTone(f, 0.1, 'triangle', 0.045, 'sfxPlayer');
+      playTone(f * 1.5, 0.12, 'sine', 0.035, 'sfxUI');
+    },
+    fuse: (level) => {
+      duck('music', 0.28, 0.16);
+      playTone(440 + (level || 1) * 70, 0.12, 'triangle', 0.055, 'sfxUI');
+      playTone(880 + (level || 1) * 90, 0.18, 'square', 0.04, 'sfxAmbient');
+    },
+    shopBuy: () => { playTone(1040, 0.07, 'square', 0.04, 'sfxUI'); playTone(1560, 0.08, 'triangle', 0.025, 'sfxUI'); },
+    shopSell: () => { playTone(780, 0.08, 'triangle', 0.04, 'sfxUI'); playTone(520, 0.09, 'square', 0.03, 'sfxUI'); },
+    wheelSelect: () => playTone(1180, 0.045, 'square', 0.03, 'sfxUI'),
     damage: () => { duck('music', 0.2, 0.18); playTone(80, 0.15, 'square', 0.07, 'sfxPlayer'); },
     playerHit: () => { duck('music', 0.32, 0.12); playTone(135, 0.11, 'sawtooth', 0.075, 'sfxPlayer'); playTone(82, 0.18, 'triangle', 0.045, 'sfxPlayer'); },
     special: () => playTone(660, 0.4, 'triangle', 0.05, 'sfxPlayer'),
-    levelup: () => playTone(523, 0.1, 'square', 0.05, 'sfxUI'),
+    playerLevelUp: () => { duck('music', 0.3, 0.14); playTone(523, 0.1, 'square', 0.05, 'sfxUI'); playTone(784, 0.13, 'triangle', 0.04, 'sfxUI'); },
     wave: () => playTone(440, 0.3, 'triangle', 0.06, 'sfxUI'),
   };
+
+  sfx.levelup = () => sfx.playerLevelUp(); // alias legacy
 
   // SFX nuevos de la Tarea 1 (esqueleto: hooks de ducking para combo/victoria).
   sfx.combo = (count) => { duck('music', 0.35, 0.12); playTone(880 + (count * 40), 0.08, 'square', 0.05 + count * 0.008, 'sfxAmbient'); };

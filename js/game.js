@@ -213,7 +213,7 @@
       for (let i = 0; i < NV.consumSlotRects.length; i++) {
         const r = NV.consumSlotRects[i];
         if (mx >= r.x && mx <= r.x + r.w && my >= r.y && my <= r.y + r.h) {
-          if (consumSel !== i) { consumSel = i; sfx.pickup(); }
+          if (consumSel !== i) { consumSel = i; sfx.wheelSelect(); }
           return;
         }
       }
@@ -237,13 +237,13 @@
       if (e.code === 'KeyQ' && state === 'playing' && !paused) {
         // Cicla el consumible seleccionado (el resaltado en el HUD muestra cuál se usa con F).
         const groups = NV.groupConsumables(consumableItems);
-        if (groups.length) { consumSel = NV.cycleIndex(consumSel, groups.length, -1); sfx.pickup(); }
+        if (groups.length) { consumSel = NV.cycleIndex(consumSel, groups.length, -1); sfx.wheelSelect(); }
         e.preventDefault();
       }
       if (e.code === 'KeyE' && state === 'playing' && !paused) {
         // Cicla en sentido inverso al Q para poder movernos en ambos sentidos entre tipos.
         const groups = NV.groupConsumables(consumableItems);
-        if (groups.length) { consumSel = NV.cycleIndex(consumSel, groups.length, +1); sfx.pickup(); }
+        if (groups.length) { consumSel = NV.cycleIndex(consumSel, groups.length, +1); sfx.wheelSelect(); }
         e.preventDefault();
       }
       const digit = /^Digit([1-6])$/.exec(e.code);
@@ -274,7 +274,7 @@
       currentWeapon = inventory[index];
       addFloatText(W / 2, H / 2 - 40, 'EQUIPADO: ' + currentWeapon.name, RARITY_COLORS[currentWeapon.rarity]);
       updateHUD();
-      sfx.pickup();
+      sfx.wheelSelect();
     }
 
     // === CAMBIO DE ARMA CON LA RUEDA DEL MOUSE (pistola base + inventario, circular) ===
@@ -291,7 +291,7 @@
       currentWeapon = next;
       addFloatText(W / 2, H / 2 - 40, 'EQUIPADO: ' + currentWeapon.name, RARITY_COLORS[currentWeapon.rarity]);
       updateHUD();
-      sfx.pickup();
+      sfx.wheelSelect();
     }
 
     dom.sound.addEventListener('click', () => {
@@ -523,7 +523,7 @@
       triggerFlash('#ffd700');
     }
     triggerFlash('#7cf8ff');
-    sfx.pickup();
+    sfx.consume(item.type);
     updateHUD();
   }
 
@@ -622,7 +622,7 @@
           addFloatText(W / 2, H / 2, '+' + val + ' 💎', '#ffcf76');
           updateHUD();
           renderInventory();
-          sfx.pickup();
+          sfx.shopSell();
         });
         slot.appendChild(sellBtn);
       } else {
@@ -683,14 +683,16 @@
           if (canFuse) {
             weaponFus[w.id] = fus + 1;
             addFloatText(W / 2, H / 2, w.name + ' FUSIONADO → Nv' + (fus + 1), '#ffd700');
+            sfx.fuse(fus + 1);
           } else if (inventory.length < INVENTORY_SLOTS) {
             inventory.push(w);
             addFloatText(W/2, H/2, '¡' + w.name + '!', RARITY_COLORS[w.rarity]);
+            sfx.shopBuy();
           } else {
             currentWeapon = w;
             addFloatText(W/2, H/2, 'EQUIPADO: ' + w.name, RARITY_COLORS[w.rarity]);
+            sfx.shopBuy();
           }
-          sfx.pickup();
         },
       });
     });
@@ -787,7 +789,7 @@
           dom.shopShards.textContent = shards;
           generateOffers();
           updateHUD();
-          sfx.pickup();
+          if (!item.weapon) sfx.shopBuy();
         } else {
           addFloatText(W/2, H/2, "Fragmentos insuficientes", "#ff5f9b");
         }
@@ -1144,7 +1146,7 @@
   }
 
   function updateWeaponPickups(dt) {
-    const r = NV.updateWeaponPickups(dt, weaponPickups, player, inventory, INVENTORY_SLOTS, currentWeapon, addFloatText, RARITY_COLORS, sfx.pickup, tryWeaponFusion);
+    const r = NV.updateWeaponPickups(dt, weaponPickups, player, inventory, INVENTORY_SLOTS, currentWeapon, addFloatText, RARITY_COLORS, sfx, tryWeaponFusion);
     weaponPickups = r.weaponPickups;
     if (currentWeapon !== r.currentWeapon) currentWeapon = r.currentWeapon;
   }

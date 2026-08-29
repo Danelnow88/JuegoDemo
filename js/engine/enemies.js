@@ -76,7 +76,7 @@
       st.player.maxHp += 10;
       st.player.hp = Math.min(st.player.hp + 20, st.player.maxHp);
       st.addFloatText(st.player.x, st.player.y - 50, 'LEVEL UP!', '#ff0');
-      st.sfx.levelup();
+      (st.sfx.playerLevelUp || st.sfx.levelup)();
       st.triggerFlash('#ff0');
     }
     // El arma equipada gana XP por derribos y sube de nivel.
@@ -86,7 +86,7 @@
     if (st.weaponKills[wid] >= st.WEAPON_KILLS_PER_LEVEL * curLevel) {
       st.weaponLevels[wid] = curLevel + 1;
       st.addFloatText(st.player.x, st.player.y - 40, st.currentWeapon.name + ' → Nv ' + (curLevel + 1), '#ffd700');
-      st.sfx.levelup();
+      (st.sfx.fuse || st.sfx.levelup)(curLevel + 1);
     }
     st.spawnExplosion(e.x, e.y, 8, e.color, 0.3);
     if (e.isElite) {

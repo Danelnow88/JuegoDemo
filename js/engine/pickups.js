@@ -40,6 +40,15 @@
   // devuelve { weaponPickups, currentWeapon } (currentWeapon reasignado por el wrapper si cambió)
   // tryFusion(weapon) => { fused, level } | { maxed } | { owned:false }; retrocompatible si no se pasa.
   NV.updateWeaponPickups = function (dt, weaponPickups, player, inventory, INVENTORY_SLOTS, currentWeapon, addFloatText, RARITY_COLORS, pickupSfx, tryFusion) {
+    const playPickup = () => {
+      if (!pickupSfx) return;
+      if (typeof pickupSfx === 'function') pickupSfx();
+      else if (pickupSfx.pickup) pickupSfx.pickup();
+    };
+    const playFuse = (level) => {
+      if (pickupSfx && pickupSfx.fuse) pickupSfx.fuse(level);
+      else playPickup();
+    };
     for (const wp of weaponPickups) {
       if (wp.dead) continue;
       const d = Math.hypot(wp.x - player.x, wp.y - player.y);
@@ -49,7 +58,7 @@
           if (r && r.fused) {
             wp.dead = true;
             addFloatText(wp.x, wp.y - 10, 'FUSIÓN Nv' + r.level, '#ffd700');
-            pickupSfx();
+            playFuse(r.level);
             continue;
           }
           if (r && r.maxed) {
@@ -66,7 +75,7 @@
           wp.dead = true;
           inventory.push(wp.weapon);
           addFloatText(wp.x, wp.y - 10, 'GUARDADO', '#ffcf76');
-          pickupSfx();
+          playPickup();
         } else {
           // Inventario lleno: NO se recoge NI se auto-equipa.
           if (!wp.fullMsg || wp.fullMsg <= 0) {
