@@ -320,12 +320,21 @@
     const tempo = Math.max(60, Math.min(190, r.tempoBpm || 96));
     const tempoRate = tempo / 120;
     const domSum = Math.max(0.001, lowDom + midDom + highDom);
-    // Hue de espectro completo: dominancia al cuadrado (agudiza qué banda gana)
-    // y anclas separadas en la rueda (graves->cian, medios->amarillo/naranja,
-    // agudos->violeta/magenta) para variación clara y perceptible entre temas.
-    const lw = lowDom * lowDom, mw = midDom * midDom, hw = highDom * highDom;
-    const wSum = Math.max(0.0001, lw + mw + hw);
-    const hue = wrapHue((lw * 190 + mw * 55 + hw * 300) / wSum + onset * 36 + (tempo - 120) * 0.5);
+    // Hue por BANDA DOMINANTE (argmax), no promedio: la mezcla lineal colapsaba
+    // en 143-201 (verde/cian) con mezclas realistas. Cada familia tiene su hue,
+    // con transición parcial hacia la secundaria + deriva temporal lenta para
+    // recorrer toda la rueda. `NV.rhythm.forceHue` permite fijar colores puros
+    // (0=rojo, 60=amarillo, 120=verde, 180=cian, 240=azul, 300=magenta) para
+    // verificación visual directa.
+    const lw = lowDom, mw = midDom, hw = highDom;
+    const entries = [[lw, 205], [mw, 55], [hw, 320]].sort((a, b) => b[0] - a[0]);
+    let baseHue = entries[0][1];
+    const total = Math.max(0.001, lw + mw + hw);
+    const secondShare = entries[1][0] / total; // influencia de la banda secundaria
+    baseHue += (entries[1][1] - baseHue) * Math.min(0.45, secondShare * 0.6);
+    let hue = baseHue + (frame || 0) * 0.25 + onset * 30 + (tempo - 120) * 0.4; // deriva lenta ~1 ciclo/24s
+    if (r.forceHue != null) hue = r.forceHue;
+    hue = wrapHue(hue);
     r.hue = Math.round(hue); // expuesto para diagnóstico/logging en consola del navegador
     const sat = Math.round(62 + Math.min(20, energy * 24 + onset * 10));
     const light = Math.round(55 + Math.min(12, highs * 10 + onset * 8));

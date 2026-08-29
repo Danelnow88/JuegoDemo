@@ -28,12 +28,24 @@
     ctx.save();
     let rx = 0, ry = 0;
     if (rhythm && rhythm.enabled && rhythm.state === 'listening') {
+      // Temblor visible pero estético: base por energía sostenida + refuerzo en golpes.
+      // SOLO offsets locales de render: nunca toca e.x/e.y/hitbox/datos de gameplay.
       const pulse = Math.min(1, Math.max(0, (rhythm.onset || 0) * 0.55 + (rhythm.kick || 0) * 0.35 + (rhythm.snare || 0) * 0.25 + (rhythm.hats || 0) * 0.18));
-      if (pulse > 0.02) {
+      const energyBase = Math.min(1, (rhythm.energy || 0) * 1.6);
+      if (pulse > 0.015 || energyBase > 0.12) {
         const seed = ((e.x || 0) * 12.9898 + (e.y || 0) * 78.233 + (e.radius || 1) * 37.719) % 6.28318;
-        const amp = Math.min(2.4, 0.35 + pulse * 2.15);
-        rx = Math.sin((frame || 0) * 0.57 + seed) * amp;
-        ry = Math.cos((frame || 0) * 0.49 + seed * 1.7) * amp * 0.62;
+        // Amplitud perceptible: hasta ~4.5px en golpes, ~1.5px con energía sostenida.
+        const amp = Math.min(4.5, 0.8 + energyBase * 1.4 + pulse * 3.6);
+        // Oscilación ~3Hz (antes ~5.5Hz: aliasing temporal lo hacía invisible).
+        const fr = (frame || 0) * 0.31;
+        rx = Math.sin(fr + seed) * amp;
+        ry = Math.cos(fr * 0.87 + seed * 1.7) * amp * 0.62;
+        // Expuesto para diagnóstico/verificación en consola.
+        rhythm.jitterAmp = Math.round(Math.hypot(rx, ry) * 100) / 100;
+        rhythm.jitterActive = true;
+      } else {
+        rhythm.jitterActive = false;
+        rhythm.jitterAmp = 0;
       }
     }
     ctx.translate(e.x + rx, e.y + ry);

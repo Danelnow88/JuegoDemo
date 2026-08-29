@@ -41,11 +41,23 @@ t('temblor rítmico de enemigos es 100% visual: no muta posición/hitbox/datos',
   const ctx = mkCtx();
   const e = { x: 120, y: 80, radius: 14, color: '#fff', shape: 'dot', hp: 30, speed: 70, behavior: 'chase' };
   const before = JSON.stringify(e);
-  NV.drawEnemy(ctx, e, 42, { x: 300, y: 80 }, { enabled: true, state: 'listening', onset: 1, kick: 0.8, snare: 0.5, hats: 0.4 });
+  const rhythm = { enabled: true, state: 'listening', onset: 1, kick: 0.8, snare: 0.5, hats: 0.4, energy: 0.5 };
+  NV.drawEnemy(ctx, e, 42, { x: 300, y: 80 }, rhythm);
   if (JSON.stringify(e) !== before) throw new Error('drawEnemy mutó datos de gameplay');
   const tr = ctx.translations[0];
   if (!tr || (tr.x === e.x && tr.y === e.y)) throw new Error('no hubo offset visual');
-  if (Math.abs(tr.x - e.x) > 2.5 || Math.abs(tr.y - e.y) > 1.6) throw new Error('offset visual excesivo');
+  if (Math.abs(tr.x - e.x) > 4.6 || Math.abs(tr.y - e.y) > 2.9) throw new Error('offset visual excesivo');
+  if (!rhythm.jitterActive || !(rhythm.jitterAmp >= 2)) throw new Error('jitter imperceptible: amp=' + rhythm.jitterAmp);
+});
+
+t('jitter inactivo sin rhythm habilitado o con música casi silenciosa', () => {
+  const ctx = mkCtx();
+  const rhythmOff = { enabled: false, state: 'listening', onset: 1, kick: 1, energy: 1 };
+  NV.drawEnemy(ctx, { x: 0, y: 0, radius: 10, color: '#fff', shape: 'dot' }, 0, null, rhythmOff);
+  if (rhythmOff.jitterActive) throw new Error('jitter activo con rhythm apagado');
+  const rhythmQuiet = { enabled: true, state: 'listening', onset: 0, kick: 0, snare: 0, hats: 0, energy: 0.02 };
+  NV.drawEnemy(ctx, { x: 0, y: 0, radius: 10, color: '#fff', shape: 'dot' }, 0, null, rhythmQuiet);
+  if (rhythmQuiet.jitterActive) throw new Error('jitter activo con música silenciosa');
 });
 
 t('game.js pasa rhythm solo al render de enemigo y colisiones siguen usando e.x/e.y', () => {

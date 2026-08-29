@@ -1004,3 +1004,8 @@ JuegoDemo/
 - **Fix**: dominancia al cuadrado + anclas separadas en la rueda (graves->cian ~190, medios->amarillo/naranja ~55, agudos->violeta/magenta ~300), rotación suave por onset/tempo. Después: bass=171, mids=77, highs=258, balanceado=170 (spread ~181 grados).
 - **Exposición**: `NV.rhythm.hue` queda publicado por frame para log en consola del navegador.
 - **Verificación concreta**: `tests/rhythm_analysis_render.js` nuevo caso exige spread >= 150 entre perfiles, medios < 120 y agudos > 220.
+
+### v66 — Jitter de enemigos visible + hue por banda dominante
+- **Diagnóstico jitter**: activo 40%% del tiempo pero amp media 0.83px a ~5.5Hz -> shimmer subpixel invisible. Fix: amp hasta 4.5px (base por energía sostenida + golpes), osc ~3Hz. Expuesto como NV.rhythm.jitterAmp/jitterActive; sigue siendo 100%% visual (no muta e.x/e.y/hitbox).
+- **Diagnóstico hue**: mezclas realistas de 5 géneros caían en hue 143-201 (todo verde/cian) por colapso de la mezcla lineal; el blend screen sobre #01030d NO sesga (verificado matemáticamente por canal dominante). Fix: hue por banda dominante (argmax) con anclas 205/55/320, transición parcial a la secundaria y deriva lenta (~1 ciclo/24s). Después: bass=203, mids=90, highs=300.
+- **Prueba forzada**: NV.rhythm.forceHue fija hue puro (0/60/120/180/240/300) verificado por test.

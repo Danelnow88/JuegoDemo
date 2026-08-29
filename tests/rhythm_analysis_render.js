@@ -80,16 +80,29 @@ t('hue usa espectro completo: spread >= 150 entre perfiles de banda dominante', 
   const hues = {};
   for (const [name, p] of Object.entries(profiles)) {
     const ctx = mkCtx();
-    Object.assign(NV.rhythm, { enabled: true, state: 'listening', energy: 0.45, beat: 0.2, onset: 0, tempoBpm: 96, maxAlpha: 0.32, intensityCap: 0.55 }, p);
-    NV.drawRhythmLayer(ctx, 900, 520, 100);
+    Object.assign(NV.rhythm, { enabled: true, state: 'listening', energy: 0.45, beat: 0.2, onset: 0, tempoBpm: 96, maxAlpha: 0.32, intensityCap: 0.55, forceHue: null }, p);
+    NV.drawRhythmLayer(ctx, 900, 520, 0); // frame 0: sin deriva temporal, aísla el efecto de dominancia
     hues[name] = Number((ctx.gradients[0].stops[0][1].match(/hsla\((\d+)/) || [])[1]);
   }
   const list = Object.values(hues);
   const spread = Math.max(...list) - Math.min(...list);
   if (spread < 150) throw new Error('hue comprimido: ' + JSON.stringify(hues) + ' spread=' + spread);
   if (!(hues.mids < 120)) throw new Error('medios deberian caer en amarillo/naranja: ' + hues.mids);
-  if (!(hues.highs > 220)) throw new Error('agudos deberian caer en violeta/magenta: ' + hues.highs);
+  if (!(hues.highs > 250)) throw new Error('agudos deberian caer en violeta/magenta: ' + hues.highs);
+  if (!(hues.bass > 140 && hues.bass < 260)) throw new Error('graves deberian caer en cian/azul: ' + hues.bass);
 });
+
+t('forceHue fija el color exactamente (verificacion de colores puros)', () => {
+  const NV = loadNV();
+  for (const fh of [0, 60, 120, 240, 300]) {
+    const ctx = mkCtx();
+    Object.assign(NV.rhythm, { enabled: true, state: 'listening', energy: 0.45, beat: 0.2, bass: 0.8, mids: 0.1, highs: 0.05, onset: 0, tempoBpm: 96, forceHue: fh });
+    NV.drawRhythmLayer(ctx, 900, 520, 777);
+    const hue = Number((ctx.gradients[0].stops[0][1].match(/hsla\((\d+)/) || [])[1]);
+    if (hue !== fh) throw new Error('forceHue=' + fh + ' no respeto el hue: ' + hue);
+  }
+});
+
 
 t('drawRhythmLayer no dibuja si está apagado o sin listening', () => {
   const NV = loadNV();
