@@ -38,12 +38,11 @@
     thresholdRel: 1.35,      // energía de graves vs. media móvil para disparar beat
     // Internos de suavizado / detección.
     _bassHist: null,
-    _bassMean: 0,
+    _hist: null,             // historias móviles para umbrales robustos + AGC
     _prevBands: null,
-    _fluxMean: 0,
-    _kickFluxMean: 0,
-    _snareFluxMean: 0,
     _onsetTimes: null,
+    energyRaw: 0,            // energía cruda pre-AGC (diagnóstico en consola)
+    dynRange: 0,             // rango dinámico observable P95-P10 (diagnóstico)
     // Límites de seguridad (Bloque 3, "regla de oro"): el efecto NUNCA compite con
     // enemigos/balas/HUD. Se usan como tope duro de saturación y opacidad.
     intensityCap: 0.55,
@@ -60,6 +59,7 @@
   }
 
   NV.rhythm = freshState();
+  NV.rhythmFreshState = freshState; // expuesto para tests/diagnóstico (estado limpio por perfil)
 
   // ---------- persistencia (mismo patrón que neonVoidMeta) ----------
   function savePref() {
@@ -106,6 +106,46 @@
     return n ? (sum / n) / 255 : 0;
   }
   function posFlux(now, prev) { return Math.max(0, (now || 0) - (prev || 0)); }
+  // ---------- Bloque 1: estadística robusta + AGC ----------
+  const HIST_LEN = 240; // ~4s a 60fps
+  function pushHist(h, v) { h.push(v); if (h.length > HIST_LEN) h.shift(); }
+  function pct(arr, p) {
+    if (!arr.length) return 0;
+    const s = arr.slice().sort((a, b) => a - b);
+    return s[Math.min(s.length - 1, Math.max(0, Math.round((s.length - 1) * p)))];
+  }
+  // Umbral robusto: mediana + k·MAD. La media móvil EMA se contaminaba con los
+  // propios golpes detectados (en música densa la media sube hasta absorber los
+  // transientes => contraste colapsa, sd/media ~0.6). Mediana+MAD no se deja
+  // arrastrar por los picos: el umbral se queda cerca del "silencio relativo"
+  // aunque la pista tenga 16 golpes/segundo.
+  function robustThr(hist, k, floor) {
+    if (hist.length < 24) return floor;
+    const med = pct(hist, 0.5);
+    const dev = hist.map((v) => Math.abs(v - med)).sort((a, b) => a - b);
+    const mad = dev[Math.floor(dev.length / 2)] * 1.4826;
+    return Math.max(floor, med * 1.12, med + k * mad);
+  }
+  // AGC de energía: normaliza contra el rango dinámico REAL de la pista.
+  // Mapeo mediana->0.5 con half-range P95-P05: los percentiles extremos tipo
+  // P10 fallan cuando la distribución está sesgada (en deathcore el muro está
+  // activo >90% del tiempo y P10 cae DENTRO de la masa central => energy~0).
+  // Con mediana como ancla, "energía" = posición relativa dentro del rango del
+  // propio tema. Se preserva parte del volumen absoluto (factor `loud`) para
+  // no borrar la diferencia perceptual suave/fuerte entre géneros.
+  function agcEnergy(state, hist) {
+    state.energyRaw = state.energy;
+    pushHist(hist.energy, state.energy);
+    if (hist.energy.length < 30) return;
+    const p05 = pct(hist.energy, 0.05);
+    const p95 = pct(hist.energy, 0.95);
+    const med = pct(hist.energy, 0.5);
+    state.dynRange = Math.max(0, p95 - p05);
+    const half = Math.max(0.035, state.dynRange / 2);
+    const loud = Math.min(1, state.energyRaw * 2.5);
+    const norm = Math.max(0, Math.min(1, 0.5 + (state.energyRaw - med) / (2 * half)));
+    state.energy = norm * (0.45 + 0.55 * loud);
+  }
   function pushTempoBeat(state, nowSec) {
     if (!nowSec) return;
     state._onsetTimes.push(nowSec);
@@ -131,18 +171,19 @@
     state.mids = bandEnergy(data, loMid, hiMid);
     state.highs = bandEnergy(data, loHi, hiHi);
     state.energy = state.bass * 0.4 + state.mids * 0.35 + state.highs * 0.25;
+    const hist = state._hist || (state._hist = { flux: [], kick: [], snare: [], energy: [], bass: [] });
+    agcEnergy(state, hist);
     const prev = state._prevBands || { bass: 0, mids: 0, highs: 0, kick: 0, snare: 0, hats: 0 };
     const kickFlux = posFlux(kickBand, prev.kick);
     const snareFlux = posFlux(snareBand, prev.snare);
     const highFlux = posFlux(hatBand, prev.hats);
     const flux = kickFlux * 0.48 + snareFlux * 0.34 + highFlux * 0.18;
-    state._fluxMean += (flux - state._fluxMean) * 0.075;
-    state._kickFluxMean += (kickFlux - state._kickFluxMean) * 0.075;
-    state._snareFluxMean += (snareFlux - state._snareFluxMean) * 0.075;
+    pushHist(hist.flux, flux); pushHist(hist.kick, kickFlux); pushHist(hist.snare, snareFlux);
+    // Umbrales robustos (mediana + k·MAD) en lugar de EMA: ver nota en robustThr.
     const onsetFloor = 0.018;
-    const onsetScore = Math.max(0, flux - Math.max(onsetFloor, state._fluxMean * 1.65)) / 0.22;
-    const kickScore = Math.max(0, kickFlux - Math.max(0.018, state._kickFluxMean * 1.7)) / 0.2;
-    const snareScore = Math.max(0, snareFlux - Math.max(0.018, state._snareFluxMean * 1.65)) / 0.2;
+    const onsetScore = Math.max(0, flux - robustThr(hist.flux, 2.6, onsetFloor)) / 0.22;
+    const kickScore = Math.max(0, kickFlux - robustThr(hist.kick, 2.8, 0.018)) / 0.2;
+    const snareScore = Math.max(0, snareFlux - robustThr(hist.snare, 2.6, 0.018)) / 0.2;
     state.spectralFlux = Math.min(1, flux * 2.8);
     const freshOnset = Math.min(1, onsetScore);
     const freshKick = Math.min(1, kickScore);
@@ -151,13 +192,16 @@
     state.kick = Math.max(state.kick * 0.66, freshKick);
     state.snare = Math.max(state.snare * 0.66, freshSnare);
     state.hats = Math.max(state.hats * 0.82, Math.min(1, highFlux * 4));
-    // Línea de base: media móvil exponencial de graves (para no disparar por ruido).
-    state._bassMean += (state.bass - state._bassMean) * 0.1;
+    // Línea de base robusta de graves (P55 móvil) para el beat: la EMA previa era
+    // arrastrada hacia arriba por un muro de graves sostenido hasta anular el
+    // contraste entre golpe y fondo.
+    pushHist(hist.bass, state.bass);
     state.peak = Math.max(state.peak * 0.96, state.energy);
     // Beat: los graves superan la línea de base por el umbral.
-    const thr = (state._bassMean || 0.001) * state.thresholdRel;
+    const bassBase = Math.max(0.001, pct(hist.bass, 0.55));
+    const thr = Math.max(0.02, bassBase * state.thresholdRel);
     if (state.bass > thr && state.bass > 0.02) {
-      state.beat = Math.max(state.kick, Math.min(1, state.bass / (Math.max(0.05, state._bassMean) * 1.8)));
+      state.beat = Math.max(state.kick, Math.min(1, state.bass / (Math.max(0.05, bassBase) * 1.8)));
       state.lastBeatAt = nowSec || 0;
     } else if ((nowSec || 0) - state.lastBeatAt > 0.25) {
       state.beat = Math.max(0, state.beat - 0.06);

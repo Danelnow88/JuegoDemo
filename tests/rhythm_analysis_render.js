@@ -104,6 +104,61 @@ t('forceHue fija el color exactamente (verificacion de colores puros)', () => {
 });
 
 
+
+// ---- Bloque 1: AGC + umbrales robustos (regresión deathcore) ----
+function blastFrames(t) { // muro sostenido (medios/agudos altos) + blast 16Hz
+  if (t < 2) return null;
+  const ph = (t - 2) % 0.0625;
+  const dec = Math.exp(-ph * 22);
+  const k = Math.floor((t - 2) / 0.0625) % 2 === 0;
+  const bands = k ? [[1, 12, 220], [80, 128, 150], [15, 128, 150]] : [[15, 46, 190], [80, 128, 150], [15, 128, 150]];
+  return { dec, bands };
+}
+
+t('AGC: energia normalizada conserva respiracion con master comprimido (deathcore)', () => {
+  const NV = loadNV();
+  const st = NV.rhythmFreshState();
+  const LEN = 128;
+  let t = 0; const vals = [];
+  for (let f = 0; f < 600; f++) {
+    t += 1 / 60;
+    const d = new Uint8Array(LEN);
+    d.fill(0);
+    for (let i = 15; i < LEN; i++) d[i] = 170;
+    for (let i = 1; i < 12; i++) d[i] = 60;
+    const h = blastFrames(t);
+    if (h) for (const b of h.bands) for (let i = b[0]; i < b[1]; i++) d[i] = Math.min(255, Math.max(d[i], Math.round(80 + b[2] * h.dec)));
+    NV.rhythmAnalyze(st, d, t);
+    if (t > 6) vals.push(st.energy);
+  }
+  const m = vals.reduce((a, b) => a + b, 0) / vals.length;
+  const min = Math.min(...vals), max = Math.max(...vals);
+  if (m < 0.2 || m > 0.95) throw new Error('energia fuera de rango util: ' + m.toFixed(3));
+  if (max - min < 0.3) throw new Error('sin respiracion dinamica: spread=' + (max - min).toFixed(3));
+  if (!(st.dynRange > 0.1)) throw new Error('dynRange colapsado: ' + st.dynRange.toFixed(3));
+  if (!(st.energyRaw > 0.4)) throw new Error('energyRaw no refleja el master denso: ' + st.energyRaw.toFixed(3));
+});
+
+t('umbrales robustos: transientes conservan contraste bajo densidad extrema', () => {
+  const NV = loadNV();
+  const st = NV.rhythmFreshState();
+  const LEN = 128;
+  let t = 0; const onsets = [];
+  for (let f = 0; f < 600; f++) {
+    t += 1 / 60;
+    const d = new Uint8Array(LEN);
+    for (let i = 15; i < LEN; i++) d[i] = 170;
+    for (let i = 1; i < 12; i++) d[i] = 60;
+    const h = blastFrames(t);
+    if (h) for (const b of h.bands) for (let i = b[0]; i < b[1]; i++) d[i] = Math.min(255, Math.max(d[i], Math.round(80 + b[2] * h.dec)));
+    NV.rhythmAnalyze(st, d, t);
+    if (t > 6) onsets.push(st.onset);
+  }
+  const max = Math.max(...onsets), min = Math.min(...onsets);
+  if (max < 0.45) throw new Error('golpes no detectados en blast: max=' + max.toFixed(3));
+  if (min > 0.35) throw new Error('sin contraste entre golpes (todo al tope): min=' + min.toFixed(3));
+});
+
 t('drawRhythmLayer no dibuja si está apagado o sin listening', () => {
   const NV = loadNV();
   const ctx = mkCtx();

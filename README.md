@@ -321,6 +321,12 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 
 ## 🕒 Timeline / versionado
 
+### v59 — Bloque 1: AGC + umbrales robustos (anti-aplanado deathcore)
+- **Diagnóstico**: con master muy comprimido (deathcore, blast beats) la energía cruda quedaba 5x por encima de otros estilos y clavaba el render al tope; las medias móviles EMA de los umbrales se contaminaban con los propios golpes detectados y colapsaban el contraste de transientes (sd/media ~0.63).
+- **Umbrales robustos**: detección de onset/kick/snare ahora usa mediana + k·MAD sobre ventana móvil de ~4s (inmune a los picos que ella misma detecta).
+- **AGC de energía**: normalización contra el rango dinámico real de la pista (mediana→0.5, half-range P95-P05), preservando parte del volumen absoluto. Publica `energyRaw` y `dynRange` para diagnóstico.
+- **Verificación**: tests de regresión en `rhythm_analysis_render.js` (respiración AGC + contraste bajo blast); diagnóstico numérico por estilo en `tests/rhythm_diag_styles.js`.
+
 ### v1 — Base del juego
 - Motor completo con Canvas, estados `menu / playing / shop / gameover`.
 - 4 personajes con habilidades especiales distintas (meteor, phase, bulwark, hivemind).
