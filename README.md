@@ -595,6 +595,7 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 - `playWeaponSound` y `enemyDeath` aceptan `{ x, worldWidth }`/`pan` para paneo estéreo básico con `StereoPannerNode` cuando está disponible.
 - Muertes de enemigos/jefes y disparos del jugador pasan posición horizontal desde `game.js`.
 - `NV.setChannelVolume(channel, value)` ajusta volumen relativo sobre los canales del mixer; `NV.masterVolume` queda expuesto para tests/futuros sliders.
+- **Mezcla/balance (disparos vs. música)**: la percusión y todas las capas pasan por el canal `music` (duckable); al disparar se aplica ducking real de la música; EQ leve por canal (`music` lowpass 6.2kHz para recortar la banda del crack, `sfxPlayer` highshelf/lowshelf para reforzar crack y punch) y `sfxPlayer` por encima de `music` en el mixer.
 
 ### Audio Rework v2 — disparos realistas + música con carácter (bloques 1-3)
 - **Bloque 1 · Disparos por categoría**: nueva cadena `playGunshot(config)` (crack de ruido blanco alto-pass + cuerpo marrón bajo-pass + punch sine grave con caída de pitch). Armás realistas (pistol, rifle, smg, shotgun, sniper, flamethrower, railgun) usan tiro real sin contenido melódico; futuristas (laser, plasma) conservan identidad synth con cuerpo ruidoso; `bow` intermedio orgánico. Anti-fatiga de cadencia intacto.

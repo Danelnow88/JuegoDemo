@@ -70,9 +70,20 @@
   //  - sfxPlayer:    disparos, habilidad, recibir daño, heartbeat
   //  - sfxEnemies:   muerte de enemigos, ataques de jefe
   //  - sfxAmbient:   eventos de Tanda C, cofres, combos
-  const CHANNELS = { music:0.6, sfxUI:0.7, sfxPlayer:0.9, sfxEnemies:0.8, sfxAmbient:0.6 };
+  const CHANNELS = { music:0.45, sfxUI:0.7, sfxPlayer:1.0, sfxEnemies:0.8, sfxAmbient:0.6 };
   // Volubilidad maestra por canal (0..1), configurable futuro -> sliders.
   const MASTER_VOLUME = { music:1, sfxUI:1, sfxPlayer:1, sfxEnemies:1, sfxAmbient:1 };
+  // EQ leve por canal para separar espectros y evitar enmascaramiento con disparos:
+  //  - music:        lowpass → recorta agudos altos (banda del crack del disparo).
+  //  - sfxPlayer:    highshelf/lowshelf → refuerza crack (agudo) y punch (grave).
+  // Aplica sobre el canal completo (música de oleada vs. todos los SFX de jugador).
+  const CHANNEL_EQ = {
+    music: [{ type:'lowpass', freq:6200, q:0.7 }],
+    sfxPlayer: [
+      { type:'highshelf', freq:6000, gain:5 },
+      { type:'lowshelf', freq:170, gain:4 },
+    ],
+  };
 
   // Ducking: un canal puede ser atenuado temporalmente por un evento de otro canal.
   // Usado por SFX importantes (daño, victoria, combo) para bajar la música.
@@ -87,7 +98,20 @@
     for (const ch in CHANNELS) {
       const g = ctx.createGain();
       g.gain.value = CHANNELS[ch];
-      g.connect(ctx.destination);
+      let node = g;
+      const eqs = CHANNEL_EQ[ch];
+      if (eqs) {
+        for (const spec of eqs) {
+          const f = ctx.createBiquadFilter();
+          f.type = spec.type;
+          if (f.frequency) f.frequency.value = spec.freq;
+          if (f.Q && spec.q != null) f.Q.value = spec.q;
+          if (f.gain && spec.gain !== undefined) f.gain.value = spec.gain;
+          node.connect(f);
+          node = f;
+        }
+      }
+      node.connect(ctx.destination);
       mixer[ch] = g;
     }
     NV.mixer = mixer;
@@ -333,7 +357,7 @@
     filter.frequency.setValueAtTime(type === 'kick' ? 150 : 4000, t);
     gain.gain.setValueAtTime(vol || 0.04, t);
     gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
-    osc.connect(filter); filter.connect(gain); gain.connect(NV.audioCtx.destination);
+    osc.connect(filter); filter.connect(gain); gain.connect(channelFor('music'));
     osc.start(t); osc.stop(t + dur);
   }
   // Ruido blanco con tiempo de arranque explícito (reutiliza el buffer de scheduleNoise).
@@ -352,7 +376,7 @@
     filter.frequency.setValueAtTime(1500, t);
     gain.gain.setValueAtTime(vol || 0.04, t);
     gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
-    src.connect(filter); filter.connect(gain); gain.connect(ctx.destination);
+    src.connect(filter); filter.connect(gain); gain.connect(channelFor('music'));
     src.start(t); src.stop(t + dur);
   }
   // Nota con textura sucia: 3 osciladores desintonizados + saturación por ganancia.
@@ -723,6 +747,13 @@
   function playWeaponSound(weapon, opts) {
     if (!NV.soundOn) return;
     opts = opts || {};
+    // Ducking de música por disparo: baja la música brevemente para que el tiro
+    // no compita a volumen pleno. Duración según cadencia (rápidas= corto).
+    if (weapon && NV.mixer) {
+      const d = (weapon.id === 'sniper' || weapon.id === 'railgun') ? 0.28
+        : (weapon.id === 'smg' ? 0.09 : (weapon.id === 'shotgun' ? 0.16 : 0.13));
+      duck('music', 0.3, d);
+    }
     const fus = opts.fusion > 0 ? 1 + opts.fusion * 0.05 : 1; // pitch ↑ +5% por nivel de fusión
     const vol = (opts.crit ? 1.15 : 1) * (opts.fusion ? 1 + opts.fusion * 0.03 : 1);
     const base = { channel: opts.channel, pan: opts.pan, x: opts.x, worldWidth: opts.worldWidth };
