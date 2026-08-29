@@ -416,6 +416,7 @@
       if (ev) {
         showBanner('⚠ ' + ev.name, ev.color);
         triggerFlash(ev.color);
+        sfx.waveEvent(waveEvent);
       } else {
         showBanner('OLEADA ' + wave, '#7cf8ff');
         triggerFlash('#7cf8ff');

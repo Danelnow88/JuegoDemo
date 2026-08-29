@@ -296,6 +296,27 @@
 
   sfx.levelup = () => sfx.playerLevelUp(); // alias legacy
 
+  // Eventos Tanda C: cada modificador de oleada tiene una firma breve e identificable.
+  sfx.waveEvent = (eventKey) => {
+    if (eventKey === 'mines') {
+      duck('music', 0.38, 0.18);
+      playTone(95, 0.18, 'sawtooth', 0.075, 'sfxAmbient');
+      scheduleNoise(0.16, 0.05);
+    } else if (eventKey === 'fog') {
+      duck('music', 0.45, 0.12);
+      playTone(260, 0.45, 'sine', 0.045, 'sfxAmbient');
+      playTone(195, 0.55, 'triangle', 0.03, 'sfxAmbient');
+    } else if (eventKey === 'elites') {
+      duck('music', 0.32, 0.16);
+      playTone(330, 0.14, 'square', 0.055, 'sfxAmbient');
+      playTone(660, 0.14, 'square', 0.04, 'sfxAmbient');
+    } else if (eventKey === 'payday') {
+      playTone(880, 0.09, 'triangle', 0.045, 'sfxUI');
+      playTone(1320, 0.1, 'square', 0.04, 'sfxUI');
+      playTone(1760, 0.12, 'triangle', 0.035, 'sfxUI');
+    }
+  };
+
   // SFX nuevos de la Tarea 1 (esqueleto: hooks de ducking para combo/victoria).
   sfx.combo = (count) => { duck('music', 0.35, 0.12); playTone(880 + (count * 40), 0.08, 'square', 0.05 + count * 0.008, 'sfxAmbient'); };
   sfx.heartbeat = (intensity) => { playTone(120, 0.3, 'sine', 0.03 + intensity * 0.12, 'sfxPlayer'); };
