@@ -194,6 +194,8 @@
       st.showBanner('¡FASE 2! ' + boss.name, '#ff5f9b');
       st.triggerFlash('#ff5f9b');
       shake = Math.max(shake, 0.8);
+      // Firma sonora de transición de fase (Tarea 3, idea 6): distinta del bossEnter.
+      if (st.sfx && st.sfx.bossPhaseShift) st.sfx.bossPhaseShift();
     }
     if (boss.phase2) {
       boss.atkTimer = (boss.atkTimer || 0) + dt * 1.4; // ataques notablemente más frecuentes en FASE 2

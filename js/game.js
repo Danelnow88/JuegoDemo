@@ -379,6 +379,7 @@
     transition = 0; paused = false; showStats = false;
     specialVFX = null; NV.musicTime = 0;
     NV.musicState.step = 0; NV.musicState.lastBeat = 0; NV.musicState.intensity = 0;
+    NV.musicState.phase = 'normal'; NV.musicState.combo = 0; // reset de identidad sonora (Tarea 3)
 
     resizeCanvas();
     nextWave();
@@ -403,6 +404,9 @@
       showBanner('¡' + bt.name + '!', bt.color);
       triggerFlash(bt.color);
       spawnExplosion(boss.x, boss.y, 40, boss.color, 1);
+      // Identidad sonora de jefe (Tarea 3): SFX de entrada + música cambia a la capa 'boss'
+      // en el próximo step de updateMusic (sin corte audible, ver synth.js updateMusic).
+      sfx.bossEnter();
     } else {
       boss = null;
       // waveEvent ya calculado antes de la duración (ver arriba); el banner lo lee aquí.

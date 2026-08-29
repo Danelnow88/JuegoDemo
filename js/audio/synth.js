@@ -26,6 +26,25 @@
     [1,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1], // Hi-hat
   ];
 
+  // === Identidad sonora de jefe (Tarea 3) ===
+  // Capa musical distinta y más oscura/tensa: raíces una octava abajo, progresión
+  // más disonante y percusión más densa (más presión rítmica en pelea de jefe).
+  const BOSS_CHORD_ROOTS = [49.00, 55.00, 61.74, 73.42]; // G1 - A1 - B1 - D2 (grave y tenso)
+  const BOSS_BASS_LINE = [49.00, 61.74, 55.00, 73.42];
+  const BOSS_LEAD_SEQ = [220.00, 246.94, 261.63, 293.66, 329.63, 293.66, 261.63, 246.94];
+  const BOSS_DRUM_PATTERN = [
+    [1,0,1,0, 1,1,0,0, 1,0,1,0, 1,1,0,0], // Kick más denso (doble golpe en el 2do compás)
+    [0,0,0,0, 1,0,0,1, 0,0,0,0, 1,0,0,1], // Snare con contratiempo extra
+    [1,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1], // Hi-hat (mismo pulso)
+  ];
+  // Lookup de capas por fase. 'shop'/'menu' caen a 'normal' hasta que se les
+  // asigne identidad propia (Tarea 5 - ambiente de menú).
+  const MUSIC_LAYERS = {
+    normal: { chordRoots: CHORD_ROOTS, bass: BASS_LINE, lead: LEAD_SEQ, drums: DRUM_PATTERN },
+    boss: { chordRoots: BOSS_CHORD_ROOTS, bass: BOSS_BASS_LINE, lead: BOSS_LEAD_SEQ, drums: BOSS_DRUM_PATTERN },
+  };
+  function currentLayers() { return MUSIC_LAYERS[NV.musicState.phase] || MUSIC_LAYERS.normal; }
+
   function initMusic() {
     if (!NV.audioCtx) NV.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   }
@@ -168,6 +187,12 @@
   }
   function updateMusic(dt) {
     if (!NV.audioCtx || !NV.soundOn || NV.getState() !== 'playing') return;
+    // Sincroniza la fase de música con la presencia de jefe (Tarea 3: identidad
+    // sonora de jefe). El cambio de capa ocurre en el próximo step, nunca a mitad
+    // de nota, así que no hay glitch/corte audible al entrar o salir de fase boss.
+    const wantPhase = NV.getBoss() ? 'boss' : (NV.musicState.phase === 'shop' || NV.musicState.phase === 'menu' ? NV.musicState.phase : 'normal');
+    if (wantPhase !== NV.musicState.phase) NV.musicState.phase = wantPhase;
+    const layers = currentLayers();
     NV.musicTime += dt * (1 + NV.musicState.intensity * 0.6);
     const stepDur = 0.12;
     NV.musicState.intensity = Math.min(1, NV.musicState.intensity + (NV.getBoss() ? 0.02 : -0.015) * dt);
@@ -176,25 +201,25 @@
       NV.musicState.step = (NV.musicState.step + 1) % 16;
       const step = NV.musicState.step;
       // Kick (808 punch)
-      if (DRUM_PATTERN[0][step]) scheduleDrum('kick', 0.1, 0.1 + NV.musicState.intensity * 0.05);
+      if (layers.drums[0][step]) scheduleDrum('kick', 0.1, 0.1 + NV.musicState.intensity * 0.05);
       // Snare (808 clap)
-      if (DRUM_PATTERN[1][step]) scheduleDrum('noise', 0.15, 0.06 + NV.musicState.intensity * 0.03);
+      if (layers.drums[1][step]) scheduleDrum('noise', 0.15, 0.06 + NV.musicState.intensity * 0.03);
       // Hi-hats
-      if (DRUM_PATTERN[2][step]) scheduleNote('square', 8000 + (step % 3) * 3000, 0.03, 0.02 + NV.musicState.intensity * 0.015);
+      if (layers.drums[2][step]) scheduleNote('square', 8000 + (step % 3) * 3000, 0.03, 0.02 + NV.musicState.intensity * 0.015);
       // Bajo cada 4 steps (subby sawtooth)
       if (step % 4 === 0) {
-        const bassIdx = Math.floor(step / 4) % BASS_LINE.length;
-        scheduleNote('sawtooth', BASS_LINE[bassIdx], 0.2, 0.05 + NV.musicState.intensity * 0.02);
+        const bassIdx = Math.floor(step / 4) % layers.bass.length;
+        scheduleNote('sawtooth', layers.bass[bassIdx], 0.2, 0.05 + NV.musicState.intensity * 0.02);
       }
       // Lead melódico (guitarra synth) → solo cada 8 steps
       if (step % 8 === 0 || (NV.musicState.intensity > 0.7 && step % 4 === 0)) {
-        const note = LEAD_SEQ[Math.floor(step / 2) % LEAD_SEQ.length];
+        const note = layers.lead[Math.floor(step / 2) % layers.lead.length];
         scheduleNote('sawtooth', note, 0.25, 0.04 + NV.musicState.intensity * 0.02);
       }
     }
         // Drone atmosférico continuo (loop)
     if (NV.getFrame() % 120 === 0) {
-      const droneFreq = CHORD_ROOTS[Math.floor(NV.getFrame() / 120) % CHORD_ROOTS.length] * 4;
+      const droneFreq = layers.chordRoots[Math.floor(NV.getFrame() / 120) % layers.chordRoots.length] * 4;
       createDrone(droneFreq, NV.audioCtx.currentTime, 2.5);
     }
 
@@ -244,6 +269,14 @@
   sfx.countdown = (sec) => { playTone(660 - sec * 60, 0.12, 'square', 0.04, 'sfxAmbient'); };
   sfx.bossEnter = () => { duck('music', 0.1, 0.4); playTone(90, 0.6, 'sawtooth', 0.12, 'sfxEnemies'); };
   sfx.victory = (wave) => { duck('music', 0.25, 0.2); playTone(660, 0.2, 'triangle', 0.06, 'sfxUI'); };
+  // Firma sonora de transición de fase de jefe (Tarea 3, idea 6): golpe grave + swell
+  // ascendente distinto del bossEnter, para que "entró en fase 2" se sienta único.
+  sfx.bossPhaseShift = () => {
+    duck('music', 0.15, 0.35);
+    playTone(70, 0.35, 'sawtooth', 0.13, 'sfxEnemies');
+    playToneEx(220, 0.4, 'sawtooth', 0.07, { channel: 'sfxEnemies', detune: 0 });
+    scheduleNoise(0.3, 0.06);
+  };
 
   // Sonido distintivo por tipo de arma
   // opts?: { crit, fusion, channel } → variación de timbre/pitch (Tarea 1).
