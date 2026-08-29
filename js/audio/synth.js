@@ -193,7 +193,8 @@
     const wantPhase = NV.getBoss() ? 'boss' : (NV.musicState.phase === 'shop' || NV.musicState.phase === 'menu' ? NV.musicState.phase : 'normal');
     if (wantPhase !== NV.musicState.phase) NV.musicState.phase = wantPhase;
     const layers = currentLayers();
-    NV.musicTime += dt * (1 + NV.musicState.intensity * 0.6);
+    const comboLayer = Math.min(1, (NV.musicState.combo || 0) / 20);
+    NV.musicTime += dt * (1 + NV.musicState.intensity * 0.6 + comboLayer * 0.18);
     const stepDur = 0.12;
     NV.musicState.intensity = Math.min(1, NV.musicState.intensity + (NV.getBoss() ? 0.02 : -0.015) * dt);
     if (NV.musicTime - NV.musicState.lastBeat >= stepDur) {
@@ -205,7 +206,13 @@
       // Snare (808 clap)
       if (layers.drums[1][step]) scheduleDrum('noise', 0.15, 0.06 + NV.musicState.intensity * 0.03);
       // Hi-hats
-      if (layers.drums[2][step]) scheduleNote('square', 8000 + (step % 3) * 3000, 0.03, 0.02 + NV.musicState.intensity * 0.015);
+      if (layers.drums[2][step]) scheduleNote('square', 8000 + (step % 3) * 3000, 0.03, 0.02 + NV.musicState.intensity * 0.015 + comboLayer * 0.012);
+      // Capa extra por combo: arpegio fino en contratiempos, aparece progresivamente
+      // sin cambiar la base de la oleada.
+      if (comboLayer > 0.25 && step % 2 === 1) {
+        const note = layers.lead[(step + Math.floor(NV.musicState.combo || 0)) % layers.lead.length] * 2;
+        scheduleNote('triangle', note, 0.06, 0.012 + comboLayer * 0.018);
+      }
       // Bajo cada 4 steps (subby sawtooth)
       if (step % 4 === 0) {
         const bassIdx = Math.floor(step / 4) % layers.bass.length;
@@ -214,7 +221,7 @@
       // Lead melódico (guitarra synth) → solo cada 8 steps
       if (step % 8 === 0 || (NV.musicState.intensity > 0.7 && step % 4 === 0)) {
         const note = layers.lead[Math.floor(step / 2) % layers.lead.length];
-        scheduleNote('sawtooth', note, 0.25, 0.04 + NV.musicState.intensity * 0.02);
+        scheduleNote('sawtooth', note, 0.25, 0.04 + NV.musicState.intensity * 0.02 + comboLayer * 0.012);
       }
     }
         // Drone atmosférico continuo (loop)
@@ -318,11 +325,26 @@
   };
 
   // SFX nuevos de la Tarea 1 (esqueleto: hooks de ducking para combo/victoria).
-  sfx.combo = (count) => { duck('music', 0.35, 0.12); playTone(880 + (count * 40), 0.08, 'square', 0.05 + count * 0.008, 'sfxAmbient'); };
+  sfx.combo = (count) => {
+    NV.musicState.combo = Math.max(NV.musicState.combo || 0, count || 0);
+    duck('music', 0.35, 0.12);
+    playTone(880 + (count * 40), 0.08, 'square', 0.05 + count * 0.008, 'sfxAmbient');
+  };
   sfx.heartbeat = (intensity) => { playTone(120, 0.3, 'sine', 0.03 + intensity * 0.12, 'sfxPlayer'); };
   sfx.countdown = (sec) => { playTone(660 - sec * 60, 0.12, 'square', 0.04, 'sfxAmbient'); };
   sfx.bossEnter = () => { duck('music', 0.1, 0.4); playTone(90, 0.6, 'sawtooth', 0.12, 'sfxEnemies'); };
-  sfx.victory = (wave) => { duck('music', 0.25, 0.2); playTone(660, 0.2, 'triangle', 0.06, 'sfxUI'); };
+  sfx.victory = (wave, opts) => {
+    opts = opts || {};
+    const big = !!opts.milestone || (wave && (wave % 25 === 0 || wave % 10 === 0 || wave % 5 === 0));
+    duck('music', big ? 0.12 : 0.25, big ? 0.38 : 0.2);
+    playTone(660, 0.16, 'triangle', 0.055, 'sfxUI');
+    playTone(880, 0.18, 'triangle', 0.05, 'sfxUI');
+    if (big) {
+      playTone(523, 0.26, 'sawtooth', 0.07, 'sfxUI');
+      playTone(1046, 0.32, 'square', 0.05, 'sfxAmbient');
+      scheduleNoise(0.22, 0.035);
+    }
+  };
   // Firma sonora de transición de fase de jefe (Tarea 3, idea 6): golpe grave + swell
   // ascendente distinto del bossEnter, para que "entró en fase 2" se sienta único.
   sfx.bossPhaseShift = () => {

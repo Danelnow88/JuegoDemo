@@ -85,6 +85,7 @@
   let currentWeapon = WEAPONS[0], fireTimer = 0;
   let killCombo = { count: 0, timer: 0 }; // combo de kills (E1)
   let heartbeatTimer = 0, heartbeatWasCritical = false;
+  let countdownLastSecond = 0;
   // Cadencia determinista (en segundos). fireRate se interpreta como frames a ~60fps.
   const FIRE_FPS = NV.BALANCE.FIRE_FPS;                 // frames por segundo asumidos en fireRate
   const MIN_FIRE_INTERVAL = NV.BALANCE.MIN_FIRE_INTERVAL; // ~0.0667s -> máx ~15 disparos/s (piso anti-congestión)
@@ -371,7 +372,7 @@
     waveEvent = null;
     shopBought = {};
     killCombo = { count: 0, timer: 0 };
-    heartbeatTimer = 0; heartbeatWasCritical = false;
+    heartbeatTimer = 0; heartbeatWasCritical = false; countdownLastSecond = 0;
     enemies = []; bullets = []; particles = []; pickups = [];
     floatTexts = []; trails = []; weaponPickups = []; bossChests = [];
     inventory = []; currentWeapon = WEAPONS[0]; consumableItems = [];
@@ -422,6 +423,7 @@
         triggerFlash('#7cf8ff');
       }
     }
+    countdownLastSecond = 0;
     sfx.wave();
     updateHUD();
   }
@@ -459,7 +461,7 @@
       spawnExplosion(W / 2, H / 2, 35, '#caa7ff', 0.8);
       showBanner('⭐ ¡OLEADA ' + wave + ' COMPLETA! 💎', '#7cf8ff');
     }
-    sfx.wave();
+    sfx.victory(wave, { milestone: isBoss || wave % 5 === 0 || wave % 10 === 0 || wave % 25 === 0 });
   }
 
   function triggerFlash(color) {
@@ -912,6 +914,7 @@
     }
     if (player.bounty > 0) { player.bounty -= dt; if (player.bounty <= 0) player.bounty = 0; }
     NV.comboTick(killCombo, dt);
+    NV.musicState.combo = killCombo.count;
     if (player.specialCd > 0) player.specialCd -= dt;
 
     fireTimer -= dt;
@@ -944,6 +947,15 @@
     }
 
         waveTimer -= dt;
+        if (!boss && waveTimer > 0 && waveTimer <= 3.1) {
+          const sec = Math.ceil(waveTimer);
+          if (sec !== countdownLastSecond && sec >= 1 && sec <= 3) {
+            countdownLastSecond = sec;
+            sfx.countdown(sec);
+          }
+        } else if (waveTimer > 3.1 || boss) {
+          countdownLastSecond = 0;
+        }
     }
     // Fin de oleada (sin jefe): se evalúa ANTES del countdown de transición para
     // evitar que abrir la tienda re-dispare la victoria en el mismo frame.
@@ -1054,6 +1066,7 @@
     const cb = NV.comboOnKill(killCombo);
     score += cb.bonusScore;
     if (cb.gemBonus) shards += cb.gemBonus;
+    if (cb.count >= 3) sfx.combo(cb.count);
     if (cb.count >= 3) addFloatText(e.x, e.y - 25, 'COMBO x' + cb.count + (cb.milestone ? ' 💎+1' : ''), '#ffd700');
   }
 
