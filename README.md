@@ -544,6 +544,12 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 - **Tempo estimado**: los onsets frescos (no el tail suavizado visual) alimentan una ventana corta de tiempos para estimar BPM aproximado.
 - **Verificación concreta**: `tests/rhythm_onset.js` prueba señal sostenida vs transientes kick/snare y pulsos regulares (~120 BPM). Resultado esperado: sostenido no dispara percusión; transientes sí.
 
+### v58 — Bloque 2: starfield reactivo por bandas
+- **Sin sistema nuevo**: se extiende `NV.drawStarfield(ctx,W,H,frame,px,py,rhythm)` para que el campo existente responda a `NV.rhythm`; no se crean arrays ni partículas nuevas.
+- **Diferenciación visual**: graves/kick agrandan y hacen pulsar estrellas; agudos/hats aumentan chispa, micro-deriva y cambian el color hacia cian claro/rosa. El parallax determinista se mantiene.
+- **Integración**: `game.js` pasa `NV.rhythm` a `drawStarfield` antes de `drawRhythmLayer`, conservando el orden de capas de fondo.
+- **Verificación concreta**: `tests/ambient_fx.js` compara perfiles sintéticos de graves vs agudos y exige distinto tamaño/color/posición con la misma cantidad de estrellas; `rhythm_analysis_render` confirma el orden.
+
 ### v54 — fixes de HUD y muerte (post-Tanda E)
 - **fix1**: game over por proyectil del jefe — el wrapper de `updateBullets` descartaba el flag `gameOver` retornado por el módulo, así que con BOTI la regen revivía al jugador en 0 HP durante peleas de jefe. Ahora el retorno se propaga.
 - **fix2**: combo de kills reubicado abajo-centro (se superponía con la barra/contador de oleada).

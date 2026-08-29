@@ -2,8 +2,8 @@
 const fs = require('fs'), vm = require('vm');
 let pass = 0, fail = 0;
 function t(desc, fn) { try { fn(); pass++; console.log('  ok  ' + desc); } catch (e) { fail++; console.log('  FAIL ' + desc + ' -> ' + e.message); } }
-function mkCtx() { return { arcs: [], beginPath(){}, arc(x,y){this.arcs.push([x,y]);}, fill(){},
-  set globalAlpha(v){ this.a=v; }, get globalAlpha(){ return this.a; }, set fillStyle(v){} }; }
+function mkCtx() { return { arcs: [], beginPath(){}, arc(x,y,r){this.arcs.push([x,y,r,this.a,this.fs]);}, fill(){},
+  set globalAlpha(v){ this.a=v; }, get globalAlpha(){ return this.a; }, set fillStyle(v){ this.fs=v; }, get fillStyle(){ return this.fs; } }; }
 
 const sbx = {}; sbx.window = { NV: {} }; sbx.console = console; sbx.Math = Math; sbx.document = { getElementById: () => ({ getContext: () => mkCtx() }) };
 vm.createContext(sbx);
@@ -38,8 +38,19 @@ t('parallax: capas se desplazan a distinta velocidad', () => {
 
 t('game.js dibuja el starfield con la posición del jugador', () => {
   const g = fs.readFileSync('js/game.js', 'utf8');
-  if (!g.includes('NV.drawStarfield(ctx, W, H, frame, player.x, player.y)')) throw new Error('no conectado');
+  if (!g.includes('NV.drawStarfield(ctx, W, H, frame, player.x, player.y, NV.rhythm)')) throw new Error('no conectado');
   if (!g.includes("spawnExplosion(player.x - (player.moveVx || 0)")) throw new Error('polvo de slide ausente');
+});
+
+t('starfield reacciona distinto a graves vs agudos sin crear partículas nuevas', () => {
+  const bass = mkCtx(), highs = mkCtx();
+  NV.drawStarfield(bass, 800, 600, 12, 0, 0, { enabled: true, state: 'listening', bass: 0.8, kick: 0.8, highs: 0, hats: 0, onset: 0.2 });
+  NV.drawStarfield(highs, 800, 600, 12, 0, 0, { enabled: true, state: 'listening', bass: 0, kick: 0, highs: 0.9, hats: 0.9, onset: 0.2 });
+  if (bass.arcs.length !== highs.arcs.length) throw new Error('cantidad de estrellas cambió');
+  const avgR = (arr) => arr.reduce((s, a) => s + a[2], 0) / arr.length;
+  if (!(avgR(bass.arcs) > avgR(highs.arcs) * 1.08)) throw new Error('graves no agrandan estrellas');
+  if (JSON.stringify(bass.arcs.map(a => [a[0], a[1]])) === JSON.stringify(highs.arcs.map(a => [a[0], a[1]]))) throw new Error('agudos no modifican deriva/chispa');
+  if (!highs.arcs.some(a => a[4] === '#ff7adf' || a[4] === '#bdf9ff')) throw new Error('agudos no cambian brillo/color');
 });
 
 console.log('RESULT ambient_fx: pass=' + pass + ' fail=' + fail);

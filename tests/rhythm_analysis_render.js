@@ -77,13 +77,13 @@ t('game.js usa fondo galaxia mas oscuro para contraste sin aclarar combate', () 
   const g = fs.readFileSync('js/game.js', 'utf8');
   if (!g.includes("ctx.fillStyle = '#01030d'")) throw new Error('fondo galaxia no aplicado');
   const bg = g.indexOf("ctx.fillStyle = '#01030d'");
-  const star = g.indexOf('NV.drawStarfield(ctx, W, H, frame, player.x, player.y)', bg);
+  const star = g.indexOf('NV.drawStarfield(ctx, W, H, frame, player.x, player.y, NV.rhythm)', bg);
   if (!(star > bg)) throw new Error('fondo no precede starfield');
 });
 
 t('game.js integra drawRhythmLayer después del starfield y antes de gameplay/HUD', () => {
   const g = fs.readFileSync('js/game.js', 'utf8');
-  const star = g.indexOf('NV.drawStarfield(ctx, W, H, frame, player.x, player.y)');
+  const star = g.indexOf('NV.drawStarfield(ctx, W, H, frame, player.x, player.y, NV.rhythm)');
   const rhythm = g.indexOf('NV.drawRhythmLayer(ctx, W, H, frame)');
   const grid = g.indexOf('const gridAlpha', rhythm);
   const special = g.indexOf('if (specialVFX)', rhythm);

@@ -1259,7 +1259,7 @@
     // sin aclarar el campo donde se leen enemigos, balas y HUD.
     ctx.fillStyle = '#01030d';
     ctx.fillRect(0, 0, W, H);
-    NV.drawStarfield(ctx, W, H, frame, player.x, player.y);
+    NV.drawStarfield(ctx, W, H, frame, player.x, player.y, NV.rhythm);
     if (NV.drawRhythmLayer) NV.drawRhythmLayer(ctx, W, H, frame);
 
     if (flashAlpha > 0 && flashColor) {
