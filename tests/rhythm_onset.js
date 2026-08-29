@@ -57,5 +57,28 @@ t('pulsos regulares estiman tempo aproximado', () => {
   if (st.tempoBpm < 95 || st.tempoBpm > 145) throw new Error('tempo fuera de rango: ' + st.tempoBpm);
 });
 
+t('shake reactivo solo aparece en onset fuerte y queda acotado', () => {
+  const NV = loadNV();
+  const st = NV.rhythm;
+  Object.assign(st, { enabled: true, state: 'listening', kick: 0.9, snare: 0.1, onset: 0.8, lastOnsetAt: 1.0, lastShakeAt: -99 });
+  const boost = NV.rhythmShakeBoost(st, 1.03);
+  if (boost < 0.08 || boost > 0.16) throw new Error('boost fuera de rango: ' + boost);
+  const immediate = NV.rhythmShakeBoost(st, 1.08);
+  if (immediate !== 0) throw new Error('cooldown no respetado: ' + immediate);
+});
+
+t('shake no se dispara con energía sostenida ni onset viejo', () => {
+  const NV = loadNV();
+  const st = NV.rhythm;
+  Object.assign(st, { enabled: true, state: 'listening', bass: 0.9, energy: 0.8, kick: 0.2, snare: 0.2, onset: 0.2, lastOnsetAt: 1.0, lastShakeAt: -99 });
+  if (NV.rhythmShakeBoost(st, 1.2) !== 0) throw new Error('shake falso por sostenido');
+});
+
+t('game.js reutiliza shake existente con Math.max y sin sistema paralelo', () => {
+  const g = fs.readFileSync('js/game.js', 'utf8');
+  if (!g.includes('shake = Math.max(shake, NV.rhythmShakeBoost(NV.rhythm, rhythmNow))')) throw new Error('no reutiliza shake existente');
+  if (!g.includes('canvas.style.transform = `translate(${sx}px, ${sy}px)`')) throw new Error('transform existente ausente');
+});
+
 console.log('RESULT rhythm_onset: pass=' + pass + ' fail=' + fail);
 process.exit(fail ? 1 : 0);

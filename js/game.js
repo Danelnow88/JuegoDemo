@@ -1569,7 +1569,11 @@
     lastTime = now;
 
     if (hitstop > 0) { hitstop = Math.max(0, hitstop - dt); dt = 0; }
-    if (NV.rhythmTick) NV.rhythmTick(now / 1000);
+    if (NV.rhythmTick) {
+      const rhythmNow = now / 1000;
+      NV.rhythmTick(rhythmNow);
+      if (NV.rhythmShakeBoost) shake = Math.max(shake, NV.rhythmShakeBoost(NV.rhythm, rhythmNow));
+    }
 
     // Decrementar deathTimer y deathShake en gameover
     if (state === 'gameover' && deathTimer > 0) {

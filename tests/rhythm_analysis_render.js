@@ -93,7 +93,8 @@ t('game.js integra drawRhythmLayer después del starfield y antes de gameplay/HU
 
 t('game.js llama rhythmTick en el loop y la UI persiste preferencia', () => {
   const g = fs.readFileSync('js/game.js', 'utf8');
-  if (!g.includes('if (NV.rhythmTick) NV.rhythmTick(now / 1000)')) throw new Error('tick ausente');
+  if (!g.includes('const rhythmNow = now / 1000') || !g.includes('NV.rhythmTick(rhythmNow)')) throw new Error('tick ausente');
+  if (!g.includes('NV.rhythmShakeBoost(NV.rhythm, rhythmNow)')) throw new Error('shake rítmico ausente');
   if (!g.includes('NV.rhythmToggleEnabled(true); NV.externalAudio.startDisplayCapture()')) throw new Error('botón pestaña no activa preferencia');
   if (!g.includes('NV.rhythmToggleEnabled(false); NV.externalAudio.stop()')) throw new Error('botón stop no desactiva preferencia');
 });

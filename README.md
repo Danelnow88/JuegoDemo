@@ -550,6 +550,11 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 - **Integración**: `game.js` pasa `NV.rhythm` a `drawStarfield` antes de `drawRhythmLayer`, conservando el orden de capas de fondo.
 - **Verificación concreta**: `tests/ambient_fx.js` compara perfiles sintéticos de graves vs agudos y exige distinto tamaño/color/posición con la misma cantidad de estrellas; `rhythm_analysis_render` confirma el orden.
 
+### v59 — Bloque 3: screen-shake reactivo a percusión
+- **Reutiliza el shake existente**: `game.js` integra `NV.rhythmShakeBoost(NV.rhythm, rhythmNow)` con `shake = Math.max(shake, ...)`; no hay nuevo sistema de cámara ni transform paralelo.
+- **Solo onsets fuertes**: `NV.rhythmShakeBoost` requiere onset reciente, kick/snare alto, cooldown corto y devuelve un impulso capado (`≤0.16`). Energía sostenida de bajos no vibra.
+- **Verificación concreta**: `tests/rhythm_onset.js` prueba impulso perceptible/acotado con kick fuerte, cero en repetición inmediata y cero ante energía sostenida/onset viejo; inspecciona que `game.js` use el `shake` existente.
+
 ### v54 — fixes de HUD y muerte (post-Tanda E)
 - **fix1**: game over por proyectil del jefe — el wrapper de `updateBullets` descartaba el flag `gameOver` retornado por el módulo, así que con BOTI la regen revivía al jugador en 0 HP durante peleas de jefe. Ahora el retorno se propaga.
 - **fix2**: combo de kills reubicado abajo-centro (se superponía con la barra/contador de oleada).
