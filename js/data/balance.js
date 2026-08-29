@@ -53,9 +53,40 @@
   // Duración base de la oleada (sin bonus de evento). Fórmula original fiel:
   // max(15, 25 - wave*0.4). ÚNICA fuente de verdad: nextWave y la barra de
   // progreso leen de acá (elimina la duplicación que era bug latente).
-  NV.waveDuration = function (wave) {
-    const B = NV.BALANCE;
-    return Math.max(B.WAVE_TIME_MIN, B.WAVE_TIME_BASE - wave * B.WAVE_TIME_DECAY);
+  NV.waveDuration = function (wave, waveEvent) {
+    const base = Math.max(15, 25 - wave * 0.4);
+    // Eventos de oleada (Tanda C): +25s para disfrutar el modificador (cap 90s).
+    const bonus = waveEvent ? 25 : 0;
+    return Math.min(90, base + bonus);
   };
+
+
+  // Compensación económica (PASO 3): factor para escalar el intervalo de spawn en
+  // oleadas largas, manteniendo la cantidad total de spawns (y score/💎) por oleada.
+  NV.waveSpawnFactor = function (wave, waveEvent) {
+    return NV.waveDuration(wave, waveEvent) / NV.waveDuration(wave);
+  };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   Object.freeze(NV.BALANCE);
 })();

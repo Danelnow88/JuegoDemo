@@ -383,7 +383,9 @@
 
   function nextWave() {
     console.log('[WAVE] Oleada ' + wave);
-    waveTimer = NV.waveDuration(wave);
+    // Elegir evento ANTES de calcular duración: la duración depende de si hay evento.
+    waveEvent = (wave % 5 !== 0 && wave % 3 === 0) ? pickWaveEvent() : null;
+    waveTimer = NV.waveDuration(wave, waveEvent);
     spawnTimer = 0;
     enemies = []; bullets = []; pickups = []; shockwaves = [];
 
@@ -398,8 +400,7 @@
       spawnExplosion(boss.x, boss.y, 40, boss.color, 1);
     } else {
       boss = null;
-      // Evento aleatorio cada ~3 oleadas (no-jefe): anuncia y setea el modificador.
-      waveEvent = (wave % 3 === 0) ? pickWaveEvent() : null;
+      // waveEvent ya calculado antes de la duración (ver arriba); el banner lo lee aquí.
       const ev = waveEvent ? WAVE_EVENTS[waveEvent] : null;
       if (ev) {
         showBanner('⚠ ' + ev.name, ev.color);
@@ -910,7 +911,7 @@
       }
       spawnElite();
       if (Math.random() < 0.03 + wave * 0.002) spawnWeaponPickup();
-      spawnTimer = Math.max(0.25, 1.3 - wave * 0.035); // oleadas más densas
+      spawnTimer = Math.max(0.25, (1.3 - wave * 0.035) * NV.waveSpawnFactor(wave, waveEvent)); // oleadas largas: mismo total de spawns
     }
 
         waveTimer -= dt;
@@ -1201,7 +1202,7 @@
 
     // Barra de progreso de oleada
     if (showHUD && state === 'playing' && !boss) {
-      const maxWaveTimer = NV.waveDuration(wave);
+            const maxWaveTimer = NV.waveDuration(wave, waveEvent);
       const progress = Math.max(0, Math.min(1, 1 - (waveTimer / maxWaveTimer)));
       const barW = 200, barH = 6;
       const barX = (W - barW) / 2, barY = 10;

@@ -40,7 +40,7 @@ t('spawnEnemy marca minas solo con mines', () => {
 
 t('game.js conecta selección %3, pickWaveEvent, banner, niebla', () => {
   const g = fs.readFileSync('js/game.js', 'utf8');
-  const ps = ['function pickWaveEvent', 'waveEvent = (wave % 3 === 0)', 'WAVE_EVENTS[waveEvent]', "waveEvent === 'fog'", 'waveEvent = null;'];
+    const ps = ['function pickWaveEvent', 'waveEvent = (wave % 5 !== 0 && wave % 3 === 0)', 'WAVE_EVENTS[waveEvent]', "waveEvent === 'fog'", 'waveEvent = null;'];
   for (const p of ps) if (!g.includes(p)) throw new Error('falta ' + p);
 });
 
