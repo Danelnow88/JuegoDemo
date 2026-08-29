@@ -232,7 +232,7 @@
     drawSlotRow(ctx, bx, consY, cEntries, consumGroups.length ? consumSel : -1, -1, null, cw, ch, gap, 'c');
     NV.consumSlotRects = consumGroups.slice(0, 6).map(function (g, i) { return { type: g.type, x: bx + i * (cw + gap), y: consY, w: cw, h: ch }; });
     ctx.font = 'bold 7px system-ui'; ctx.fillStyle = '#7cf8ff'; ctx.shadowColor = '#7cf8ff'; ctx.shadowBlur = 3;
-    ctx.fillText('F usar - Q/E elegir', bx, consY + 28);
+    ctx.fillText('F usar - Q/E elegir', bx, consY + 36);
     ctx.shadowBlur = 0;
   } else {
     NV.consumSlotRects = [];
@@ -242,7 +242,7 @@
   }
 
   // === HABILIDAD: slot cuadrado 22x22 (mismo tam que un slot) + anillo de cooldown ===
-  var ssy = consY + 38;         // bajo el hint, con separacion
+  var ssy = consY + 46;         // bajo el hint, con separacion (offset +8)
   var sl = 22;                  // igual a un slot de armas/consumibles
   var cd = player.specialCd > 0 ? 1 - player.specialCd / char.maxCd : 1;
   if (ANIM.lastCd !== null && ANIM.lastCd > 0 && player.specialCd <= 0) { ANIM.readyPulse = nowMs(); }
