@@ -32,11 +32,17 @@
     data: null,              // Uint8Array de frecuencias
     // Valores analizados por frame (0..1), publicados para la capa de render.
     beat: 0, bass: 0, mids: 0, highs: 0, energy: 0, peak: 0,
-    lastBeatAt: 0,
+    onset: 0, kick: 0, snare: 0, hats: 0, spectralFlux: 0, tempoBpm: 0,
+    lastBeatAt: 0, lastOnsetAt: 0,
     thresholdRel: 1.35,      // energía de graves vs. media móvil para disparar beat
     // Internos de suavizado / detección.
     _bassHist: null,
     _bassMean: 0,
+    _prevBands: null,
+    _fluxMean: 0,
+    _kickFluxMean: 0,
+    _snareFluxMean: 0,
+    _onsetTimes: null,
     // Límites de seguridad (Bloque 3, "regla de oro"): el efecto NUNCA compite con
     // enemigos/balas/HUD. Se usan como tope duro de saturación y opacidad.
     intensityCap: 0.55,
@@ -47,6 +53,8 @@
   function freshState() {
     const s = Object.assign({}, DEFAULT_STATE);
     s._bassHist = new Array(44).fill(0);
+    s._prevBands = { bass: 0, mids: 0, highs: 0, kick: 0, snare: 0, hats: 0 };
+    s._onsetTimes = [];
     return s;
   }
 
@@ -96,27 +104,70 @@
     for (let i = lo; i < hi && i < data.length; i++) { sum += data[i]; n++; }
     return n ? (sum / n) / 255 : 0;
   }
+  function posFlux(now, prev) { return Math.max(0, (now || 0) - (prev || 0)); }
+  function pushTempoBeat(state, nowSec) {
+    if (!nowSec) return;
+    state._onsetTimes.push(nowSec);
+    while (state._onsetTimes.length > 8) state._onsetTimes.shift();
+    if (state._onsetTimes.length < 3) return;
+    let sum = 0, n = 0;
+    for (let i = 1; i < state._onsetTimes.length; i++) {
+      const d = state._onsetTimes[i] - state._onsetTimes[i - 1];
+      if (d >= 0.24 && d <= 1.2) { sum += d; n++; }
+    }
+    if (n) state.tempoBpm += ((60 / (sum / n)) - state.tempoBpm) * 0.28;
+  }
   // Convierte un Uint8Array de frecuencias (getByteFrequencyData) en valores de banda.
   NV.rhythmAnalyze = function (state, data, nowSec) {
     const len = data.length;
     const loBass = 1, hiBass = Math.max(2, Math.floor(len * 0.08));
     const loMid = Math.floor(len * 0.08), hiMid = Math.floor(len * 0.4);
     const loHi = Math.floor(len * 0.55), hiHi = len;
+    const kickBand = bandEnergy(data, 1, Math.max(3, Math.floor(len * 0.055)));
+    const snareBand = bandEnergy(data, Math.floor(len * 0.12), Math.max(Math.floor(len * 0.13), Math.floor(len * 0.36)));
+    const hatBand = bandEnergy(data, Math.floor(len * 0.62), len);
     state.bass = bandEnergy(data, loBass, hiBass);
     state.mids = bandEnergy(data, loMid, hiMid);
     state.highs = bandEnergy(data, loHi, hiHi);
     state.energy = state.bass * 0.4 + state.mids * 0.35 + state.highs * 0.25;
+    const prev = state._prevBands || { bass: 0, mids: 0, highs: 0, kick: 0, snare: 0, hats: 0 };
+    const kickFlux = posFlux(kickBand, prev.kick);
+    const snareFlux = posFlux(snareBand, prev.snare);
+    const highFlux = posFlux(hatBand, prev.hats);
+    const flux = kickFlux * 0.48 + snareFlux * 0.34 + highFlux * 0.18;
+    state._fluxMean += (flux - state._fluxMean) * 0.075;
+    state._kickFluxMean += (kickFlux - state._kickFluxMean) * 0.075;
+    state._snareFluxMean += (snareFlux - state._snareFluxMean) * 0.075;
+    const onsetFloor = 0.018;
+    const onsetScore = Math.max(0, flux - Math.max(onsetFloor, state._fluxMean * 1.65)) / 0.22;
+    const kickScore = Math.max(0, kickFlux - Math.max(0.018, state._kickFluxMean * 1.7)) / 0.2;
+    const snareScore = Math.max(0, snareFlux - Math.max(0.018, state._snareFluxMean * 1.65)) / 0.2;
+    state.spectralFlux = Math.min(1, flux * 2.8);
+    const freshOnset = Math.min(1, onsetScore);
+    const freshKick = Math.min(1, kickScore);
+    const freshSnare = Math.min(1, snareScore);
+    state.onset = Math.max(state.onset * 0.72, freshOnset);
+    state.kick = Math.max(state.kick * 0.66, freshKick);
+    state.snare = Math.max(state.snare * 0.66, freshSnare);
+    state.hats = Math.max(state.hats * 0.82, Math.min(1, highFlux * 4));
     // Línea de base: media móvil exponencial de graves (para no disparar por ruido).
     state._bassMean += (state.bass - state._bassMean) * 0.1;
     state.peak = Math.max(state.peak * 0.96, state.energy);
     // Beat: los graves superan la línea de base por el umbral.
     const thr = (state._bassMean || 0.001) * state.thresholdRel;
     if (state.bass > thr && state.bass > 0.02) {
-      state.beat = Math.min(1, state.bass / (Math.max(0.05, state._bassMean) * 1.8));
+      state.beat = Math.max(state.kick, Math.min(1, state.bass / (Math.max(0.05, state._bassMean) * 1.8)));
       state.lastBeatAt = nowSec || 0;
     } else if ((nowSec || 0) - state.lastBeatAt > 0.25) {
       state.beat = Math.max(0, state.beat - 0.06);
     }
+    if (freshOnset > 0.35 || freshKick > 0.45 || freshSnare > 0.45) {
+      if ((nowSec || 0) - state.lastOnsetAt > 0.16) {
+        state.lastOnsetAt = nowSec || 0;
+        pushTempoBeat(state, nowSec || 0);
+      }
+    }
+    state._prevBands = { bass: state.bass, mids: state.mids, highs: state.highs, kick: kickBand, snare: snareBand, hats: hatBand };
     return state;
   };
 // ---------- captura ----------

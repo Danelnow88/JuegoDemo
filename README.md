@@ -538,6 +538,12 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 - **Efecto reactivo más visible**: `js/engine/rhythm.js` sube topes seguros (`intensityCap: 0.55`, `maxAlpha: 0.32`), intensifica el gradiente radial con cian/violeta/rosa y eleva el pulso de borde hasta `0.22` de alfa máximo. Sigue dibujándose antes de enemigos/balas/HUD/FX de habilidades.
 - **Legibilidad protegida por tests**: `tests/rhythm_analysis_render.js` verifica orden de capa, fondo oscuro y límites del pulso para que el efecto siga siendo de fondo.
 
+### v57 — Bloque 1: análisis musical fino y detección de onsets
+- **Diagnóstico**: el analizador previo promediaba bandas demasiado amplias y disparaba `beat` por energía sostenida de graves; por eso música con graves continuos y música percusiva podían verse casi igual.
+- **Onset/percussion real**: `NV.rhythmAnalyze` ahora calcula flujo espectral positivo por bandas (`kick`, `snare`, `hats`) comparando frame actual contra el anterior y contra medias móviles adaptativas cortas. Publica `onset`, `kick`, `snare`, `hats`, `spectralFlux` y `tempoBpm` además de `bass/mids/highs/energy`.
+- **Tempo estimado**: los onsets frescos (no el tail suavizado visual) alimentan una ventana corta de tiempos para estimar BPM aproximado.
+- **Verificación concreta**: `tests/rhythm_onset.js` prueba señal sostenida vs transientes kick/snare y pulsos regulares (~120 BPM). Resultado esperado: sostenido no dispara percusión; transientes sí.
+
 ### v54 — fixes de HUD y muerte (post-Tanda E)
 - **fix1**: game over por proyectil del jefe — el wrapper de `updateBullets` descartaba el flag `gameOver` retornado por el módulo, así que con BOTI la regen revivía al jugador en 0 HP durante peleas de jefe. Ahora el retorno se propaga.
 - **fix2**: combo de kills reubicado abajo-centro (se superponía con la barra/contador de oleada).
