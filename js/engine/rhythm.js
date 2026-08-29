@@ -304,19 +304,36 @@
     const energy = Math.min(cap, Math.max(0, r.energy || 0));
     const beat = Math.min(cap, Math.max(0, r.beat || 0));
     const bass = Math.min(cap, Math.max(0, r.bass || 0));
+    const mids = Math.min(cap, Math.max(0, r.mids || 0));
     const highs = Math.min(cap, Math.max(0, r.highs || 0));
-    const alpha = Math.min(r.maxAlpha || 0.32, 0.045 + energy * 0.42 + beat * 0.28);
+    const kick = Math.min(cap, Math.max(0, r.kick || 0));
+    const snare = Math.min(cap, Math.max(0, r.snare || 0));
+    const hats = Math.min(cap, Math.max(0, r.hats || 0));
+    const onset = Math.min(cap, Math.max(0, r.onset || 0));
+    const alpha = Math.min(r.maxAlpha || 0.32, 0.045 + energy * 0.34 + beat * 0.2 + onset * 0.22);
     if (alpha <= 0.01) return;
+
+    const lowDom = bass + kick * 0.8;
+    const midDom = mids + snare * 0.65;
+    const highDom = highs + hats * 0.75;
+    const palette = (highDom > lowDom && highDom > midDom)
+      ? { core: '#bdf9ff', mid: '#ff7adf', outer: '#4ee8ff', edge: '#bdf9ff' }
+      : (midDom > lowDom)
+        ? { core: '#d45cff', mid: '#ff4ab4', outer: '#7cf8ff', edge: '#ff7adf' }
+        : { core: '#4ee8ff', mid: '#7c5cff', outer: '#1d4dff', edge: '#4ee8ff' };
+    const tempo = Math.max(60, Math.min(190, r.tempoBpm || 96));
+    const tempoRate = tempo / 120;
 
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
-    const cx = w * (0.5 + Math.sin((frame || 0) * 0.006) * 0.08);
-    const cy = h * (0.5 + Math.cos((frame || 0) * 0.005) * 0.08);
-    const rad = Math.max(w, h) * (0.55 + bass * 0.25 + beat * 0.18);
+    const phase = (frame || 0) * 0.006 * tempoRate;
+    const cx = w * (0.5 + Math.sin(phase) * (0.06 + highDom * 0.035));
+    const cy = h * (0.5 + Math.cos(phase * 0.83) * (0.055 + midDom * 0.03));
+    const rad = Math.max(w, h) * (0.52 + bass * 0.24 + beat * 0.16 + highDom * 0.08);
     const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, rad);
-    g.addColorStop(0, `rgba(78,232,255,${alpha})`);
-    g.addColorStop(0.38, `rgba(202,92,255,${alpha * (0.72 + highs * 0.35)})`);
-    g.addColorStop(0.7, `rgba(255,74,180,${alpha * 0.32})`);
+    g.addColorStop(0, `rgba(${hexRgb(palette.core)},${alpha})`);
+    g.addColorStop(0.36, `rgba(${hexRgb(palette.mid)},${alpha * (0.68 + highs * 0.32)})`);
+    g.addColorStop(0.72, `rgba(${hexRgb(palette.outer)},${alpha * (0.28 + hats * 0.18)})`);
     g.addColorStop(1, 'rgba(1,3,13,0)');
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, w, h);
@@ -324,12 +341,17 @@
     // Pulso mínimo en bordes: comunica beat sin tapar proyectiles/enemigos.
     if (beat > 0.015) {
       ctx.globalAlpha = Math.min(0.22, beat * 0.42);
-      ctx.strokeStyle = '#4ee8ff';
+      ctx.strokeStyle = palette.edge;
       ctx.lineWidth = 2 + beat * 7;
       ctx.strokeRect(6, 6, w - 12, h - 12);
     }
     ctx.restore();
   };
+
+  function hexRgb(hex) {
+    const h = hex.charAt(0) === '#' ? hex.slice(1) : hex;
+    return `${parseInt(h.slice(0, 2), 16)},${parseInt(h.slice(2, 4), 16)},${parseInt(h.slice(4, 6), 16)}`;
+  }
 
   // Alias público orientado a la feature: separa semánticamente esta captura externa
   // del audio synth/SFX interno del juego.

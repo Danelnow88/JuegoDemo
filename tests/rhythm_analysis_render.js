@@ -16,11 +16,11 @@ function loadNV() {
 }
 function mkCtx() {
   return {
-    ops: [], _alpha: 1,
+    ops: [], gradients: [], _alpha: 1,
     save(){ this.ops.push('save'); }, restore(){ this.ops.push('restore'); },
     fillRect(x,y,w,h){ this.ops.push(['fillRect', x,y,w,h, this._alpha]); },
     strokeRect(x,y,w,h){ this.ops.push(['strokeRect', x,y,w,h, this._alpha]); },
-    createRadialGradient(){ this.ops.push('gradient'); return { stops: [], addColorStop(p, c){ this.stops.push([p, c]); } }; },
+    createRadialGradient(x0,y0,r0,x1,y1,r1){ const g = { args: [x0,y0,r0,x1,y1,r1], stops: [], addColorStop(p, c){ this.stops.push([p, c]); } }; this.gradients.push(g); this.ops.push('gradient'); return g; },
     set fillStyle(v){ this._fillStyle = v; }, get fillStyle(){ return this._fillStyle; },
     set strokeStyle(v){ this._strokeStyle = v; }, get strokeStyle(){ return this._strokeStyle; },
     set lineWidth(v){ this._lineWidth = v; }, get lineWidth(){ return this._lineWidth; },
@@ -40,6 +40,22 @@ t('rhythmAnalyze publica bandas normalizadas y beat ante graves fuertes', () => 
   if (!(st.bass > st.mids && st.bass > 0.5)) throw new Error('graves no detectados');
   if (!(st.beat > 0)) throw new Error('beat no detectado');
   if (st.energy < 0 || st.energy > 1) throw new Error('energy fuera de rango');
+});
+
+t('drawRhythmLayer cambia paleta por banda dominante y tempo mueve el centro', () => {
+  const NV = loadNV();
+  const low = mkCtx(), high = mkCtx(), fast = mkCtx();
+  Object.assign(NV.rhythm, { enabled: true, state: 'listening', energy: 0.45, beat: 0.35, bass: 0.8, mids: 0.1, highs: 0.05, kick: 0.7, snare: 0, hats: 0, onset: 0.5, tempoBpm: 80 });
+  NV.drawRhythmLayer(low, 900, 520, 100);
+  Object.assign(NV.rhythm, { enabled: true, state: 'listening', energy: 0.45, beat: 0.2, bass: 0.05, mids: 0.1, highs: 0.85, kick: 0, snare: 0.1, hats: 0.8, onset: 0.4, tempoBpm: 80 });
+  NV.drawRhythmLayer(high, 900, 520, 100);
+  Object.assign(NV.rhythm, { enabled: true, state: 'listening', energy: 0.45, beat: 0.2, bass: 0.05, mids: 0.1, highs: 0.85, kick: 0, snare: 0.1, hats: 0.8, onset: 0.4, tempoBpm: 180 });
+  NV.drawRhythmLayer(fast, 900, 520, 100);
+  const lowColor = low.gradients[0].stops[0][1], highColor = high.gradients[0].stops[0][1];
+  if (lowColor === highColor) throw new Error('paleta no cambia por dominancia');
+  if (!lowColor.includes('78,232,255')) throw new Error('paleta grave inesperada: ' + lowColor);
+  if (!highColor.includes('189,249,255')) throw new Error('paleta aguda inesperada: ' + highColor);
+  if (JSON.stringify(high.gradients[0].args.slice(0, 2)) === JSON.stringify(fast.gradients[0].args.slice(0, 2))) throw new Error('tempo no mueve el centro');
 });
 
 t('rhythmTick lee AnalyserNode y actualiza energy', () => {

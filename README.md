@@ -555,6 +555,12 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 - **Solo onsets fuertes**: `NV.rhythmShakeBoost` requiere onset reciente, kick/snare alto, cooldown corto y devuelve un impulso capado (`≤0.16`). Energía sostenida de bajos no vibra.
 - **Verificación concreta**: `tests/rhythm_onset.js` prueba impulso perceptible/acotado con kick fuerte, cero en repetición inmediata y cero ante energía sostenida/onset viejo; inspecciona que `game.js` use el `shake` existente.
 
+### v60 — Bloque 4: paleta dinámica y tempo visual
+- **Color por dominancia musical**: `NV.drawRhythmLayer` cambia paleta según la banda dominante: graves/kick → cian/azul; medios/snare → violeta/rosa; agudos/hats → cian claro/rosa. Esto ayuda a distinguir estilos con distinta energía espectral.
+- **Movimiento por tempo**: el centro del gradiente usa `tempoBpm` para variar velocidad/fase del pulso; música rápida se siente más inquieta y música lenta más flotante.
+- **Topes conservados**: se mantienen límites de alfa/intensidad y el orden de capa de fondo, antes de enemigos/balas/HUD/habilidades.
+- **Verificación concreta**: `tests/rhythm_analysis_render.js` compara perfiles graves vs agudos y tempos lento/rápido, exigiendo colores y centros distintos sin romper límites ni orden.
+
 ### v54 — fixes de HUD y muerte (post-Tanda E)
 - **fix1**: game over por proyectil del jefe — el wrapper de `updateBullets` descartaba el flag `gameOver` retornado por el módulo, así que con BOTI la regen revivía al jugador en 0 HP durante peleas de jefe. Ahora el retorno se propaga.
 - **fix2**: combo de kills reubicado abajo-centro (se superponía con la barra/contador de oleada).
