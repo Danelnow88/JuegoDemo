@@ -41,5 +41,41 @@ t('game.js conecta el listener de wheel', () => {
   if (!g.includes('NV.cycleWeapon')) throw new Error('wrapper no usa cycleWeapon');
 });
 
+t('arma fusionada (no referenciada en inventario) cicla de forma estable', () => {
+  // `fused` es una instancia fusionada que NO está referenciada en `list` (Hipótesis A).
+  const fused = Object.assign({}, rifle);
+  const inv = [rifle, smg];          // inventario real: rifle es otra referencia distinta
+  const gameList = [pistol].concat(inv); // list del wrapper: [pistola base + inventario]
+  // contracto del wrapper: si currentWeapon no está en list, normaliza a list[0] (pistola)
+  const base = gameList.indexOf(fused) < 0 ? gameList[0] : fused;
+  // wheel down (+1) desde la pistola base -> debe entrar al primer inventario, no saltar
+  const next = NV.cycleWeapon(base, gameList, 1);
+  if (next !== rifle) throw new Error('fallback deberia armar a rifle, got: ' + (next && next.name));
+  if (next === fused) throw new Error('ciclo devolvio la instancia fusionada stale');
+});
+
+t('arma fusionada + wheel up retrocede circular sin salto inesperado', () => {
+  const fused = Object.assign({}, smg);
+  const inv = [pistol, rifle]; // smg no está en inventario (fue fusionada)
+  const gameList = [pistol].concat(inv);
+  const base = gameList.indexOf(fused) < 0 ? gameList[0] : fused;
+  const next = NV.cycleWeapon(base, gameList, -1); // desde list[0], -1 -> wrap a ultima
+  if (next !== rifle) throw new Error('wheel up desde fallback deberia ir a rifle (ultima del list), got: ' + (next && next.name));
+});
+
+t('lista de un solo elemento (solo pistola): ciclo es no-op estable', () => {
+  const onlyPistol = [pistol];
+  const base = onlyPistol.indexOf(pistol); // 0
+  const next = NV.cycleWeapon(onlyPistol[base], onlyPistol, 1);
+  if (next !== pistol) throw new Error('lista unitaria no deberia cambiar de arma');
+});
+
+t('game.js normaliza currentWeapon con fallback a pistola (fix wheel bug)', () => {
+  const g = fs.readFileSync('js/game.js', 'utf8');
+  if (!g.includes('list.indexOf(currentWeapon)')) throw new Error('falta normalizacion por indice');
+  if (!g.includes('ci < 0 ? 0 : ci')) throw new Error('falta fallback a list[0]');
+  if (!g.includes('NV.cycleWeapon(list[base], list, dir)')) throw new Error('no delega a cycleWeapon pura normalizada');
+});
+
 console.log('RESULT weapon_wheel: pass=' + pass + ' fail=' + fail);
 process.exit(fail ? 1 : 0);

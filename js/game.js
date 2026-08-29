@@ -280,8 +280,13 @@
     function cycleWeapon(dir) {
       if (state !== 'playing' || paused) return;
       const list = [WEAPONS[0]].concat(inventory);
-      const next = NV.cycleWeapon(currentWeapon, list, dir);
-      if (!next || next === currentWeapon) return;
+      // Normalizar currentWeapon a un índice válido de `list`: si quedó desreferenciado
+      // (p.ej. tras fusionar o recoger el arma equipada) cae a la pistola base (list[0]),
+      // para que indexOf nunca falle y el ciclo sea estable. (Hipótesis A del bug)
+      const ci = list.indexOf(currentWeapon);
+      const base = ci < 0 ? 0 : ci;
+      const next = NV.cycleWeapon(list[base], list, dir);
+      if (!next || next === list[base]) return;
       currentWeapon = next;
       addFloatText(W / 2, H / 2 - 40, 'EQUIPADO: ' + currentWeapon.name, RARITY_COLORS[currentWeapon.rarity]);
       updateHUD();
