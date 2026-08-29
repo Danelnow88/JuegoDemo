@@ -46,6 +46,7 @@ JuegoDemo/
     ├── ui/
     │   └── dom.js      # Árbol DOM (expuesto en NV.dom)
     ├── engine/
+    │   ├── rhythm.js    # Captura/análisis de música externa + render sutil de fondo (NV.externalAudio/NV.rhythm*)
     │   ├── fx.js        # Efectos/FX (partículas, textos flotantes, estelas): NV.spawnExplosion/updateParticles/addFloatText/updateFloatTexts/updateTrails
     │   ├── drones.js     # NV.updateDrones (disparo de drones ENJAMBRE)
     │   ├── meteors.js     # NV.updateMeteors (Lluvia Estelar)
@@ -59,7 +60,7 @@ JuegoDemo/
     └── game.js         # Orquestador: init/update/loop, flujo de oleadas/tienda/menú, input, guardado — IIFE
 ```
 
-- **Sin builds, sin dependencias, sin servidor.** Se ejecuta directamente en el navegador. Orden de carga: `core/state.js` → `core/utils.js` → `data/gameData.js` → `data/balance.js` → `data/consumables.js` → `audio/synth.js` → `ui/dom.js` → `render/canvas.js` → `game.js`.
+- **Sin builds, sin dependencias, sin servidor.** Se ejecuta directamente en el navegador. Orden de carga: `core/state.js` → `core/utils.js` → `data/gameData.js` → `data/balance.js` → `data/consumables.js` → `audio/synth.js` → `ui/dom.js` → `render/canvas.js`/otros `render/*` → `engine/rhythm.js`/otros `engine/*` → `game.js`.
 - `game.js` está en una **IIFE** con `'use strict'` (todo scoped, no contamina el global), pero los **datos** ya viven en `window.NV` (`core/state.js` + `data/gameData.js` + `data/balance.js` + `data/consumables.js`) y `game.js` los usa por **alias locales** (`const BALANCE = NV.BALANCE`, etc.).
 - El estado del juego y del canvas es totalmente **procedural** (se dibuja en cada frame con `requestAnimationFrame`).
 
@@ -524,6 +525,14 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 - Orden de carga: `... render/hud.js` → `engine/fx.js, drones.js, meteors.js, pickups.js` → `game.js`.
 - Verificación: `node --check` OK en todos los engine modules + game.js; smoke runtime **4/4** (spawn dentro de pantalla; recolección de shard con filtro; guardar vs equipar según inventario).
 
+### v55 — Visuales reactivos a música externa (opcional, no invasivo)
+- **Nuevo módulo `js/engine/rhythm.js`**: expone `NV.externalAudio` (`startDisplayCapture`, `startMicCapture`, `stop`, `getState`, `supported`) y helpers `NV.rhythmStart/Stop/Tick`, `NV.rhythmAnalyze`, `NV.drawRhythmLayer`.
+- **Captura externa con permisos explícitos**: pestaña/ventana/sistema mediante `navigator.mediaDevices.getDisplayMedia({ audio, video })`; fallback de micrófono con `getUserMedia({ audio:true })`. Maneja navegador no soportado, permiso denegado/cancelado, capturas sin pista de audio, cierre de stream (`ended/inactive`) y re-entrada sin duplicar diálogos.
+- **Análisis en tiempo real**: `AnalyserNode` dedicado, sin conectar a `destination` (no re-amplifica la música del usuario). Publica bandas normalizadas (`bass/mids/highs/energy`) y pulso `beat` para render.
+- **Render sutil de fondo**: `NV.drawRhythmLayer(ctx,W,H,frame)` se integra después de `NV.drawStarfield(...)` y antes de gameplay/HUD; usa gradientes y borde de bajo alfa con topes (`intensityCap`, `maxAlpha`) para preservar legibilidad.
+- **UI y persistencia**: panel en el menú con explicación clara de permisos y botones “Capturar pestaña”, “Usar micrófono”, “Detener”. Preferencia en `localStorage` bajo `neonVoidRhythm`, separada de `neonVoidMeta`.
+- **Tests**: `tests/external_audio_capture.js` (8/8) y `tests/rhythm_analysis_render.js` (7/7), más `node --check` de `game.js`, `dom.js` y `rhythm.js`.
+
 ### v54 — fixes de HUD y muerte (post-Tanda E)
 - **fix1**: game over por proyectil del jefe — el wrapper de `updateBullets` descartaba el flag `gameOver` retornado por el módulo, así que con BOTI la regen revivía al jugador en 0 HP durante peleas de jefe. Ahora el retorno se propaga.
 - **fix2**: combo de kills reubicado abajo-centro (se superponía con la barra/contador de oleada).
@@ -806,6 +815,7 @@ El **README describe fielmente el juego jugable** (motor, 4 personajes, 10 armas
 - XP / niveles por partida (`+10 maxHp`, `+20 hp` al subir).
 - Meta persistente en `localStorage` (`metaShards`, `permUpgrades`), aplicada en `selectCharacter` y `startGame()`.
 - Audio procedural synthwave por Web Audio API (música kick/snare/hihat/bajo/lead/drone + SFX por arma y por ataque de jefe; toggle de sonido).
+- **Visuales reactivos a música externa (opcionales)**: desde el menú se puede capturar una pestaña/ventana con audio (`getDisplayMedia`) o usar micrófono como fallback (`getUserMedia`). `js/engine/rhythm.js` analiza frecuencias con `AnalyserNode` y dibuja solo una capa decorativa sutil de fondo (`NV.drawRhythmLayer`), después del starfield y antes de entidades/HUD.
 - FX: screen shake, hitstop, flash, partículas, textos flotantes, estelas, drones, meteoritos, jumpscare de muerte, pausa.
 - HUD DOM (HP, especial, oleada, score, shards) + HUD canvas (armas, habilidad, stats, barra de oleada).
 - **Pasivas de personaje activas** (`computePlayerHit`): NOVA recibe +20%, ROOK −15%, ENJAMBRE 15% de esquiva.
@@ -852,7 +862,8 @@ El **README describe fielmente el juego jugable** (motor, 4 personajes, 10 armas
 - **Estados globales compartidos**: `state`, `player`, `wave`, `currentWeapon`, `inventory`, `boss` y los arrays de entidades. Si se cambia un sistema, verificá dependencias cruzadas (p. ej. `spawnEnemy` no corre durante jefe; `update()` retorna antes de `frame++` fuera de `playing`).
 - **Fin de oleada y tienda (crítico)**: el orden de evaluación entre `waveTimer`, `transition` y `showShop()` causó el bug v4 de "oleadas que se ganan solas". No reorganices ese bloque sin entender la secuencia.
 - **Escalado del canvas**: `resizeCanvas()` + `ctx.setTransform(scaleX, ...)` dibuja en coordenadas lógicas 900×520; la lógica usa esas unidades.
-- **Audio**: está en `js/audio/synth.js` (IIFE). Estado mutable en `NV.*` (`NV.soundOn`, `NV.audioCtx` creado al pulsar COMENZAR, `NV.musicState`, `NV.musicTime`); cada función chequea `!NV.audioCtx || !NV.soundOn`. Lee estado del juego vía getters definidos en `game.js` (`NV.getState`/`getBoss`/`getFrame`). `game.js` consume el audio por aliases locales (`NV.initAudio`, `NV.updateMusic`, `NV.playWeaponSound`, `NV.sfx`). Se carga `synth.js` ANTES de `game.js`. No llamar a audio antes de `initAudio()`.
+- **Audio interno**: está en `js/audio/synth.js` (IIFE). Estado mutable en `NV.*` (`NV.soundOn`, `NV.audioCtx` creado al pulsar COMENZAR, `NV.musicState`, `NV.musicTime`); cada función chequea `!NV.audioCtx || !NV.soundOn`. Lee estado del juego vía getters definidos en `game.js` (`NV.getState`/`getBoss`/`getFrame`). `game.js` consume el audio por aliases locales (`NV.initAudio`, `NV.updateMusic`, `NV.playWeaponSound`, `NV.sfx`). Se carga `synth.js` ANTES de `game.js`. No llamar a audio antes de `initAudio()`.
+- **Audio externo/reactivo**: vive separado en `js/engine/rhythm.js` (`NV.externalAudio`, `NV.rhythmStart/Stop/Tick`, `NV.rhythmAnalyze`, `NV.drawRhythmLayer`). No toca SFX/música interna, no conecta la fuente capturada a `destination` y solo dibuja fondos con alfa capado (`maxAlpha` bajo) para no competir con combate/HUD. La preferencia se guarda en `localStorage` (`neonVoidRhythm`), separada de `neonVoidMeta`.
 - **Meta permanencia**: `loadMeta()`/`saveMeta()` manejan `localStorage`; `permUpgrades.*` ya se aplica en `selectCharacter` y `startGame()`.
 - **README = fuente de verdad**: por regla del proyecto, todo cambio de código debe reflejarse aquí en el mismo cambio.
 
@@ -925,6 +936,7 @@ JuegoDemo/
     ├── ui/
     │   └── dom.js      # Árbol DOM (NV.dom)
     ├── engine/
+    │   ├── rhythm.js    # NV.externalAudio + análisis de bandas/beat + drawRhythmLayer (fondos reactivos sutiles)
     │   ├── fx.js        # NV.spawnExplosion/updateParticles/addFloatText/updateFloatTexts/updateTrails
     │   ├── drones.js     # NV.updateDrones (disparo de drones ENJAMBRE)
     │   ├── meteors.js     # NV.updateMeteors (Lluvia Estelar)

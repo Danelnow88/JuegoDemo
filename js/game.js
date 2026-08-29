@@ -163,6 +163,7 @@
     } else {
       loadMeta();
     }
+    if (NV.rhythmRestorePref) NV.rhythmRestorePref();
     resizeCanvas();
 
     const charCards = document.querySelectorAll('.char-card');
@@ -301,6 +302,8 @@
       dom.sound.classList.toggle('off', !NV.soundOn);
     });
 
+    setupRhythmUI();
+
         if (dom.hudToggle) {
       dom.hudToggle.addEventListener('click', () => {
         showHUD = !showHUD;
@@ -316,6 +319,31 @@
 
     showMenu();
     requestAnimationFrame(loop);
+  }
+
+  function setupRhythmUI() {
+    if (!dom.rhythmStatus || !NV.externalAudio) return;
+    const statusText = (r) => {
+      if (!NV.rhythmSupported || !NV.rhythmSupported()) return 'Tu navegador no soporta captura de pestaña/sistema. Probá el micrófono si está disponible.';
+      if (r.state === 'starting') return 'Esperando permiso del navegador… elegí una pestaña/ventana con audio y activá “compartir audio” si aparece.';
+      if (r.state === 'listening') return (r.mode === 'mic' ? 'Micrófono activo' : 'Captura de pestaña activa') + ': los fondos reaccionan de forma sutil. La música no se reamplifica.';
+      if (r.state === 'denied') return 'Permiso cancelado o denegado. Podés intentarlo de nuevo cuando quieras.';
+      if (r.error === 'no-audio-track') return 'La captura no incluyó audio. Volvé a intentar y marcá “compartir audio”.';
+      if (r.streamEnded) return 'Captura finalizada. Podés volver a activarla desde el menú.';
+      return 'Opcional: compartí una pestaña/ventana con audio. Solo se analiza el volumen/frecuencias para fondos sutiles.';
+    };
+    const refresh = (r) => {
+      r = r || NV.rhythm;
+      dom.rhythmStatus.textContent = statusText(r);
+      if (dom.rhythmTabBtn) dom.rhythmTabBtn.classList.toggle('active', r.state === 'listening' && r.mode === 'tab');
+      if (dom.rhythmMicBtn) dom.rhythmMicBtn.classList.toggle('active', r.state === 'listening' && r.mode === 'mic');
+      if (dom.rhythmStopBtn) dom.rhythmStopBtn.disabled = r.state !== 'listening' && r.state !== 'starting';
+    };
+    NV.rhythmNotifier(refresh);
+    if (dom.rhythmTabBtn) dom.rhythmTabBtn.addEventListener('click', () => { NV.rhythmToggleEnabled(true); NV.externalAudio.startDisplayCapture(); });
+    if (dom.rhythmMicBtn) dom.rhythmMicBtn.addEventListener('click', () => { NV.rhythmToggleEnabled(true); NV.externalAudio.startMicCapture(); });
+    if (dom.rhythmStopBtn) dom.rhythmStopBtn.addEventListener('click', () => { NV.rhythmToggleEnabled(false); NV.externalAudio.stop(); });
+    refresh(NV.rhythm);
   }
 
   function loadMeta() {
@@ -1230,6 +1258,7 @@
     ctx.fillStyle = '#050714';
     ctx.fillRect(0, 0, W, H);
     NV.drawStarfield(ctx, W, H, frame, player.x, player.y);
+    if (NV.drawRhythmLayer) NV.drawRhythmLayer(ctx, W, H, frame);
 
     if (flashAlpha > 0 && flashColor) {
       ctx.fillStyle = flashColor;
@@ -1538,6 +1567,7 @@
     lastTime = now;
 
     if (hitstop > 0) { hitstop = Math.max(0, hitstop - dt); dt = 0; }
+    if (NV.rhythmTick) NV.rhythmTick(now / 1000);
 
     // Decrementar deathTimer y deathShake en gameover
     if (state === 'gameover' && deathTimer > 0) {
