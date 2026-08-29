@@ -5,9 +5,15 @@
   'use strict';
   const NV = window.NV;
 
-  NV.soundOn = true;
+    NV.soundOn = true;
   NV.audioCtx = null;
-  NV.musicState = { step: 0, lastBeat: 0, intensity: 0 };
+  NV.musicState = {
+    step: 0,
+    lastBeat: 0,
+    intensity: 0,
+    combo: 0,        // kills sin morir → capas musicales de intensidad (Tarea 1 - audio adaptativo)
+    phase: 'normal', // 'normal' | 'boss' | 'shop' | 'menu' (manejado por game.js)
+  };
   NV.musicTime = 0;
 
   // Progresión de acordes y bajo (estilo Karl Casey dark synthwave)
@@ -23,8 +29,77 @@
   function initMusic() {
     if (!NV.audioCtx) NV.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   }
+
+  // === MEZCLADOR DE CANALES (Tarea 1) ===
+  // Canales con GainNode propios sobre destination: permite ducking, volúmenes
+  // relativos y prioridad. Se crea de forma perezosa dentro de initAudio() para
+  // no romper los tests headless (audioCtx es null hasta COMENZAR).
+  //  - music:        música base / capas musicales
+  //  - sfxUI:        UI, tienda, pickups, wheel, victoria
+  //  - sfxPlayer:    disparos, habilidad, recibir daño, heartbeat
+  //  - sfxEnemies:   muerte de enemigos, ataques de jefe
+  //  - sfxAmbient:   eventos de Tanda C, cofres, combos
+  const CHANNELS = { music:0.6, sfxUI:0.7, sfxPlayer:0.9, sfxEnemies:0.8, sfxAmbient:0.6 };
+  // Volubilidad maestra por canal (0..1), configurable futuro -> sliders.
+  const MASTER_VOLUME = { music:1, sfxUI:1, sfxPlayer:1, sfxEnemies:1, sfxAmbient:1 };
+
+  // Ducking: un canal puede ser atenuado temporalmente por un evento de otro canal.
+  // Usado por SFX importantes (daño, victoria, combo) para bajar la música.
+  const ducking = {}; // canal -> { original, target, until }
+
+  // Crea y expone el mixer. Llamado por initAudio(); si audioCtx ya no existe
+  // (modo headless/test) simplemente no hace nada → fallback a destination directo.
+  function createMixer() {
+    if (!NV.audioCtx) return;
+    const ctx = NV.audioCtx;
+    const mixer = {};
+    for (const ch in CHANNELS) {
+      const g = ctx.createGain();
+      g.gain.value = CHANNELS[ch];
+      g.connect(ctx.destination);
+      mixer[ch] = g;
+    }
+    NV.mixer = mixer;
+  }
+
+  // Enruta un GainNode a su canal; si no hay mixer (headless), cae a destination.
+  function channelFor(name) {
+    return (NV.mixer && NV.mixer[name]) || NV.audioCtx.destination;
+  }
+
+  // Ducking temporal: atenúa `byChannel` a `to` hasta `until` segundos de audioCtx.
+  function duck(byChannel, to, secs) {
+    if (!NV.mixer) return;
+    const now = NV.audioCtx.currentTime;
+    const g = NV.mixer[byChannel];
+    if (!g) return;
+    const cur = g.gain.value;
+    ducking[byChannel] = ducking[byChannel] || { original: cur };
+    ducking[byChannel].original = cur;
+    ducking[byChannel].target = to;
+    ducking[byChannel].until = now + (secs || 0.15);
+    g.gain.setValueAtTime(cur, now);
+    g.gain.linearRampToValueAtTime(to, now + 0.01);
+  }
+  // Restaura gains al volumen maestro correspondiente (llamado cada frame de música).
+  function restoreDucking() {
+    if (!NV.mixer) return;
+    const now = NV.audioCtx.currentTime;
+    for (const ch in ducking) {
+      const d = ducking[ch];
+      if (now >= d.until) {
+        const target = MASTER_VOLUME[ch] * CHANNELS[ch];
+        NV.mixer[ch].gain.cancelScheduledValues(now);
+        NV.mixer[ch].gain.setValueAtTime(d.target, now);
+        NV.mixer[ch].gain.linearRampToValueAtTime(target, now + 0.12);
+        delete ducking[ch];
+      }
+    }
+  }
+
   function initAudio() {
     initMusic();
+    createMixer(); // perezoso: solo cuando realmente hay contexto
     if (NV.audioCtx.state === 'suspended') NV.audioCtx.resume();
   }
   function createDrone(freq, time, dur) {
@@ -117,49 +192,79 @@
         scheduleNote('sawtooth', note, 0.25, 0.04 + NV.musicState.intensity * 0.02);
       }
     }
-    // Drone atmosférico continuo (loop)
+        // Drone atmosférico continuo (loop)
     if (NV.getFrame() % 120 === 0) {
       const droneFreq = CHORD_ROOTS[Math.floor(NV.getFrame() / 120) % CHORD_ROOTS.length] * 4;
       createDrone(droneFreq, NV.audioCtx.currentTime, 2.5);
     }
+
+    // Restaurar ducking si venció su duración (audio adaptativo de capas - Tarea 1)
+    restoreDucking();
   }
-  function playTone(freq, dur, type, vol) {
+    function playTone(freq, dur, type, vol, channel) {
     if (!NV.audioCtx || !NV.soundOn) return;
-    const osc = NV.audioCtx.createOscillator();
-    const gain = NV.audioCtx.createGain();
+    const ctx = NV.audioCtx;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    // Detune aleatorio leve (±0.8%) evita fatiga auditiva en disparos rápidos (Tarea 1).
+    const detune = (Math.random() * 2 - 1) * 0.008;
     osc.type = type || 'square';
-    osc.frequency.setValueAtTime(freq, NV.audioCtx.currentTime);
-    gain.gain.setValueAtTime(vol || 0.03, NV.audioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, NV.audioCtx.currentTime + dur);
+    osc.frequency.setValueAtTime(freq * (1 + detune), ctx.currentTime);
+    gain.gain.setValueAtTime(vol || 0.03, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
     osc.connect(gain);
-    gain.connect(NV.audioCtx.destination);
+    const target = (channel && channelFor(channel)) || channelFor('sfxPlayer');
+    gain.connect(target);
     osc.start();
-    osc.stop(NV.audioCtx.currentTime + dur);
+    osc.stop(ctx.currentTime + dur);
+  }
+
+  // Variante extendida: permite pasar { channel, detune, priority } desde callers
+  // que conocen el contexto del juego (arma rara, combo, daño crítico, etc.).
+  // Se usa para la Tarea 4 (anti-fatiga en SMG/railgun) y combo de kills.
+  function playToneEx(freq, dur, type, vol, opts) {
+    opts = opts || {};
+    const det = typeof opts.detune === 'number' ? opts.detune : ((Math.random() * 2 - 1) * 0.008);
+    const f = freq * (1 + det);
+    return playTone(f, dur, type, vol, opts.channel);
   }
   const sfx = {
-    explosion: () => playTone(110, 0.25, 'sawtooth', 0.06),
-    pickup: () => playTone(1320, 0.12, 'square', 0.04),
-    damage: () => playTone(80, 0.15, 'square', 0.07),
-    special: () => playTone(660, 0.4, 'triangle', 0.05),
-    levelup: () => playTone(523, 0.1, 'square', 0.05),
-    wave: () => playTone(440, 0.3, 'triangle', 0.06),
+    // SFX existentes: redirigidos a canales con ducking automático.
+    explosion: (enemyType) => { playTone(110, 0.25, 'sawtooth', 0.06, 'sfxEnemies'); },
+    pickup: () => playTone(1320, 0.12, 'square', 0.04, 'sfxUI'),
+    damage: () => { duck('music', 0.2, 0.18); playTone(80, 0.15, 'square', 0.07, 'sfxPlayer'); },
+    special: () => playTone(660, 0.4, 'triangle', 0.05, 'sfxPlayer'),
+    levelup: () => playTone(523, 0.1, 'square', 0.05, 'sfxUI'),
+    wave: () => playTone(440, 0.3, 'triangle', 0.06, 'sfxUI'),
   };
 
+  // SFX nuevos de la Tarea 1 (esqueleto: hooks de ducking para combo/victoria).
+  sfx.combo = (count) => { duck('music', 0.35, 0.12); playTone(880 + (count * 40), 0.08, 'square', 0.05 + count * 0.008, 'sfxAmbient'); };
+  sfx.heartbeat = (intensity) => { playTone(120, 0.3, 'sine', 0.03 + intensity * 0.12, 'sfxPlayer'); };
+  sfx.countdown = (sec) => { playTone(660 - sec * 60, 0.12, 'square', 0.04, 'sfxAmbient'); };
+  sfx.bossEnter = () => { duck('music', 0.1, 0.4); playTone(90, 0.6, 'sawtooth', 0.12, 'sfxEnemies'); };
+  sfx.victory = (wave) => { duck('music', 0.25, 0.2); playTone(660, 0.2, 'triangle', 0.06, 'sfxUI'); };
+
   // Sonido distintivo por tipo de arma
-  function playWeaponSound(weapon) {
+  // opts?: { crit, fusion, channel } → variación de timbre/pitch (Tarea 1).
+  // playWeaponSound(weapon) sigue funcionando (backwards compatible).
+  function playWeaponSound(weapon, opts) {
     if (!NV.soundOn) return;
+    opts = opts || {};
+    const fus = opts.fusion > 0 ? 1 + opts.fusion * 0.05 : 1; // pitch ↑ +5% por nivel de fusión
+    const vol = (opts.crit ? 1.15 : 1) * (opts.fusion ? 1 + opts.fusion * 0.03 : 1);
     switch (weapon.id) {
-      case 'pistol': playTone(880, 0.08, 'square', 0.03); break;
-      case 'rifle': playTone(640, 0.07, 'square', 0.035); break;
-      case 'smg': playTone(990, 0.04, 'square', 0.028); break;
-      case 'shotgun': scheduleNoise(0.18, 0.07); playTone(170, 0.18, 'sawtooth', 0.09); break;
-      case 'sniper': playTone(110, 0.45, 'square', 0.11); scheduleNoise(0.25, 0.05); break;
-      case 'laser': playTone(1250, 0.12, 'sine', 0.045); break;
-      case 'plasma': playTone(720, 0.1, 'triangle', 0.05); break;
-      case 'flamethrower': scheduleNoise(0.14, 0.05); playTone(95, 0.13, 'sawtooth', 0.08); break;
-      case 'bow': playTone(430, 0.09, 'sine', 0.045); break;
-      case 'railgun': playTone(150, 0.5, 'sawtooth', 0.12); scheduleNoise(0.3, 0.06); break;
-            default: playTone(880, 0.08, 'square', 0.03);
+      case 'pistol': playToneEx(880, 0.08, 'square', 0.03 * vol, opts); break;
+      case 'rifle': playToneEx(640, 0.07, 'square', 0.035 * vol, opts); break;
+      case 'smg': playToneEx(990, 0.04, 'square', 0.028 * vol, opts); break;
+      case 'shotgun': scheduleNoise(0.18, 0.07); playToneEx(170 * fus, 0.18, 'sawtooth', 0.09 * vol, opts); break;
+      case 'sniper': playToneEx(110, 0.45, 'square', 0.11 * vol, opts); scheduleNoise(0.25, 0.05); break;
+      case 'laser': playToneEx(1250, 0.12, 'sine', 0.045 * vol, opts); break;
+      case 'plasma': playToneEx(720, 0.1, 'triangle', 0.05 * vol, opts); break;
+      case 'flamethrower': scheduleNoise(0.14, 0.05); playToneEx(95 * fus, 0.13, 'sawtooth', 0.08 * vol, opts); break;
+      case 'bow': playToneEx(430, 0.09, 'sine', 0.045 * vol, opts); break;
+      case 'railgun': playToneEx(150 * fus, 0.5, 'sawtooth', 0.12 * vol, opts); scheduleNoise(0.3, 0.06); break;
+            default: playToneEx(880, 0.08, 'square', 0.03 * vol, opts);
     }
   }
 
@@ -181,5 +286,9 @@
   NV.initAudio = initAudio;
   NV.updateMusic = updateMusic;
   NV.playWeaponSound = playWeaponSound;
+  NV.playToneEx = playToneEx;
+  NV.duck = duck;
+  NV.channelFor = channelFor;
+  NV.mixerChannels = CHANNELS;
   NV.sfx = sfx;
 })();
