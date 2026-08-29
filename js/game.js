@@ -1545,6 +1545,7 @@
     }
 
     update(dt);
+    if ((state === 'menu' || state === 'shop') && !paused) updateMusic(dt);
     draw();
 
     if (shake > 0 && (state === 'playing' || state === 'gameover')) {

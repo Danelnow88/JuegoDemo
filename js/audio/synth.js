@@ -39,9 +39,19 @@
   ];
   // Lookup de capas por fase. 'shop'/'menu' caen a 'normal' hasta que se les
   // asigne identidad propia (Tarea 5 - ambiente de menú).
+  const MENU_CHORD_ROOTS = [82.41, 98.00, 123.47, 164.81]; // E2 - G2 - B2 - E3
+  const MENU_BASS_LINE = [82.41, 0, 98.00, 0];
+  const MENU_LEAD_SEQ = [329.63, 392.00, 493.88, 587.33, 493.88, 392.00, 329.63, 246.94];
+  const MENU_DRUM_PATTERN = [
+    [1,0,0,0, 0,0,0,0, 1,0,0,0, 0,0,0,0],
+    [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    [0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,1,0],
+  ];
   const MUSIC_LAYERS = {
     normal: { chordRoots: CHORD_ROOTS, bass: BASS_LINE, lead: LEAD_SEQ, drums: DRUM_PATTERN },
     boss: { chordRoots: BOSS_CHORD_ROOTS, bass: BOSS_BASS_LINE, lead: BOSS_LEAD_SEQ, drums: BOSS_DRUM_PATTERN },
+    menu: { chordRoots: MENU_CHORD_ROOTS, bass: MENU_BASS_LINE, lead: MENU_LEAD_SEQ, drums: MENU_DRUM_PATTERN },
+    shop: { chordRoots: MENU_CHORD_ROOTS, bass: MENU_BASS_LINE, lead: MENU_LEAD_SEQ, drums: MENU_DRUM_PATTERN },
   };
   function currentLayers() { return MUSIC_LAYERS[NV.musicState.phase] || MUSIC_LAYERS.normal; }
 
@@ -186,17 +196,20 @@
     osc.start(); osc.stop(NV.audioCtx.currentTime + dur);
   }
   function updateMusic(dt) {
-    if (!NV.audioCtx || !NV.soundOn || NV.getState() !== 'playing') return;
+    if (!NV.audioCtx || !NV.soundOn) return;
+    const gameState = NV.getState ? NV.getState() : 'playing';
+    if (gameState !== 'playing' && gameState !== 'menu' && gameState !== 'shop') return;
     // Sincroniza la fase de música con la presencia de jefe (Tarea 3: identidad
     // sonora de jefe). El cambio de capa ocurre en el próximo step, nunca a mitad
     // de nota, así que no hay glitch/corte audible al entrar o salir de fase boss.
-    const wantPhase = NV.getBoss() ? 'boss' : (NV.musicState.phase === 'shop' || NV.musicState.phase === 'menu' ? NV.musicState.phase : 'normal');
+    const wantPhase = gameState === 'menu' ? 'menu' : (gameState === 'shop' ? 'shop' : (NV.getBoss && NV.getBoss() ? 'boss' : 'normal'));
     if (wantPhase !== NV.musicState.phase) NV.musicState.phase = wantPhase;
     const layers = currentLayers();
     const comboLayer = Math.min(1, (NV.musicState.combo || 0) / 20);
-    NV.musicTime += dt * (1 + NV.musicState.intensity * 0.6 + comboLayer * 0.18);
-    const stepDur = 0.12;
-    NV.musicState.intensity = Math.min(1, NV.musicState.intensity + (NV.getBoss() ? 0.02 : -0.015) * dt);
+    const isMenuLike = NV.musicState.phase === 'menu' || NV.musicState.phase === 'shop';
+    NV.musicTime += dt * (isMenuLike ? 0.55 : (1 + NV.musicState.intensity * 0.6 + comboLayer * 0.18));
+    const stepDur = isMenuLike ? 0.18 : 0.12;
+    NV.musicState.intensity = Math.max(0, Math.min(1, NV.musicState.intensity + ((NV.getBoss && NV.getBoss()) ? 0.02 : -0.015) * dt));
     if (NV.musicTime - NV.musicState.lastBeat >= stepDur) {
       NV.musicState.lastBeat = NV.musicTime;
       NV.musicState.step = (NV.musicState.step + 1) % 16;
@@ -216,7 +229,7 @@
       // Bajo cada 4 steps (subby sawtooth)
       if (step % 4 === 0) {
         const bassIdx = Math.floor(step / 4) % layers.bass.length;
-        scheduleNote('sawtooth', layers.bass[bassIdx], 0.2, 0.05 + NV.musicState.intensity * 0.02);
+        if (layers.bass[bassIdx]) scheduleNote(isMenuLike ? 'sine' : 'sawtooth', layers.bass[bassIdx], isMenuLike ? 0.5 : 0.2, (isMenuLike ? 0.025 : 0.05) + NV.musicState.intensity * 0.02);
       }
       // Lead melódico (guitarra synth) → solo cada 8 steps
       if (step % 8 === 0 || (NV.musicState.intensity > 0.7 && step % 4 === 0)) {
@@ -225,9 +238,9 @@
       }
     }
         // Drone atmosférico continuo (loop)
-    if (NV.getFrame() % 120 === 0) {
-      const droneFreq = layers.chordRoots[Math.floor(NV.getFrame() / 120) % layers.chordRoots.length] * 4;
-      createDrone(droneFreq, NV.audioCtx.currentTime, 2.5);
+    if (NV.getFrame() % (isMenuLike ? 180 : 120) === 0) {
+      const droneFreq = layers.chordRoots[Math.floor(NV.getFrame() / 120) % layers.chordRoots.length] * (isMenuLike ? 2 : 4);
+      createDrone(droneFreq, NV.audioCtx.currentTime, isMenuLike ? 3.4 : 2.5);
     }
 
     // Restaurar ducking si venció su duración (audio adaptativo de capas - Tarea 1)
@@ -259,6 +272,18 @@
     const det = typeof opts.detune === 'number' ? opts.detune : ((Math.random() * 2 - 1) * 0.008);
     const f = freq * (1 + det);
     return playTone(f, dur, type, vol, opts.channel);
+  }
+  const rapidFireFatigue = {};
+  function rapidFireVolume(id, baseVol) {
+    if (!NV.audioCtx || (id !== 'smg' && id !== 'railgun')) return baseVol;
+    const now = NV.audioCtx.currentTime;
+    const st = rapidFireFatigue[id] || { last: -99, heat: 0 };
+    const cadence = now - st.last;
+    if (cadence < (id === 'smg' ? 0.09 : 0.22)) st.heat = Math.min(1, st.heat + 0.16);
+    else st.heat = Math.max(0, st.heat - cadence * 1.2);
+    st.last = now;
+    rapidFireFatigue[id] = st;
+    return baseVol * (1 - st.heat * 0.32);
   }
   const sfx = {
     // SFX existentes: redirigidos a canales con ducking automático.
@@ -365,14 +390,14 @@
     switch (weapon.id) {
       case 'pistol': playToneEx(880, 0.08, 'square', 0.03 * vol, opts); break;
       case 'rifle': playToneEx(640, 0.07, 'square', 0.035 * vol, opts); break;
-      case 'smg': playToneEx(990, 0.04, 'square', 0.028 * vol, opts); break;
+      case 'smg': playToneEx(990, 0.04, 'square', rapidFireVolume('smg', 0.028 * vol), opts); break;
       case 'shotgun': scheduleNoise(0.18, 0.07); playToneEx(170 * fus, 0.18, 'sawtooth', 0.09 * vol, opts); break;
       case 'sniper': playToneEx(110, 0.45, 'square', 0.11 * vol, opts); scheduleNoise(0.25, 0.05); break;
       case 'laser': playToneEx(1250, 0.12, 'sine', 0.045 * vol, opts); break;
       case 'plasma': playToneEx(720, 0.1, 'triangle', 0.05 * vol, opts); break;
       case 'flamethrower': scheduleNoise(0.14, 0.05); playToneEx(95 * fus, 0.13, 'sawtooth', 0.08 * vol, opts); break;
       case 'bow': playToneEx(430, 0.09, 'sine', 0.045 * vol, opts); break;
-      case 'railgun': playToneEx(150 * fus, 0.5, 'sawtooth', 0.12 * vol, opts); scheduleNoise(0.3, 0.06); break;
+      case 'railgun': playToneEx(150 * fus, 0.5, 'sawtooth', rapidFireVolume('railgun', 0.12 * vol), opts); scheduleNoise(0.3, rapidFireVolume('railgun', 0.06)); break;
             default: playToneEx(880, 0.08, 'square', 0.03 * vol, opts);
     }
   }
