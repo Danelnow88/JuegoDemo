@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Consumable Icons — integración canvas</title>
+  <style>
+    body { margin:0; min-height:100vh; background:#080b14; color:#e5eefb; font-family:system-ui, sans-serif; display:flex; flex-direction:column; align-items:center; padding:24px; }
+    h1 { margin:0 0 6px; font-size:18px; letter-spacing:.08em; text-transform:uppercase; color:#7cf8ff; }
+    p { margin:0 0 18px; color:#9aa8bd; font-size:13px; }
+    table { border-collapse:collapse; background:rgba(255,255,255,.035); border:1px solid rgba(124,248,255,.22); border-radius:14px; overflow:hidden; box-shadow:0 0 24px rgba(124,248,255,.08); }
+    th, td { padding:10px 12px; border-bottom:1px solid rgba(255,255,255,.08); text-align:center; font-size:12px; }
+    th { color:#7cf8ff; background:rgba(124,248,255,.08); font-size:11px; letter-spacing:.06em; text-transform:uppercase; }
+    td:first-child { text-align:left; color:#fff; min-width:128px; }
+    tr:last-child td { border-bottom:0; }
+    canvas { background:rgba(0,0,0,.44); border:1px solid rgba(255,255,255,.12); border-radius:8px; vertical-align:middle; }
+    .note { margin-top:14px; max-width:860px; text-align:center; }
+  </style>
+</head>
+<body>
+  <h1>Consumable Icons — integración canvas</h1>
+  <p>Render real del helper integrado en tamaños de juego: HUD slot 18 en caja 22×22, base 32, tienda 48 en canvas 64×64.</p>
+  <table id="grid" aria-label="Confirmación visual de iconos de consumibles integrados"></table>
+  <p class="note">Si cada silueta sigue siendo reconocible en la primera columna, el set es legible en el contexto más chico del HUD.</p>
+
+  <script>window.NV = {};</script>
+  <script src="../js/render/consumableIcons.js"></script>
+  <script>
+    const items = [
+      ['potion', 'Poción'], ['overdrive', 'Overdrive'], ['shield', 'Escudo'], ['bomb', 'Bomba'],
+      ['freeze', 'Congelante'], ['magnet', 'Imán'], ['bounty', 'Recompensa'],
+    ];
+    const configs = [
+      ['HUD slot', 18, 22, 2],
+      ['Base helper', 32, 46, 2],
+      ['Tienda', 48, 64, 3],
+    ];
+    const table = document.getElementById('grid');
+    table.innerHTML = '<tr><th>Consumible</th>' + configs.map(([label, icon, box]) => `<th>${label}<br>${icon}px en ${box}×${box}</th>`).join('') + '</tr>';
+    items.forEach(([id, name]) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td><strong>${name}</strong><br><span style="color:#7b8798">${id}</span></td>`;
+      configs.forEach(([, iconSize, box, glow]) => {
+        const td = document.createElement('td');
+        const c = document.createElement('canvas');
+        c.width = c.height = box;
+        c.style.width = c.style.height = box + 'px';
+        NV.drawConsumableIcon(c.getContext('2d'), id, box / 2, box / 2, iconSize, { glow });
+        td.appendChild(c);
+        tr.appendChild(td);
+      });
+      table.appendChild(tr);
+    });
+  </script>
+</body>
+</html>

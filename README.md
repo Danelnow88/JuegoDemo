@@ -37,12 +37,14 @@ JuegoDemo/
     ├── audio/
     │   └── synth.js    # Audio synthwave + SFX: Estado mutable en NV.* (soundOn/audioCtx/musicState/musicTime); consume NV.getFrame/getBoss/getState
     ├── render/
-    │   ├── canvas.js      # canvas + ctx base (expuestos en NV.canvas/NV.ctx)
-    │   ├── projectiles.js # Dibujo de proyectiles del jugador (formas por arma) + VFX especial (NV.drawBulletShape/NV.drawSpecialVFX)
-    │   ├── enemies.js     # NV.drawEnemy
-    │   ├── bosses.js      # NV.drawBoss
-    │   ├── player.js      # NV.drawPlayer
-    │   └── hud.js         # HUD en canvas: cooldown, panel arma/habilidad/consumibles, stats TAB (NV.drawSpecialCooldown/drawWeaponHUD/drawStats)
+    │   ├── canvas.js          # canvas + ctx base (expuestos en NV.canvas/NV.ctx)
+    │   ├── projectiles.js     # Dibujo de proyectiles del jugador (formas por arma) + VFX especial (NV.drawBulletShape/NV.drawSpecialVFX)
+    │   ├── enemies.js         # NV.drawEnemy
+    │   ├── bosses.js          # NV.drawBoss
+    │   ├── player.js          # NV.drawPlayer
+    │   ├── weaponIcons.js     # NV.drawWeaponIcon: iconos de armas SVG-approved convertidos a canvas
+    │   ├── consumableIcons.js # NV.drawConsumableIcon: iconos de consumibles SVG-approved convertidos a canvas
+    │   └── hud.js             # HUD en canvas: cooldown, panel arma/habilidad/consumibles, stats TAB (NV.drawSpecialCooldown/drawWeaponHUD/drawStats)
     ├── ui/
     │   └── dom.js      # Árbol DOM (expuesto en NV.dom)
     ├── engine/
@@ -60,7 +62,7 @@ JuegoDemo/
     └── game.js         # Orquestador: init/update/loop, flujo de oleadas/tienda/menú, input, guardado — IIFE
 ```
 
-- **Sin builds, sin dependencias, sin servidor.** Se ejecuta directamente en el navegador. Orden de carga: `core/state.js` → `core/utils.js` → `data/gameData.js` → `data/balance.js` → `data/consumables.js` → `audio/synth.js` → `ui/dom.js` → `render/canvas.js`/otros `render/*` → `engine/rhythm.js`/otros `engine/*` → `game.js`.
+- **Sin builds, sin dependencias, sin servidor.** Se ejecuta directamente en el navegador. Orden de carga: `core/state.js` → `core/utils.js` → `data/gameData.js` → `data/balance.js` → `data/consumables.js` → `audio/synth.js` → `ui/dom.js` → `render/canvas.js`/otros `render/*` (`weaponIcons.js` y `consumableIcons.js` antes de `hud.js`) → `engine/rhythm.js`/otros `engine/*` → `game.js`.
 - `game.js` está en una **IIFE** con `'use strict'` (todo scoped, no contamina el global), pero los **datos** ya viven en `window.NV` (`core/state.js` + `data/gameData.js` + `data/balance.js` + `data/consumables.js`) y `game.js` los usa por **alias locales** (`const BALANCE = NV.BALANCE`, etc.).
 - El estado del juego y del canvas es totalmente **procedural** (se dibuja en cada frame con `requestAnimationFrame`).
 
@@ -924,6 +926,18 @@ El **README describe fielmente el juego jugable** (motor, 4 personajes, 10 armas
 
 ---
 
+## 🎨 Iconos canvas integrados
+
+- **Armas**: `js/render/weaponIcons.js` expone `NV.drawWeaponIcon(ctx, weaponOrId, x, y, size, opts)` y reemplaza los iconos legacy en HUD, tienda, inventario y pickups.
+- **Consumibles**: `js/render/consumableIcons.js` expone `NV.drawConsumableIcon(ctx, typeOrItem, x, y, size, opts)` para los 7 consumibles actuales (`potion`, `overdrive`, `shield`, `bomb`, `freeze`, `magnet`, `bounty`). Los SVG aprobados de `previews/consumable-icons-preview.html` fueron convertidos a paths/primitivas canvas sobre grilla lógica `32×32`.
+- En runtime los consumibles se guardan por `{ type, name }`; ya no se persiste ni se agrupa `icon`/emoji para consumibles. El HUD dibuja el icono a `18px` dentro de slots `22×22`; la tienda los dibuja a `48px` dentro de canvas `64×64`.
+- Previews de verificación visual:
+  - `previews/weapon-icons-integration-preview.html`
+  - `previews/consumable-icons-preview.html`
+  - `previews/consumable-icons-integration-preview.html`
+
+---
+
 ## 🧠 Notas de implementación y observaciones de auditoría (14/08/2026)
 
 Comportamientos reales verificados al leer el código completo (`js/game.js`, ~2155 líneas en una IIFE; el audio ya no está inline — pasó a `js/audio/synth.js` (~186 líneas); `css/styles.css` ~380 líneas; `index.html` ~136 líneas). Útil para retomar desarrollo sin re-descubrir.
@@ -981,12 +995,14 @@ JuegoDemo/
     ├── audio/
     │   └── synth.js    # Audio synthwave + SFX (estado en NV.*; fue inline en game.js)
     ├── render/
-    │   ├── canvas.js      # canvas + ctx base (NV.canvas/NV.ctx)
-    │   ├── projectiles.js # NV.drawBulletShape + NV.drawSpecialVFX
-    │   ├── enemies.js     # NV.drawEnemy
-    │   ├── bosses.js      # NV.drawBoss
-    │   ├── player.js      # NV.drawPlayer
-    │   └── hud.js         # NV.drawSpecialCooldown/drawWeaponHUD/drawStats
+    │   ├── canvas.js          # canvas + ctx base (NV.canvas/NV.ctx)
+    │   ├── projectiles.js     # NV.drawBulletShape + NV.drawSpecialVFX
+    │   ├── enemies.js         # NV.drawEnemy
+    │   ├── bosses.js          # NV.drawBoss
+    │   ├── player.js          # NV.drawPlayer
+    │   ├── weaponIcons.js     # NV.drawWeaponIcon
+    │   ├── consumableIcons.js # NV.drawConsumableIcon
+    │   └── hud.js             # NV.drawSpecialCooldown/drawWeaponHUD/drawStats
     ├── ui/
     │   └── dom.js      # Árbol DOM (NV.dom)
     ├── engine/

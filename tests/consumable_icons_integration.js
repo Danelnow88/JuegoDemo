@@ -7,6 +7,8 @@ const game = fs.readFileSync('js/game.js', 'utf8');
 const hud = fs.readFileSync('js/render/hud.js', 'utf8');
 const data = fs.readFileSync('js/data/consumables.js', 'utf8');
 const utils = fs.readFileSync('js/core/utils.js', 'utf8');
+const readme = fs.readFileSync('README.md', 'utf8');
+const preview = fs.readFileSync('previews/consumable-icons-integration-preview.html', 'utf8');
 
 t('tienda renderiza consumibles con canvas aprobado 64/48', () => {
   if (!game.includes('function drawConsumableCanvas')) throw new Error('falta drawConsumableCanvas');
@@ -38,6 +40,22 @@ t('no quedan emojis viejos de los 7 consumibles en runtime', () => {
   for (const old of ['🧪','⚡','🛡','💣','⏱','🧲','🎯']) {
     if (runtime.includes(old)) throw new Error('quedó placeholder viejo de consumible: ' + old);
   }
+});
+
+t('preview de confirmación muestra tamaños reales HUD/base/tienda', () => {
+  if (!preview.includes('../js/render/consumableIcons.js')) throw new Error('preview no carga helper real');
+  for (const txt of ['HUD slot', '18, 22', 'Base helper', '32, 46', 'Tienda', '48, 64']) {
+    if (!preview.includes(txt)) throw new Error('preview sin ' + txt);
+  }
+  for (const id of ['potion','overdrive','shield','bomb','freeze','magnet','bounty']) {
+    if (!preview.includes("'" + id + "'")) throw new Error('preview sin ' + id);
+  }
+});
+
+t('README documenta helper y previews de consumibles', () => {
+  if (!readme.includes('js/render/consumableIcons.js')) throw new Error('README sin helper');
+  if (!readme.includes('NV.drawConsumableIcon')) throw new Error('README sin API');
+  if (!readme.includes('previews/consumable-icons-integration-preview.html')) throw new Error('README sin preview integración');
 });
 
 console.log('RESULT consumable_icons_integration: pass=' + pass + ' fail=' + fail);
