@@ -473,9 +473,10 @@ canvas {
   pointer-events: none;
   line-height: 0;
   will-change: transform, color, opacity, filter;
-  /* 150ms ease-out: deja que el pulso de beat del ícono sea perceptible
-     (antes 90ms era tan rápido que el salto pasaba desapercibido). */
-  transition: transform 150ms ease-out;
+  /* SIN transition en transform: el beat es un transiente de ~2-3 frames y JS
+     re-escribe transform cada frame. Una transition de 150ms reiniciaba en cada
+     escritura y filtraba el pico hasta dejarlo invisible (color se veia porque
+     no tiene transition). El envelope natural del beat YA es el easing. */
 }
 /* Música SVG (music-note). Usa currentColor para que el hue dinámico de
    NV.rhythm tiña el ícono completo por la propiedad color que setea JS. */

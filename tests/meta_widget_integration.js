@@ -64,12 +64,15 @@ function t(desc, fn) {
     if (!game.includes('NV.updateRhythmWidgetIcon()')) throw new Error('no se llama updateRhythmWidgetIcon en el loop');
   });
 
-  t('ícono SVG a 20px y transition de pulso más lenta en CSS', () => {
+  t('ícono SVG a 20px y SIN transition en transform (filtra el pulso)', () => {
     const html = fs.readFileSync('index.html', 'utf8');
     const css = fs.readFileSync('css/styles.css', 'utf8');
     if (!html.includes('width="20" height="20"')) throw new Error('ícono no agrandado a 20px');
     if (!css.includes('width: 20px') || !css.includes('height: 20px')) throw new Error('CSS no tiene 20px');
-    if (!css.includes('transition: transform 150ms')) throw new Error('transition de pulso no más lenta (150ms)');
+    // Regresión: una transition en transform filtraba el transiente del beat
+    // (se re-escribe cada frame) y el pulso se volvia invisible. No debe volver.
+    const iconBlock2 = css.slice(css.indexOf('.rw-icon'), css.indexOf('.rw-icon svg'));
+    if (/transition\s*:[^;]*transform/.test(iconBlock2)) throw new Error('.rw-icon no debe tener transition en transform (filtra el pulso)');
   });
 
   t('game.js wiring usa API real: externalAudio.startDisplayCapture / stop', () => {
