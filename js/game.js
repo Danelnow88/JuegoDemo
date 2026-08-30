@@ -439,6 +439,30 @@
       // ===== FIN TEMP DEBUG =====
     }
     NV.updateRhythmWidgetIcon = updateRhythmWidgetIcon;
+
+    // ===== TEMP DEBUG: tecla T fuerza un pulso sin audio — eliminar tras diagnosticar =====
+    // Prueba binaria: si el ícono se mueve con T => el problema es la detección de
+    // audio real (r.beat nunca sube). Si no se mueve ni con T => render/CSS/JS.
+    const dbgKey = (typeof location !== 'undefined') && /[?&]rhythmdebug=1/.test(location.search || '');
+    if (dbgKey) {
+      console.log('[rhythm-icon] debug ACTIVO: apretá T para pulso forzado (sin música)');
+      window.addEventListener('keydown', (e) => {
+        if (e.code !== 'KeyT') return;
+        const r = NV.rhythm;
+        const prev = { state: r.state, enabled: r.enabled };
+        r.enabled = true;
+        r.state = 'listening';
+        r.beat = 1; r.hue = 180; r.energy = 1;
+        console.log('[rhythm-icon] PULSO FORZADO: beat=1 hue=180 energy=1 state=listening');
+        if (r._dbgRestore) clearTimeout(r._dbgRestore);
+        r._dbgRestore = setTimeout(() => {
+          r.beat = 0; r.energy = 0;
+          r.state = prev.state; r.enabled = prev.enabled;
+          console.log('[rhythm-icon] pulso forzado finalizado (estado restaurado)');
+        }, 350);
+      });
+    }
+    // ===== FIN TEMP DEBUG =====
   }
 
   function loadMeta() {
