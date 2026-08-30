@@ -342,10 +342,14 @@
       // hueco izquierdo (borde der del logo) y derecho (arranque de .stats)
       const gapL = logoRect.right - hudRect.left;
       const gapR = statsRect.left - hudRect.left;
-      if (gapR <= gapL) return; // sin espacio: evitar sobre-escrituras
-      const mid = (gapL + gapR) / 2;
+      if (gapR <= gapL + 20) return; // poco espacio: evitar sobre-escrituras
+      // Anclar pegado al borde derecho del logo con un margen pequeño
+      // (no centrar en el hueco completo). Margen de 36px de separación visual.
       const w = widget.offsetWidth || 0;
-      widget.style.left = (mid - w / 2) + 'px';
+      const MARGIN = 36;
+      // Clamp para que nunca invada el arranque de .stats
+      const left = Math.min(gapL + MARGIN, gapR - w - 6);
+      widget.style.left = left + 'px';
       widget.style.top = '50%';
       widget.style.transform = 'translateY(-50%)';
     }
