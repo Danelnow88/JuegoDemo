@@ -46,18 +46,30 @@ function t(desc, fn) {
     if (!css.includes('stroke: currentColor')) throw new Error('el SVG no usa currentColor (no se puede teñir por hue)');
   });
 
-  t('game.js: updateRhythmWidgetIcon aplica pulso/color/glow reutilizando NV.rhythm', () => {
+  t('game.js: updateRhythmWidgetIcon aplica pulso amplificado + skew, color y glow', () => {
     if (!game.includes('function updateRhythmWidgetIcon')) throw new Error('falta updateRhythmWidgetIcon');
     // gate: estático sin listening
     if (!game.includes("r.state !== 'listening'")) throw new Error('falta gate de estado listening');
-    // 3 efectos
-    if (!game.includes("icon.style.transform = 'scale('")) throw new Error('falta pulso de beat');
+    // pulso de beat amplificado (cap 0.35) + skew de borde sincronizado
+    if (!game.includes('Math.min(0.35, beat * 2.2)')) throw new Error('falta escale ampliado (cap 0.35)');
+    if (!game.includes('skewX(')) throw new Error('falta distorsión skew de borde');
+    if (!game.includes('transform = \'scale(')) throw new Error('falta apply scale');
+    // color por hue
     if (!game.includes("icon.style.color = 'hsl(")) throw new Error('falta color por hue');
+    // glow por energía
     if (!game.includes('icon.style.filter')) throw new Error('falta glow (filter)');
     // usa hue/beat/energy de NV.rhythm
     if (!game.includes('NV.rhythm') || !game.includes('r.hue') || !game.includes('r.beat') || !game.includes('r.energy')) throw new Error('no reusa NV.rhythm');
     // se llama en el loop
     if (!game.includes('NV.updateRhythmWidgetIcon()')) throw new Error('no se llama updateRhythmWidgetIcon en el loop');
+  });
+
+  t('ícono SVG a 20px y transition de pulso más lenta en CSS', () => {
+    const html = fs.readFileSync('index.html', 'utf8');
+    const css = fs.readFileSync('css/styles.css', 'utf8');
+    if (!html.includes('width="20" height="20"')) throw new Error('ícono no agrandado a 20px');
+    if (!css.includes('width: 20px') || !css.includes('height: 20px')) throw new Error('CSS no tiene 20px');
+    if (!css.includes('transition: transform 150ms')) throw new Error('transition de pulso no más lenta (150ms)');
   });
 
   t('game.js wiring usa API real: externalAudio.startDisplayCapture / stop', () => {

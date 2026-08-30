@@ -467,13 +467,15 @@ canvas {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 16px;
-  height: 16px;
+  width: 20px;
+  height: 20px;
   color: #7cf8ff;
   pointer-events: none;
   line-height: 0;
   will-change: transform, color, opacity, filter;
-  transition: transform 90ms ease-out;
+  /* 150ms ease-out: deja que el pulso de beat del ícono sea perceptible
+     (antes 90ms era tan rápido que el salto pasaba desapercibido). */
+  transition: transform 150ms ease-out;
 }
 /* Música SVG (music-note). Usa currentColor para que el hue dinámico de
    NV.rhythm tiña el ícono completo por la propiedad color que setea JS. */

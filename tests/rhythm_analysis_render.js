@@ -339,10 +339,12 @@ t('index/dom/css exponen controles de música externa', () => {
   const html = fs.readFileSync('index.html', 'utf8');
   const dom = fs.readFileSync('js/ui/dom.js', 'utf8');
   const css = fs.readFileSync('css/styles.css', 'utf8');
-  for (const id of ['rhythmTabBtn', 'rhythmMicBtn', 'rhythmStopBtn', 'rhythmStatus']) {
+  for (const id of ['rwAddMusicBtn', 'rwStopBtn']) {
     if (!html.includes('id="' + id + '"')) throw new Error('html falta ' + id);
     if (!dom.includes(id + ': document.getElementById')) throw new Error('dom falta ' + id);
   }
+  if (!html.includes('rhythm-widget')) throw new Error('html falta el widget rhythm-widget');
+  if (!css.includes('.rhythm-widget')) throw new Error('css falta .rhythm-widget');
   if (!html.includes('js/engine/rhythm.js')) throw new Error('script rhythm ausente');
   if (!css.includes('.rhythm-panel')) throw new Error('css rhythm ausente');
 });

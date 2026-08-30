@@ -404,9 +404,12 @@
       const hue = (r.hue == null) ? 200 : r.hue;
       const beat = r.beat || 0;
       const energy = Math.max(0, Math.min(1, r.energy || 0));
-      // Pulso suave de beat (mecanismo análogo al jitter/pulso de fondo)
-      const pulse = 1 + Math.min(0.18, beat * 0.9);
-      icon.style.transform = 'scale(' + pulse.toFixed(3) + ')';
+      // Pulso amplificado del beat: cap 0.35 + gain 2.2 => delta ~0.35 en pico
+      // (antes cap 0.18 daba solo ~3px de diferencia a 16px, invisible).
+      const pulse = 1 + Math.min(0.35, beat * 2.2);
+      // Distorsión sutil de borde sincronizada al beat (skew hasta ~3deg).
+      const skew = Math.min(3, beat * 3);
+      icon.style.transform = 'scale(' + pulse.toFixed(3) + ') skewX(' + skew.toFixed(1) + 'deg)';
       // Color dinámico por hue calculado (mismo que tiñe el fondo)
       icon.style.color = 'hsl(' + Math.round(hue) + ',75%,62%)';
       // Brillo/glow fade en función de la energía detectada
