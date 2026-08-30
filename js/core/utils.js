@@ -25,12 +25,12 @@
   };
 
   // Agrupa consumibles por tipo preservando el orden de primera aparición.
-  // Devuelve [{ type, name, icon, count }] para el HUD de slots.
+  // Devuelve [{ type, name, count }] para el HUD de slots.
   NV.groupConsumables = function (items) {
     const groups = [], byType = {};
     for (const it of items || []) {
       let g = byType[it.type];
-      if (!g) { g = { type: it.type, name: it.name, icon: it.icon, count: 0 }; byType[it.type] = g; groups.push(g); }
+      if (!g) { g = { type: it.type, name: it.name, count: 0 }; byType[it.type] = g; groups.push(g); }
       g.count++;
     }
     return groups;

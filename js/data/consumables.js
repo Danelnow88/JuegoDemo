@@ -6,9 +6,9 @@
   const NV = window.NV;
 
   NV.CONSUMABLES = {
-    potion:    { hp: 40,                    icon: '🧪', name: 'POCIÓN',    color: '#0f0' },
-    overdrive: { speedMult: 1.5, duration: 5, icon: '⚡', name: 'OVERDRIVE', color: '#caa7ff' },
-    shield:    { duration: 2,               icon: '🛡', name: 'ESCUDO',   color: '#ffcf76' },
+    potion:    { hp: 40,                    name: 'POCIÓN',    color: '#22c55e' },
+    overdrive: { speedMult: 1.5, duration: 5, name: 'OVERDRIVE', color: '#caa7ff' },
+    shield:    { duration: 2,               name: 'ESCUDO',    color: '#ffcf76' },
   };
   Object.freeze(NV.CONSUMABLES);
 })();
