@@ -161,7 +161,16 @@ t('umbrales robustos: transientes conservan contraste bajo densidad extrema', ()
 
 // ---- Bloque 3: carácter (density/punch/accent) y alpha no saturado ----
 function mkAlphaCtx() {
-  return { gradients: [], ops: [], createRadialGradient(){ const g = { stops: [], addColorStop(o, c){ this.stops.push([o, c]); } }; this.gradients.push(g); return g; }, fillRect(){ this.ops.push('fill'); }, strokeRect(){ this.ops.push('stroke'); }, save(){}, restore(){} };
+  return {
+    gradients: [], ops: [], createRadialGradient(){ const g = { stops: [], addColorStop(o, c){ this.stops.push([o, c]); } }; this.gradients.push(g); return g; },
+    fillRect(){ this.ops.push('fill'); }, strokeRect(){ this.ops.push('stroke'); }, save(){}, restore(){},
+    // Stub mínimo de paths para drawEnemy (jitter end-to-end):
+    beginPath(){}, closePath(){}, moveTo(){}, lineTo(){}, arc(){}, fill(){}, stroke(){},
+    set fillStyle(v){ this._fs = v; }, get fillStyle(){ return this._fs; },
+    set strokeStyle(v){ this._ss = v; }, get strokeStyle(){ return this._ss; },
+    set lineWidth(v){}, get lineWidth(){ return 1; },
+    set globalAlpha(v){ this._ga = v; }, get globalAlpha(){ return this._ga; },
+  };
 }
 
 t('caracter: density/punch/accent publicados y alpha respira sin saturar en deathcore', () => {
@@ -197,6 +206,70 @@ t('caracter: density/punch/accent publicados y alpha respira sin saturar en deat
   if (m > 0.30) throw new Error('alpha saturado (clavado al tope): media=' + m.toFixed(3));
   if (satShare > 0.15) throw new Error('demasiados frames saturados: ' + (satShare * 100).toFixed(1) + '%');
   if (sd < 0.045) throw new Error('alpha plano (sin respiracion): sd=' + sd.toFixed(4));
+});
+
+// ---- Bloque 4b: verificación end-to-end del pipeline completo ----
+t('end-to-end: frame FFT -> analisis -> render (alpha/hue) -> jitter por banda, cadena viva', () => {
+  const NV = loadNV();
+  // drawEnemy pertenece a js/render/enemies.js: se monta en el mismo sandbox
+  // para validar la cadena completa real (no un stub).
+  const sbx = { window: { NV }, navigator: { mediaDevices: {} }, localStorage: { getItem(){return null;}, setItem(){}, removeItem(){} }, console, Uint8Array, Promise, Math };
+  vm.createContext(sbx);
+  vm.runInContext(fs.readFileSync('js/render/enemies.js', 'utf8'), sbx, { filename: 'js/render/enemies.js' });
+  if (typeof NV.drawEnemy !== 'function') throw new Error('enemies.js no expuso drawEnemy');
+  const st = NV.rhythmFreshState();
+  const LEN = 128;
+  let t = 0;
+  const alphas = new Set(), hues = new Set();
+  let enemyMoved = false, enemyBand = null;
+  const e = { x: 240, y: 160, radius: 12, color: '#fff', shape: 'dot' };
+  for (let f = 0; f < 800; f++) {
+    t += 1 / 60;
+    // deathcore sintético: muro + blast alternado con pasaje solo-muro (puente)
+    const bridge = f > 400 && f < 500;
+    const d = new Uint8Array(LEN);
+    d.fill(0);
+    for (let i = 15; i < LEN; i++) d[i] = 170;
+    for (let i = 1; i < 12; i++) d[i] = 60;
+    if (!bridge) {
+      const ph = t % 0.0625;
+      const dec = Math.exp(-ph * 22);
+      const k = Math.floor(t / 0.0625) % 2 === 0;
+      const lo = k ? 1 : 15, hi = k ? 12 : 46, amp = k ? 220 : 190;
+      for (let i = lo; i < hi; i++) d[i] = Math.min(255, Math.max(d[i], Math.round(80 + amp * dec)));
+      for (let i = 80; i < LEN; i++) d[i] = Math.min(255, Math.max(d[i], Math.round(80 + 150 * dec)));
+    }
+    NV.rhythmAnalyze(st, d, t);
+    Object.assign(NV.rhythm, {
+      enabled: true, state: 'listening', maxAlpha: 0.32, intensityCap: 0.55,
+      energy: st.energy, beat: st.beat, bass: st.bass, mids: st.mids, highs: st.highs,
+      kick: st.kick, snare: st.snare, hats: st.hats, onset: st.onset,
+      onsetRate: st.onsetRate, density: st.density, accent: st.accent, punch: st.punch,
+      tempoBpm: st.tempoBpm, forceHue: null,
+    });
+    NV.drawRhythmLayer(mkAlphaCtx(), 900, 520, Math.floor(t * 60));
+    if (t > 6) { alphas.add(NV.rhythm.lastAlpha.toFixed(3)); hues.add(NV.rhythm.hue); }
+    // jitter: enemigo con TODAS las bandas activas debe moverse en el tramo blast
+    const rAll = Object.assign({}, NV.rhythm, { bass: 0.9, mids: 0.9, highs: 0.9, onset: 0.9, kick: 0.9, snare: 0.8, hats: 0.8, energy: 0.7 });
+    const c2 = mkAlphaCtx();
+    c2.translate = (x, y) => { c2.translations.push({ x, y }); };
+    c2.translations = [];
+    NV.drawEnemy(c2, e, Math.floor(t * 60), null, rAll);
+    const tr = c2.translations[0];
+    if (tr && (tr.x !== e.x || tr.y !== e.y)) { enemyMoved = true; enemyBand = rAll.jitterBand; }
+    if (JSON.stringify(e).length < 10) throw new Error('enemigo corrupto');
+  }
+  if (alphas.size < 20) throw new Error('alpha sin variacion end-to-end: ' + alphas.size + ' valores');
+  if (hues.size < 3) throw new Error('hue sin variacion end-to-end: ' + hues.size + ' valores');
+  if (!enemyMoved) throw new Error('enemigo nunca temblo en la cadena completa');
+  if (!['sub', 'graves', 'medios', 'agudos'].includes(enemyBand)) throw new Error('banda no propagada al render: ' + enemyBand);
+  // Estado expuesto completo para consola del navegador (análisis + render):
+  for (const k of ['density', 'punch', 'accent', 'onsetRate', 'hue', 'lastAlpha']) {
+    if (!(k in NV.rhythm)) throw new Error('falta exponer NV.rhythm.' + k);
+  }
+  // jitterBand lo publica drawEnemy sobre el objeto rhythm que recibe (en
+  // juego es NV.rhythm; acá, el objeto del frame): verificar propagación.
+  if (!['sub', 'graves', 'medios', 'agudos'].includes(enemyBand)) throw new Error('jitterBand no propagada: ' + enemyBand);
 });
 
 t('ganancia por densidad: estilo espaciado conserva golpe pleno, blast lo atenúa', () => {
