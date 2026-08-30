@@ -19,7 +19,34 @@
 
   function idOf(w) { return typeof w === 'string' ? w : (w && w.id) || 'pistol'; }
   function color(id, cls) { const p = COLORS[id] || COLORS.pistol; return cls === 'accent' ? p.c : cls === 'alt' ? p.c2 : cls === 'ghost' ? p.c : '#e5eefb'; }
-  function path(ctx, cls, d) { ctx.strokeStyle = color(this.id, cls); ctx.globalAlpha = cls === 'ghost' ? 0.42 : 1; const p = new Path2D(d); ctx.stroke(p); ctx.globalAlpha = 1; }
+  function fallbackPath(ctx, d) {
+    if (typeof ctx.moveTo !== 'function' || typeof ctx.lineTo !== 'function') return false;
+    const tokens = d.match(/[a-zA-Z]|-?\d*\.?\d+/g) || [];
+    let i = 0, cmd = '', x = 0, y = 0;
+    const num = () => parseFloat(tokens[i++]);
+    while (i < tokens.length) {
+      if (/^[a-zA-Z]$/.test(tokens[i])) cmd = tokens[i++];
+      if (cmd === 'M') { x = num(); y = num(); ctx.moveTo(x, y); cmd = 'L'; }
+      else if (cmd === 'm') { x += num(); y += num(); ctx.moveTo(x, y); cmd = 'l'; }
+      else if (cmd === 'L') { x = num(); y = num(); ctx.lineTo(x, y); }
+      else if (cmd === 'l') { x += num(); y += num(); ctx.lineTo(x, y); }
+      else if (cmd === 'H') { x = num(); ctx.lineTo(x, y); }
+      else if (cmd === 'h') { x += num(); ctx.lineTo(x, y); }
+      else if (cmd === 'V') { y = num(); ctx.lineTo(x, y); }
+      else if (cmd === 'v') { y += num(); ctx.lineTo(x, y); }
+      else if (cmd === 'C') { const x1 = num(), y1 = num(), x2 = num(), y2 = num(), x3 = num(), y3 = num(); if (typeof ctx.bezierCurveTo === 'function') ctx.bezierCurveTo(x1, y1, x2, y2, x3, y3); else ctx.lineTo(x3, y3); x = x3; y = y3; }
+      else if (cmd === 'c') { const x1 = x + num(), y1 = y + num(), x2 = x + num(), y2 = y + num(), x3 = x + num(), y3 = y + num(); if (typeof ctx.bezierCurveTo === 'function') ctx.bezierCurveTo(x1, y1, x2, y2, x3, y3); else ctx.lineTo(x3, y3); x = x3; y = y3; }
+      else if (cmd === 'Z' || cmd === 'z') { if (typeof ctx.closePath === 'function') ctx.closePath(); }
+      else break;
+    }
+    return true;
+  }
+  function path(ctx, cls, d) {
+    ctx.strokeStyle = color(this.id, cls); ctx.globalAlpha = cls === 'ghost' ? 0.42 : 1;
+    if (typeof Path2D !== 'undefined') { const p = new Path2D(d); ctx.stroke(p); }
+    else { ctx.beginPath(); if (fallbackPath(ctx, d)) ctx.stroke(); }
+    ctx.globalAlpha = 1;
+  }
   function rect(ctx, cls, x, y, w, h, r) { ctx.strokeStyle = color(this.id, cls); ctx.globalAlpha = cls === 'ghost' ? 0.42 : 1; ctx.beginPath(); if (typeof ctx.roundRect === 'function') ctx.roundRect(x, y, w, h, r || 0); else ctx.rect(x, y, w, h); ctx.stroke(); ctx.globalAlpha = 1; }
   function circle(ctx, cls, x, y, r, fill) { ctx.strokeStyle = color(this.id, cls); ctx.fillStyle = color(this.id, cls); ctx.globalAlpha = cls === 'ghost' ? 0.42 : 1; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); fill ? ctx.fill() : ctx.stroke(); ctx.globalAlpha = 1; }
 
