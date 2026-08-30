@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Weapon Icons — integración canvas</title>
+  <style>
+    body { margin:0; min-height:100vh; background:#080b14; color:#e5eefb; font-family:system-ui, sans-serif; display:flex; flex-direction:column; align-items:center; padding:24px; }
+    h1 { margin:0 0 6px; font-size:18px; letter-spacing:.08em; text-transform:uppercase; color:#7cf8ff; }
+    p { margin:0 0 18px; color:#9aa8bd; font-size:13px; }
+    table { border-collapse:collapse; background:rgba(255,255,255,.035); border:1px solid rgba(124,248,255,.22); border-radius:14px; overflow:hidden; box-shadow:0 0 24px rgba(124,248,255,.08); }
+    th, td { padding:10px 12px; border-bottom:1px solid rgba(255,255,255,.08); text-align:center; font-size:12px; }
+    th { color:#7cf8ff; background:rgba(124,248,255,.08); font-size:11px; letter-spacing:.06em; text-transform:uppercase; }
+    td:first-child { text-align:left; color:#fff; min-width:128px; }
+    tr:last-child td { border-bottom:0; }
+    canvas { background:rgba(0,0,0,.44); border:1px solid rgba(255,255,255,.12); border-radius:8px; vertical-align:middle; }
+    .note { margin-top:14px; max-width:860px; text-align:center; }
+  </style>
+</head>
+<body>
+  <h1>Weapon Icons — integración canvas</h1>
+  <p>Render real del helper integrado en tamaños de juego: HUD header 12, HUD slot 18, pickup 24, inventario 26, tienda 50.</p>
+  <table id="grid" aria-label="Confirmación visual de iconos de armas integrados"></table>
+  <p class="note">Si cada silueta sigue siendo reconocible en las primeras tres columnas, el set es legible en los contextos chicos del HUD.</p>
+
+  <script>window.NV = {};</script>
+  <script src="../js/data/gameData.js"></script>
+  <script src="../js/render/weaponIcons.js"></script>
+  <script>
+    const sizes = [12, 18, 24, 26, 50];
+    const labels = ['HUD header', 'HUD slot', 'Pickup', 'Inventario', 'Tienda'];
+    const table = document.getElementById('grid');
+    table.innerHTML = '<tr><th>Arma</th>' + labels.map((l, i) => `<th>${l}<br>${sizes[i]}px</th>`).join('') + '</tr>';
+    NV.WEAPONS.forEach((weapon) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td><strong>${weapon.name}</strong><br><span style="color:#7b8798">${weapon.id}</span></td>`;
+      sizes.forEach((size) => {
+        const td = document.createElement('td');
+        const c = document.createElement('canvas');
+        const box = Math.max(32, size + 14);
+        c.width = c.height = box;
+        c.style.width = c.style.height = box + 'px';
+        NV.drawWeaponIcon(c.getContext('2d'), weapon, box / 2, box / 2, size, { glow: size >= 24 ? 3 : 2 });
+        td.appendChild(c);
+        tr.appendChild(td);
+      });
+      table.appendChild(tr);
+    });
+  </script>
+</body>
+</html>
