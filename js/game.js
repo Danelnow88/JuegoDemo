@@ -322,12 +322,17 @@
     requestAnimationFrame(loop);
   }
 
-  function setupRhythmUI() {
-    if (!dom.rhythmStatus || !NV.externalAudio) return;
+    function setupRhythmUI() {
+    if (!NV.externalAudio) return;
+    const widget = dom.rwAddMusicBtn ? dom.rwAddMusicBtn.parentElement : null;
+    if (!widget) return;
+
     const statusText = (r) => {
-      if (!NV.rhythmSupported || !NV.rhythmSupported()) return 'Tu navegador no soporta captura de pestaña/sistema. Probá el micrófono si está disponible.';
+      r = r || NV.rhythm;
+      if (!NV.rhythmSupported || !NV.rhythmSupported()) return 'Captura no soportada. Probá el micrófono si está disponible.';
       if (r.state === 'starting') return 'Esperando permiso del navegador… elegí una pestaña/ventana con audio y activá “compartir audio” si aparece.';
-      if (r.state === 'listening') return (r.mode === 'mic' ? 'Micrófono activo' : 'Captura de pestaña activa') + ': los fondos reaccionan de forma sutil. La música no se reamplifica.';
+      if (r.state === 'listening' && r.mode === 'tab') return 'Captura de pestaña activa: los fondos reaccionan de forma sutil. La música no se reamplifica.';
+      if (r.state === 'listening' && r.mode === 'mic') return 'Micrófono activo: los fondos reaccionan de forma sutil.';
       if (r.state === 'denied') return 'Permiso cancelado o denegado. Podés intentarlo de nuevo cuando quieras.';
       if (r.error === 'no-audio-track') return 'La captura no incluyó audio. Volvé a intentar y marcá “compartir audio”.';
       if (r.streamEnded) return 'Captura finalizada. Podés volver a activarla desde el menú.';
@@ -335,15 +340,20 @@
     };
     const refresh = (r) => {
       r = r || NV.rhythm;
-      dom.rhythmStatus.textContent = statusText(r);
-      if (dom.rhythmTabBtn) dom.rhythmTabBtn.classList.toggle('active', r.state === 'listening' && r.mode === 'tab');
-      if (dom.rhythmMicBtn) dom.rhythmMicBtn.classList.toggle('active', r.state === 'listening' && r.mode === 'mic');
-      if (dom.rhythmStopBtn) dom.rhythmStopBtn.disabled = r.state !== 'listening' && r.state !== 'starting';
+      const active = (r.state === 'listening' || r.state === 'starting');
+      if (dom.rwAddMusicBtn) {
+        dom.rwAddMusicBtn.disabled = !!active;
+        dom.rwAddMusicBtn.title = active ? 'Música ya capturada' : 'Agregar música (capturar pestaña/ventana)';
+        widget.title = statusText(r);
+      }
+      if (dom.rwStopBtn) {
+        dom.rwStopBtn.disabled = !active;
+        dom.rwStopBtn.title = 'Detener captura';
+      }
     };
     NV.rhythmNotifier(refresh);
-    if (dom.rhythmTabBtn) dom.rhythmTabBtn.addEventListener('click', () => { NV.rhythmToggleEnabled(true); NV.externalAudio.startDisplayCapture(); });
-    if (dom.rhythmMicBtn) dom.rhythmMicBtn.addEventListener('click', () => { NV.rhythmToggleEnabled(true); NV.externalAudio.startMicCapture(); });
-    if (dom.rhythmStopBtn) dom.rhythmStopBtn.addEventListener('click', () => { NV.rhythmToggleEnabled(false); NV.externalAudio.stop(); });
+    if (dom.rwAddMusicBtn) dom.rwAddMusicBtn.addEventListener('click', () => { NV.rhythmToggleEnabled(true); NV.externalAudio.startDisplayCapture(); });
+    if (dom.rwStopBtn) dom.rwStopBtn.addEventListener('click', () => { NV.rhythmToggleEnabled(false); NV.externalAudio.stop(); });
     refresh(NV.rhythm);
   }
 
@@ -482,7 +492,7 @@
       spawnExplosion(W / 2, H / 2, 90, bossColor || '#ffd700', 1.5);
       spawnExplosion(W / 2, H / 2, 60, '#fff', 1.1);
       spawnExplosion(W / 2, H / 2, 40, '#ff5f9b', 0.9);
-      showBanner('👑 ¡' + (bossName || 'BOSS') + ' DERROTADO! 💥', '#ffd700');
+      showBanner('¡' + (bossName || 'BOSS') + ' DERROTADO!', '#ffd700');
     } else {
       shake = 0.4;
       triggerFlash('#7cf8ff');
@@ -675,25 +685,25 @@
 
     if ((shopBought.hp || 0) < SHOP_CAPS.hp) {
       upgrades.push({
-        icon: '💚', name: '+25 HP', desc: 'Vida máxima +25 (' + (shopBought.hp || 0) + '/' + SHOP_CAPS.hp + ')',
+        metaIcon: 'hp', name: '+25 HP', desc: 'Vida máxima +25 (' + (shopBought.hp || 0) + '/' + SHOP_CAPS.hp + ')',
         price: 15, buy: () => { player.maxHp += 25; player.hp += 25; shopBought.hp = (shopBought.hp || 0) + 1; },
       });
     }
     if (player.agility < MAX_AGILITY) {
       upgrades.push({
-        icon: '🌀', name: 'Agilidad', desc: 'Responde más rápido: acelera y frena mejor (máx +100%)',
+        metaIcon: 'speed', name: 'Agilidad', desc: 'Responde más rápido: acelera y frena mejor (máx +100%)',
         price: 15, buy: () => { player.agility = Math.min(MAX_AGILITY, player.agility + AGILITY_PER_UPGRADE); },
       });
     }
     if ((shopBought.armor || 0) < SHOP_CAPS.armor) {
       upgrades.push({
-        icon: '🛡', name: 'Armadura', desc: '+3 armadura (' + (shopBought.armor || 0) + '/' + SHOP_CAPS.armor + ')',
+        metaIcon: 'armor', name: 'Armadura', desc: '+3 armadura (' + (shopBought.armor || 0) + '/' + SHOP_CAPS.armor + ')',
         price: 20, buy: () => { player.armor += 3; shopBought.armor = (shopBought.armor || 0) + 1; },
       });
     }
     if ((shopBought.luck || 0) < SHOP_CAPS.luck) {
       upgrades.push({
-        icon: '🍀', name: 'Suerte', desc: '+2 suerte (' + (shopBought.luck || 0) + '/' + SHOP_CAPS.luck + ')',
+        metaIcon: 'luck', name: 'Suerte', desc: '+2 suerte (' + (shopBought.luck || 0) + '/' + SHOP_CAPS.luck + ')',
         price: 20, buy: () => { player.luck += 2; shopBought.luck = (shopBought.luck || 0) + 1; },
       });
     }
@@ -708,7 +718,7 @@
       if (owned && fus >= MAX_WEAPON_FUSION) return;
       const canFuse = owned && fus < MAX_WEAPON_FUSION;
       weapons.push({
-        icon: "", name: w.name, weapon: w,
+        name: w.name, weapon: w,
         desc: canFuse
           ? ('FUSIONAR: +' + Math.round(WEAPON_FUSION_DMG * 100) + '% daño (Nv' + (fus + 1) + '/' + MAX_WEAPON_FUSION + ')')
           : (w.rarity + ' | daño ' + w.damage + ' | ' + (w.pro || '')),
@@ -802,7 +812,7 @@
     items.forEach(item => {
       const el = document.createElement("div");
       el.className = "offer";
-      const iconHtml = item.weapon || item.consumableType ? '<div class="offer-icon"><canvas></canvas></div>' : '<div class="offer-icon">' + item.icon + "</div>";
+      const iconHtml = item.weapon || item.consumableType || item.metaIcon ? '<div class="offer-icon"><canvas></canvas></div>' : '<div class="offer-icon">•</div>';
             el.innerHTML = iconHtml + '<div class="offer-name">' + item.name + "</div><div class=\"offer-desc\">" + item.desc + "</div><div class='offer-price'>💎 " + item.price + "</div>";
       el.addEventListener("click", () => {
         if (shards >= item.price) {
@@ -820,6 +830,7 @@
       const c = el.querySelector("canvas");
       if (c && item.weapon) drawWeaponCanvas(c, item.weapon, 64, 50);
       if (c && item.consumableType) drawConsumableCanvas(c, item.consumableType, 64, 48);
+      if (c && item.metaIcon) drawMetaSkillCanvas(c, item.metaIcon, 64, 48);
     });
   }
 

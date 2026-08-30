@@ -50,5 +50,14 @@ t('menú inicial renderiza 4 canvas de habilidades de personaje', () => {
   if (!css.includes('.char-skill-icon')) throw new Error('falta CSS char-skill-icon');
 });
 
+t('tienda de partida usa metaIcon canvas para mejoras temporales', () => {
+  for (const id of ["metaIcon: 'hp'", "metaIcon: 'speed'", "metaIcon: 'armor'", "metaIcon: 'luck'"]) {
+    if (!game.includes(id)) throw new Error('falta ' + id);
+  }
+  if (!game.includes('item.weapon || item.consumableType || item.metaIcon')) throw new Error('renderOffers no reserva canvas metaIcon');
+  if (!game.includes('drawMetaSkillCanvas(c, item.metaIcon, 64, 48)')) throw new Error('renderOffers no dibuja metaIcon 64/48');
+  if (game.includes('item.icon')) throw new Error('renderOffers conserva item.icon textual');
+});
+
 console.log('RESULT meta_skill_icons_integration: pass=' + pass + ' fail=' + fail);
 process.exit(fail ? 1 : 0);

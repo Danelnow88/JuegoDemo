@@ -25,7 +25,7 @@ t('index.html: las 4 tarjetas usan canvas de habilidad sin emoji legacy', () => 
   for (const id of ['meteor','phase','bulwark','hivemind']) {
     if (!html.includes('data-skill-icon="' + id + '"')) throw new Error('falta ' + id);
   }
-  for (const old of ['☄️','👻','🛸']) if (html.includes(old)) throw new Error('quedó emoji ' + old);
+  for (const old of ['\u{2604}\u{FE0F}','\u{1F47B}','\u{1F6F8}']) if (html.includes(old)) throw new Error('quedó emoji ' + old);
 });
 
 t('textos reflejan el balance actual', () => {

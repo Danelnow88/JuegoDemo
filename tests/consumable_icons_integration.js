@@ -37,7 +37,7 @@ t('no quedan emojis viejos de los 7 consumibles en runtime', () => {
   const pushStart = game.indexOf('consumableItems.push');
   const pushEnd = game.indexOf('showBanner', pushStart);
   const runtime = [game.slice(defsStart, defsEnd), game.slice(pushStart, pushEnd), hud, data, utils].join('\n');
-  for (const old of ['🧪','⚡','🛡','💣','⏱','🧲','🎯']) {
+  for (const old of ['\u{1F9EA}','\u{26A1}','\u{1F6E1}','\u{1F4A3}','\u{23F1}','\u{1F9F2}','\u{1F3AF}']) {
     if (runtime.includes(old)) throw new Error('quedó placeholder viejo de consumible: ' + old);
   }
 });

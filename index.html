@@ -62,14 +62,10 @@
             </button>
           </div>
           <button id="startBtn" class="primary" type="button">COMENZAR</button>
-          <div class="rhythm-panel" aria-label="Visuales reactivos a música externa">
-            <div class="rhythm-title">🎵 VISUALES CON TU MÚSICA</div>
-            <p id="rhythmStatus" class="rhythm-status">Opcional: compartí una pestaña/ventana con audio. Solo se analiza el volumen/frecuencias para fondos sutiles.</p>
-            <div class="rhythm-actions">
-              <button id="rhythmTabBtn" class="primary rhythm-btn" type="button">Capturar pestaña</button>
-              <button id="rhythmMicBtn" class="primary rhythm-btn secondary" type="button">Usar micrófono</button>
-              <button id="rhythmStopBtn" class="primary rhythm-btn secondary" type="button">Detener</button>
-            </div>
+                    <div id="rhythm-widget" class="rhythm-widget" title="Control de música externa">
+            <span class="rw-icon" aria-hidden="true">🎵</span>
+            <button id="rwAddMusicBtn" class="rw-btn" type="button" title="Agregar música (capturar pestaña/ventana)">➕</button>
+            <button id="rwStopBtn" class="rw-btn" type="button" title="Detener captura">⏹</button>
           </div>
           <button id="permBtn" class="primary perm-btn" type="button">📈 MEJORAS PERMANENTES</button>
           <p class="tip">WASD/Flechas: mover | ESPACIO: habilidad | TAB: stats | F: consumible</p>

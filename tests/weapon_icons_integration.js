@@ -36,7 +36,7 @@ t('datos de armas no conservan emojis/iconos legacy', () => {
   const weaponsBlock = data.slice(data.indexOf('NV.WEAPONS'), data.indexOf('];', data.indexOf('NV.WEAPONS')));
   if (/emoji\s*:/.test(weaponsBlock)) throw new Error('quedó campo emoji en WEAPONS');
   if (/icon\s*:/.test(weaponsBlock)) throw new Error('quedó campo icon legacy en WEAPONS');
-  for (const old of ['🔫','💥','🎯','🔦','🔮','🔥','🏹','⚡']) {
+  for (const old of ['\u{1F52B}','\u{1F4A5}','\u{1F3AF}','\u{1F526}','\u{1F52E}','\u{1F525}','\u{1F3F9}','\u{26A1}']) {
     if (weaponsBlock.includes(old)) throw new Error('quedó emoji viejo de arma: ' + old);
   }
 });

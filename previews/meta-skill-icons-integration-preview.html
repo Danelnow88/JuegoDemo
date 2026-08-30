@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>NEON VOID — Confirmación iconos meta/skills runtime</title>
+  <style>
+    body { margin:0; background:#070812; color:#e5eefb; font-family:system-ui,Segoe UI,sans-serif; padding:28px; }
+    h1 { color:#7cf8ff; margin:0 0 8px; }
+    h2 { color:#ffcf76; margin:28px 0 12px; }
+    .note { color:#9ca3af; margin-bottom:18px; }
+    .row { display:flex; flex-wrap:wrap; gap:14px; }
+    .card { background:rgba(255,255,255,.055); border:1px solid rgba(124,248,255,.22); border-radius:14px; padding:12px; min-width:140px; box-shadow:0 0 18px rgba(124,248,255,.08); }
+    .label { font-size:12px; color:#9ca3af; margin-top:6px; }
+    .name { font-size:13px; color:#e5eefb; font-weight:700; }
+    .shop { width:64px; height:64px; display:grid; place-items:center; background:rgba(255,255,255,.06); border-radius:12px; }
+    .hud-slot { width:22px; height:22px; display:grid; place-items:center; border-radius:5px; background:rgba(124,248,255,.12); outline:1px solid rgba(124,248,255,.35); margin:6px 0; }
+    .card-line { font-size:12px; color:#aaa; line-height:1.35; max-width:230px; }
+    .inline-icon { width:18px; height:18px; vertical-align:-4px; }
+  </style>
+</head>
+<body>
+  <h1>Confirmación visual — mejoras permanentes y habilidades</h1>
+  <div class="note">Tamaños reales de integración: Tienda 48 dentro de canvas 64 · HUD habilidad 18 dentro de slot 22 con aro · Cards 24 dentro de canvas 36 mostrado a 18.</div>
+
+  <h2>Mejoras permanentes / tienda</h2>
+  <div id="perm" class="row"></div>
+
+  <h2>HUD habilidad/cooldown</h2>
+  <div id="hud" class="row"></div>
+
+  <h2>Cards de personaje</h2>
+  <div id="cards" class="row"></div>
+
+  <script src="../js/core/state.js"></script>
+  <script src="../js/render/metaSkillIcons.js"></script>
+  <script>
+    const perm = [['damage','Daño'],['speed','Velocidad'],['hp','Vida'],['armor','Armadura'],['luck','Suerte'],['crit','Crítico'],['dodge','Esquiva'],['regen','Regeneración'],['greed','Codicia']];
+    const skills = [['meteor','BOTI — Lluvia Estelar'],['phase','NOVA — Fase Fantasma'],['bulwark','ROOK — Muralla'],['hivemind','ENJAMBRE — Drones de Combate']];
+    function canvas(size, iconSize, id) { const c = document.createElement('canvas'); c.width = c.height = size; NV.drawMetaSkillIcon(c.getContext('2d'), id, size / 2, size / 2, iconSize, { glow: 2 }); return c; }
+    function addShop(id, name) { const card = document.createElement('section'); card.className = 'card'; const wrap = document.createElement('div'); wrap.className = 'shop'; wrap.appendChild(canvas(64, 48, id)); card.append(wrap, label(name), label(id, 'label')); document.getElementById('perm').appendChild(card); }
+    function addHud(id, name) { const card = document.createElement('section'); card.className = 'card'; const slot = document.createElement('div'); slot.className = 'hud-slot'; const c = canvas(22, 18, id); slot.appendChild(c); card.append(slot, label(name), label('18, 22', 'label')); document.getElementById('hud').appendChild(card); }
+    function addChar(id, text) { const card = document.createElement('section'); card.className = 'card'; const line = document.createElement('div'); line.className = 'card-line'; const c = canvas(36, 24, id); c.className = 'inline-icon'; line.append(c, ' ', text); card.append(line, label('card inline 18px', 'label')); document.getElementById('cards').appendChild(card); }
+    function label(txt, cls) { const el = document.createElement('div'); el.className = cls || 'name'; el.textContent = txt; return el; }
+    perm.forEach(x => addShop(x[0], x[1]));
+    skills.forEach(x => { addHud(x[0], x[1]); addChar(x[0], x[1]); });
+  </script>
+</body>
+</html>

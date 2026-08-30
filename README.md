@@ -44,6 +44,7 @@ JuegoDemo/
     │   ├── player.js          # NV.drawPlayer
     │   ├── weaponIcons.js     # NV.drawWeaponIcon: iconos de armas SVG-approved convertidos a canvas
     │   ├── consumableIcons.js # NV.drawConsumableIcon: iconos de consumibles SVG-approved convertidos a canvas
+    │   ├── metaSkillIcons.js  # NV.drawMetaSkillIcon: iconos de mejoras permanentes y habilidades convertidos a canvas
     │   └── hud.js             # HUD en canvas: cooldown, panel arma/habilidad/consumibles, stats TAB (NV.drawSpecialCooldown/drawWeaponHUD/drawStats)
     ├── ui/
     │   └── dom.js      # Árbol DOM (expuesto en NV.dom)
@@ -62,7 +63,7 @@ JuegoDemo/
     └── game.js         # Orquestador: init/update/loop, flujo de oleadas/tienda/menú, input, guardado — IIFE
 ```
 
-- **Sin builds, sin dependencias, sin servidor.** Se ejecuta directamente en el navegador. Orden de carga: `core/state.js` → `core/utils.js` → `data/gameData.js` → `data/balance.js` → `data/consumables.js` → `audio/synth.js` → `ui/dom.js` → `render/canvas.js`/otros `render/*` (`weaponIcons.js` y `consumableIcons.js` antes de `hud.js`) → `engine/rhythm.js`/otros `engine/*` → `game.js`.
+- **Sin builds, sin dependencias, sin servidor.** Se ejecuta directamente en el navegador. Orden de carga: `core/state.js` → `core/utils.js` → `data/gameData.js` → `data/balance.js` → `data/consumables.js` → `audio/synth.js` → `ui/dom.js` → `render/canvas.js`/otros `render/*` (`weaponIcons.js`, `consumableIcons.js` y `metaSkillIcons.js` antes de `hud.js`) → `engine/rhythm.js`/otros `engine/*` → `game.js`.
 - `game.js` está en una **IIFE** con `'use strict'` (todo scoped, no contamina el global), pero los **datos** ya viven en `window.NV` (`core/state.js` + `data/gameData.js` + `data/balance.js` + `data/consumables.js`) y `game.js` los usa por **alias locales** (`const BALANCE = NV.BALANCE`, etc.).
 - El estado del juego y del canvas es totalmente **procedural** (se dibuja en cada frame con `requestAnimationFrame`).
 
@@ -71,6 +72,12 @@ JuegoDemo/
 ## 🎮 Presentación general
 
 El jugador controla una nave/entidad en un área de `900 × 520` (escalada responsive al tamaño de pantalla) y debe **sobrevivir oleadas** de enemigos. Al completar una oleada (o al vencer un jefe cada 5 oleadas) se abre una **tienda** donde el jugador gasta **fragmentos (💎 shards)** para comprar mejoras, armas y consumibles. También puede recoger armas durante la partida y guardarlas en un **inventario de 6 slots** (teclas 1–6 en partida para equipar). El objetivo es acumular puntaje, avanzar oleadas y conseguir **progresión permanente** (meta) que se conserva entre partidas.
+
+### Cierre remasterización de iconos
+- **Set armas**: 10 iconos canvas en `js/render/weaponIcons.js` (`NV.drawWeaponIcon`), integrados en HUD, tienda, inventario y pickups.
+- **Set consumibles**: 7 iconos canvas en `js/render/consumableIcons.js` (`NV.drawConsumableIcon`), integrados en HUD, tienda e inventario.
+- **Set mejoras/habilidades**: 13 iconos canvas en `js/render/metaSkillIcons.js` (`NV.drawMetaSkillIcon`), integrados en tienda permanente, tienda de mejoras de partida, HUD/cooldown y cards de personaje.
+- Los datos runtime ya no conservan campos legacy `icon`/`emoji` para armas, consumibles, mejoras permanentes ni `skillIcon` en personajes. Las páginas de confirmación visual viven en `previews/*-integration-preview.html`.
 
 ---
 
@@ -122,14 +129,14 @@ Definidos en `const CHARACTERS`. Se eligen en el menú inicial (tarjetas HTML) y
 
 | Personaje | HP | SPD | ARM | Pasiva | Habilidad (ESPACIO) | CD |
 |-----------|----|----|-----|--------|---------------------|-----|
-| BOTI | 120 | 200 | 0 | Regenera 1 HP cada 5s | Lluvia Estelar ☄️ | 6s |
-| NOVA | 80 | 280 | 0 | +20% daño, recibe +20% | Fase Fantasma 👻 | 7s |
-| ROOK | 160 | 150 | 5 | -15% daño recibido | Muralla 🛡 | 12s |
-| ENJAMBRE | 90 | 240 | 0 | 15% esquiva | Drones de Combate 🛸 | 10s |
+| BOTI | 120 | 200 | 0 | Regenera 1 HP cada 5s | Lluvia Estelar (`meteor`) | 6s |
+| NOVA | 80 | 280 | 0 | +20% daño, recibe +20% | Fase Fantasma (`phase`) | 7s |
+| ROOK | 160 | 150 | 5 | -15% daño recibido | Muralla (`bulwark`) | 12s |
+| ENJAMBRE | 90 | 240 | 0 | 15% esquiva | Drones de Combate (`hivemind`) | 10s |
 
 ---
 
-## 🔫 Armas (10)
+## Armas (10)
 
 Definidas en `const WEAPONS` con rareza `common / uncommon / rare / epic / legendary`.
 
@@ -369,7 +376,7 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 
 - **BUG CRÍTICO — CSS de ofertas corrupto**: la regla `.offer` estaba envuelta en `@"..."@` (delimitadores de C#, no de CSS), lo que rompía el parsing y dejaba las ofertas de la tienda totalmente sin estilar. **Fix**: eliminados los caracteres `@"` y `"@`. (`css/styles.css`: sección tienda/offers)
 - **BUG CRÍTICO — `gameOver()` fuera de la IIFE**: la función tenía indentación 0, quedando fuera del `(() => { ... })();`. Al morir el jugador lanzaba `ReferenceError: triggerFlash is not defined`, congelando el juego e impidiendo avanzar/reiniciar. **Fix**: reindentada a 2 espacios para quedar dentro de la IIFE. (`js/game.js`, función `gameOver()`)
-- **Iconos de ofertas rotos**: mejoras y consumibles mostraban los caracteres `?`, `??`, `???` (signos literales) en vez de emoji. **Fix**: reemplazados por emoji descriptivos — 💚 +25 HP, 🚀 Velocidad, 🛡 Armadura, 🍀 Suerte, 🧪 Poción, ⚡ Overdrive, 🛡 Escudo. (`js/game.js`, `generateOffers()`)
+- **Iconos de ofertas rotos**: mejoras y consumibles mostraban los caracteres `?`, `??`, `???` (signos literales). **Fix histórico**: fueron reemplazados por identificadores visuales descriptivos; hoy esa UI usa canvas mediante `drawMetaSkillCanvas`/`drawConsumableCanvas`. (`js/game.js`, `generateOffers()`)
 - **Icono de precio roto**: el precio de cada oferta mostraba `??` en lugar de 💎. **Fix**: reemplazado por 💎 (diamante), coherente con la barra de fragmentos. (`js/game.js`, `renderOffers()`)
 - **Rediseño a pantalla de tienda dedicada (sin overlay)**: la tienda dejó de usar la clase compartida `.overlay` (fondo translúcido, centrado, scroll) y el botón quedaba recortado (`overflow-y: hidden`). Ahora es una pantalla propia `.shop-screen` con fondo sólido, `overflow: hidden` (sin scroll) y todo el contenido en cuadrículas auto-ajustables: `.shop-grid` (secciones MEJORAS / ARMAS / CONSUMIBLES con `flex: 1` y columnas `repeat(auto-fit, minmax(200px, 1fr))`) y `.offers` dentro de cada sección (`repeat(auto-fill, minmax(88px, 1fr))`). La sección de inventario y el botón ▶ CONTINUAR quedan al pie, siempre visibles. (`index.html` — div `#shop`, `css/styles.css` — `.shop-screen`)
 - **Verificación**: `node --check js/game.js` pasa sin errores; la tienda vuelve a mostrarse estilizada y funcional (comprar, equipar, continuar).
@@ -458,7 +465,7 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 
 ### v21 — Mejora de tienda "Velocidad" → "Agilidad" (equilibrio de movimiento)
 - **La mejora de tienda ya no infla la velocidad** (antes `player.speed *= 1.25`, que al comprarla varias veces volvía incontrolable al personaje y chocaba con el impulso de `Shift`).
-- Ahora esa compra se llama **Agilidad** (`🌀`): aumenta `player.agility`, que **acelera y frena más rápido el movimiento** (`maxDelta`) sin cambiar la velocidad punta. Se ofrece **solo si no está al tope** (`MAX_AGILITY = 2`; cada compra `+0.2`, 5 compras = tope +100%).
+- Ahora esa compra se llama **Agilidad** (`metaIcon: speed`): aumenta `player.agility`, que **acelera y frena más rápido el movimiento** (`maxDelta`) sin cambiar la velocidad punta. Se ofrece **solo si no está al tope** (`MAX_AGILITY = 2`; cada compra `+0.2`, 5 compras = tope +100%).
 - La velocidad normal sigue siendo `char.stats.speed × (1 + permUpgrades.speed*0.15)`, y `Shift` sigue multiplicando por `2.15` (sin inflarse por compras).
 - Se muestra `Agilidad: x2.00` en el panel de estadísticas (`TAB`).
 
@@ -659,10 +666,10 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 
 ### v52 — Tanda D1: nuevos consumibles
 - Se suman **4 consumibles** (total 7), usando la tecla F, con tope por visita respetado por el contador existente:
-  - 💣 **Bomba**: daña 25% del HP máx a todos los enemigos y al jefe (piso 1, no mata directo sino que deja al borde).
-  - ⏱ **Congelante**: enemigos lentos 50% por 4s (nuevo campo `slowUntil`, factor `spd` en updateEnemies).
-  - 🧲 **Imán**: acerca todos los shards/armas del campo al jugador.
-  - 🎯 **Recompensa**: 10s, cada derribo da score doble y +1 shard (campo `player.bounty`, decrementado por frame).
+  - **Bomba** (`bomb`): daña 25% del HP máx a todos los enemigos y al jefe (piso 1, no mata directo sino que deja al borde).
+  - **Congelante** (`freeze`): enemigos lentos 50% por 4s (nuevo campo `slowUntil`, factor `spd` en updateEnemies).
+  - **Imán** (`magnet`): acerca todos los shards/armas del campo al jugador.
+  - **Recompensa** (`bounty`): 10s, cada derribo da score doble y +1 shard (campo `player.bounty`, decrementado por frame).
 - Lógica pura testeable: `NV.voidBomb`, `NV.freezeEnemies` (enemies.js), `NV.magnetCollect` (pickups.js); bounty integrado en `NV.killEnemy`.
 - Precios coherentes con la economía (26-34💎): son poderosos pero consumibles de una vez. Tests `consumables` 6/6.
 ### v52 — Tanda D: permanentes nuevas (crítico, esquiva, regeneración, codicia)
@@ -806,7 +813,7 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 
 ---
 
-## 🚀 Cómo ejecutar
+## Cómo ejecutar
 El proyecto es **100% front-end, sin build ni servidor**. Para jugar:
 
 1. Abrí `index.html` directamente en un navegador moderno (Chrome, Edge, Firefox) haciendo doble clic o arrastrándolo.
