@@ -151,13 +151,17 @@
         ctx.beginPath(); ctx.roundRect(x, y, cw, 3, RAD); ctx.fill();
       }
       if (e) {
-        ctx.font = 'bold 14px system-ui';
-        ctx.fillStyle = e.color || '#fff';
-        ctx.textAlign = 'center';
-        ctx.shadowColor = e.color || '#7cf8ff';
-        ctx.shadowBlur = selected || equipped ? 10 + 10 * (glow * pulseA) : 5 + glow * 6;
-        ctx.fillText(e.icon, x + cw / 2, y + ch / 2 + 4);
-        ctx.shadowBlur = 0;
+        if (e.weapon && typeof NV.drawWeaponIcon === 'function') {
+          NV.drawWeaponIcon(ctx, e.weapon, x + cw / 2, y + ch / 2, 18, { glow: selected || equipped ? 5 : 2 });
+        } else {
+          ctx.font = 'bold 14px system-ui';
+          ctx.fillStyle = e.color || '#fff';
+          ctx.textAlign = 'center';
+          ctx.shadowColor = e.color || '#7cf8ff';
+          ctx.shadowBlur = selected || equipped ? 10 + 10 * (glow * pulseA) : 5 + glow * 6;
+          ctx.fillText(e.icon, x + cw / 2, y + ch / 2 + 4);
+          ctx.shadowBlur = 0;
+        }
         if (e.badge !== undefined && e.badge !== '') {
           ctx.font = 'bold 8px system-ui';
           ctx.textAlign = 'right';
@@ -200,8 +204,8 @@
     var by = 10;
     ctx.textAlign = 'left';
     var pistol = NV.WEAPONS[0];
-    var wEntries = [{ icon: pistol.emoji, color: RARITY_COLORS[pistol.rarity], glow: GLOW_BY_RARITY[pistol.rarity] || 0.3, fuse: 0 }].concat(
-      inventory.slice(0, 5).map(function (wItem) { return { icon: wItem.emoji, color: RARITY_COLORS[wItem.rarity], glow: GLOW_BY_RARITY[wItem.rarity] || 0.3, fuse: wItem.fuseLevel || 0 }; })
+    var wEntries = [{ weapon: pistol, color: RARITY_COLORS[pistol.rarity], glow: GLOW_BY_RARITY[pistol.rarity] || 0.3, fuse: 0 }].concat(
+      inventory.slice(0, 5).map(function (wItem) { return { weapon: wItem, color: RARITY_COLORS[wItem.rarity], glow: GLOW_BY_RARITY[wItem.rarity] || 0.3, fuse: wItem.fuseLevel || 0 }; })
     );
     var equippedIdx = weapon === pistol ? 0 : inventory.indexOf(weapon) + 1;
     if (equippedIdx < 0 || equippedIdx > 5) equippedIdx = -1;
@@ -209,7 +213,7 @@
     ctx.fillStyle = 'rgba(0,0,0,0.62)';
     ctx.strokeStyle = 'rgba(' + hCnum + ',0.45)'; ctx.lineWidth = 1.5;
     var hh = 16;
-    var htxt = weapon.emoji + ' ' + weapon.name + ' Nv' + currentWeaponLevel();
+    var htxt = weapon.name + ' Nv' + currentWeaponLevel();
     if (ANIM.lastWeaponText !== htxt) { ANIM.lastWeaponText = htxt; ANIM.weaponFadeAt = nowMs(); }
     var wf = ANIM.weaponFadeAt ? Math.max(0, 1 - (nowMs() - ANIM.weaponFadeAt) / 300) : 1;
     ctx.shadowColor = iconColor; ctx.shadowBlur = 3 + 6 * wf;
@@ -218,9 +222,10 @@
     ctx.shadowBlur = 0;
     var hfont = 'bold 8px system-ui';
     ctx.fillStyle = iconColor; ctx.globalAlpha = 0.5 + 0.5 * wf;
-    var fitted = truncateToWidth(ctx, htxt, hfont, pw - 12);
+    var fitted = truncateToWidth(ctx, htxt, hfont, pw - 27);
     ctx.font = hfont; ctx.textAlign = 'left';
-    ctx.fillText(fitted, bx + 6, vyBaseline(ctx, hfont, by + 2, hh - 4));
+    if (typeof NV.drawWeaponIcon === 'function') NV.drawWeaponIcon(ctx, weapon, bx + 13, by + hh / 2, 12, { glow: 2 });
+    ctx.fillText(fitted, bx + 23, vyBaseline(ctx, hfont, by + 2, hh - 4));
     ctx.globalAlpha = 1; ctx.shadowBlur = 0;
     drawSlotRow(ctx, bx, by + hh + 3, wEntries, -1, equippedIdx, iconColor, cw, ch, gap, 'w');
 

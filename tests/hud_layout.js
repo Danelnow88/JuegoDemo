@@ -1,13 +1,18 @@
 // Test integrador del HUD minimalista v2: layout, combo posicion, slots alineados.
 const fs = require('fs'), vm = require('vm');
-const sbx = { window: { NV: {} }, console, Math: Math };
+const sbx = { window: { NV: {} }, console, Math: Math, Path2D: function (d) { this.d = d; } };
 for (const f of ['js/core/utils.js', 'js/data/balance.js', 'js/data/gameData.js'])
   vm.runInNewContext(fs.readFileSync(f, 'utf8'), sbx, { filename: f });
 const NV = sbx.window.NV;
-for (const f of ['js/render/hud.js'])
+for (const f of ['js/render/weaponIcons.js', 'js/render/hud.js'])
   vm.runInNewContext(fs.readFileSync(f, 'utf8'), sbx, { filename: f });
 const WEAPONS = NV.WEAPONS;
 const RARITY_COLORS = NV.RARITY_COLORS;
+const realDrawWeaponIcon = NV.drawWeaponIcon;
+NV.drawWeaponIcon = function (ctx, weapon, x, y, size, opts) {
+  ctx.__c.push('WICON:' + (weapon.id || weapon) + ',' + Math.round(x) + ',' + Math.round(y) + ',' + size);
+  return realDrawWeaponIcon(ctx, weapon, x, y, size, opts);
+};
 let pass = 0, fail = 0;
 function t(d, fn) { try { fn(); pass++; console.log('  ok  ' + d); } catch (e) { fail++; console.log('  FAIL ' + d + ' -> ' + e.message); } }
 
@@ -16,9 +21,9 @@ const mockCtx = {
   fillRect: function (x,y,w,h) { this.__c.push('F'+x.toFixed(0)+','+y.toFixed(0)+','+w+','+h); },
   strokeRect: function (x,y,w,h) { this.__c.push('S'+x.toFixed(0)+','+y.toFixed(0)+','+w+','+h); },
   fillText: function (t,x,y) { this.__c.push('T'+t.substring(0,10)+','+x.toFixed(0)+','+y.toFixed(0)); },
-  beginPath: function(){}, arc: function(){}, stroke: function(){},
+  beginPath: function(){}, arc: function(){ this.__c.push('arc'); }, rect: function(){ this.__c.push('rect'); }, roundRect: function(){ this.__c.push('roundRect'); }, stroke: function(){ this.__c.push('stroke'); }, fill: function(){ this.__c.push('fill'); },
   save: function(){}, restore: function(){}, translate: function(){}, scale: function(){},
-  font: '', fillStyle: '', globalAlpha: 1, shadowColor: '', shadowBlur: 0, textAlign: '', lineWidth: 1, lineCap: '',
+  font: '', fillStyle: '', strokeStyle: '', globalAlpha: 1, shadowColor: '', shadowBlur: 0, textAlign: '', lineWidth: 1, lineCap: '', lineJoin: '',
 };
 const inv = [WEAPONS[3]];
 const char = NV.CHARACTERS['boti'];
@@ -45,12 +50,12 @@ t('HUD con consumibles: 2 rects alineados en Y', () => {
   if (!mockCtx.__c.some(c => c.includes('F usar'))) throw new Error('falta hint F usar');
 });
 
-// slot 0 = pistola fija
+// slot 0 = pistola fija con icono canvas aprobado
 mockCtx.__c.length = 0;
 NV.drawWeaponHUD(mockCtx, 800, 600, NV.CHARACTERS, RARITY_COLORS, player, WEAPONS[0], () => 1, inv, [], 0, true);
-const pistolCalls = mockCtx.__c.filter(c => c.startsWith('T') && c.includes(WEAPONS[0].emoji));
-t('Slot 0 muestra la pistola inicial', () => {
-  if (pistolCalls.length === 0) throw new Error('pistola no aparece en HUD');
+const pistolCalls = mockCtx.__c.filter(c => c.startsWith('WICON:pistol'));
+t('Slot 0 muestra la pistola inicial como icono canvas aprobado', () => {
+  if (pistolCalls.length === 0) throw new Error('pistola canvas no aparece en HUD');
 });
 
 // Combo en esquina sup-izquierda
@@ -76,7 +81,7 @@ mockCtx.__c.length = 0;
 NV.drawWeaponHUD(mockCtx, 800, 600, NV.CHARACTERS, RARITY_COLORS, player, WEAPONS[0], () => 1, inv, NV.groupConsumables(cons), 0, true);
 t('Orden vertical: armas header -> consumibles hint -> skill name', () => {
   const txtCalls = mockCtx.__c.filter(c => c.startsWith('T'));
-  const idxArma = txtCalls.findIndex(c => c.includes(WEAPONS[0].name) || c.includes(WEAPONS[0].emoji));
+  const idxArma = txtCalls.findIndex(c => c.includes(WEAPONS[0].name));
   const idxCons = txtCalls.findIndex(c => c.includes('F usar'));
   const idxSkill = txtCalls.findIndex(c => c.includes(char.skillName) || c.includes(char.skillIcon));
   if (idxArma === -1 || idxCons === -1 || idxSkill === -1) throw new Error('falta alguna seccion');
