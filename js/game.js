@@ -613,10 +613,11 @@
         const weapon = inventory[i];
         const fusLevel = weaponFusionLevel(weapon.id);
         slot.innerHTML = `
-          <div class="inv-icon" style="color:${RARITY_COLORS[weapon.rarity]}">${weapon.icon}</div>
+          <div class="inv-icon"><canvas width="32" height="32" aria-label="${weapon.name}"></canvas></div>
           <div class="inv-name">${weapon.name}</div>
           ${fusLevel > 0 ? `<div class="inv-fuse">Fusión Nv${fusLevel}</div>` : ''}
         `;
+        drawWeaponCanvas(slot.querySelector('canvas'), weapon, 32, 26);
         if (weapon === currentWeapon) {
           slot.classList.add('equipped');
           slot.title = weapon.name + ' (equipada) - click para soltar';
@@ -757,52 +758,14 @@
     renderOffers(dom.consumableOffers, consumables);
   }
 
-  function drawWeaponPixelArt(canvas, weapon) {
+  function drawWeaponCanvas(canvas, weapon, canvasSize, iconSize) {
     if (!canvas || !weapon) return;
-    canvas.width = 64; canvas.height = 64;
+    canvasSize = canvasSize || 64;
+    iconSize = iconSize || Math.floor(canvasSize * 0.76);
+    canvas.width = canvasSize; canvas.height = canvasSize;
     const ctx = canvas.getContext("2d");
-    ctx.imageSmoothingEnabled = false;
-    ctx.fillStyle = "#000"; ctx.fillRect(0, 0, 64, 64);
-    const name = (weapon.name || "").toLowerCase();
-    const palettes = {
-      pistol: ["#fff","#7cf8ff","#aaa"],
-      rifle: ["#fff","#ffcf76","#caa7ff"],
-      shotgun: ["#fff","#ff5f9b","#7cf8ff"],
-      smg: ["#fff","#aaa","#7cf8ff"],
-      sniper: ["#fff","#0f0","#caa7ff"],
-      flamethrower: ["#ff5f9b","#ff0","#f80"],
-      laser: ["#f0f","#fff","#0ff"],
-      rocket: ["#ff5f9b","#fff","#aaa"],
-      plasma: ["#0ff","#fff","#f0f"],
-      railgun: ["#0ff","#fff","#ff0"]
-    };
-    const pal = palettes[name] || ["#fff","#7cf8ff","#caa7ff"];
-    const draw = (x,y,c) => { ctx.fillStyle = c; ctx.fillRect(x,y,4,4); };
-    ctx.translate(32,32);
-    if (name.includes("pistol")) {
-      draw(0,0,pal[0]); draw(4,0,pal[1]); draw(8,0,pal[0]); draw(12,0,pal[2]); draw(-4,0,pal[0]); draw(-8,0,pal[1]); draw(0,4,pal[1]); draw(0,8,pal[2]); draw(0,12,pal[0]);
-    } else if (name.includes("rifle")) {
-      draw(-4,-4,pal[0]); draw(0,-4,pal[1]); draw(4,-4,pal[0]); draw(8,-4,pal[2]); draw(-8,0,pal[0]); draw(-4,0,pal[1]); draw(0,0,pal[2]); draw(4,0,pal[1]); draw(8,0,pal[0]); draw(0,4,pal[1]);
-    } else if (name.includes("shotgun")) {
-      draw(-8,-4,pal[0]); draw(-4,-4,pal[1]); draw(0,-4,pal[0]); draw(4,-4,pal[1]); draw(8,-4,pal[2]); draw(-8,0,pal[1]); draw(-4,0,pal[2]); draw(0,0,pal[0]); draw(4,0,pal[1]); draw(8,0,pal[2]); draw(0,4,pal[0]);
-    } else if (name.includes("smg")) {
-      draw(-4,-8,pal[0]); draw(0,-8,pal[1]); draw(4,-8,pal[0]); draw(-8,-4,pal[1]); draw(-4,-4,pal[2]); draw(0,-4,pal[0]); draw(4,-4,pal[1]); draw(-4,0,pal[0]); draw(0,0,pal[1]); draw(4,0,pal[2]);
-    } else if (name.includes("sniper")) {
-      draw(-12,-2,pal[0]); draw(-8,-2,pal[1]); draw(-4,-2,pal[0]); draw(0,-2,pal[2]); draw(4,-2,pal[1]); draw(8,-2,pal[0]); draw(-8,2,pal[0]); draw(-4,2,pal[1]); draw(0,2,pal[2]); draw(4,2,pal[0]); draw(8,2,pal[1]);
-    } else if (name.includes("flame")) {
-      draw(-4,-8,pal[0]); draw(0,-8,pal[1]); draw(4,-8,pal[0]); draw(-8,-4,pal[1]); draw(-4,-4,pal[2]); draw(0,-4,pal[1]); draw(4,-4,pal[2]); draw(8,-4,pal[1]); draw(-4,0,pal[0]); draw(0,0,pal[1]); draw(4,0,pal[0]); draw(0,4,pal[2]); draw(0,8,pal[0]);
-    } else if (name.includes("laser")) {
-      draw(-4,-12,pal[0]); draw(0,-12,pal[1]); draw(4,-12,pal[2]); draw(-8,-8,pal[1]); draw(-4,-8,pal[2]); draw(0,-8,pal[0]); draw(4,-8,pal[1]); draw(8,-8,pal[2]); draw(-4,-4,pal[0]); draw(0,-4,pal[1]); draw(4,-4,pal[0]); draw(0,0,pal[2]); draw(0,4,pal[0]); draw(0,8,pal[2]);
-    } else if (name.includes("rocket")) {
-      draw(-8,-4,pal[0]); draw(-4,-4,pal[1]); draw(0,-4,pal[2]); draw(4,-4,pal[1]); draw(8,-4,pal[0]); draw(-12,0,pal[1]); draw(-8,0,pal[0]); draw(-4,0,pal[1]); draw(0,0,pal[2]); draw(4,0,pal[1]); draw(8,0,pal[0]); draw(0,4,pal[2]); draw(4,4,pal[1]); draw(0,8,pal[0]);
-    } else if (name.includes("plasma")) {
-      draw(-4,-12,pal[0]); draw(0,-12,pal[1]); draw(4,-12,pal[2]); draw(-8,-8,pal[1]); draw(-4,-8,pal[2]); draw(0,-8,pal[0]); draw(4,-8,pal[1]); draw(8,-8,pal[2]); draw(-4,-4,pal[0]); draw(0,-4,pal[1]); draw(4,-4,pal[2]); draw(-8,0,pal[1]); draw(-4,0,pal[0]); draw(0,0,pal[1]); draw(4,0,pal[2]); draw(8,0,pal[0]); draw(-4,4,pal[2]); draw(0,4,pal[1]); draw(4,4,pal[0]);
-    } else if (name.includes("rail")) {
-      draw(-12,0,pal[0]); draw(-8,0,pal[1]); draw(-4,0,pal[2]); draw(0,0,pal[0]); draw(4,0,pal[1]); draw(8,0,pal[2]); draw(12,0,pal[0]); draw(-8,-4,pal[0]); draw(-4,-4,pal[1]); draw(0,-4,pal[2]); draw(4,-4,pal[0]); draw(8,-4,pal[1]); draw(-8,4,pal[0]); draw(-4,4,pal[1]); draw(0,4,pal[2]); draw(4,4,pal[0]); draw(8,4,pal[1]);
-    } else {
-      draw(-4,-4,pal[0]); draw(0,-4,pal[1]); draw(4,-4,pal[2]); draw(-8,0,pal[1]); draw(-4,0,pal[2]); draw(0,0,pal[0]); draw(4,0,pal[1]); draw(8,0,pal[2]); draw(-4,4,pal[0]); draw(0,4,pal[1]); draw(4,4,pal[0]);
-    }
-    ctx.setTransform(1,0,0,1,0,0);
+    ctx.clearRect(0, 0, canvasSize, canvasSize);
+    if (typeof NV.drawWeaponIcon === 'function') NV.drawWeaponIcon(ctx, weapon, canvasSize / 2, canvasSize / 2, iconSize, { glow: 2 });
   }
 
   function renderOffers(container, items) {
@@ -827,7 +790,7 @@
       });
       container.appendChild(el);
       const c = el.querySelector("canvas");
-      if (c && item.weapon) drawWeaponPixelArt(c, item.weapon);
+      if (c && item.weapon) drawWeaponCanvas(c, item.weapon, 64, 50);
     });
   }
 
@@ -1306,10 +1269,11 @@
 
     for (const wp of weaponPickups) {
       if (wp.dead) continue;
+      if (typeof NV.drawWeaponIcon === 'function') {
+        NV.drawWeaponIcon(ctx, wp.weapon, wp.x, wp.y - 2, 24, { glow: 5 });
+      }
       ctx.fillStyle = RARITY_COLORS[wp.weapon.rarity];
-      ctx.font = 'bold 16px system-ui';
       ctx.textAlign = 'center';
-      ctx.fillText(wp.weapon.icon, wp.x, wp.y);
       ctx.font = '10px system-ui';
       ctx.fillText(wp.weapon.name, wp.x, wp.y + 15);
     }
