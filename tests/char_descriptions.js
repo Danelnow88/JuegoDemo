@@ -18,6 +18,16 @@ t('index.html: las 4 tarjetas usan los resaltes y ya no muestran "(CD x)" crudo'
   }
 });
 
+t('index.html: las 4 tarjetas usan canvas de habilidad sin emoji legacy', () => {
+  const html = fs.readFileSync('index.html', 'utf8');
+  const icons = html.match(/<canvas class="char-skill-icon" data-skill-icon="[^"]+"/g) || [];
+  if (icons.length !== 4) throw new Error('icons=' + icons.length);
+  for (const id of ['meteor','phase','bulwark','hivemind']) {
+    if (!html.includes('data-skill-icon="' + id + '"')) throw new Error('falta ' + id);
+  }
+  for (const old of ['☄️','👻','🛸']) if (html.includes(old)) throw new Error('quedó emoji ' + old);
+});
+
 t('textos reflejan el balance actual', () => {
   const html = fs.readFileSync('index.html', 'utf8');
   if (!html.includes('golpea menos a los jefes')) throw new Error('Boti sin nerf documentado');

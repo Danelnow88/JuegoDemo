@@ -165,6 +165,7 @@
     }
     if (NV.rhythmRestorePref) NV.rhythmRestorePref();
     resizeCanvas();
+    renderMenuSkillIcons();
 
     const charCards = document.querySelectorAll('.char-card');
     charCards.forEach(card => {
@@ -787,6 +788,12 @@
     const ctx = canvas.getContext("2d");
     ctx.clearRect(0, 0, canvasSize, canvasSize);
     if (typeof NV.drawMetaSkillIcon === 'function') NV.drawMetaSkillIcon(ctx, id, canvasSize / 2, canvasSize / 2, iconSize, { glow: 2 });
+  }
+
+  function renderMenuSkillIcons() {
+    if (typeof document === 'undefined') return;
+    const icons = document.querySelectorAll('.char-skill-icon[data-skill-icon]');
+    icons.forEach(canvas => drawMetaSkillCanvas(canvas, canvas.getAttribute('data-skill-icon'), 36, 24));
   }
 
   function renderOffers(container, items) {

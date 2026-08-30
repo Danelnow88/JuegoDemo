@@ -430,6 +430,7 @@ canvas {
 .char-name { font-weight: bold; font-size: 14px; color: #7cf8ff; margin-bottom: 4px; }
 .char-tag { font-size: 11px; color: #caa7ff; margin-bottom: 6px; }
 .char-desc { font-size: 11px; color: #aaa; line-height: 1.3; }
+.char-skill-icon { width: 18px; height: 18px; vertical-align: -4px; margin: 0 2px; }
 /* Resaltes semánticos de descripciones de personajes (misma paleta del juego):
    rosa=ofensivo · dorado=defensa/utilidad · cian=control · gris itálica=limitación */
 .dmg-highlight { color: #ff5f9b; font-weight: bold; }
