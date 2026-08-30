@@ -327,6 +327,33 @@
     const widget = dom.rwAddMusicBtn ? dom.rwAddMusicBtn.parentElement : null;
     if (!widget) return;
 
+    // Posiciona el widget (absolute dentro de .hud relative) justo en el hueco
+    // entre .logo y .stats (.stat-wave), calculado dinámicamente para que no se
+    // rompa si cambia el ancho del logo ni desplace a ningún otro elemento.
+    function positionRhythmWidget() {
+      const hud = widget.parentElement;
+      if (!hud) return;
+      const logo = hud.querySelector('.logo');
+      const stats = hud.querySelector('.stats');
+      if (!logo || !stats || !hud.getBoundingClientRect) return;
+      const hudRect = hud.getBoundingClientRect();
+      const logoRect = logo.getBoundingClientRect();
+      const statsRect = stats.getBoundingClientRect();
+      // hueco izquierdo (borde der del logo) y derecho (arranque de .stats)
+      const gapL = logoRect.right - hudRect.left;
+      const gapR = statsRect.left - hudRect.left;
+      if (gapR <= gapL) return; // sin espacio: evitar sobre-escrituras
+      const mid = (gapL + gapR) / 2;
+      const w = widget.offsetWidth || 0;
+      widget.style.left = (mid - w / 2) + 'px';
+      widget.style.top = '50%';
+      widget.style.transform = 'translateY(-50%)';
+    }
+    positionRhythmWidget();
+    if (typeof window !== 'undefined' && window.addEventListener) {
+      window.addEventListener('resize', positionRhythmWidget);
+    }
+
     const statusText = (r) => {
       r = r || NV.rhythm;
       if (!NV.rhythmSupported || !NV.rhythmSupported()) return 'Captura no soportada. Probá el micrófono si está disponible.';

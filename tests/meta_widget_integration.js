@@ -41,14 +41,25 @@ function t(desc, fn) {
     if (!game.includes("dom.rwStopBtn.addEventListener('click'")) throw new Error('falta listener rwStopBtn');
   });
 
-    t('css define .rhythm-widget inline dentro del header, entre logo y stats', () => {
-    const html = fs.readFileSync('index.html', 'utf8');
-    const logoPos = html.indexOf('class="logo"');
-    const widgetPos = html.indexOf('id="rhythm-widget"');
-    const statsPos = html.indexOf('class="stats"');
-    if (!(logoPos >= 0 && widgetPos > logoPos && statsPos > widgetPos)) throw new Error('widget no va entre logo y stats');
+    t('css posiciona el widget absoluto sin left fijo al centro', () => {
+    const css = fs.readFileSync('css/styles.css', 'utf8');
     if (!css.includes('.rhythm-widget')) throw new Error('falta .rhythm-widget en css');
-    if (!css.includes('display: inline-flex') && !css.includes('display: flex')) throw new Error('widget debe ser flex inline');
+    // Debe ser absolute (fuera del flujo flex) para no desplazar nada
+    const block = css.slice(css.indexOf('.rhythm-widget'));
+    const posBlock = block.slice(0, block.indexOf('}'));
+    if (!posBlock.includes('position: absolute')) throw new Error('widget debe ser absolute');
+    // No debe fijar left:50% (JS calcula el hueco real)
+    if (posBlock.includes('left: 50%')) throw new Error('widget no debe quedar centrado por CSS');
+  });
+
+  t('game.js calcula posicion dinámica entre logo y stats (no left fijo)', () => {
+    const game = fs.readFileSync('js/game.js', 'utf8');
+    if (!game.includes('function positionRhythmWidget')) throw new Error('falta positionRhythmWidget');
+    if (!game.includes("hud.querySelector('.logo')")) throw new Error('no lee .logo');
+    if (!game.includes("hud.querySelector('.stats')")) throw new Error('no lee .stats');
+    if (!game.includes('logoRect.right')) throw new Error('no calcula borde derecho del logo');
+    if (!game.includes('statsRect.left')) throw new Error('no calcula arranque de stats');
+    if (!game.includes('addEventListener(\'resize\'') && !game.includes('addEventListener("resize"')) throw new Error('falta recalcular en resize');
   });
 
   t('wiring de clicks usa API real NV.externalAudio.startDisplayCapture / stop', () => {

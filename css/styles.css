@@ -445,11 +445,13 @@ canvas {
 .go-stat span:last-child { display: block; font-size: 24px; color: #ff5f9b; font-weight: bold; }
 
 /* ===== Widget de control de música externa (absoluto: no empuja el flex del header) ===== */
+/* La posición exacta (left/top) la fija JS en setupRhythmUI -> positionRhythmWidget(),
+   calculando el hueco real entre .logo y .stats. Estos son solo defaults. */
 .rhythm-widget {
-  position: absolute;           /* sacado del flujo flex: no altera space-between */
-    left: 50%;                    
+  position: absolute;
+  left: 0;
   top: 50%;
-  transform: translate(-50%, -50%);
+  transform: translateY(-50%);
   display: inline-flex;
   align-items: center;
   gap: 1px;
@@ -457,7 +459,8 @@ canvas {
   background: rgba(0, 0, 0, 0.72);
   border: 1px solid rgba(0, 210, 255, 0.3);
   border-radius: 8px;
-  z-index: 5;                   /* por encima del fondo del header */
+  z-index: 5;
+  white-space: nowrap;
 }
 
 .rw-icon {
