@@ -415,6 +415,28 @@
       // Brillo/glow fade en función de la energía detectada
       icon.style.opacity = (0.65 + energy * 0.35).toFixed(3);
       icon.style.filter = 'drop-shadow(0 0 ' + (2 + energy * 6).toFixed(1) + 'px hsl(' + Math.round(hue) + ',80%,60%))';
+      // ===== TEMP DEBUG (eliminar tras diagnosticar) — activar con index.html?rhythmdebug=1 =====
+      if (typeof NV._rhythmDbg === 'undefined') {
+        NV._rhythmDbg = (typeof location !== 'undefined') && /[?&]rhythmdebug=1/.test(location.search || '');
+        NV._rhythmDbgLast = 0; NV._rhythmDbgSumT = 0; NV._rhythmDbgMaxBeat = 0; NV._rhythmDbgLastTr = '';
+      }
+      if (NV._rhythmDbg) {
+        NV._rhythmDbgMaxBeat = Math.max(NV._rhythmDbgMaxBeat, beat);
+        NV._rhythmDbgLastTr = icon.style.transform;
+        const dnow = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+        if (beat > 0.3 && dnow - NV._rhythmDbgLast > 120) {
+          NV._rhythmDbgLast = dnow;
+          console.log('[rhythm-icon] KICK beat=' + beat.toFixed(3) + ' hue=' + Math.round(hue) + ' energy=' + energy.toFixed(3) + ' transform="' + icon.style.transform + '"');
+        }
+        if (dnow - NV._rhythmDbgSumT >= 1000) {
+          NV._rhythmDbgSumT = dnow;
+          let mn = 255, mx = 0, sum = 0, n = 0;
+          if (r.data) for (let i = 0; i < r.data.length; i++) { const v = r.data[i]; if (v < mn) mn = v; if (v > mx) mx = v; sum += v; n++; }
+          console.log('[rhythm-icon] 1s maxBeat=' + NV._rhythmDbgMaxBeat.toFixed(3) + ' energy=' + energy.toFixed(3) + ' bass=' + (r.bass || 0).toFixed(3) + ' hue=' + Math.round(hue) + ' rawBytes=' + (n ? (mn + '/' + Math.round(sum / n) + '/' + mx) : 'n/a') + ' state=' + r.state + ' lastTransform="' + NV._rhythmDbgLastTr + '"');
+          NV._rhythmDbgMaxBeat = 0;
+        }
+      }
+      // ===== FIN TEMP DEBUG =====
     }
     NV.updateRhythmWidgetIcon = updateRhythmWidgetIcon;
   }
