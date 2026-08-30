@@ -10,6 +10,11 @@
     <main class="shell">
       <header class="hud">
         <div class="logo"><span>◉</span> NEON VOID</div>
+        <div id="rhythm-widget" class="rhythm-widget" title="Control de música externa (permite capturar audio de una pestaña o ventana)">
+          <span class="rw-icon" aria-hidden="true">🎵</span>
+          <button id="rwAddMusicBtn" class="rw-btn" type="button" title="Agregar música (capturar pestaña/ventana)">➕</button>
+          <button id="rwStopBtn" class="rw-btn" type="button" title="Detener captura">⏹</button>
+        </div>
         <div class="stats" aria-label="Estado de la partida">
           <div class="stat stat-wave" title="Oleada"><span class="stat-icon" aria-hidden="true">&#x1F300;</span><span id="wave">OLEADA 1</span></div>
           <div class="stat stat-score" title="Puntaje"><span class="stat-icon" aria-hidden="true">&#x2726;</span><span id="score">0</span></div>
@@ -62,12 +67,7 @@
             </button>
           </div>
           <button id="startBtn" class="primary" type="button">COMENZAR</button>
-                    <div id="rhythm-widget" class="rhythm-widget" title="Control de música externa">
-            <span class="rw-icon" aria-hidden="true">🎵</span>
-            <button id="rwAddMusicBtn" class="rw-btn" type="button" title="Agregar música (capturar pestaña/ventana)">➕</button>
-            <button id="rwStopBtn" class="rw-btn" type="button" title="Detener captura">⏹</button>
-          </div>
-          <button id="permBtn" class="primary perm-btn" type="button">📈 MEJORAS PERMANENTES</button>
+                              <button id="permBtn" class="primary perm-btn" type="button">📈 MEJORAS PERMANENTES</button>
           <p class="tip">WASD/Flechas: mover | ESPACIO: habilidad | TAB: stats | F: consumible</p>
         </div>
 

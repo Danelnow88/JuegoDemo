@@ -41,10 +41,27 @@ function t(desc, fn) {
     if (!game.includes("dom.rwStopBtn.addEventListener('click'")) throw new Error('falta listener rwStopBtn');
   });
 
-  t('css define .rhythm-widget posicionado fixed top/left', () => {
-    if (!css.includes('.rhythm-widget')) throw new Error('falta .rhythm-widget');
-    if (!css.includes('position: fixed')) throw new Error('no esta fixed');
-    if (!css.includes('top: 16px') || !css.includes('left: 16px')) throw new Error('posicion incorrecta');
+    t('css define .rhythm-widget inline dentro del header, entre logo y stats', () => {
+    const html = fs.readFileSync('index.html', 'utf8');
+    const logoPos = html.indexOf('class="logo"');
+    const widgetPos = html.indexOf('id="rhythm-widget"');
+    const statsPos = html.indexOf('class="stats"');
+    if (!(logoPos >= 0 && widgetPos > logoPos && statsPos > widgetPos)) throw new Error('widget no va entre logo y stats');
+    if (!css.includes('.rhythm-widget')) throw new Error('falta .rhythm-widget en css');
+    if (!css.includes('display: inline-flex') && !css.includes('display: flex')) throw new Error('widget debe ser flex inline');
+  });
+
+  t('wiring de clicks usa API real NV.externalAudio.startDisplayCapture / stop', () => {
+    const game = fs.readFileSync('js/game.js', 'utf8');
+    const dom = fs.readFileSync('js/ui/dom.js', 'utf8');
+    // DOM expone los nodos
+    if (!dom.includes('rwAddMusicBtn:')) throw new Error('dom no expone rwAddMusicBtn');
+    if (!dom.includes('rwStopBtn:')) throw new Error('dom no expone rwStopBtn');
+    // Game wirea los clicks a las funciones reales de rhythm.js (no a nombres inventados)
+    const wireAdd = "dom.rwAddMusicBtn.addEventListener('click', () => { NV.rhythmToggleEnabled(true); NV.externalAudio.startDisplayCapture(); })";
+    const wireStop = "dom.rwStopBtn.addEventListener('click', () => { NV.rhythmToggleEnabled(false); NV.externalAudio.stop(); })";
+    if (!game.includes(wireAdd)) throw new Error('click add no dispara startDisplayCapture real');
+    if (!game.includes(wireStop)) throw new Error('click stop no dispara stop() real');
   });
 
   console.log('RESULT meta_widget_integration: pass=' + pass + ' fail=' + fail);

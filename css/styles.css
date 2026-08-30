@@ -443,4 +443,44 @@ canvas {
 .go-stat span:first-child { display: block; font-size: 12px; color: #888; }
 .go-stat span:last-child { display: block; font-size: 24px; color: #ff5f9b; font-weight: bold; }
 
+/* ===== Widget de control de música externa (inline en header) ===== */
+.rhythm-widget {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  background: rgba(0, 0, 0, 0.72);
+  border: 1px solid rgba(0, 210, 255, 0.3);
+  border-radius: 8px;
+  margin: 0 6px;
+}
+
+.rw-icon {
+  font-size: 16px;
+  color: #7cf8ff;
+  pointer-events: none;
+}
+
+.rw-btn {
+  background: rgba(0, 210, 255, 0.12);
+  border: 1px solid rgba(0, 210, 255, 0.3);
+  border-radius: 6px;
+  color: #e0f7ff;
+  font-size: 12px;
+  padding: 2px 6px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.rw-btn:hover {
+  background: rgba(0, 210, 255, 0.25);
+  border-color: rgba(0, 210, 255, 0.5);
+}
+
+.rw-btn:disabled {
+  opacity: 0.35;
+  cursor: wait;
+}
+
+
 
