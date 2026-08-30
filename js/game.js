@@ -730,23 +730,23 @@
     });
 
     const consumableDefs = [
-      { key: 'potion',    icon: '🧪', name: 'Poción',    desc: 'Cura 40 HP (tecla F en partida)',   price: 10, banner: 'Poción guardada (F para usar)',  color: '#0f0' },
-      { key: 'overdrive', icon: '⚡', name: 'Overdrive', desc: '+50% velocidad 5s (tecla F)',       price: 18, banner: 'Overdrive guardado (F)',         color: '#caa7ff' },
-      { key: 'shield',    icon: '🛡', name: 'Escudo',    desc: 'Invulnerable 2s (tecla F)',         price: 22, banner: 'Escudo guardado (F)',            color: '#ffcf76' },
-      { key: 'bomb',      icon: '💣', name: 'Bomba',     desc: 'Daña 25% HP a todos (tecla F)',     price: 34, banner: 'Bomba guardada (F)',              color: '#ff5f9b' },
-      { key: 'freeze',    icon: '⏱', name: 'Congelante',desc: 'Enemigos lentos 50% por 4s (F)',    price: 26, banner: 'Congelante guardado (F)',         color: '#caa7ff' },
-      { key: 'magnet',    icon: '🧲', name: 'Imán',      desc: 'Atrae todos los shards/armas (F)',  price: 20, banner: 'Imán guardado (F)',               color: '#7cf8ff' },
-      { key: 'bounty',    icon: '🎯', name: 'Recompensa',desc: '10s: kills dan +1 💎 y x2 score(F)',price: 30, banner: 'Recompensa guardada (F)',         color: '#ffd700' },
+      { key: 'potion',    name: 'Poción',     desc: 'Cura 40 HP (tecla F en partida)',     price: 10, banner: 'Poción guardada (F para usar)',  color: '#22c55e' },
+      { key: 'overdrive', name: 'Overdrive',  desc: '+50% velocidad 5s (tecla F)',         price: 18, banner: 'Overdrive guardado (F)',         color: '#caa7ff' },
+      { key: 'shield',    name: 'Escudo',     desc: 'Invulnerable 2s (tecla F)',           price: 22, banner: 'Escudo guardado (F)',            color: '#ffcf76' },
+      { key: 'bomb',      name: 'Bomba',      desc: 'Daña 25% HP a todos (tecla F)',       price: 34, banner: 'Bomba guardada (F)',             color: '#ff5f9b' },
+      { key: 'freeze',    name: 'Congelante', desc: 'Enemigos lentos 50% por 4s (F)',      price: 26, banner: 'Congelante guardado (F)',        color: '#67e8f9' },
+      { key: 'magnet',    name: 'Imán',       desc: 'Atrae todos los shards/armas (F)',    price: 20, banner: 'Imán guardado (F)',              color: '#7cf8ff' },
+      { key: 'bounty',    name: 'Recompensa', desc: '10s: kills dan +1 💎 y x2 score (F)', price: 30, banner: 'Recompensa guardada (F)',        color: '#ffd700' },
     ];
     consumableDefs.forEach((c) => {
       const bought = consumableBought[c.key] || 0;
       if (bought >= CONSUMABLE_CAP) return; // tope por visita: la oferta desaparece
       consumables.push({
-        icon: c.icon, name: c.name,
+        consumableType: c.key, name: c.name,
         desc: c.desc + ' (' + bought + '/' + CONSUMABLE_CAP + ')',
         price: c.price,
         buy: () => {
-          consumableItems.push({ type: c.key, name: c.name, icon: c.icon });
+          consumableItems.push({ type: c.key, name: c.name });
           consumableBought[c.key] = (consumableBought[c.key] || 0) + 1;
           showBanner(c.banner, c.color);
         },
@@ -768,13 +768,23 @@
     if (typeof NV.drawWeaponIcon === 'function') NV.drawWeaponIcon(ctx, weapon, canvasSize / 2, canvasSize / 2, iconSize, { glow: 2 });
   }
 
+  function drawConsumableCanvas(canvas, type, canvasSize, iconSize) {
+    if (!canvas || !type) return;
+    canvasSize = canvasSize || 64;
+    iconSize = iconSize || Math.floor(canvasSize * 0.76);
+    canvas.width = canvasSize; canvas.height = canvasSize;
+    const ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, canvasSize, canvasSize);
+    if (typeof NV.drawConsumableIcon === 'function') NV.drawConsumableIcon(ctx, type, canvasSize / 2, canvasSize / 2, iconSize, { glow: 2 });
+  }
+
   function renderOffers(container, items) {
     if (!container) return;
     container.innerHTML = "";
     items.forEach(item => {
       const el = document.createElement("div");
       el.className = "offer";
-      const iconHtml = item.weapon ? '<div class="offer-icon"><canvas></canvas></div>' : '<div class="offer-icon">' + item.icon + "</div>";
+      const iconHtml = item.weapon || item.consumableType ? '<div class="offer-icon"><canvas></canvas></div>' : '<div class="offer-icon">' + item.icon + "</div>";
             el.innerHTML = iconHtml + '<div class="offer-name">' + item.name + "</div><div class=\"offer-desc\">" + item.desc + "</div><div class='offer-price'>💎 " + item.price + "</div>";
       el.addEventListener("click", () => {
         if (shards >= item.price) {
@@ -791,6 +801,7 @@
       container.appendChild(el);
       const c = el.querySelector("canvas");
       if (c && item.weapon) drawWeaponCanvas(c, item.weapon, 64, 50);
+      if (c && item.consumableType) drawConsumableCanvas(c, item.consumableType, 64, 48);
     });
   }
 
