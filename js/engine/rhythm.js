@@ -45,7 +45,7 @@
     _lastNow: 0,
     lastBeatAt: 0, lastOnsetAt: 0,
     lastShakeAt: -99,
-    thresholdRel: 1.35,      // energía de graves vs. línea base P55 para disparar beat
+    thresholdRel: 1.22,      // energía de graves vs. línea base P55 para disparar beat
     // Internos de suavizado / detección.
     _bassHist: null,
     _hist: null,             // historias móviles para umbrales robustos + AGC
@@ -200,10 +200,13 @@
   // Convierte un Uint8Array de frecuencias (getByteFrequencyData) en valores de banda.
   NV.rhythmAnalyze = function (state, data, nowSec) {
     const len = data.length;
-    const loBass = 1, hiBass = Math.max(2, Math.floor(len * 0.08));
+    // Bin 0 INCLUIDO (antes arrancaba en 1): con fftSize 512 el bin 0 cubre
+    // 0-93.75Hz, justo el fundamental del bombo. Excluirlo dejaba la detección
+    // de beat/kick solo con los armónicos del golpe.
+    const loBass = 0, hiBass = Math.max(2, Math.floor(len * 0.08));
     const loMid = Math.floor(len * 0.08), hiMid = Math.floor(len * 0.4);
     const loHi = Math.floor(len * 0.55), hiHi = len;
-    const kickBand = bandEnergy(data, 1, Math.max(3, Math.floor(len * 0.055)));
+    const kickBand = bandEnergy(data, 0, Math.max(3, Math.floor(len * 0.055)));
     const snareBand = bandEnergy(data, Math.floor(len * 0.12), Math.max(Math.floor(len * 0.13), Math.floor(len * 0.36)));
     const hatBand = bandEnergy(data, Math.floor(len * 0.62), len);
     state.bass = bandEnergy(data, loBass, hiBass);
@@ -234,15 +237,15 @@
     const pkSnare = peakPick(pp.snare, snareFlux);
     if (pkFlux != null) {
       const thr = robustThr(hist.flux, 2.6, onsetFloor);
-      if (flux >= thr && now - pp.lastFlux > 0.05) { pp.lastFlux = now; freshOnset = Math.min(1, (flux - thr) / 0.22); }
+      if (flux >= thr && now - pp.lastFlux > 0.05) { pp.lastFlux = now; freshOnset = Math.min(1, (flux - thr) / 0.13); }
     }
     if (pkKick != null) {
       const thr = robustThr(hist.kick, 2.8, 0.018);
-      if (kickFlux >= thr && now - pp.lastKick > 0.05) { pp.lastKick = now; freshKick = Math.min(1, (kickFlux - thr) / 0.2); }
+      if (kickFlux >= thr && now - pp.lastKick > 0.05) { pp.lastKick = now; freshKick = Math.min(1, (kickFlux - thr) / 0.08); }
     }
     if (pkSnare != null) {
       const thr = robustThr(hist.snare, 2.6, 0.018);
-      if (snareFlux >= thr && now - pp.lastSnare > 0.05) { pp.lastSnare = now; freshSnare = Math.min(1, (snareFlux - thr) / 0.2); }
+      if (snareFlux >= thr && now - pp.lastSnare > 0.05) { pp.lastSnare = now; freshSnare = Math.min(1, (snareFlux - thr) / 0.08); }
     }
     // Último pick sin decay: score del transiente confirmado más reciente
     // (lo consumen shake/lógica por evento; los envelopes de render son otros).
@@ -281,11 +284,26 @@
     // contraste entre golpe y fondo.
     pushHist(hist.bass, state.bass);
     state.peak = Math.max(state.peak * 0.96, state.energy);
-    // Beat: los graves superan la línea de base por el umbral.
+    // Beat: los graves superan la línea de base por el umbral. En música REAL
+    // el bombo sube la banda de graves ~8-15% (la banda siempre trae contenido
+    // melódico, no silencio como en los synthetic tests), por eso el factor
+    // relativo es 1.12 (antes 1.35, tuneado con espectros sintéticos donde la
+    // banda de graves estaba vacía y el golpe multiplicaba x4).
     const bassBase = Math.max(0.001, pct(hist.bass, 0.55));
     const thr = Math.max(0.02, bassBase * state.thresholdRel);
     if (state.bass > thr && state.bass > 0.02) {
       state.beat = Math.max(state.kick, Math.min(1, state.bass / (Math.max(0.05, bassBase) * 1.8)));
+      state.lastBeatAt = nowSec || 0;
+    } else if (freshKick > 0.05 || freshOnset > 0.1) {
+      // Evento de flujo espectral confirmado (peak-pick local + umbral robusto
+      // + refractario): aunque el salto de graves no supere la línea base P55
+      // (banda cargada de contenido melódico), el ataque sí es un golpe. Sin
+      // esta vía beat quedaba en 0 con audio real aunque kick/onset se
+      // detectaran correctamente. Se usa el ENVELOPE de kick (decae 0.66/frame)
+      // con tope 0.65: beat sigue variando entre golpes (el alpha del render
+      // respira en música densa) y el icono alcanza su cap de escala igual
+      // (0.65 * gain 2.2 > cap 0.35).
+      state.beat = Math.max(state.beat, Math.min(0.65, state.kick));
       state.lastBeatAt = nowSec || 0;
     } else if ((nowSec || 0) - state.lastBeatAt > 0.25) {
       state.beat = Math.max(0, state.beat - 0.06);
@@ -366,7 +384,23 @@
     const ctx = new AC();
     const src = ctx.createMediaStreamSource(stream);
     const analyser = ctx.createAnalyser();
-    analyser.fftSize = 256;
+    // fftSize 512 (antes 256): a 48kHz cada bin mide 93.75Hz. Con 256 el bin
+    // media 187.5Hz y el fundamental del bombo (50-100Hz) caía ENTERO en el
+    // bin 0, que estaba excluido de todas las bandas (loBass/kickBand arrancan
+    // en bin >= 1) => la detección solo veía armónicos/agudos del golpe.
+    analyser.fftSize = 512;
+    // Audio REAL (getDisplayMedia): el default smoothingTimeConstant=0.8 mezcla
+    // 80% del frame anterior y difumina cada transiente en ~5-8 frames, lo que
+    // aplasta el flujo espectral frame-a-frame (posFlux) => kick/snare/onset
+    // disparan tarde o nunca. Los tests inyectan datos crudos sin analyser, por
+    // eso la simulación no reproducía esto. 0.35 deja pasar el ataque (~3%
+    // residual tras 8 frames) manteniendo el análisis estable.
+    analyser.smoothingTimeConstant = 0.35;
+    // Rango dB más resolutivo que el default (-100..-30): el audio de pestaña a
+    // volumen normal vive arriba de -85dB; ganar resolución evita que todo el
+    // espectro útil se comprima en los bytes bajos.
+    analyser.minDecibels = -85;
+    analyser.maxDecibels = -25;
     const data = new Uint8Array(analyser.frequencyBinCount);
     // NO se conecta a destination: no re-amplificamos la música del usuario.
     src.connect(analyser);
@@ -452,7 +486,7 @@
     // encima. Un clip duro a maxAlpha aplanaba el brillo en deathcore (la
     // energía vive alta => ~45% de los frames exactamente en el cap, sin
     // variación perceptible); el knee conserva variación cerca del tope.
-    const knee = (r.maxAlpha || 0.32) * 0.75;
+    const knee = (r.maxAlpha || 0.32) * 0.8;
     const raw = 0.045 + energy * 0.34 + beatEff * 0.2 + onsetEff * 0.22 + punch * 0.05;
     const alpha = raw <= knee ? raw : knee + ((r.maxAlpha || 0.32) - knee) * (1 - Math.exp(-(raw - knee) / 0.09));
     r.lastAlpha = alpha; // expuesto para verificación/medición de variación real
