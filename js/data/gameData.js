@@ -7,15 +7,15 @@
   // === MEJORAS PERMANENTES (meta) ===
   // El coste crece con el nivel y tienen un tope máximo (MAX_PERM_LEVEL).
   NV.PERM_UPGRADES = [
-    { key: 'damage', name: 'Daño', icon: '⚔️', base: 40, desc: '+2 daño por nivel' },
-    { key: 'speed',  name: 'Velocidad', icon: '🚀', base: 50, desc: '+15% velocidad por nivel' },
-    { key: 'hp',     name: 'Vida', icon: '❤️', base: 30, desc: '+20 HP máx por nivel' },
-    { key: 'armor',  name: 'Armadura', icon: '🛡', base: 35, desc: '+1 armadura por nivel' },
-    { key: 'luck',   name: 'Suerte', icon: '🍀', base: 20, desc: '+10 suerte · reduce el crítico enemigo' },
-    { key: 'crit',   name: 'Crítico', icon: '💥', base: 45, desc: '+0,5% prob. de crítico propio por nivel' },
-    { key: 'dodge',  name: 'Esquiva', icon: '💨', base: 40, desc: '+0,4% de esquivar golpes por nivel' },
-    { key: 'regen',  name: 'Regeneración', icon: '🔄', base: 38, desc: '+0,2 HP/s fuera de peligro por nivel' },
-    { key: 'greed',  name: 'Codicia', icon: '🪙', base: 42, desc: '+3% chance de drop de 💎 por nivel' },
+    { key: 'damage', name: 'Daño', base: 40, desc: '+2 daño por nivel' },
+    { key: 'speed',  name: 'Velocidad', base: 50, desc: '+15% velocidad por nivel' },
+    { key: 'hp',     name: 'Vida', base: 30, desc: '+20 HP máx por nivel' },
+    { key: 'armor',  name: 'Armadura', base: 35, desc: '+1 armadura por nivel' },
+    { key: 'luck',   name: 'Suerte', base: 20, desc: '+10 suerte · reduce el crítico enemigo' },
+    { key: 'crit',   name: 'Crítico', base: 45, desc: '+0,5% prob. de crítico propio por nivel' },
+    { key: 'dodge',  name: 'Esquiva', base: 40, desc: '+0,4% de esquivar golpes por nivel' },
+    { key: 'regen',  name: 'Regeneración', base: 38, desc: '+0,2 HP/s fuera de peligro por nivel' },
+    { key: 'greed',  name: 'Codicia', base: 42, desc: '+3% chance de drop de 💎 por nivel' },
   ];
 
   // === PERSONAJES ===

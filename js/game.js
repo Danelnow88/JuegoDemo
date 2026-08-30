@@ -570,7 +570,7 @@
       const cost = permCost(u);
       const el = document.createElement('div');
       el.className = 'offer' + (maxed ? ' offer-maxed' : '');
-      el.innerHTML = '<div class="offer-icon">' + u.icon + '</div>' +
+      el.innerHTML = '<div class="offer-icon"><canvas></canvas></div>' +
         '<div class="offer-name">' + u.name + ' Nv ' + lvl + (maxed ? ' (MÁX)' : '') + '</div>' +
         '<div class="offer-desc">' + u.desc + '</div>' +
         "<div class='offer-price'>" + (maxed ? 'MÁX' : '💎 ' + cost) + '</div>';
@@ -587,6 +587,7 @@
         }
       });
       dom.permOffers.appendChild(el);
+      drawMetaSkillCanvas(el.querySelector('canvas'), u.key, 64, 48);
     });
   }
   function openPermShop() {
@@ -776,6 +777,16 @@
     const ctx = canvas.getContext("2d");
     ctx.clearRect(0, 0, canvasSize, canvasSize);
     if (typeof NV.drawConsumableIcon === 'function') NV.drawConsumableIcon(ctx, type, canvasSize / 2, canvasSize / 2, iconSize, { glow: 2 });
+  }
+
+  function drawMetaSkillCanvas(canvas, id, canvasSize, iconSize) {
+    if (!canvas || !id) return;
+    canvasSize = canvasSize || 64;
+    iconSize = iconSize || Math.floor(canvasSize * 0.76);
+    canvas.width = canvasSize; canvas.height = canvasSize;
+    const ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, canvasSize, canvasSize);
+    if (typeof NV.drawMetaSkillIcon === 'function') NV.drawMetaSkillIcon(ctx, id, canvasSize / 2, canvasSize / 2, iconSize, { glow: 2 });
   }
 
   function renderOffers(container, items) {
