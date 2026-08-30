@@ -15,19 +15,49 @@ function t(desc, fn) {
     if (!html.includes('id="rhythm-widget"')) throw new Error('falta #rhythm-widget');
   });
 
-  t('widget tiene icono 🎵 y 2 botones (añadir + detener)', () => {
-    if (!html.includes('class="rw-icon"') || !html.includes('>🎵')) throw new Error('falta icono');
+  t('widget tiene ícono SVG music-note (sin emoji) y 2 botones', () => {
+    if (!html.includes('class="rw-icon"')) throw new Error('falta .rw-icon');
+    if (html.includes('>🎵')) throw new Error('no debe quedar el emoji 🎵 en el widget');
+    // SVG music-note con líneas de vibración ghost
+    if (!html.includes('<svg class="mn"')) throw new Error('falta svg.mn');
+    if (!html.includes('class="mn-ghost"')) throw new Error('falta líneas de vibración ghost');
+    if (!html.includes('class="mn-base"') || !html.includes('class="mn-dot"')) throw new Error('faltan primitivas base/dot');
     if (!html.includes('id="rwAddMusicBtn"')) throw new Error('falta boton add');
     if (!html.includes('id="rwStopBtn"')) throw new Error('falta boton stop');
     if (html.includes('id="rhythmTabBtn"')) throw new Error('no debe quedar rhythmTabBtn');
     if (html.includes('id="rhythmMicBtn"')) throw new Error('no debe quedar rhythmMicBtn');
   });
 
-  t('dom.js expone rwAddMusicBtn / rwStopBtn', () => {
+  t('dom.js expone rwAddMusicBtn / rwStopBtn / rwIcon', () => {
     if (!dom.includes('rwAddMusicBtn: document.getElementById')) throw new Error('dom falta rwAddMusicBtn');
     if (!dom.includes('rwStopBtn: document.getElementById')) throw new Error('dom falta rwStopBtn');
+    if (!dom.includes('rwIcon: document.querySelector')) throw new Error('dom falta rwIcon');
     if (dom.includes('rhythmTabBtn:')) throw new Error('dom no debe tener rhythmTabBtn');
     if (dom.includes('rhythmMicBtn:')) throw new Error('dom no debe tener rhythmMicBtn');
+  });
+
+  t('css: ícono usa currentColor para tinte por hue y ghost fino 1.2/0.38', () => {
+    const css = fs.readFileSync('css/styles.css', 'utf8');
+    if (!css.includes('.rw-icon')) throw new Error('falta .rw-icon en css');
+    const iconBlock = css.slice(css.indexOf('.rw-icon'));
+    if (!iconBlock.includes('.mn-ghost')) throw new Error('falta estilos .mn-ghost');
+    if (!css.includes('stroke-width: 1.2')) throw new Error('ghost no es fino 1.2');
+    if (!css.includes('opacity: .38')) throw new Error('ghost no tiene opacidad .38');
+    if (!css.includes('stroke: currentColor')) throw new Error('el SVG no usa currentColor (no se puede teñir por hue)');
+  });
+
+  t('game.js: updateRhythmWidgetIcon aplica pulso/color/glow reutilizando NV.rhythm', () => {
+    if (!game.includes('function updateRhythmWidgetIcon')) throw new Error('falta updateRhythmWidgetIcon');
+    // gate: estático sin listening
+    if (!game.includes("r.state !== 'listening'")) throw new Error('falta gate de estado listening');
+    // 3 efectos
+    if (!game.includes("icon.style.transform = 'scale('")) throw new Error('falta pulso de beat');
+    if (!game.includes("icon.style.color = 'hsl(")) throw new Error('falta color por hue');
+    if (!game.includes('icon.style.filter')) throw new Error('falta glow (filter)');
+    // usa hue/beat/energy de NV.rhythm
+    if (!game.includes('NV.rhythm') || !game.includes('r.hue') || !game.includes('r.beat') || !game.includes('r.energy')) throw new Error('no reusa NV.rhythm');
+    // se llama en el loop
+    if (!game.includes('NV.updateRhythmWidgetIcon()')) throw new Error('no se llama updateRhythmWidgetIcon en el loop');
   });
 
   t('game.js wiring usa API real: externalAudio.startDisplayCapture / stop', () => {

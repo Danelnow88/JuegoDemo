@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ícono music-note a 16px — nitidez de líneas de vibración</title>
+  <style>
+    :root { color-scheme: dark; --bg:#070914; --panel:#0d1324; --muted:#94a3b8; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; font-family:Inter,ui-sans-serif,system-ui,sans-serif; color:#e5edf8; padding:40px; background:radial-gradient(circle at 50% 0%, rgba(124,248,255,.10), transparent 30rem), var(--bg); }
+    h1 { font-size:22px; margin:0 0 6px; letter-spacing:.02em; }
+    p.desc { color:var(--muted); margin:0 0 28px; max-width:820px; line-height:1.6; }
+    code { color:#bae6fd; }
+    .row { margin:0 auto 34px; max-width:900px; }
+    .row h2 { font-size:14px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; margin:0 0 12px; }
+    .cells { display:flex; gap:18px; flex-wrap:wrap; }
+    .cell { background:var(--panel); border:1px solid rgba(124,248,255,.18); border-radius:14px; padding:16px; text-align:center; }
+    .cell .label { font-size:11px; color:var(--muted); margin-top:10px; }
+    .cell .sub { font-size:10px; color:#5a6b7d; margin-top:2px; }
+    .sizes { display:flex; gap:22px; align-items:flex-end; flex-wrap:wrap; }
+    .size-block { text-align:center; }
+    .size-block .px { font-size:11px; color:var(--muted); margin-top:8px; }
+    /* Icono music-note. NOTA: usamos width/height exactos y NO vector-effect
+       scaling para que el stroke se escale realmente como en el widget (que usará
+       width/height CSS). El stroke-width se da en unidades del viewBox 32. */
+    svg.mn { display:block; }
+    .mn * { fill:none; stroke-linecap:round; stroke-linejoin:round; }
+    .mn .base { stroke:#e5eefb; }
+    .mn .dot { fill:#7cf8ff; stroke:none; }
+    /* Variante A: ghost con stroke 1.3 (más fino) y más opacidad */
+    .mnA .ghost { stroke:#7cf8ff; stroke-width:1.3; opacity:.5; }
+    /* Variante B: ghost con stroke 1.2 (aún más fino) y menos opacidad */
+    .mnB .ghost { stroke:#7cf8ff; stroke-width:1.2; opacity:.38; }
+    .mn .baseSW { stroke-width:1.9; }
+    .mn .dotSW { }
+    .note { max-width:900px; margin:30px auto 0; padding:14px 16px; color:var(--muted); font-size:13px; line-height:1.6; background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.06); border-radius:12px; }
+  </style>
+</head>
+<body>
+  <h1>Ícono <code>music-note</code> — tamaño real del widget (16px)</h1>
+  <p class="desc">
+    El widget muestra el ícono a <b>16px</b>. Este preview renderiza el SVG a exactamente 16px
+    para verificar que las líneas de vibración (<code>ghost</code>) se lean nítidas y como un detalle
+    sutil, no como una mancha junto a la nota. Se comparan dos grosores de esas líneas.
+  </p>
+
+  <!-- Variante A: ghost fino 1.3 / opacidad .5 -->
+  <div class="row">
+    <h2>Variante A — líneas de vibración finas (stroke 1.3, opacidad .5)</h2>
+    <div class="cells" style="justify-content:flex-start">
+      <div class="cell" style="width:64px">
+        <svg class="mn mnA" viewBox="0 0 32 32" width="16" height="16" aria-label="16px A">
+          <path class="base baseSW" d="M11 25V7l12-3v15" />
+          <circle class="dot" cx="7.5" cy="25" r="2.6" />
+          <circle class="dot" cx="20.5" cy="19" r="2.6" />
+          <path class="ghost" d="M5 9h6M5 13h4" />
+        </svg>
+        <div class="label">16px · A</div>
+      </div>
+    </div>
+    <div class="cells" style="justify-content:flex-start">
+      <div class="cell" style="width:64px">
+        <svg class="mn mnA" viewBox="0 0 32 32" width="22" height="22" aria-label="22px A (ref)">
+          <path class="base baseSW" d="M11 25V7l12-3v15" />
+          <circle class="dot" cx="7.5" cy="25" r="2.6" />
+          <circle class="dot" cx="20.5" cy="19" r="2.6" />
+          <path class="ghost" d="M5 9h6M5 13h4" />
+        </svg>
+        <div class="label">22px A (ref)</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Variante B: ghost fino 1.2 / opacidad .38 -->
+  <div class="row">
+    <h2>Variante B — líneas de vibración muy sutiles (stroke 1.2, opacidad .38)</h2>
+    <div class="cells" style="justify-content:flex-start">
+      <div class="cell" style="width:64px">
+        <svg class="mn mnB" viewBox="0 0 32 32" width="16" height="16" aria-label="16px B">
+          <path class="base baseSW" d="M11 25V7l12-3v15" />
+          <circle class="dot" cx="7.5" cy="25" r="2.6" />
+          <circle class="dot" cx="20.5" cy="19" r="2.6" />
+          <path class="ghost" d="M5 9h6M5 13h4" />
+        </svg>
+        <div class="label">16px · B</div>
+      </div>
+    </div>
+    <div class="cells" style="justify-content:flex-start">
+      <div class="cell" style="width:64px">
+        <svg class="mn mnB" viewBox="0 0 32 32" width="22" height="22" aria-label="22px B (ref)">
+          <path class="base baseSW" d="M11 25V7l12-3v15" />
+          <circle class="dot" cx="7.5" cy="25" r="2.6" />
+          <circle class="dot" cx="20.5" cy="19" r="2.6" />
+          <path class="ghost" d="M5 9h6M5 13h4" />
+        </svg>
+        <div class="label">22px B (ref)</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="note">
+    <b>Nota de renderizado:</b> el widget real integrará el SVG con la geometría original del viewBox 32×32
+    y dimensiones CSS de 16×16. Las líneas <code>ghost</code> (de vibración) se mantienen en el diseño como pediste,
+    solo se afina su <code>stroke-width</code> y <code>opacity</code> con respecto a la nota principal para que a 16px
+    se lean como un detalle sutil. Decime qué variante (A o B) preferis y la integro al widget real.
+  </div>
+</body>
+</html>

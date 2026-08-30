@@ -464,10 +464,23 @@ canvas {
 }
 
 .rw-icon {
-  font-size: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
   color: #7cf8ff;
   pointer-events: none;
+  line-height: 0;
+  will-change: transform, color, opacity, filter;
+  transition: transform 90ms ease-out;
 }
+/* Música SVG (music-note). Usa currentColor para que el hue dinámico de
+   NV.rhythm tiña el ícono completo por la propiedad color que setea JS. */
+.rw-icon svg.mn { display: block; }
+.rw-icon .mn-base { fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.rw-icon .mn-dot { fill: currentColor; stroke: none; }
+.rw-icon .mn-ghost { fill: none; stroke: currentColor; stroke-width: 1.2; opacity: .38; stroke-linecap: round; }
 
 .rw-btn {
   background: rgba(0, 210, 255, 0.12);

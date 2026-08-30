@@ -386,6 +386,34 @@
     if (dom.rwAddMusicBtn) dom.rwAddMusicBtn.addEventListener('click', () => { NV.rhythmToggleEnabled(true); NV.externalAudio.startDisplayCapture(); });
     if (dom.rwStopBtn) dom.rwStopBtn.addEventListener('click', () => { NV.rhythmToggleEnabled(false); NV.externalAudio.stop(); });
     refresh(NV.rhythm);
+
+    // Anima el ícono SVG del widget (pulso de beat, color por hue, glow por
+    // energía) reutilizando NV.rhythm, actualizado una vez por frame desde el
+    // loop del juego. Sin captura activa queda estático (es la señal visual).
+    function updateRhythmWidgetIcon() {
+      const icon = dom.rwIcon;
+      if (!icon) return;
+      const r = NV.rhythm;
+      if (!r || r.state !== 'listening' || !r.enabled) {
+        icon.style.transform = '';
+        icon.style.color = '';
+        icon.style.opacity = '';
+        icon.style.filter = '';
+        return;
+      }
+      const hue = (r.hue == null) ? 200 : r.hue;
+      const beat = r.beat || 0;
+      const energy = Math.max(0, Math.min(1, r.energy || 0));
+      // Pulso suave de beat (mecanismo análogo al jitter/pulso de fondo)
+      const pulse = 1 + Math.min(0.18, beat * 0.9);
+      icon.style.transform = 'scale(' + pulse.toFixed(3) + ')';
+      // Color dinámico por hue calculado (mismo que tiñe el fondo)
+      icon.style.color = 'hsl(' + Math.round(hue) + ',75%,62%)';
+      // Brillo/glow fade en función de la energía detectada
+      icon.style.opacity = (0.65 + energy * 0.35).toFixed(3);
+      icon.style.filter = 'drop-shadow(0 0 ' + (2 + energy * 6).toFixed(1) + 'px hsl(' + Math.round(hue) + ',80%,60%))';
+    }
+    NV.updateRhythmWidgetIcon = updateRhythmWidgetIcon;
   }
 
   function loadMeta() {
@@ -1608,6 +1636,7 @@
       const rhythmNow = now / 1000;
       NV.rhythmTick(rhythmNow);
       if (NV.rhythmShakeBoost) shake = Math.max(shake, NV.rhythmShakeBoost(NV.rhythm, rhythmNow));
+      if (NV.updateRhythmWidgetIcon) NV.updateRhythmWidgetIcon();
     }
 
     // Decrementar deathTimer y deathShake en gameover
