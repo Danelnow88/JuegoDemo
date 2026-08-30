@@ -4,6 +4,7 @@ let pass = 0, fail = 0;
 function t(d, fn) { try { fn(); pass++; console.log('  ok  ' + d); } catch (e) { fail++; console.log('  FAIL ' + d + ' -> ' + e.message); } }
 
 const game = fs.readFileSync('js/game.js', 'utf8');
+const data = fs.readFileSync('js/data/gameData.js', 'utf8');
 const css = fs.readFileSync('css/styles.css', 'utf8');
 
 t('tienda reemplaza pixel-art viejo por drawWeaponCanvas + drawWeaponIcon', () => {
@@ -29,6 +30,15 @@ t('pickups de armas en mundo usan drawWeaponIcon y conservan etiqueta textual', 
 t('CSS reserva tamaño real legible para canvas del inventario', () => {
   if (!css.includes('.inv-slot .inv-icon canvas')) throw new Error('falta estilo canvas inventario');
   if (!css.includes('width: 32px; height: 32px')) throw new Error('canvas de inventario no queda 32x32 CSS');
+});
+
+t('datos de armas no conservan emojis/iconos legacy', () => {
+  const weaponsBlock = data.slice(data.indexOf('NV.WEAPONS'), data.indexOf('];', data.indexOf('NV.WEAPONS')));
+  if (/emoji\s*:/.test(weaponsBlock)) throw new Error('quedó campo emoji en WEAPONS');
+  if (/icon\s*:/.test(weaponsBlock)) throw new Error('quedó campo icon legacy en WEAPONS');
+  for (const old of ['🔫','💥','🎯','🔦','🔮','🔥','🏹','⚡']) {
+    if (weaponsBlock.includes(old)) throw new Error('quedó emoji viejo de arma: ' + old);
+  }
 });
 
 console.log('RESULT weapon_icons_integration: pass=' + pass + ' fail=' + fail);

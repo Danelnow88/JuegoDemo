@@ -208,7 +208,7 @@ Se abre al completar una oleada o derrotar un jefe. Tiene **3 secciones** genera
 
 También incluye el **INVENTARIO** (`dom.invSlots`) con 6 slots. Para comprar, seleccionar una oferta y confirmar. Las armas recogidas se guardan en el inventario y se pueden equipar con las teclas **1–6** durante la partida.
 
-Cada oferta muestra un **icono emoji** descriptivo y un **precio en 💎** (fragmentos): 💚 +25 HP, 🚀 Velocidad, 🛡 Armadura, 🍀 Suerte, 🧪 Poción, ⚡ Overdrive, 🛡 Escudo. Las ofertas de armas usan **arte pixelado procedural** (`drawWeaponPixelArt`) renderizado en un canvas de 64×64px dentro del `offer-icon`.
+Cada oferta muestra un **icono descriptivo** y un **precio en 💎** (fragmentos): mejoras/consumibles conservan sus pictogramas, y las ofertas de armas usan los **iconos minimalistas canvas aprobados** (`NV.drawWeaponIcon` vía `drawWeaponCanvas`) renderizados en un canvas de 64×64px dentro del `offer-icon`.
 
 ---
 
@@ -361,7 +361,7 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 
 ### v5 — UI/UX de tienda y arte de armas
 - **Tienda sin scroll ni desplazamiento**: `.shop-overlay` con `overflow-y: hidden`, `max-height: 100vh` y paddings/gaps reducidos para que todo el contenido quepa en pantalla sin scroll. (`css/styles.css`)
-- **Arte de armas en la tienda**: se reemplazaron los emojis por dibujos pixelados procedurales generados con canvas (`drawWeaponPixelArt`). Cada arma tiene su propio sprite estilo pixel art retro (pistola, rifle, escopeta, subfusil, francotirador, lanzallamas, láser, cohete, plasma, cañón de riel). (`js/game.js`)
+- **Arte de armas en la tienda**: se reemplazaron los emojis por dibujos pixelados procedurales generados con canvas. En vActual fueron remasterizados como iconos minimalistas SVG-approved convertidos a canvas (`NV.drawWeaponIcon`). (`js/render/weaponIcons.js`, `js/game.js`)
 
 ### v6 — Reconstrucción de la tienda rota
 
@@ -865,7 +865,7 @@ El **README describe fielmente el juego jugable** (motor, 4 personajes, 10 armas
 - Jefes (`BOSS_TYPES`, 10) cada 5 oleadas, cada uno con patrón de movimiento y ataque distinto (repeater, heavy, summon, spread, beam, volley, bomb, orbs, split, rage), barra de HP y `hitFlash`.
 - Daño enemigo con críticos escalables (`enemyCritChance`), armadura con reducción plana, stuns de élite.
 - Sistema de oleadas con timer (los jefes no dejan ganar por tiempo), transiciones, victoria épica y apertura de tienda.
-- Tienda del Vacío (3 secciones: mejoras / armas / consumibles) con renders dinámicos (`generateOffers`/`renderOffers`) y arte pixelado procedural de armas (`drawWeaponPixelArt`).
+- Tienda del Vacío (3 secciones: mejoras / armas / consumibles) con renders dinámicos (`generateOffers`/`renderOffers`) e iconos minimalistas de armas en canvas (`NV.drawWeaponIcon`).
 - Inventario de 6 slots con equipar (click o teclas 1–6), soltar y quitar.
 - XP / niveles por partida (`+10 maxHp`, `+20 hp` al subir).
 - Meta persistente en `localStorage` (`metaShards`, `permUpgrades`), aplicada en `selectCharacter` y `startGame()`.
@@ -902,7 +902,7 @@ El **README describe fielmente el juego jugable** (motor, 4 personajes, 10 armas
 - **Controles táctiles móviles** inactivos (`display:none` y sin listeners) — **intencional** (juego web, no mobile).
 - **NOVA — pasiva "+20% daño" NO aplicada**: el personaje define `takeDmgMult: 1.2` (recibe +20%) pero **no existe** multiplicador de daño saliente en el código; `baseDmg` en `shoot()` no lo considera. Solo el "+20% de daño recibido" está activo. (Bug real pendiente de corregir.)
 - **`ESC` no pausa**: solo hay listener para `KeyP`; el atajo con `ESC` nunca se implementó (la documentación anterior lo afirmaba por error).
-- **Código muerto menor**: la paleta y el branch `rocket` en `drawWeaponPixelArt()` no se usan (no existe el arma “rocket” en `WEAPONS`).
+- **Código muerto menor corregido**: la ruta legacy `drawWeaponPixelArt()` fue reemplazada por `drawWeaponCanvas()` + `NV.drawWeaponIcon`; ya no existe el branch `rocket` obsoleto.
 - Queda testing de balance de los sistemas nuevos.
 <!-- CRLF fixes -->
 <!-- CRLF fixes -->
@@ -950,8 +950,7 @@ Comportamientos reales verificados al leer el código completo (`js/game.js`, ~2
 ### Bugs reales confirmados (sin corregir, registrados aquí)
 1. **NOVA — "+20% daño" NO aplicado**: solo existe `takeDmgMult: 1.2` (recibe +20%); no hay multiplicador de daño saliente en `shoot()`/`baseDmg`. Faltaría, p. ej., `const dmgSource = player.character === 'nova' ? 1.2 : 1;` en `shoot()`.
 2. **`ESC` no pausa**: solo hay listener para `KeyP`.
-3. **Código muerto**: la paleta `rocket` y el branch `name.includes("rocket")` en `drawWeaponPixelArt()` no se usan (no existe el arma "rocket" en `WEAPONS`).
-4. **Controles táctiles móviles** (`.controls`): `display:none` y sin listeners — **intencional** (juego web, no mobile).
+3. **Controles táctiles móviles** (`.controls`): `display:none` y sin listeners — **intencional** (juego web, no mobile).
 
 ### Integraciones frágiles (no mover sin entender)
 - El bloque fin de oleada ↔ `transition` ↔ `showShop()` debe evaluarse **antes** del countdown (bug v4).
