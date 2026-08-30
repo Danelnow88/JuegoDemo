@@ -25,10 +25,9 @@
       ctx.stroke();
       ctx.lineCap = 'default';
     } else {
-      ctx.fillStyle = char.color;
-      ctx.font = 'bold 18px system-ui';
-      ctx.textAlign = 'center';
-      ctx.fillText(char.skillIcon, cx, cy - radius - 8);
+      if (typeof NV.drawMetaSkillIcon === 'function') {
+        NV.drawMetaSkillIcon(ctx, char.special, cx, cy - radius - 8, 18, { glow: 4 });
+      }
     }
   };
 
@@ -260,10 +259,9 @@
   ctx.fillStyle = skillGrad || 'rgba(' + sCnum + ',0.12)';
   roundedFill(ctx, bx, ssy, sl, sl, 5);
   // icono centrado
-  ctx.font = 'bold 13px system-ui'; ctx.textAlign = 'center';
-  ctx.fillStyle = (cd >= 1 || rt > 0) ? char.color : '#9a9a9a';
-  ctx.shadowColor = char.color; ctx.shadowBlur = (cd >= 1) ? (6 + 10 * rt) : 0;
-  ctx.fillText(char.skillIcon, bx + sl / 2, vyBaseline(ctx, 'bold 13px system-ui', ssy, sl));
+  if (typeof NV.drawMetaSkillIcon === 'function') {
+    NV.drawMetaSkillIcon(ctx, char.special, bx + sl / 2, ssy + sl / 2, 18, { glow: (cd >= 1) ? (5 + 8 * rt) : 0 });
+  }
   ctx.shadowBlur = 0; ctx.textAlign = 'left';
   // anillo de progreso (se completa con el cooldown): base atenuada + aro de avance
   var rcx = bx + sl / 2, rcy = ssy + sl / 2, rrad = sl / 2 + 1, rstart = -Math.PI / 2;
@@ -336,7 +334,7 @@ NV.drawCombo = function (ctx, W, H, combo) {
     const lines = [
       `Personaje: ${char.name}`,
       `Pasiva: ${char.passive}`,
-      `Habilidad: ${char.skillIcon} ${char.skillName} (CD: ${char.maxCd}s)`,
+      `Habilidad: ${char.skillName} (CD: ${char.maxCd}s)`,
       `Nivel: ${player.level}  |  XP: ${player.xp}/${player.xpToNext}`,
       `HP: ${Math.round(player.hp)}/${player.maxHp}  |  Armadura: ${player.armor}`,
       `Velocidad: ${Math.round(player.speed)}  |  Suerte: ${player.luck}`,

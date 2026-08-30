@@ -4,7 +4,7 @@ const sbx = { window: { NV: {} }, console, Math: Math, Path2D: function (d) { th
 for (const f of ['js/core/utils.js', 'js/data/balance.js', 'js/data/gameData.js'])
   vm.runInNewContext(fs.readFileSync(f, 'utf8'), sbx, { filename: f });
 const NV = sbx.window.NV;
-for (const f of ['js/render/weaponIcons.js', 'js/render/consumableIcons.js', 'js/render/hud.js'])
+for (const f of ['js/render/weaponIcons.js', 'js/render/consumableIcons.js', 'js/render/metaSkillIcons.js', 'js/render/hud.js'])
   vm.runInNewContext(fs.readFileSync(f, 'utf8'), sbx, { filename: f });
 const WEAPONS = NV.WEAPONS;
 const RARITY_COLORS = NV.RARITY_COLORS;
@@ -17,6 +17,11 @@ const realDrawConsumableIcon = NV.drawConsumableIcon;
 NV.drawConsumableIcon = function (ctx, item, x, y, size, opts) {
   ctx.__c.push('CICON:' + (item.type || item) + ',' + Math.round(x) + ',' + Math.round(y) + ',' + size);
   return realDrawConsumableIcon(ctx, item, x, y, size, opts);
+};
+const realDrawMetaSkillIcon = NV.drawMetaSkillIcon;
+NV.drawMetaSkillIcon = function (ctx, item, x, y, size, opts) {
+  ctx.__c.push('MSICON:' + (item.special || item.key || item) + ',' + Math.round(x) + ',' + Math.round(y) + ',' + size);
+  return realDrawMetaSkillIcon(ctx, item, x, y, size, opts);
 };
 let pass = 0, fail = 0;
 function t(d, fn) { try { fn(); pass++; console.log('  ok  ' + d); } catch (e) { fail++; console.log('  FAIL ' + d + ' -> ' + e.message); } }
@@ -95,7 +100,7 @@ t('Orden vertical: armas header -> consumibles hint -> skill name', () => {
   const txtCalls = mockCtx.__c.filter(c => c.startsWith('T'));
   const idxArma = txtCalls.findIndex(c => c.includes(WEAPONS[0].name));
   const idxCons = txtCalls.findIndex(c => c.includes('F usar'));
-  const idxSkill = txtCalls.findIndex(c => c.includes(char.skillName) || c.includes(char.skillIcon));
+  const idxSkill = txtCalls.findIndex(c => c.includes(char.skillName.slice(0, 8)));
   if (idxArma === -1 || idxCons === -1 || idxSkill === -1) throw new Error('falta alguna seccion');
   if (idxArma > idxCons || idxCons > idxSkill) throw new Error('orden incorrecto: arma='+idxArma+' cons='+idxCons+' skill='+idxSkill);
 });
@@ -150,6 +155,9 @@ t('Skill: slot 22x22 + anillo de cooldown + nombre truncado (no contenedor ancho
   if (!h.includes('var sl = 22')) throw new Error('slot de skill no es 22px');
   if (h.includes('var sh = 24')) throw new Error('quedo el contenedor ancho viejo (sh=24)');
   if (!h.includes('ctx.arc(rcx, rcy, rrad')) throw new Error('sin anillo de progreso de cooldown');
+  if (!h.includes('NV.drawMetaSkillIcon(ctx, char.special')) throw new Error('skill no usa icono canvas aprobado');
+  if (!h.includes('ssy + sl / 2, 18')) throw new Error('skill icon no queda 18px centrado en slot 22');
+  if (h.includes('char.skillIcon')) throw new Error('quedó skillIcon legacy en HUD');
   // glow diferenciado: atenuado cargando, pleno + pulso al listo
   if (!h.includes('8 + 14 * rt')) throw new Error('sin pulso de listo en el anillo');
   // nombre de skill truncado con el mismo truncateToWidth de la cabecera

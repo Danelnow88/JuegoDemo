@@ -5,6 +5,7 @@ function t(d, fn) { try { fn(); pass++; console.log('  ok  ' + d); } catch (e) {
 
 const game = fs.readFileSync('js/game.js', 'utf8');
 const data = fs.readFileSync('js/data/gameData.js', 'utf8');
+const hud = fs.readFileSync('js/render/hud.js', 'utf8');
 
 t('tienda permanente renderiza mejoras con canvas aprobado 64/48', () => {
   if (!game.includes('function drawMetaSkillCanvas')) throw new Error('falta drawMetaSkillCanvas');
@@ -19,6 +20,23 @@ t('PERM_UPGRADES conserva 9 claves sin campo icon legacy', () => {
     if (!block.includes("key: '" + id + "'")) throw new Error('falta ' + id);
   }
   if (/icon\s*:/.test(block)) throw new Error('quedó campo icon en PERM_UPGRADES');
+});
+
+t('HUD de habilidad usa drawMetaSkillIcon a 18px dentro del slot 22', () => {
+  if (!hud.includes('NV.drawMetaSkillIcon(ctx, char.special')) throw new Error('HUD no usa drawMetaSkillIcon');
+  if (!hud.includes('var sl = 22')) throw new Error('slot skill no es 22');
+  if (!hud.includes('ssy + sl / 2, 18')) throw new Error('icono skill no es 18px centrado');
+  if (!hud.includes('cy - radius - 8, 18')) throw new Error('cooldown sobre personaje no usa icono canvas 18px');
+  if (!hud.includes('Habilidad: ${char.skillName}')) throw new Error('stats TAB conserva icono textual');
+  if (hud.includes('char.skillIcon')) throw new Error('HUD conserva char.skillIcon');
+});
+
+t('CHARACTERS conserva special/skillName sin skillIcon legacy', () => {
+  const block = data.slice(data.indexOf('NV.CHARACTERS'), data.indexOf('};', data.indexOf('NV.CHARACTERS')));
+  for (const id of ['meteor','phase','bulwark','hivemind']) {
+    if (!block.includes("special: '" + id + "'")) throw new Error('falta special ' + id);
+  }
+  if (/skillIcon\s*:/.test(block)) throw new Error('quedó skillIcon en CHARACTERS');
 });
 
 console.log('RESULT meta_skill_icons_integration: pass=' + pass + ' fail=' + fail);
