@@ -4,7 +4,7 @@ const sbx = { window: { NV: {} }, console, Math: Math, Path2D: function (d) { th
 for (const f of ['js/core/utils.js', 'js/data/balance.js', 'js/data/gameData.js'])
   vm.runInNewContext(fs.readFileSync(f, 'utf8'), sbx, { filename: f });
 const NV = sbx.window.NV;
-for (const f of ['js/render/weaponIcons.js', 'js/render/hud.js'])
+for (const f of ['js/render/weaponIcons.js', 'js/render/consumableIcons.js', 'js/render/hud.js'])
   vm.runInNewContext(fs.readFileSync(f, 'utf8'), sbx, { filename: f });
 const WEAPONS = NV.WEAPONS;
 const RARITY_COLORS = NV.RARITY_COLORS;
@@ -12,6 +12,11 @@ const realDrawWeaponIcon = NV.drawWeaponIcon;
 NV.drawWeaponIcon = function (ctx, weapon, x, y, size, opts) {
   ctx.__c.push('WICON:' + (weapon.id || weapon) + ',' + Math.round(x) + ',' + Math.round(y) + ',' + size);
   return realDrawWeaponIcon(ctx, weapon, x, y, size, opts);
+};
+const realDrawConsumableIcon = NV.drawConsumableIcon;
+NV.drawConsumableIcon = function (ctx, item, x, y, size, opts) {
+  ctx.__c.push('CICON:' + (item.type || item) + ',' + Math.round(x) + ',' + Math.round(y) + ',' + size);
+  return realDrawConsumableIcon(ctx, item, x, y, size, opts);
 };
 let pass = 0, fail = 0;
 function t(d, fn) { try { fn(); pass++; console.log('  ok  ' + d); } catch (e) { fail++; console.log('  FAIL ' + d + ' -> ' + e.message); } }
@@ -39,7 +44,7 @@ t('HUD sin consumibles: no crash + consumSlotRects vacio', () => {
 });
 
 // HUD con consumibles: rects alineados horizontalmente
-const cons = [{type:'potion', icon:'p', count:3}, {type:'shield', icon:'s', count:1}];
+const cons = [{type:'potion', count:3}, {type:'shield', count:1}];
 mockCtx.__c.length = 0;
 NV.consumSlotRects = null;
 NV.drawWeaponHUD(mockCtx, 800, 600, NV.CHARACTERS, RARITY_COLORS, player, WEAPONS[0], () => 1, inv, NV.groupConsumables(cons), 0, true);
@@ -48,6 +53,13 @@ t('HUD con consumibles: 2 rects alineados en Y', () => {
   const r = NV.consumSlotRects[0];
   if (Math.abs(r.y - NV.consumSlotRects[1].y) > 0) throw new Error('no alineados horizontalmente');
   if (!mockCtx.__c.some(c => c.includes('F usar'))) throw new Error('falta hint F usar');
+});
+
+t('HUD de consumibles usa iconos canvas aprobados a tamaño real 18px', () => {
+  const calls = mockCtx.__c.filter(c => c.startsWith('CICON:'));
+  if (!calls.some(c => c.startsWith('CICON:potion') && c.endsWith(',18'))) throw new Error('potion no se dibuja 18px');
+  if (!calls.some(c => c.startsWith('CICON:shield') && c.endsWith(',18'))) throw new Error('shield no se dibuja 18px');
+  if (mockCtx.__c.some(c => c.startsWith('Tp,') || c.startsWith('Ts,'))) throw new Error('todavía imprime placeholder textual');
 });
 
 // slot 0 = pistola fija con icono canvas aprobado

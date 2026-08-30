@@ -153,13 +153,15 @@
       if (e) {
         if (e.weapon && typeof NV.drawWeaponIcon === 'function') {
           NV.drawWeaponIcon(ctx, e.weapon, x + cw / 2, y + ch / 2, 18, { glow: selected || equipped ? 5 : 2 });
+        } else if (e.consumable && typeof NV.drawConsumableIcon === 'function') {
+          NV.drawConsumableIcon(ctx, e.consumable, x + cw / 2, y + ch / 2, 18, { glow: selected || equipped ? 5 : 2 });
         } else {
           ctx.font = 'bold 14px system-ui';
           ctx.fillStyle = e.color || '#fff';
           ctx.textAlign = 'center';
           ctx.shadowColor = e.color || '#7cf8ff';
           ctx.shadowBlur = selected || equipped ? 10 + 10 * (glow * pulseA) : 5 + glow * 6;
-          ctx.fillText(e.icon, x + cw / 2, y + ch / 2 + 4);
+          ctx.fillText(e.icon || '', x + cw / 2, y + ch / 2 + 4);
           ctx.shadowBlur = 0;
         }
         if (e.badge !== undefined && e.badge !== '') {
@@ -233,7 +235,7 @@
 
   var consY = by; // fila de consumibles
   if (consumGroups.length) {
-    var cEntries = consumGroups.slice(0, 6).map(function (g) { return { icon: g.icon, color: '#7cf8ff', glow: 0.5, badge: 'x' + g.count }; });
+    var cEntries = consumGroups.slice(0, 6).map(function (g) { return { consumable: g.type, color: (NV.consumableIconColors && NV.consumableIconColors[g.type] && NV.consumableIconColors[g.type].c) || '#7cf8ff', glow: 0.5, badge: 'x' + g.count }; });
     drawSlotRow(ctx, bx, consY, cEntries, consumGroups.length ? consumSel : -1, -1, null, cw, ch, gap, 'c');
     NV.consumSlotRects = consumGroups.slice(0, 6).map(function (g, i) { return { type: g.type, x: bx + i * (cw + gap), y: consY, w: cw, h: ch }; });
     ctx.font = 'bold 7px system-ui'; ctx.fillStyle = '#7cf8ff'; ctx.shadowColor = '#7cf8ff'; ctx.shadowBlur = 3;

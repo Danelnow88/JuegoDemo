@@ -33,6 +33,8 @@ t('HUD dibuja filas horizontales (drawSlotRow) y expone rects para el click', ()
   const h = fs.readFileSync('js/render/hud.js', 'utf8');
   if ((h.match(/drawSlotRow/g) || []).length < 2) throw new Error('faltan filas horizontales de slots');
   if (!h.includes('NV.consumSlotRects')) throw new Error('sin rects para hit-test');
+  if (!h.includes('NV.drawConsumableIcon')) throw new Error('HUD no usa iconos canvas de consumibles');
+  if (h.includes('return { icon: g.icon')) throw new Error('HUD conserva placeholder g.icon');
 });
 
 t('game.js conecta Q (ciclar), F (usar seleccionado) y click en slot', () => {
