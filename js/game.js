@@ -396,6 +396,9 @@
       const r = NV.rhythm;
       if (!r || r.state !== 'listening' || !r.enabled) {
         icon.style.transform = '';
+        icon._smoothScale = 1;
+        icon._smoothSkew = 0;
+        icon._smoothT = 0;
         icon.style.color = '';
         icon.style.opacity = '';
         icon.style.filter = '';
@@ -404,12 +407,27 @@
       const hue = (r.hue == null) ? 200 : r.hue;
       const beat = r.beat || 0;
       const energy = Math.max(0, Math.min(1, r.energy || 0));
-      // Pulso amplificado del beat: cap 0.35 + gain 2.2 => delta ~0.35 en pico
-      // (antes cap 0.18 daba solo ~3px de diferencia a 16px, invisible).
-      const pulse = 1 + Math.min(0.35, beat * 2.2);
-      // Distorsión sutil de borde sincronizada al beat (skew hasta ~3deg).
-      const skew = Math.min(3, beat * 3);
-      icon.style.transform = 'scale(' + pulse.toFixed(3) + ') skewX(' + skew.toFixed(1) + 'deg)';
+      // Pulso amplificado del beat, suavizado por JS (no CSS transition): el
+      // análisis actualiza por frame y puede traer saltos bruscos. Usamos un
+      // lerp temporal con ataque rápido y release más lento para que el ícono
+      // "respire" con la música sin tembleque ni cortes.
+      const targetScale = 1 + Math.min(0.35, beat * 2.2);
+      const targetSkew = Math.min(3, beat * 3);
+      const nowMs = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+      const prevMs = icon._smoothT || nowMs;
+      const dtMs = Math.max(0, Math.min(80, nowMs - prevMs));
+      icon._smoothT = nowMs;
+      const curScale = (icon._smoothScale == null) ? 1 : icon._smoothScale;
+      const curSkew = (icon._smoothSkew == null) ? 0 : icon._smoothSkew;
+      const scaleTau = targetScale > curScale ? 55 : 180;
+      const skewTau = targetSkew > curSkew ? 45 : 140;
+      const scaleA = 1 - Math.exp(-dtMs / scaleTau);
+      const skewA = 1 - Math.exp(-dtMs / skewTau);
+      const smoothScale = curScale + (targetScale - curScale) * scaleA;
+      const smoothSkew = curSkew + (targetSkew - curSkew) * skewA;
+      icon._smoothScale = smoothScale;
+      icon._smoothSkew = smoothSkew;
+      icon.style.transform = 'scale(' + smoothScale.toFixed(3) + ') skewX(' + smoothSkew.toFixed(1) + 'deg)';
       // Color dinámico por hue calculado (mismo que tiñe el fondo)
       icon.style.color = 'hsl(' + Math.round(hue) + ',75%,62%)';
       // Brillo/glow fade en función de la energía detectada
