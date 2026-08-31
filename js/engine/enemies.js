@@ -322,6 +322,12 @@
           e.contactCd = 1.0;
           e.atkFlash = 0.45; // gesto de ataque: el render destaca QUÉ enemigo está golpeando
           if (st.spawnExplosion) st.spawnExplosion(player.x + Math.cos(contactAngle) * 12, player.y + Math.sin(contactAngle) * 12, 3, '#ff6b6b', 0.5); // chispa de impacto en el punto de contacto
+          // El atacante muere al dañar: cada pérdida de HP por contacto tiene una
+          // causa ÚNICA, visible e inequívoca (el enemigo que golpeó explota en su
+          // posición, vía killEnemy: puntos/xp/drops/explosión). Sin "turnos" de
+          // golpes entre enemigos que rodean al jugador.
+          e.dead = true;
+          if (st.onKill) st.onKill(e);
           if (contactDebug) {
             if (!e._contactDbgId) e._contactDbgId = ++NV._contactDbgEnemySeq;
             console.log('[contact-debug] CONTACT HIT', {
@@ -329,6 +335,7 @@
               baseDamage: baseDmg, damage, crit: !!hit.crit, dist: Number(d.toFixed(2)), threshold: e.radius + 20,
               hpBefore, hpAfter: st.player.hp,
               playerInvulnAfter: st.player.invuln, contactCdBefore: Number(contactCdBefore.toFixed(3)), contactCdAfter: e.contactCd,
+              killedAttacker: true,
               knockVelX: Number((e.knockVelX || 0).toFixed(2)), knockVelY: Number((e.knockVelY || 0).toFixed(2)),
               overlappingEnemies: enemies.filter((x) => !x.dead && Math.hypot(x.x - st.player.x, x.y - st.player.y) < x.radius + 20).length,
             });

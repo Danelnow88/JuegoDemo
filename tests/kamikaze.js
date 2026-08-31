@@ -128,9 +128,10 @@ t('updateEnemies: separa varios chase apilados y evita cascada inmediata de golp
   if (hits.length !== 1) throw new Error('cascada inmediata de golpes: hits=' + hits.length);
 });
 
-t('contacto setea atkFlash en el atacante y dispara chispa de impacto; decae con el tiempo', () => {
+t('contacto letal: el atacante muere al dañar, pasa por onKill (explosión + score) y no hay cascada', () => {
   booms = [];
   const hits = [];
+  const kills = [];
   const e = {
     x: 410, y: 400, hp: 40, maxHp: 40, speed: 75, radius: 11, color: '#f07bad', shape: 'circle',
     score: 10, xp: 10, dead: false, behavior: 'chase', angle: 0, erraticTimer: 0,
@@ -138,11 +139,27 @@ t('contacto setea atkFlash en el atacante y dispara chispa de impacto; decae con
     resist: 0, shootTimer: 0, stunChance: 0, slowUntil: 0, stun: 0,
   };
   const st = baseSt(e, hits);
+  // Igual que game.js: onKill(e) delega en NV.killEnemy (explosión, score, drops).
+  st.onKill = (k) => { kills.push(k); NV.killEnemy({ ...st, e: k }); };
   NV.updateEnemies(0.016, st);
   if (hits.length !== 1) throw new Error('contacto no golpeó: ' + hits.length);
-  if (!(e.atkFlash > 0)) throw new Error('sin atkFlash en el atacante');
-  if (booms.length < 1) throw new Error('sin chispa de impacto en el contacto');
+  if (!e.dead) throw new Error('el atacante no murió al dañar');
+  if (kills.length !== 1 || kills[0] !== e) throw new Error('onKill no disparado con el atacante: ' + kills.length);
+  if (!booms.some((b) => b[2] === '#f07bad')) throw new Error('sin explosión del atacante en su posición');
+  // Sin cascada: el tick siguiente no agrega golpes (invuln global + atacante muerto).
   st.player.invuln = 0;
+  NV.updateEnemies(0.016, st);
+  if (hits.length !== 1) throw new Error('cascada de golpes tras contacto letal: ' + hits.length);
+});
+
+t('atkFlash decae con el tiempo en enemigos vivos (no atacantes)', () => {
+  const e = {
+    x: 700, y: 700, hp: 40, maxHp: 40, speed: 75, radius: 11, color: '#f07bad', shape: 'circle',
+    score: 10, xp: 10, dead: false, behavior: 'chase', angle: 0, erraticTimer: 0,
+    knockbackRes: 0, knockVelX: 0, knockVelY: 0, damage: 12, shield: false, shieldCd: 0,
+    resist: 0, shootTimer: 0, stunChance: 0, slowUntil: 0, stun: 0, atkFlash: 0.4,
+  };
+  const st = baseSt(e, []);
   NV.updateEnemies(0.5, st);
   if (e.atkFlash > 0.001) throw new Error('atkFlash no decayó: ' + e.atkFlash);
 });
