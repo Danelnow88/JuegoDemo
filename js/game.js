@@ -1192,10 +1192,6 @@
     });
   }
 
-  function findTarget() {
-    return NV.findTarget({ player, enemies, boss });
-  }
-
   function applyKnockback(e, bx, by, strength) {
     return NV.applyKnockback(e, bx, by, strength);
   }
