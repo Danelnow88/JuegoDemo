@@ -7,8 +7,8 @@
   const NV = window.NV;
 
   NV.updateBullets = function (dt, st) {
-    const { bullets, W, H, player, enemies, boss, MAX, CHARACTERS, SHIELD_COOLDOWN,
-      computePlayerHit, addFloatText, killEnemy, applyKnockback, spawnExplosion, gameOver } = st;
+    const { bullets, W, H, player, enemies, boss, CHARACTERS, SHIELD_COOLDOWN,
+      computePlayerHit, addFloatText, killEnemy, applyKnockback, spawnExplosion } = st;
     let shake = st.shake || 0;
     let hitstop = st.hitstop || 0;
     let over = false;
