@@ -155,7 +155,7 @@
     const { enemies, player, bullets, MAX_BULLETS, MAX_ENEMY_BULLETS, enemyBulletCount, computePlayerHit, addFloatText } = st;
     let shake = st.shake || 0;
     let gameOver = false;
-    const contactDebug = !!st.contactDebug;
+    const contactDebug = !!(st.contactDebug || NV._contactDebug);
     const contactDebugNow = contactDebug ? (typeof performance !== 'undefined' ? performance.now() : Date.now()) : 0;
 
     for (const e of enemies) {

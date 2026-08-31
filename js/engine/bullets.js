@@ -25,7 +25,8 @@
         const playerRadius = (CHARACTERS[player.character].size || 20) * 0.45;
         const hitRadius = playerRadius + (b.radius || 5);
         if (d < hitRadius) {
-          if (st.contactDebug && !b._contactDbgId) b._contactDbgId = ++NV._contactDbgBulletSeq;
+          const contactDebug = !!(st.contactDebug || NV._contactDebug);
+          if (contactDebug && !b._contactDbgId) b._contactDbgId = ++NV._contactDbgBulletSeq;
           if (player.bulwark > 0) {
             // Muralla: refleja la bala enemiga hacia el enemigo
             b.isEnemy = false;
@@ -40,7 +41,7 @@
             const hit = computePlayerHit(b.damage);
             b.dead = true;
             if (hit.dodged) {
-              if (st.contactDebug) {
+              if (contactDebug) {
                 console.log('[contact-debug] ENEMY BULLET DODGE', {
                   frame: st.frame, id: b._contactDbgId, damageBase: b.damage,
                   dist: Number(d.toFixed(2)), hitRadius: Number(hitRadius.toFixed(2)), hp: hpBefore,
@@ -51,7 +52,7 @@
             } else {
               const damage = hit.dmg;
               player.hp -= damage;
-              if (st.contactDebug) {
+              if (contactDebug) {
                 console.log('[contact-debug] ENEMY BULLET HIT', {
                   frame: st.frame, id: b._contactDbgId, damageBase: b.damage, damage, crit: !!hit.crit,
                   dist: Number(d.toFixed(2)), hitRadius: Number(hitRadius.toFixed(2)), hpBefore, hpAfter: player.hp,

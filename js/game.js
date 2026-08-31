@@ -22,6 +22,8 @@
   // === ESTADO ===
   let state = 'menu', frame = 0, lastTime = 0;
   const contactDebug = (typeof location !== 'undefined') && /[?&]contactdebug=1/.test(location.search || '');
+  NV._contactDebug = !!contactDebug;
+  if (NV._contactDebug) console.log('[contact-debug] ENABLED', { search: location.search || '' });
   let shake = 0, hitstop = 0, flashColor = null, flashAlpha = 0, specialVFX = null;
   let deathTimer = 0, deathShake = 0;
 
@@ -1250,7 +1252,7 @@
   function updateEnemies(dt) {
     const res = NV.updateEnemies(dt, {
       enemies, player, bullets, MAX_BULLETS, MAX_ENEMY_BULLETS, shake,
-      enemyBulletCount, computePlayerHit, addFloatText, contactDebug, frame,
+      enemyBulletCount, computePlayerHit, addFloatText, contactDebug: contactDebug || !!NV._contactDebug, frame,
       onKill: (e) => killEnemy(e), // autodestrucción de kamikazes: mismo camino que un kill normal
     });
     enemies = res.enemies; shake = res.shake;
@@ -1309,7 +1311,7 @@
       bullets, W, H, player, enemies, boss, shake, hitstop,
       MAX_BULLETS, CHARACTERS, SHIELD_COOLDOWN,
       computePlayerHit, addFloatText, killEnemy, applyKnockback, spawnExplosion, gameOver,
-      sfx, contactDebug, frame,
+      sfx, contactDebug: contactDebug || !!NV._contactDebug, frame,
     });
     bullets = res.bullets; shake = res.shake; hitstop = res.hitstop;
     if (res.gameOver) { gameOver(); return; }
