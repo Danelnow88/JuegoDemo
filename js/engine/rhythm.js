@@ -503,6 +503,17 @@
       { x: 0.52, y: 0.23, ph: 3.2, s: 0.42, a: 0.40 }, { x: 0.61, y: 0.69, ph: 4.9, s: 0.35, a: 0.38 },
       { x: 0.39, y: 0.54, ph: 6.0, s: 0.24, a: 0.32 }, { x: 0.80, y: 0.45, ph: 1.8, s: 0.30, a: 0.34 },
     ];
+    const wisps = [
+      { x: 0.16, y: 0.46, len: 0.72, ph: 0.1,  hue: 18,  a: 0.24, w: 1.00 },
+      { x: 0.24, y: 0.62, len: 0.58, ph: 1.4,  hue: 62,  a: 0.18, w: 0.78 },
+      { x: 0.36, y: 0.32, len: 0.48, ph: 2.6,  hue: 112, a: 0.15, w: 0.62 },
+      { x: 0.46, y: 0.70, len: 0.46, ph: 3.7,  hue: 168, a: 0.14, w: 0.55 },
+      { x: 0.58, y: 0.42, len: 0.54, ph: 4.8,  hue: 214, a: 0.17, w: 0.70 },
+      { x: 0.68, y: 0.28, len: 0.42, ph: 5.9,  hue: 270, a: 0.13, w: 0.50 },
+      { x: 0.72, y: 0.62, len: 0.50, ph: 2.1,  hue: 318, a: 0.16, w: 0.66 },
+      { x: 0.08, y: 0.32, len: 0.36, ph: 4.2,  hue: 346, a: 0.11, w: 0.42 },
+      { x: 0.40, y: 0.18, len: 0.40, ph: 0.9,  hue: 242, a: 0.12, w: 0.48 },
+    ];
 
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
@@ -531,6 +542,36 @@
       ctx.scale(b.scx + bass * 0.16 + flow * 0.08, b.scy + highs * 0.12 - flow * 0.045);
       ctx.fillRect(-rad, -rad, rad * 2, rad * 2);
       ctx.restore();
+    }
+    // Filamentos/wisps de plasma: líneas difusas de baja opacidad que se
+    // retuercen con varias fases. Aportan flujo interno sin usar ruido por píxel.
+    const swirl = 0.45 + audio * 1.35 + beat * 1.15 + onset * 1.25;
+    r.nebulaWisps = wisps.length;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    for (let i = 0; i < wisps.length; i++) {
+      const q = wisps[i];
+      const wob1 = Math.sin(t * (1.75 + i * 0.08) + q.ph) * swirl;
+      const wob2 = Math.cos(t * (2.25 + i * 0.11) + q.ph * 1.37) * swirl;
+      const wob3 = Math.sin(t * (2.95 + i * 0.05) + q.ph * 0.71) * swirl;
+      const x0 = w * q.x + wob1 * 38;
+      const y0 = h * q.y + wob2 * 24;
+      const x3 = x0 + w * q.len * (0.65 + Math.sin(q.ph) * 0.12);
+      const y3 = y0 + Math.sin(q.ph * 1.9) * h * 0.18 + wob3 * 34;
+      const x1 = x0 + w * q.len * 0.24;
+      const y1 = y0 - h * (0.18 + highs * 0.06) + wob2 * 52;
+      const x2 = x0 + w * q.len * 0.52;
+      const y2 = y0 + h * (0.16 + bass * 0.05) + wob1 * 46;
+      const wa = Math.min(0.18, alpha * q.a * (0.65 + audio * 0.45 + beat * 0.28));
+      ctx.strokeStyle = hsla(hue + q.hue + wob1 * 12, 82, 68, wa);
+      ctx.lineWidth = 10 * q.w + audio * 10 + beat * 12;
+      ctx.beginPath();
+      ctx.moveTo(x0, y0);
+      ctx.bezierCurveTo(x1, y1, x2, y2, x3, y3);
+      ctx.stroke();
+      ctx.strokeStyle = hsla(hue + q.hue + 42 + wob2 * 10, 88, 76, wa * 0.42);
+      ctx.lineWidth = Math.max(1, (3.2 + audio * 4 + onset * 4) * q.w);
+      ctx.stroke();
     }
     r.nebulaSparkles = sparkles.length;
     for (let i = 0; i < sparkles.length; i++) {
