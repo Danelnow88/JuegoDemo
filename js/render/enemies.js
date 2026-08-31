@@ -79,7 +79,16 @@
         rhythm.jitterBand = band;
       }
     }
-    ctx.translate(e.x + rx, e.y + ry);
+    // Gesto de ataque (daño de contacto): el atacante se abalanza visualmente hacia
+    // el jugador (lunge). 100% decorativo: no muta datos de gameplay ni la hitbox.
+    let lx = 0, ly = 0;
+    if (e.atkFlash > 0 && player) {
+      const atk = Math.min(1, Math.max(0, (e.atkFlash || 0) / 0.45));
+      const fwd = Math.atan2(player.y - e.y, player.x - e.x);
+      lx = Math.cos(fwd) * Math.sin(atk * Math.PI) * e.radius * 0.45;
+      ly = Math.sin(fwd) * Math.sin(atk * Math.PI) * e.radius * 0.45;
+    }
+    ctx.translate(e.x + rx + lx, e.y + ry + ly);
     ctx.fillStyle = e.color;
     ctx.shadowBlur = e.isElite ? 14 : 10;
     ctx.shadowColor = e.color;
@@ -134,6 +143,26 @@
 
     ctx.shadowBlur = 0;
     NV.drawEnemyEyes(ctx, e, player);
+
+    // Anillo de ataque expansivo + tajo frontal: marca claramente QUÉ enemigo golpeó.
+    if (e.atkFlash > 0 && player) {
+      const atk = Math.min(1, Math.max(0, (e.atkFlash || 0) / 0.45));
+      const fwd = Math.atan2(player.y - e.y, player.x - e.x);
+      const reach = e.radius + 8 + (1 - atk) * 16;
+      ctx.strokeStyle = 'rgba(255, 80, 90, ' + (atk * 0.9).toFixed(3) + ')';
+      ctx.lineWidth = 3.5;
+      ctx.shadowBlur = 14;
+      ctx.shadowColor = '#ff5050';
+      const gap = 1.15 + (1 - atk) * 0.5;
+      ctx.beginPath();
+      ctx.arc(0, 0, reach, fwd + gap, fwd - gap, true);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(0, 0, reach - 4, fwd - 0.45, fwd + 0.45);
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+    }
+
     ctx.restore();
   };
 })();

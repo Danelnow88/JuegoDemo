@@ -128,6 +128,38 @@ t('updateEnemies: separa varios chase apilados y evita cascada inmediata de golp
   if (hits.length !== 1) throw new Error('cascada inmediata de golpes: hits=' + hits.length);
 });
 
+t('contacto setea atkFlash en el atacante y dispara chispa de impacto; decae con el tiempo', () => {
+  booms = [];
+  const hits = [];
+  const e = {
+    x: 410, y: 400, hp: 40, maxHp: 40, speed: 75, radius: 11, color: '#f07bad', shape: 'circle',
+    score: 10, xp: 10, dead: false, behavior: 'chase', angle: 0, erraticTimer: 0,
+    knockbackRes: 0, knockVelX: 0, knockVelY: 0, damage: 12, shield: false, shieldCd: 0,
+    resist: 0, shootTimer: 0, stunChance: 0, slowUntil: 0, stun: 0,
+  };
+  const st = baseSt(e, hits);
+  NV.updateEnemies(0.016, st);
+  if (hits.length !== 1) throw new Error('contacto no golpeó: ' + hits.length);
+  if (!(e.atkFlash > 0)) throw new Error('sin atkFlash en el atacante');
+  if (booms.length < 1) throw new Error('sin chispa de impacto en el contacto');
+  st.player.invuln = 0;
+  NV.updateEnemies(0.5, st);
+  if (e.atkFlash > 0.001) throw new Error('atkFlash no decayó: ' + e.atkFlash);
+});
+
+t('esquiva tambien activa gesto corto de ataque (atkFlash) en el que intento golpear', () => {
+  const e = {
+    x: 410, y: 400, hp: 40, maxHp: 40, speed: 75, radius: 11, color: '#f07bad', shape: 'circle',
+    score: 10, xp: 10, dead: false, behavior: 'chase', angle: 0, erraticTimer: 0,
+    knockbackRes: 0, knockVelX: 0, knockVelY: 0, damage: 12, shield: false, shieldCd: 0,
+    resist: 0, shootTimer: 0, stunChance: 0, slowUntil: 0, stun: 0,
+  };
+  const st = baseSt(e, []);
+  st.computePlayerHit = () => ({ dmg: 12, dodged: true });
+  NV.updateEnemies(0.016, st);
+  if (!(e.atkFlash > 0)) throw new Error('sin atkFlash en intento esquivado');
+});
+
 t('spawn: kamikaze aparece desde oleada 10 y los demas tipos mantienen su umbral', () => {
   function poolAt(wave) { return NV.ENEMY_TYPES.filter((ty) => (ty.minWave || 1) <= wave).map((t) => t.id); }
   const w5 = poolAt(5), w9 = poolAt(9), w10 = poolAt(10);

@@ -169,6 +169,7 @@
             if (e.stun > 0) e.stun -= dt;
             if (e.shieldCd > 0) e.shieldCd = Math.max(0, e.shieldCd - dt);
             if (e.contactCd > 0) e.contactCd = Math.max(0, e.contactCd - dt);
+            if (e.atkFlash > 0) e.atkFlash = Math.max(0, e.atkFlash - dt);
       const stunned = e.stun > 0;
       // Congelante: algunos enemigos ralentizados (slowUntil).
       if (e.slowUntil > 0) e.slowUntil -= dt;
@@ -302,6 +303,7 @@
               overlappingEnemies: enemies.filter((x) => !x.dead && Math.hypot(x.x - st.player.x, x.y - st.player.y) < x.radius + 20).length,
             });
           }
+          e.atkFlash = 0.25; // gesto corto: destaca QUÉ enemigo intentó golpear
           addFloatText(st.player.x, st.player.y - 20, 'ESQUIVA', '#8dfaff');
         } else {
           const damage = hit.dmg;
@@ -313,6 +315,8 @@
           e.knockVelX = Math.cos(contactAngle) * contactPush;
           e.knockVelY = Math.sin(contactAngle) * contactPush;
           e.contactCd = 1.0;
+          e.atkFlash = 0.45; // gesto de ataque: el render destaca QUÉ enemigo está golpeando
+          if (st.spawnExplosion) st.spawnExplosion(player.x + Math.cos(contactAngle) * 12, player.y + Math.sin(contactAngle) * 12, 3, '#ff6b6b', 0.5); // chispa de impacto en el punto de contacto
           if (contactDebug) {
             if (!e._contactDbgId) e._contactDbgId = ++NV._contactDbgEnemySeq;
             console.log('[contact-debug] CONTACT HIT', {

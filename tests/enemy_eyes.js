@@ -124,6 +124,18 @@ t('jitter inactivo sin rhythm habilitado o con música casi silenciosa', () => {
   if (rhythmQuiet.jitterActive) throw new Error('jitter activo con música silenciosa');
 });
 
+t('drawEnemy con atkFlash dibuja gesto de ataque (lunge + anillo) sin mutar datos', () => {
+  const baseCtx = mkCtx();
+  NV.drawEnemy(baseCtx, { x: 0, y: 0, radius: 10, color: '#fff', shape: 'dot' }, 0, { x: 50, y: 0 });
+  const ctx = mkCtx();
+  const e = { x: 0, y: 0, radius: 10, color: '#fff', shape: 'dot', atkFlash: 0.3 };
+  const snapshot = JSON.stringify(e);
+  NV.drawEnemy(ctx, e, 0, { x: 50, y: 0 });
+  if (!(ctx.arcs.length > baseCtx.arcs.length)) throw new Error('sin arcos de ataque: base=' + baseCtx.arcs.length + ' atk=' + ctx.arcs.length);
+  if (JSON.stringify(e) !== snapshot) throw new Error('drawEnemy mutó datos del atacante');
+  if (!ctx.translations[0] || ctx.translations[0].x === 0) throw new Error('sin lunge visual hacia el jugador');
+});
+
 t('game.js pasa rhythm solo al render de enemigo y colisiones siguen usando e.x/e.y', () => {
   const g = fs.readFileSync('js/game.js', 'utf8');
   const bullets = fs.readFileSync('js/engine/bullets.js', 'utf8');

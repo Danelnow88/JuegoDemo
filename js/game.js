@@ -1252,7 +1252,7 @@
   function updateEnemies(dt) {
     const res = NV.updateEnemies(dt, {
       enemies, player, bullets, MAX_BULLETS, MAX_ENEMY_BULLETS, shake,
-      enemyBulletCount, computePlayerHit, addFloatText, contactDebug: contactDebug || !!NV._contactDebug, frame,
+      enemyBulletCount, computePlayerHit, addFloatText, spawnExplosion, contactDebug: contactDebug || !!NV._contactDebug, frame,
       onKill: (e) => killEnemy(e), // autodestrucción de kamikazes: mismo camino que un kill normal
     });
     enemies = res.enemies; shake = res.shake;
