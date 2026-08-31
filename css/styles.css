@@ -454,21 +454,35 @@ canvas {
   transform: translateY(-50%);
   display: inline-flex;
   align-items: center;
-  gap: 1px;
-  padding: 2px 5px;
-  background: rgba(0, 0, 0, 0.72);
-  border: 1px solid rgba(0, 210, 255, 0.3);
-  border-radius: 8px;
+  justify-content: center;
+  gap: 7px;
+  min-height: 34px;
+  padding: 4px 7px;
+  background:
+    linear-gradient(135deg, rgba(124, 248, 255, 0.13), rgba(202, 167, 255, 0.08)),
+    rgba(4, 8, 24, 0.82);
+  border: 1px solid rgba(124, 248, 255, 0.32);
+  border-radius: 12px;
+  box-shadow:
+    inset 0 1px rgba(255, 255, 255, 0.08),
+    inset 0 -1px rgba(0, 0, 0, 0.28),
+    0 6px 16px rgba(0, 0, 0, 0.24),
+    0 0 18px rgba(124, 248, 255, 0.10);
   z-index: 5;
   white-space: nowrap;
+  backdrop-filter: blur(5px);
 }
 
 .rw-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  border-radius: 9px;
+  background: radial-gradient(circle at 50% 35%, rgba(124, 248, 255, 0.18), rgba(124, 248, 255, 0.06) 58%, rgba(0, 0, 0, 0.16));
+  border: 1px solid rgba(124, 248, 255, 0.22);
   color: #7cf8ff;
   pointer-events: none;
   line-height: 0;
@@ -478,30 +492,49 @@ canvas {
 }
 /* Música SVG (music-note). Usa currentColor para que el hue dinámico de
    NV.rhythm tiña el ícono completo por la propiedad color que setea JS. */
-.rw-icon svg.mn { display: block; }
+.rw-icon svg.mn { display: block; width: 20px; height: 20px; }
 .rw-icon .mn-base { fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
 .rw-icon .mn-dot { fill: currentColor; stroke: none; }
 .rw-icon .mn-ghost { fill: none; stroke: currentColor; stroke-width: 1.2; opacity: .38; stroke-linecap: round; }
 
 .rw-btn {
-  background: rgba(0, 210, 255, 0.12);
-  border: 1px solid rgba(0, 210, 255, 0.3);
-  border-radius: 6px;
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  flex: 0 0 26px;
+  padding: 0;
+  background: linear-gradient(135deg, rgba(124, 248, 255, 0.18), rgba(124, 248, 255, 0.07));
+  border: 1px solid rgba(124, 248, 255, 0.30);
+  border-radius: 9px;
   color: #e0f7ff;
-  font-size: 12px;
-  padding: 2px 6px;
+  font-family: "Segoe UI Symbol", system-ui, sans-serif;
+  font-size: 13px;
+  line-height: 1;
+  text-shadow: 0 0 8px rgba(124, 248, 255, 0.45);
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.08), 0 0 10px rgba(124, 248, 255, 0.08);
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s, transform 0.12s;
 }
 
+#rwStopBtn { color: #ffd2dc; }
+
 .rw-btn:hover {
-  background: rgba(0, 210, 255, 0.25);
-  border-color: rgba(0, 210, 255, 0.5);
+  background: linear-gradient(135deg, rgba(124, 248, 255, 0.29), rgba(202, 167, 255, 0.13));
+  border-color: rgba(124, 248, 255, 0.58);
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.12), 0 0 14px rgba(124, 248, 255, 0.24);
+  transform: translateY(-1px);
+}
+
+.rw-btn:focus-visible {
+  outline: 2px solid rgba(124, 248, 255, 0.72);
+  outline-offset: 2px;
 }
 
 .rw-btn:disabled {
   opacity: 0.35;
   cursor: wait;
+  transform: none;
 }
 
 
