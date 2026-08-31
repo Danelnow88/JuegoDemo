@@ -1,5 +1,5 @@
 // DIAGNÓSTICO Bloque 4a: participación escalonada + bandas por enemigo.
-// Uso: node tests/rhythm_diag_jitter.js
+// Uso: node tools/diagnostics/rhythm_diag_jitter.js
 const fs = require('fs'), vm = require('vm');
 const sbx = { window: { NV: {} }, navigator: { mediaDevices: {} }, localStorage: { getItem(){return null}, setItem(){}, removeItem(){} }, console, Uint8Array, Promise, Math };
 vm.createContext(sbx);
