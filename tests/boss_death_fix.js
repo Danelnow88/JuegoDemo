@@ -38,23 +38,5 @@ t('regresión exacta del bug: wrapper debe LLAMAR gameOver() (boti no revive)', 
   }
 });
 
-t('hpDebug: bala enemiga loguea HP DOWN cause enemy-bullet sin crash', () => {
-  const sbx = { window: { NV: {} }, console, Math };
-  load('js/engine/bullets.js', sbx);
-  const logs = [];
-  const origLog = console.log;
-  console.log = (...a) => { logs.push(a.map((x) => (typeof x === 'object' && x !== null ? JSON.stringify(x) : String(x))).join(' ')); };
-  try {
-    const { st } = makeSt(10);
-    st.hpDebug = true;
-    sbx.window.NV.updateBullets(0.016, st);
-  } finally {
-    console.log = origLog;
-  }
-  const down = logs.filter((l) => l.includes('[hp-debug] HP DOWN'));
-  if (down.length !== 1) throw new Error('esperaba 1 HP DOWN, vi ' + down.length + ': ' + logs.join(' | '));
-  if (!down[0].includes('"cause":"enemy-bullet"')) throw new Error('cause incorrecta: ' + down[0]);
-});
-
 console.log('RESULT boss_death_fix: pass=' + pass + ' fail=' + fail);
 process.exit(fail ? 1 : 0);
