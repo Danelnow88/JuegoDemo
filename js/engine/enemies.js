@@ -259,6 +259,15 @@
           st.player.hp -= damage;
           if (st.sfx && st.sfx.playerHit && st.player.hp > 0) st.sfx.playerHit();
           st.player.invuln = 0.5;
+          const contactAngle = d > 0 ? Math.atan2(e.y - st.player.y, e.x - st.player.x) : e.angle || 0;
+          const contactPush = Math.max(90, (e.speed || 0) * 1.2) * (1 - (e.knockbackRes || 0) * 0.5);
+          e.knockVelX = Math.cos(contactAngle) * contactPush;
+          e.knockVelY = Math.sin(contactAngle) * contactPush;
+          const minContactDist = e.radius + 22;
+          if (d < minContactDist) {
+            e.x = st.player.x + Math.cos(contactAngle) * minContactDist;
+            e.y = st.player.y + Math.sin(contactAngle) * minContactDist;
+          }
           if (e.stunChance && Math.random() < e.stunChance) { st.player.stun = 0.6; addFloatText(st.player.x, st.player.y - 30, 'STUN', '#ff0'); }
           shake = Math.max(shake, hit.crit ? 0.3 : 0.15);
           addFloatText(st.player.x, st.player.y - 20, '-' + damage + (hit.crit ? ' ★CRIT' : ''), hit.crit ? '#ff0' : (e.isElite ? '#ff0' : '#ff5f9b'));
