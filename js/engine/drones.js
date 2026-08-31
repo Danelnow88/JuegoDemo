@@ -1,6 +1,6 @@
 // ===== ENGINE: drones de combate (habilidad ENJAMBRE) =====
 // updateDrones recibe lo que necesita: array drones (devuelve el filtrado), player/bullets
-// por ref, tope y una callback findTarget. No muta estado global más allá de los arrays.
+// por ref, tope, enemigos/jefe y rango. No muta estado global más allá de los arrays.
 (() => {
   'use strict';
   const NV = window.NV;
