@@ -5,6 +5,7 @@
 (() => {
   'use strict';
   const NV = window.NV;
+  NV._contactDbgEnemySeq = NV._contactDbgEnemySeq || 0;
 
   // ---- Spawn normal ----
   NV.spawnEnemy = function (st) {
@@ -154,6 +155,8 @@
     const { enemies, player, bullets, MAX_BULLETS, MAX_ENEMY_BULLETS, enemyBulletCount, computePlayerHit, addFloatText } = st;
     let shake = st.shake || 0;
     let gameOver = false;
+    const contactDebug = !!st.contactDebug;
+    const contactDebugNow = contactDebug ? (typeof performance !== 'undefined' ? performance.now() : Date.now()) : 0;
 
     for (const e of enemies) {
       if (e.dead) continue;
@@ -250,10 +253,36 @@
       e.knockVelY = (e.knockVelY || 0) * 0.92;
 
             const d = Math.hypot(e.x - st.player.x, e.y - st.player.y);
-      if (d < e.radius + 20 && st.player.invuln <= 0 && st.player.stun <= 0 && (e.contactCd || 0) <= 0) {
+      const inContact = d < e.radius + 20;
+      if (contactDebug && inContact) {
+        if (!e._contactDbgId) e._contactDbgId = ++NV._contactDbgEnemySeq;
+        const blockedBy = st.player.invuln > 0 ? 'player.invuln' : (st.player.stun > 0 ? 'player.stun' : ((e.contactCd || 0) > 0 ? 'enemy.contactCd' : null));
+        if (blockedBy && contactDebugNow - (e._contactDbgBlockAt || 0) > 250) {
+          e._contactDbgBlockAt = contactDebugNow;
+          console.log('[contact-debug] CONTACT BLOCK', {
+            frame: st.frame, id: e._contactDbgId, index: enemies.indexOf(e), blockedBy,
+            behavior: e.behavior, elite: !!e.isElite, baseDamage: e.isElite ? (e.eliteDamage || 0) : e.damage,
+            dist: Number(d.toFixed(2)), threshold: e.radius + 20,
+            playerInvuln: Number((st.player.invuln || 0).toFixed(3)), playerStun: Number((st.player.stun || 0).toFixed(3)), contactCd: Number((e.contactCd || 0).toFixed(3)),
+            hp: Number(st.player.hp.toFixed ? st.player.hp.toFixed(2) : st.player.hp),
+            overlappingEnemies: enemies.filter((x) => !x.dead && Math.hypot(x.x - st.player.x, x.y - st.player.y) < x.radius + 20).length,
+          });
+        }
+      }
+      if (inContact && st.player.invuln <= 0 && st.player.stun <= 0 && (e.contactCd || 0) <= 0) {
         const baseDmg = e.isElite ? (e.eliteDamage || 0) : e.damage;
+        const hpBefore = st.player.hp;
+        const contactCdBefore = e.contactCd || 0;
         const hit = computePlayerHit(baseDmg);
         if (hit.dodged) {
+          if (contactDebug) {
+            if (!e._contactDbgId) e._contactDbgId = ++NV._contactDbgEnemySeq;
+            console.log('[contact-debug] CONTACT DODGE', {
+              frame: st.frame, id: e._contactDbgId, index: enemies.indexOf(e), behavior: e.behavior, elite: !!e.isElite,
+              baseDamage: baseDmg, dist: Number(d.toFixed(2)), contactCdBefore: Number(contactCdBefore.toFixed(3)), hp: hpBefore,
+              overlappingEnemies: enemies.filter((x) => !x.dead && Math.hypot(x.x - st.player.x, x.y - st.player.y) < x.radius + 20).length,
+            });
+          }
           addFloatText(st.player.x, st.player.y - 20, 'ESQUIVA', '#8dfaff');
         } else {
           const damage = hit.dmg;
@@ -265,6 +294,17 @@
           e.knockVelX = Math.cos(contactAngle) * contactPush;
           e.knockVelY = Math.sin(contactAngle) * contactPush;
           e.contactCd = 1.0;
+          if (contactDebug) {
+            if (!e._contactDbgId) e._contactDbgId = ++NV._contactDbgEnemySeq;
+            console.log('[contact-debug] CONTACT HIT', {
+              frame: st.frame, id: e._contactDbgId, index: enemies.indexOf(e), behavior: e.behavior, elite: !!e.isElite,
+              baseDamage: baseDmg, damage, crit: !!hit.crit, dist: Number(d.toFixed(2)), threshold: e.radius + 20,
+              hpBefore, hpAfter: st.player.hp,
+              playerInvulnAfter: st.player.invuln, contactCdBefore: Number(contactCdBefore.toFixed(3)), contactCdAfter: e.contactCd,
+              knockVelX: Number((e.knockVelX || 0).toFixed(2)), knockVelY: Number((e.knockVelY || 0).toFixed(2)),
+              overlappingEnemies: enemies.filter((x) => !x.dead && Math.hypot(x.x - st.player.x, x.y - st.player.y) < x.radius + 20).length,
+            });
+          }
           if (e.stunChance && Math.random() < e.stunChance) { st.player.stun = 0.6; addFloatText(st.player.x, st.player.y - 30, 'STUN', '#ff0'); }
           shake = Math.max(shake, hit.crit ? 0.3 : 0.15);
           addFloatText(st.player.x, st.player.y - 20, '-' + damage + (hit.crit ? ' ★CRIT' : ''), hit.crit ? '#ff0' : (e.isElite ? '#ff0' : '#ff5f9b'));

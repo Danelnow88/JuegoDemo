@@ -5,6 +5,7 @@
 (() => {
   'use strict';
   const NV = window.NV;
+  NV._contactDbgBulletSeq = NV._contactDbgBulletSeq || 0;
 
   NV.updateBullets = function (dt, st) {
     const { bullets, W, H, player, enemies, boss, CHARACTERS, SHIELD_COOLDOWN,
@@ -24,6 +25,7 @@
         const playerRadius = (CHARACTERS[player.character].size || 20) * 0.45;
         const hitRadius = playerRadius + (b.radius || 5);
         if (d < hitRadius) {
+          if (st.contactDebug && !b._contactDbgId) b._contactDbgId = ++NV._contactDbgBulletSeq;
           if (player.bulwark > 0) {
             // Muralla: refleja la bala enemiga hacia el enemigo
             b.isEnemy = false;
@@ -34,13 +36,29 @@
             continue;
           }
           if (player.invuln <= 0 && player.stun <= 0) {
+            const hpBefore = player.hp;
             const hit = computePlayerHit(b.damage);
             b.dead = true;
             if (hit.dodged) {
+              if (st.contactDebug) {
+                console.log('[contact-debug] ENEMY BULLET DODGE', {
+                  frame: st.frame, id: b._contactDbgId, damageBase: b.damage,
+                  dist: Number(d.toFixed(2)), hitRadius: Number(hitRadius.toFixed(2)), hp: hpBefore,
+                  bullet: { x: Number(b.x.toFixed(1)), y: Number(b.y.toFixed(1)), vx: Number((b.vx || 0).toFixed(1)), vy: Number((b.vy || 0).toFixed(1)) },
+                });
+              }
               addFloatText(player.x, player.y - 20, 'ESQUIVA', '#8dfaff');
             } else {
               const damage = hit.dmg;
               player.hp -= damage;
+              if (st.contactDebug) {
+                console.log('[contact-debug] ENEMY BULLET HIT', {
+                  frame: st.frame, id: b._contactDbgId, damageBase: b.damage, damage, crit: !!hit.crit,
+                  dist: Number(d.toFixed(2)), hitRadius: Number(hitRadius.toFixed(2)), hpBefore, hpAfter: player.hp,
+                  playerInvuln: Number((player.invuln || 0).toFixed(3)), playerStun: Number((player.stun || 0).toFixed(3)),
+                  bullet: { x: Number(b.x.toFixed(1)), y: Number(b.y.toFixed(1)), vx: Number((b.vx || 0).toFixed(1)), vy: Number((b.vy || 0).toFixed(1)) },
+                });
+              }
               if (st.sfx && st.sfx.playerHit && player.hp > 0) st.sfx.playerHit();
               if (b.stunChance && Math.random() < b.stunChance) { player.stun = 0.6; addFloatText(player.x, player.y - 30, 'STUN', '#ff0'); }
               shake = Math.max(shake, hit.crit ? 0.3 : 0.1);
