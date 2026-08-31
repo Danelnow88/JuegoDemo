@@ -95,6 +95,39 @@ t('updateEnemies: daño de contacto tiene cooldown por enemigo aunque el jugador
   if (hits.length !== 1) throw new Error('contacto repetido durante cooldown del enemigo: ' + hits.length);
 });
 
+t('updateEnemies: separa varios chase apilados y evita cascada inmediata de golpes', () => {
+  function mkChase(i) {
+    return {
+      x: 410 + (i % 2), y: 400 + (i % 3), hp: 40, maxHp: 40, speed: 75, radius: 11, color: '#f07bad', shape: 'circle',
+      score: 10, xp: 10, dead: false, behavior: 'chase', angle: 0, erraticTimer: 0,
+      knockbackRes: 0, knockVelX: 0, knockVelY: 0, damage: 12, shield: false, shieldCd: 0,
+      resist: 0, shootTimer: 0, stunChance: 0, slowUntil: 0, stun: 0,
+    };
+  }
+  function overlapPairs(enemies) {
+    let n = 0;
+    for (let i = 0; i < enemies.length; i++) for (let j = i + 1; j < enemies.length; j++) {
+      if (Math.hypot(enemies[i].x - enemies[j].x, enemies[i].y - enemies[j].y) < enemies[i].radius + enemies[j].radius) n++;
+    }
+    return n;
+  }
+  const hits = [];
+  const enemies = Array.from({ length: 8 }, (_, i) => mkChase(i));
+  const st = baseSt(enemies[0], hits);
+  st.enemies = enemies;
+  const before = overlapPairs(enemies);
+  st.player.invuln = 10;
+  for (let i = 0; i < 20; i++) NV.updateEnemies(0.016, st);
+  const after = overlapPairs(enemies);
+  if (!(after < before)) throw new Error('no redujo amontonamiento: before=' + before + ' after=' + after);
+
+  st.player.invuln = 0;
+  NV.updateEnemies(0.016, st);
+  if (hits.length !== 1) throw new Error('primer golpe esperado: hits=' + hits.length);
+  NV.updateEnemies(0.016, st);
+  if (hits.length !== 1) throw new Error('cascada inmediata de golpes: hits=' + hits.length);
+});
+
 t('spawn: kamikaze aparece desde oleada 10 y los demas tipos mantienen su umbral', () => {
   function poolAt(wave) { return NV.ENEMY_TYPES.filter((ty) => (ty.minWave || 1) <= wave).map((t) => t.id); }
   const w5 = poolAt(5), w9 = poolAt(9), w10 = poolAt(10);

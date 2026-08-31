@@ -249,6 +249,25 @@
         }
       }
 
+      // Separación suave común para enemigos cuerpo a cuerpo: evita que varios
+      // chase/kami/erratic/shield se apilen sobre el mismo punto del jugador.
+      if (e.behavior !== 'ranged') {
+        const selfIndex = enemies.indexOf(e);
+        for (let oi = 0; oi < enemies.length; oi++) {
+          const other = enemies[oi];
+          if (other === e || other.dead) continue;
+          const dx = e.x - other.x, dy = e.y - other.y;
+          const od = Math.hypot(dx, dy);
+          const minD = e.radius + other.radius + 6;
+          if (od < minD) {
+            const a = od > 0 ? Math.atan2(dy, dx) : (selfIndex - oi) * 2.399963229728653;
+            const push = Math.min(1.6, (minD - od) * 7 * dt);
+            e.x += Math.cos(a) * push;
+            e.y += Math.sin(a) * push;
+          }
+        }
+      }
+
       e.knockVelX = (e.knockVelX || 0) * 0.92;
       e.knockVelY = (e.knockVelY || 0) * 0.92;
 
