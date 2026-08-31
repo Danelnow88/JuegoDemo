@@ -486,13 +486,13 @@ canvas {
   color: #7cf8ff;
   pointer-events: none;
   line-height: 0;
-  will-change: transform, color, opacity, filter;
+  will-change: color, opacity, filter;
   /* Sin CSS transition en transform: el suavizado de escala/skew vive en JS con
      attack/release temporal, para no filtrar ni entrecortar el pulso por frame. */
 }
 /* Música SVG (music-note). Usa currentColor para que el hue dinámico de
    NV.rhythm tiña el ícono completo por la propiedad color que setea JS. */
-.rw-icon svg.mn { display: block; width: 20px; height: 20px; }
+.rw-icon svg.mn { display: block; width: 20px; height: 20px; transform-origin: 50% 50%; will-change: transform; }
 .rw-icon .mn-base { fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
 .rw-icon .mn-dot { fill: currentColor; stroke: none; }
 .rw-icon .mn-ghost { fill: none; stroke: currentColor; stroke-width: 1.2; opacity: .38; stroke-linecap: round; }

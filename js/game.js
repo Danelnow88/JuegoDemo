@@ -393,9 +393,10 @@
     function updateRhythmWidgetIcon() {
       const icon = dom.rwIcon;
       if (!icon) return;
+      const glyph = icon.querySelector('svg.mn') || icon;
       const r = NV.rhythm;
       if (!r || r.state !== 'listening' || !r.enabled) {
-        icon.style.transform = '';
+        glyph.style.transform = '';
         icon._smoothScale = 1;
         icon._smoothSkew = 0;
         icon._pulseEnv = 0;
@@ -448,7 +449,7 @@
       const smoothSkew = curSkew + (targetSkew - curSkew) * skewA;
       icon._smoothScale = smoothScale;
       icon._smoothSkew = smoothSkew;
-      icon.style.transform = 'scale(' + smoothScale.toFixed(4) + ') skewX(' + smoothSkew.toFixed(2) + 'deg)';
+      glyph.style.transform = 'scale(' + smoothScale.toFixed(4) + ') skewX(' + smoothSkew.toFixed(2) + 'deg)';
       // Color dinámico por hue calculado (mismo que tiñe el fondo)
       icon.style.color = 'hsl(' + Math.round(hue) + ',75%,62%)';
       // Brillo/glow fade en función de la energía detectada
@@ -461,11 +462,11 @@
       }
       if (NV._rhythmDbg) {
         NV._rhythmDbgMaxBeat = Math.max(NV._rhythmDbgMaxBeat, beat);
-        NV._rhythmDbgLastTr = icon.style.transform;
+        NV._rhythmDbgLastTr = glyph.style.transform;
         const dnow = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
         if (beat > 0.3 && dnow - NV._rhythmDbgLast > 120) {
           NV._rhythmDbgLast = dnow;
-          console.log('[rhythm-icon] KICK beat=' + beat.toFixed(3) + ' hue=' + Math.round(hue) + ' energy=' + energy.toFixed(3) + ' transform="' + icon.style.transform + '"');
+          console.log('[rhythm-icon] KICK beat=' + beat.toFixed(3) + ' hue=' + Math.round(hue) + ' energy=' + energy.toFixed(3) + ' transform="' + glyph.style.transform + '"');
         }
         if (dnow - NV._rhythmDbgSumT >= 1000) {
           NV._rhythmDbgSumT = dnow;

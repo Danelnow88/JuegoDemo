@@ -90,6 +90,16 @@ function t(desc, fn) {
     if (/transition\s*:[^;]*transform/.test(iconBlock2)) throw new Error('.rw-icon no debe tener transition en transform (filtra el pulso)');
   });
 
+  t('la celda .rw-icon queda fija y el transform reactivo va al SVG interno', () => {
+    if (!game.includes("const glyph = icon.querySelector('svg.mn') || icon")) throw new Error('falta target interno glyph');
+    if (!game.includes('glyph.style.transform = \'scale(')) throw new Error('transform no se aplica al SVG interno');
+    if (game.includes('icon.style.transform = \'scale(')) throw new Error('transform reactivo no debe escalar la celda .rw-icon');
+    const iconCellBlock = css.slice(css.indexOf('.rw-icon {'), css.indexOf('.rw-icon svg.mn'));
+    if (!iconCellBlock.includes('width: 28px') || !iconCellBlock.includes('height: 28px') || !iconCellBlock.includes('flex: 0 0 28px')) throw new Error('.rw-icon no mantiene celda fija 28px');
+    const glyphBlock = css.slice(css.indexOf('.rw-icon svg.mn'), css.indexOf('.rw-icon .mn-base'));
+    if (!glyphBlock.includes('transform-origin: 50% 50%') || !glyphBlock.includes('will-change: transform')) throw new Error('SVG interno no está preparado para transform');
+  });
+
   t('game.js resetea estado interno del suavizado cuando no hay captura', () => {
     if (!game.includes('icon._smoothScale = 1')) throw new Error('no resetea smoothScale');
     if (!game.includes('icon._smoothSkew = 0')) throw new Error('no resetea smoothSkew');
