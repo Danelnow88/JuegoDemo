@@ -18,6 +18,9 @@ function mkCtx() {
   return {
     ops: [], gradients: [], _alpha: 1,
     save(){ this.ops.push('save'); }, restore(){ this.ops.push('restore'); },
+    translate(x,y){ this.ops.push(['translate', x, y]); },
+    rotate(a){ this.ops.push(['rotate', a]); },
+    scale(x,y){ this.ops.push(['scale', x, y]); },
     fillRect(x,y,w,h){ this.ops.push(['fillRect', x,y,w,h, this._alpha]); },
     strokeRect(x,y,w,h){ this.ops.push(['strokeRect', x,y,w,h, this._alpha]); },
     createRadialGradient(x0,y0,r0,x1,y1,r1){ const g = { args: [x0,y0,r0,x1,y1,r1], stops: [], addColorStop(p, c){ this.stops.push([p, c]); } }; this.gradients.push(g); this.ops.push('gradient'); return g; },
@@ -321,7 +324,9 @@ t('drawRhythmNebula reutiliza NV.rhythm y recorre todo el hue sin análisis extr
   for (const frame of [0, 500, 1000, 1500, 2000]) {
     const ctx = mkCtx();
     NV.drawRhythmNebula(ctx, 900, 520, frame);
-    if (ctx.gradients.length < 4) throw new Error('nebulosa demasiado pobre: ' + ctx.gradients.length);
+    if (ctx.gradients.length < 7) throw new Error('nebulosa demasiado pobre: ' + ctx.gradients.length);
+    if (!ctx.ops.some((op) => Array.isArray(op) && op[0] === 'scale' && op[1] !== op[2])) throw new Error('nebulosa no usa capas elípticas orgánicas');
+    if (!ctx.gradients[0].stops.some((s) => s[0] === 0.88)) throw new Error('falta fade largo/difuso hacia borde');
     seen.push(NV.rhythm.nebulaHue);
   }
   const span = Math.max(...seen) - Math.min(...seen);

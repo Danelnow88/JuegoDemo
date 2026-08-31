@@ -487,10 +487,13 @@
     const t = (frame || 0) * 0.004;
     const maxDim = Math.max(w, h);
     const blobs = [
-      { ox: 0.50, oy: 0.48, sx: 0.16, sy: 0.12, ph: 0.0,  hue: 0,   rad: 0.76, a: 1.00 },
-      { ox: 0.24, oy: 0.62, sx: 0.10, sy: 0.10, ph: 2.1,  hue: 82,  rad: 0.54, a: 0.74 },
-      { ox: 0.76, oy: 0.34, sx: 0.11, sy: 0.09, ph: 4.15, hue: 164, rad: 0.58, a: 0.66 },
-      { ox: 0.52, oy: 0.22, sx: 0.08, sy: 0.07, ph: 5.3,  hue: 246, rad: 0.46, a: 0.45 },
+      { ox: 0.50, oy: 0.48, sx: 0.16, sy: 0.12, ph: 0.0,  hue: 0,   rad: 0.84, a: 0.66, scx: 1.55, scy: 0.78, rot: -0.22 },
+      { ox: 0.30, oy: 0.60, sx: 0.12, sy: 0.10, ph: 1.7,  hue: 38,  rad: 0.62, a: 0.42, scx: 1.22, scy: 0.70, rot: 0.58 },
+      { ox: 0.70, oy: 0.34, sx: 0.12, sy: 0.09, ph: 3.1,  hue: 96,  rad: 0.66, a: 0.38, scx: 1.38, scy: 0.82, rot: -0.74 },
+      { ox: 0.53, oy: 0.22, sx: 0.09, sy: 0.07, ph: 5.3,  hue: 158, rad: 0.48, a: 0.30, scx: 0.95, scy: 0.58, rot: 0.28 },
+      { ox: 0.42, oy: 0.74, sx: 0.08, sy: 0.05, ph: 4.4,  hue: 222, rad: 0.42, a: 0.24, scx: 1.75, scy: 0.54, rot: -0.48 },
+      { ox: 0.82, oy: 0.58, sx: 0.07, sy: 0.06, ph: 2.6,  hue: 286, rad: 0.38, a: 0.22, scx: 1.05, scy: 0.64, rot: 0.92 },
+      { ox: 0.16, oy: 0.36, sx: 0.06, sy: 0.05, ph: 6.1,  hue: 318, rad: 0.34, a: 0.20, scx: 1.42, scy: 0.66, rot: -1.05 },
     ];
 
     ctx.save();
@@ -501,13 +504,23 @@
       const cx = w * (b.ox + Math.sin(t * speed + b.ph) * (b.sx + highs * 0.025));
       const cy = h * (b.oy + Math.cos(t * (speed * 0.83) + b.ph) * (b.sy + bass * 0.025));
       const rad = maxDim * (b.rad + energy * 0.14 + beat * 0.08);
-      const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, rad);
+      const g = ctx.createRadialGradient(0, 0, rad * 0.02, 0, 0, rad);
       const ha = hue + b.hue;
-      g.addColorStop(0, hsla(ha, 76 + audio * 14, 64 + audio * 10, alpha * b.a));
-      g.addColorStop(0.42, hsla(ha + 42 + onset * 28, 72, 54, alpha * b.a * 0.58));
+      // Fade largo con muchas paradas: evita borde circular marcado y mezcla
+      // varias capas de gas suave en lugar de manchas planas.
+      g.addColorStop(0, hsla(ha, 76 + audio * 14, 66 + audio * 8, alpha * b.a));
+      g.addColorStop(0.18, hsla(ha + 24 + onset * 16, 74, 60, alpha * b.a * 0.62));
+      g.addColorStop(0.38, hsla(ha + 48 + onset * 28, 70, 53, alpha * b.a * 0.34));
+      g.addColorStop(0.66, hsla(ha + 78, 64, 44, alpha * b.a * 0.14));
+      g.addColorStop(0.88, hsla(ha + 112, 56, 34, alpha * b.a * 0.045));
       g.addColorStop(1, 'rgba(1,3,13,0)');
       ctx.fillStyle = g;
-      ctx.fillRect(0, 0, w, h);
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(b.rot + Math.sin(t * 0.33 + b.ph) * 0.08);
+      ctx.scale(b.scx + bass * 0.16, b.scy + highs * 0.12);
+      ctx.fillRect(-rad, -rad, rad * 2, rad * 2);
+      ctx.restore();
     }
     ctx.restore();
   };
