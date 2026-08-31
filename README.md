@@ -20,52 +20,63 @@
 
 ```
 JuegoDemo/
-├── index.html          # Página principal: DOM, HUD, overlays (menú, tienda, game over), nav táctil (oculto)
-├── README.md           # Este documento (fuente de verdad)
-├── tests/
-│   └── space_special.js # Arnés headless: especial de cada personaje × 300 frames sin crash
+├── index.html           # Página principal y orden de carga de scripts globales.
+├── README.md            # Este documento (fuente de verdad del proyecto).
+├── package.json         # Scripts de mantenimiento; `npm test` ejecuta la suite Node.
+├── .gitignore           # Exclusiones locales/temporales.
 ├── css/
-│   └── styles.css      # Estilo visual: neon, HUD, menú, tarjetas, tienda, inventario, ofertas
+│   └── styles.css       # Estilo visual: neon, HUD, menú, tarjetas, tienda, inventario, ofertas.
 └── js/
     ├── core/
-    │   ├── state.js    # Namespace global window.NV (se carga primero)
-    │   └── utils.js    # Utilidades puras: NV.formatPoints
+    │   ├── state.js     # Namespace global window.NV (se carga primero).
+    │   └── utils.js     # Utilidades puras/compartidas.
     ├── data/
-    │   ├── gameData.js   # Datos puros: personajes, armas, élites, jefes, mejoras
-    │   ├── balance.js    # Datos de balance/tuning (NV.BALANCE)
-    │   └── consumables.js # Datos de consumibles (NV.CONSUMABLES)
+    │   ├── gameData.js  # Datos puros: personajes, armas, élites, jefes, mejoras.
+    │   ├── balance.js   # Datos de balance/tuning (NV.BALANCE).
+    │   └── consumables.js # Datos de consumibles (NV.CONSUMABLES).
     ├── audio/
-    │   └── synth.js    # Audio synthwave + SFX: Estado mutable en NV.* (soundOn/audioCtx/musicState/musicTime); consume NV.getFrame/getBoss/getState
+    │   └── synth.js     # Audio synthwave procedural, mixer y SFX.
     ├── render/
-    │   ├── canvas.js          # canvas + ctx base (expuestos en NV.canvas/NV.ctx)
-    │   ├── projectiles.js     # Dibujo de proyectiles del jugador (formas por arma) + VFX especial (NV.drawBulletShape/NV.drawSpecialVFX)
-    │   ├── enemies.js         # NV.drawEnemy
-    │   ├── bosses.js          # NV.drawBoss
-    │   ├── player.js          # NV.drawPlayer
-    │   ├── weaponIcons.js     # NV.drawWeaponIcon: iconos de armas SVG-approved convertidos a canvas
-    │   ├── consumableIcons.js # NV.drawConsumableIcon: iconos de consumibles SVG-approved convertidos a canvas
-    │   ├── metaSkillIcons.js  # NV.drawMetaSkillIcon: iconos de mejoras permanentes y habilidades convertidos a canvas
-    │   └── hud.js             # HUD en canvas: cooldown, panel arma/habilidad/consumibles, stats TAB (NV.drawSpecialCooldown/drawWeaponHUD/drawStats)
+    │   ├── canvas.js          # Canvas/contexto base + starfield.
+    │   ├── projectiles.js     # Dibujo de proyectiles y VFX especial.
+    │   ├── enemies.js         # Dibujo de enemigos.
+    │   ├── bosses.js          # Dibujo de jefes.
+    │   ├── player.js          # Dibujo del jugador y auras.
+    │   ├── weaponIcons.js     # Iconos canvas de armas.
+    │   ├── consumableIcons.js # Iconos canvas de consumibles.
+    │   ├── metaSkillIcons.js  # Iconos canvas de mejoras/habilidades.
+    │   └── hud.js             # HUD en canvas.
     ├── ui/
-    │   └── dom.js      # Árbol DOM (expuesto en NV.dom)
+    │   └── dom.js       # Referencias DOM centralizadas en NV.dom.
     ├── engine/
-    │   ├── rhythm.js    # Captura/análisis de música externa + render sutil de fondo (NV.externalAudio/NV.rhythm*)
-    │   ├── fx.js        # Efectos/FX (partículas, textos flotantes, estelas): NV.spawnExplosion/updateParticles/addFloatText/updateFloatTexts/updateTrails
-    │   ├── drones.js     # NV.updateDrones (disparo de drones ENJAMBRE)
-    │   ├── meteors.js     # NV.updateMeteors (Lluvia Estelar)
-    │   ├── pickups.js     # NV.spawnWeaponPickup/updatePickups/updateWeaponPickups (drop de armas + shards)
-    │   ├── enemies.js     # NV.spawnEnemy/spawnElite/killEnemy/updateEnemies
-    │   ├── combat.js      # NV.enemyCritChance/calcEnemyDamage/computePlayerHit
-    │   ├── boss.js        # NV.updateBoss/spawnBossProj/spawnMinion/runBossAttack
-    │   ├── bullets.js     # NV.updateBullets (colisiones, bulwark, escudos)
-    │   ├── weapons.js     # NV.shoot/findTarget/applyKnockback (disparo del jugador)
-    │   └── special.js     # NV.useSpecial (habilidades: meteor/phase/bulwark/hivemind)
-    └── game.js         # Orquestador: init/update/loop, flujo de oleadas/tienda/menú, input, guardado — IIFE
+    │   ├── rhythm.js    # Captura/análisis de música externa y estado rítmico.
+    │   ├── fx.js        # Partículas, textos flotantes, shockwaves y estelas.
+    │   ├── drones.js    # Drones de ENJAMBRE.
+    │   ├── meteors.js   # Meteoritos de BOTI.
+    │   ├── pickups.js   # Shards, armas y cofres de jefe.
+    │   ├── enemies.js   # Spawn/update/kill de enemigos.
+    │   ├── combat.js    # Cálculos de daño/crítico/armadura.
+    │   ├── boss.js      # IA, ataques y estado de jefes.
+    │   ├── bullets.js   # Proyectiles y colisiones.
+    │   ├── weapons.js   # Disparo, targeting, fusión y knockback.
+    │   └── special.js   # Habilidades especiales de personajes.
+    └── game.js          # Orquestador: init/update/loop, menú, tienda, oleadas, input y guardado.
+
+tests/
+├── run_all.js           # Runner de la suite completa (`npm test`).
+└── *.js                 # Tests de regresión headless ejecutables con Node.
+
+tools/
+└── diagnostics/         # Scripts manuales de diagnóstico, fuera de la suite automática.
+
+previews/                # Páginas HTML de confirmación visual/manual de iconos y widget.
 ```
 
-- **Sin builds, sin dependencias, sin servidor.** Se ejecuta directamente en el navegador. Orden de carga: `core/state.js` → `core/utils.js` → `data/gameData.js` → `data/balance.js` → `data/consumables.js` → `audio/synth.js` → `ui/dom.js` → `render/canvas.js`/otros `render/*` (`weaponIcons.js`, `consumableIcons.js` y `metaSkillIcons.js` antes de `hud.js`) → `engine/rhythm.js`/otros `engine/*` → `game.js`.
-- `game.js` está en una **IIFE** con `'use strict'` (todo scoped, no contamina el global), pero los **datos** ya viven en `window.NV` (`core/state.js` + `data/gameData.js` + `data/balance.js` + `data/consumables.js`) y `game.js` los usa por **alias locales** (`const BALANCE = NV.BALANCE`, etc.).
+- **Sin build, sin bundler y sin dependencias runtime.** El juego se ejecuta abriendo `index.html` en el navegador. Node se usa solo para tests/diagnósticos.
+- **Orden de carga crítico:** `core/state.js` → `core/utils.js` → `data/*` → `audio/synth.js` → `ui/dom.js` → `render/*` → `engine/*` → `game.js`. No reordenar scripts sin correr la suite completa y revisar dependencias `NV.*`.
+- `game.js` está en una **IIFE** con `'use strict'` (todo scoped, no contamina el global), mientras los módulos comparten API mediante `window.NV`.
 - El estado del juego y del canvas es totalmente **procedural** (se dibuja en cada frame con `requestAnimationFrame`).
+- **Tests:** correr `npm test` desde la raíz. El runner ejecuta los tests de regresión en `tests/*.js`; los diagnósticos manuales de audio/ritmo viven en `tools/diagnostics/` y no forman parte de la suite automática.
 
 ---
 
