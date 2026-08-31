@@ -1210,7 +1210,7 @@
   }
 
   function updateDrones(dt) {
-    drones = NV.updateDrones(dt, drones, player, bullets, MAX_BULLETS, findTarget, enemies, boss, 300);
+    drones = NV.updateDrones(dt, drones, player, bullets, MAX_BULLETS, enemies, boss, 300);
   }
 
   // Detonación Espectral: golpe final al terminar la Fase Fantasma.

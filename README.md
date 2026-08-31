@@ -537,7 +537,7 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 ---
 
 ### v30 — Fase C del refactor: engine drones + meteoros
-- `updateDrones` → `js/engine/drones.js` (`NV.updateDrones`): recibe `dt, drones, player, bullets, MAX_BULLETS, findTarget`; devuelve el array filtrado. Wrapper en `game.js` reasigna `drones`; `findTarget` (closure) inyectado como callback.
+- `updateDrones` → `js/engine/drones.js` (`NV.updateDrones`): recibe `dt, drones, player, bullets, MAX_BULLETS, enemies, boss, range`; devuelve el array filtrado. Wrapper en `game.js` reasigna `drones`; el targeting vive en `NV.findDroneTarget`.
 - `updateMeteors` → `js/engine/meteors.js` (`NV.updateMeteors`): recibe `dt, meteors, ctxState{H, enemies, boss, shake}, cbs{killEnemy, applyKnockback, spawnExplosion}`; devuelve `{meteors, shake}`. Callbacks inyectados preservan las closures del monolito; `shake` (let) vuelve del return.
 - Orden de carga: `... render/hud.js` → `engine/fx.js, drones.js, meteors.js` → `game.js`.
 - Verificación: `node --check` OK en drones/meteors/game; smoke runtime **5/5** (dispara+expira drones; daño a enemigo/boss por meteoros; salida de pantalla; filtro correcto).

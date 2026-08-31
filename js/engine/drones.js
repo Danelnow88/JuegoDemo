@@ -20,7 +20,7 @@
     return target;
   };
 
-  NV.updateDrones = function (dt, drones, player, bullets, MAX_BULLETS, findTarget, enemies, boss, range) {
+  NV.updateDrones = function (dt, drones, player, bullets, MAX_BULLETS, enemies, boss, range) {
     if (drones.length === 0) return drones;
     const TARGET_RANGE = range || 300;
     for (const d of drones) {
