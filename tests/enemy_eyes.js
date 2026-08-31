@@ -9,9 +9,10 @@ const NV = sbx.window.NV;
 function mkCtx() {
   const arcs = [];
   const translations = [];
-  return { arcs, translations, beginPath(){}, arc(x,y,r){arcs.push({x,y,r});}, fill(){}, stroke(){}, save(){}, restore(){},
+  const strokeStyles = [];
+  return { arcs, translations, strokeStyles, beginPath(){}, arc(x,y,r){arcs.push({x,y,r});}, fill(){}, stroke(){ this.strokes = (this.strokes || 0) + 1; }, save(){}, restore(){},
     translate(x,y){translations.push({x,y});}, moveTo(){}, lineTo(){}, closePath(){}, ellipse(){},
-    set fillStyle(v){}, get fillStyle(){return '';}, set strokeStyle(v){}, set lineWidth(v){}, set shadowBlur(v){}, set shadowColor(v){} };
+    set fillStyle(v){}, get fillStyle(){return '';}, set strokeStyle(v){strokeStyles.push(v);}, set lineWidth(v){}, set shadowBlur(v){}, set shadowColor(v){} };
 }
 
 t('drawEnemy acepta player y drawEnemyEyes existe', () => {
@@ -134,6 +135,15 @@ t('drawEnemy con atkFlash dibuja gesto de ataque (lunge + anillo) sin mutar dato
   if (!(ctx.arcs.length > baseCtx.arcs.length)) throw new Error('sin arcos de ataque: base=' + baseCtx.arcs.length + ' atk=' + ctx.arcs.length);
   if (JSON.stringify(e) !== snapshot) throw new Error('drawEnemy mutó datos del atacante');
   if (!ctx.translations[0] || ctx.translations[0].x === 0) throw new Error('sin lunge visual hacia el jugador');
+  // Legibilidad: halo blanco + anillo rojo => más trazos y strokeStyle '#ffffff' presente.
+  if (!((ctx.strokes || 0) > (baseCtx.strokes || 0))) throw new Error('sin trazos de ataque extra: base=' + (baseCtx.strokes || 0) + ' atk=' + (ctx.strokes || 0));
+  if (!ctx.strokeStyles.some((s) => s === '#ffffff')) throw new Error('sin outline blanco de atacante');
+});
+
+t('game.js dibuja a los atacantes (atkFlash) en segunda pasada (z-order)', () => {
+  const g = fs.readFileSync('js/game.js', 'utf8');
+  if (!g.includes('for (const e of enemies) if (!(e.atkFlash > 0)) drawEnemy(e);')) throw new Error('falta primera pasada (no atacantes)');
+  if (!g.includes('for (const e of enemies) if (e.atkFlash > 0) drawEnemy(e);')) throw new Error('falta segunda pasada (atacantes)');
 });
 
 t('game.js pasa rhythm solo al render de enemigo y colisiones siguen usando e.x/e.y', () => {

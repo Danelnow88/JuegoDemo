@@ -1538,7 +1538,11 @@
       ctx.globalAlpha = 1;
     }
 
-    for (const e of enemies) drawEnemy(e);
+    // Legibilidad del golpe: dibujar PRIMERO a los no-atacantes y DESPUÉS a los
+    // atacantes (atkFlash activo) => el enemigo que golpea queda por encima
+    // visualmente y no es tapado por los superpuestos. Solo orden de dibujo.
+    for (const e of enemies) if (!(e.atkFlash > 0)) drawEnemy(e);
+    for (const e of enemies) if (e.atkFlash > 0) drawEnemy(e);
     if (boss && !boss.dead) drawBoss();
 
     for (const b of bullets) {

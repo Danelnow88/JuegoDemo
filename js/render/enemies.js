@@ -144,21 +144,35 @@
     ctx.shadowBlur = 0;
     NV.drawEnemyEyes(ctx, e, player);
 
-    // Anillo de ataque expansivo + tajo frontal: marca claramente QUÉ enemigo golpeó.
+    // Legibilidad del atacante (daño de contacto): halo blanco de selección +
+    // anillo rojo reforzado -> se lee por encima de los superpuestos. Solo visual.
     if (e.atkFlash > 0 && player) {
       const atk = Math.min(1, Math.max(0, (e.atkFlash || 0) / 0.45));
       const fwd = Math.atan2(player.y - e.y, player.x - e.x);
-      const reach = e.radius + 8 + (1 - atk) * 16;
-      ctx.strokeStyle = 'rgba(255, 80, 90, ' + (atk * 0.9).toFixed(3) + ')';
-      ctx.lineWidth = 3.5;
-      ctx.shadowBlur = 14;
-      ctx.shadowColor = '#ff5050';
-      const gap = 1.15 + (1 - atk) * 0.5;
+
+      // Halo blanco exterior de selección (destaca al atacante por encima del resto).
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 4;
+      ctx.shadowBlur = 20;
+      ctx.shadowColor = '#ffffff';
+      ctx.beginPath(); ctx.arc(0, 0, r + 5, 0, Math.PI * 2); ctx.stroke();
+
+      // Anillo principal: doble trazo (rojo exterior + blanco interior) expansivo.
+      const reach = e.radius + 8 + (1 - atk) * 18;
+      const gap = 1.1 + (1 - atk) * 0.45;
+      ctx.strokeStyle = '#ff3040';
+      ctx.lineWidth = 5;
+      ctx.shadowBlur = 18;
+      ctx.shadowColor = '#ff3040';
       ctx.beginPath();
       ctx.arc(0, 0, reach, fwd + gap, fwd - gap, true);
       ctx.stroke();
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2.5;
+      ctx.shadowBlur = 10;
+      ctx.shadowColor = '#ff3040';
       ctx.beginPath();
-      ctx.arc(0, 0, reach - 4, fwd - 0.45, fwd + 0.45);
+      ctx.arc(0, 0, reach - 5, fwd - 0.5, fwd + 0.5);
       ctx.stroke();
       ctx.shadowBlur = 0;
     }
