@@ -76,7 +76,7 @@ t('updateEnemies: lejos del jugador NO se arma', () => {
   if (e.armed) throw new Error('se armó estando lejos');
 });
 
-t('updateEnemies: daño de contacto separa al enemigo y no repite golpe al quedar quieto', () => {
+t('updateEnemies: daño de contacto tiene cooldown por enemigo aunque el jugador quede quieto', () => {
   const hits = [];
   const e = {
     x: 410, y: 400, hp: 40, maxHp: 40, speed: 75, radius: 11, color: '#f07bad', shape: 'circle',
@@ -85,11 +85,14 @@ t('updateEnemies: daño de contacto separa al enemigo y no repite golpe al queda
     resist: 0, shootTimer: 0, stunChance: 0, slowUntil: 0, stun: 0,
   };
   const st = baseSt(e, hits);
+  const beforeX = e.x;
   NV.updateEnemies(0.016, st);
   if (hits.length !== 1) throw new Error('primer contacto no dañó una sola vez: ' + hits.length);
-  st.player.invuln = 0;
-  NV.updateEnemies(0.016, st);
-  if (hits.length !== 1) throw new Error('contacto repetido sin separación: ' + hits.length);
+  if (!(e.contactCd > 0)) throw new Error('sin cooldown de contacto por enemigo');
+  if (Math.abs(e.x - beforeX) > 5) throw new Error('reposicionamiento brusco en contacto: dx=' + (e.x - beforeX));
+  st.player.invuln = 0; // simula que terminó la invulnerabilidad global antes del cooldown del enemigo
+  NV.updateEnemies(0.6, st);
+  if (hits.length !== 1) throw new Error('contacto repetido durante cooldown del enemigo: ' + hits.length);
 });
 
 t('spawn: kamikaze aparece desde oleada 10 y los demas tipos mantienen su umbral', () => {
