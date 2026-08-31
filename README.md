@@ -345,7 +345,7 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 - **Diagnóstico**: con master muy comprimido (deathcore, blast beats) la energía cruda quedaba 5x por encima de otros estilos y clavaba el render al tope; las medias móviles EMA de los umbrales se contaminaban con los propios golpes detectados y colapsaban el contraste de transientes (sd/media ~0.63).
 - **Umbrales robustos**: detección de onset/kick/snare ahora usa mediana + k·MAD sobre ventana móvil de ~4s (inmune a los picos que ella misma detecta).
 - **AGC de energía**: normalización contra el rango dinámico real de la pista (mediana→0.5, half-range P95-P05), preservando parte del volumen absoluto. Publica `energyRaw` y `dynRange` para diagnóstico.
-- **Verificación**: tests de regresión en `rhythm_analysis_render.js` (respiración AGC + contraste bajo blast); diagnóstico numérico por estilo en `tests/rhythm_diag_styles.js`.
+- **Verificación**: tests de regresión en `rhythm_analysis_render.js` (respiración AGC + contraste bajo blast); diagnóstico numérico por estilo en `tools/diagnostics/rhythm_diag_styles.js`.
 
 ### v1 — Base del juego
 - Motor completo con Canvas, estados `menu / playing / shop / gameover`.
@@ -992,54 +992,8 @@ Comportamientos reales verificados al leer el código completo (`js/game.js`, ~2
 
 ---
 
-## 📦 Estructura actualizada de archivos
-
-```
-JuegoDemo/
-├── index.html          # Página principal: DOM, HUD, overlays (menú, tienda, game over), nav táctil (oculto)
-├── README.md           # Este documento (fuente de verdad)
-├── tests/
-│   └── space_special.js # Arnés headless: especial de cada personaje × 300 frames sin crash
-├── css/
-│   └── styles.css      # Estilo visual: neon, HUD, menú, tarjetas, tienda, inventario, ofertas
-└── js/
-    ├── core/
-    │   ├── state.js    # Namespace global window.NV (se carga primero)
-    │   └── utils.js    # Utilidades puras: NV.formatPoints
-    ├── data/
-    │   ├── gameData.js   # Datos puros: personajes, armas, élites, jefes, mejoras
-    │   ├── balance.js    # Datos de balance/tuning (NV.BALANCE)
-    │   └── consumables.js # Datos de consumibles (NV.CONSUMABLES)
-    ├── audio/
-    │   └── synth.js    # Audio synthwave + SFX (estado en NV.*; fue inline en game.js)
-    ├── render/
-    │   ├── canvas.js          # canvas + ctx base (NV.canvas/NV.ctx)
-    │   ├── projectiles.js     # NV.drawBulletShape + NV.drawSpecialVFX
-    │   ├── enemies.js         # NV.drawEnemy
-    │   ├── bosses.js          # NV.drawBoss
-    │   ├── player.js          # NV.drawPlayer
-    │   ├── weaponIcons.js     # NV.drawWeaponIcon
-    │   ├── consumableIcons.js # NV.drawConsumableIcon
-    │   └── hud.js             # NV.drawSpecialCooldown/drawWeaponHUD/drawStats
-    ├── ui/
-    │   └── dom.js      # Árbol DOM (NV.dom)
-    ├── engine/
-    │   ├── rhythm.js    # NV.externalAudio + análisis de bandas/beat + drawRhythmLayer (fondos reactivos sutiles)
-    │   ├── fx.js        # NV.spawnExplosion/updateParticles/addFloatText/updateFloatTexts/updateTrails
-    │   ├── drones.js     # NV.updateDrones (disparo de drones ENJAMBRE)
-    │   ├── meteors.js     # NV.updateMeteors (Lluvia Estelar)
-    │   ├── pickups.js     # NV.spawnWeaponPickup/updatePickups/updateWeaponPickups (drop de armas + shards)
-    │   ├── enemies.js     # NV.spawnEnemy/spawnElite/killEnemy/updateEnemies
-    │   ├── combat.js      # NV.enemyCritChance/calcEnemyDamage/computePlayerHit
-    │   ├── boss.js        # NV.updateBoss/spawnBossProj/spawnMinion/runBossAttack
-    │   ├── bullets.js     # NV.updateBullets (colisiones, bulwark, escudos)
-    │   ├── weapons.js     # NV.shoot/findTarget/applyKnockback (disparo del jugador)
-    │   └── special.js     # NV.useSpecial (habilidades: meteor/phase/bulwark/hivemind)
-    └── game.js         # Motor restante (lógica, render, estado de entidades) — IIFE
-```
-
 ### v65 — Hue de espectro completo (fix variación perceptible)
-- **Diagnóstico medible**: `tests/rhythm_hue_diag.js` simula perfiles FFT sintéticos (graves/medios/agudos/balanceado) por el pipeline real e imprime bandas y hue. Antes: bass=198, mids=217 (casi iguales), highs=110 -> todo comprimido en azules/verdes (~110 grados de spread).
+- **Diagnóstico medible**: `tools/diagnostics/rhythm_hue_diag.js` simula perfiles FFT sintéticos (graves/medios/agudos/balanceado) por el pipeline real e imprime bandas y hue. Antes: bass=198, mids=217 (casi iguales), highs=110 -> todo comprimido en azules/verdes (~110 grados de spread).
 - **Fix**: dominancia al cuadrado + anclas separadas en la rueda (graves->cian ~190, medios->amarillo/naranja ~55, agudos->violeta/magenta ~300), rotación suave por onset/tempo. Después: bass=171, mids=77, highs=258, balanceado=170 (spread ~181 grados).
 - **Exposición**: `NV.rhythm.hue` queda publicado por frame para log en consola del navegador.
 - **Verificación concreta**: `tests/rhythm_analysis_render.js` nuevo caso exige spread >= 150 entre perfiles, medios < 120 y agudos > 220.
@@ -1055,17 +1009,17 @@ JuegoDemo/
 - NV.rhythm.onsetRate: eventos percusivos/s (ventana 2s) = densidad percusiva real.
 - NV.rhythm.onsetEvt/kickEvt/snareEvt: score del último pick confirmado (sin decay).
 - Tempo con plegado de octava 70-180 BPM: blast beats (~16/s) y half-times ya no congelan/corrompen tempoBpm.
-- Diagnóstico: tests/rhythm_diag_styles.js (onsetRate: blast 16/s, techno 3.5/s, lofi 1/s; tempo 160/130/99 BPM).
+- Diagnóstico: `tools/diagnostics/rhythm_diag_styles.js` (onsetRate: blast 16/s, techno 3.5/s, lofi 1/s; tempo 160/130/99 BPM).
 
 ### Bloque 3 - Caracter musical (density/punch/accent + soft-knee)
 - NV.rhythm publica density (onsetRate suavizado), punch (transitoriedad de graves) y accent (downbeat via PLL de fase contra tempoBpm).
 - Ganancia adaptativa 1/(1+density/8): estilos espaciados conservan golpe pleno; blast beats se atenuan y el acento de downbeat lleva el pulso (sin estroboscopio).
 - Soft-knee en el alfa (lineal hasta 75% del tope, compresion exponencial encima): elimina el clip duro que saturaba ~45% de frames en deathcore.
-- Verificacion: tests/rhythm_diag_styles.js mide alpha real de render por perfil (deathcore: media 0.26, sd>=0.04, 0% saturados).
+- Verificacion: `tools/diagnostics/rhythm_diag_styles.js` mide alpha real de render por perfil (deathcore: media 0.26, sd>=0.04, 0% saturados).
 
 ### Bloque 4a - Jitter de enemigos escalonado y por banda espectral
 - NV.enemyRhythmBand(e): banda asignada estable por hash (sub 15%% / graves 35%% / medios 30%% / agudos 20%%), solo lectura, sin mutar al enemigo.
 - Cada enemigo reacciona a la envolvente de SU banda + transientes de su banda (kick/snare/hats), con umbral de participación individual 0.18-0.70 => percusión suave = muy pocos tiemblan; intensa = casi todos.
 - Fase individual por hash => nunca sincronizados; amplitudes heterogéneas (sd ~1.2px, 179 valores únicos en 300 enemigos).
 - 100%% visual: offsets solo en ctx.translate; colisiones siguen usando e.x/e.y reales.
-- Diagnóstico: tests/rhythm_diag_jitter.js (participantes: lofi 1%%, techno 76%%, deathcore 100%%; solo-agudos activa solo la banda agudos).
+- Diagnóstico: `tools/diagnostics/rhythm_diag_jitter.js` (participantes: lofi 1%%, techno 76%%, deathcore 100%%; solo-agudos activa solo la banda agudos).
