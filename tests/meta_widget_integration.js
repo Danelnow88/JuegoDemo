@@ -50,8 +50,10 @@ function t(desc, fn) {
     if (!game.includes('function updateRhythmWidgetIcon')) throw new Error('falta updateRhythmWidgetIcon');
     // gate: estático sin listening
     if (!game.includes("r.state !== 'listening'")) throw new Error('falta gate de estado listening');
-    // pulso de beat + respiración continua por energía
-    if (!game.includes('Math.min(1, beat * 1.8)')) throw new Error('falta targetPulse amplificado/no saturante');
+    // pulso percusivo (beat/kick/onset) + respiración continua por energía
+    if (!game.includes('const perc = Math.max(beat')) throw new Error('falta fuente percusiva combinada');
+    if (!game.includes('r.kick') || !game.includes('r.onset')) throw new Error('no usa kick/onset para movimiento');
+    if (!game.includes('Math.min(1, perc * 2.1)')) throw new Error('falta targetPulse percusivo amplificado');
     if (!game.includes('skewX(')) throw new Error('falta distorsión skew de borde');
     if (!game.includes('pulseEnv') || !game.includes('curvedPulse')) throw new Error('falta envelope/curva del pulso');
     if (!game.includes('energyEnv') || !game.includes('breathPhase')) throw new Error('falta respiración continua por energía');
@@ -60,8 +62,10 @@ function t(desc, fn) {
     if (!game.includes('pulseEnv * pulseEnv * (3 - 2 * pulseEnv)')) throw new Error('falta smoothstep del pulso');
     if (!game.includes('targetScale') || !game.includes('smoothScale')) throw new Error('falta suavizado de escala');
     if (!game.includes('pulseTau') || !game.includes('scaleTau') || !game.includes('skewTau')) throw new Error('falta attack/release temporal');
-    if (!game.includes('0.34 * curvedPulse')) throw new Error('falta rango visual notorio de escala por beat');
-    if (!game.includes('3.0 * curvedPulse')) throw new Error('falta rango visual notorio de skew por beat');
+    if (!game.includes('0.10 + energyEnv * 0.18')) throw new Error('falta breathAmp ampliado');
+    if (!game.includes('Math.min(1.62')) throw new Error('falta cap ampliado de escala');
+    if (!game.includes('0.48 * curvedPulse')) throw new Error('falta rango visual fuerte de escala por percusión');
+    if (!game.includes('4.2 * curvedPulse')) throw new Error('falta rango visual fuerte de skew por percusión');
     if (!game.includes('Math.exp(-dtMs / pulseTau)')) throw new Error('falta lerp exponencial del envelope por dt');
     if (!game.includes('Math.exp(-dtMs / scaleTau)')) throw new Error('falta lerp exponencial de escala por dt');
     if (!game.includes('transform = \'scale(')) throw new Error('falta apply scale');

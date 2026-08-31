@@ -409,11 +409,12 @@
       }
       const hue = (r.hue == null) ? 200 : r.hue;
       const beat = r.beat || 0;
+      const perc = Math.max(beat, (r.kick || 0) * 0.85, (r.onset || 0) * 0.65);
       const energy = Math.max(0, Math.min(1, r.energy || 0));
       // Movimiento del ícono: beat + respiración continua por energía. El beat
       // da golpes notorios, pero mientras haya audio real (energy > piso) el
       // ícono nunca queda 100% quieto: respira suavemente proporcional al nivel.
-      const targetPulse = Math.min(1, beat * 1.8);
+      const targetPulse = Math.min(1, perc * 2.1);
       const nowMs = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
       const prevMs = icon._smoothT || nowMs;
       const dtMs = Math.max(0, Math.min(80, nowMs - prevMs));
@@ -431,12 +432,12 @@
       const energyEnv = curEnergy + (energy - curEnergy) * energyA;
       icon._energyEnv = energyEnv;
       const hasAudio = energyEnv > 0.025;
-      const phaseSpeed = (1.35 + energyEnv * 2.4 + curvedPulse * 1.2) * Math.PI * 2;
+      const phaseSpeed = (1.55 + energyEnv * 2.8 + curvedPulse * 1.6) * Math.PI * 2;
       icon._breathPhase = (icon._breathPhase || 0) + (hasAudio ? dtSec * phaseSpeed : 0);
       const breath = hasAudio ? (0.5 + 0.5 * Math.sin(icon._breathPhase)) : 0;
-      const breathAmp = hasAudio ? (0.055 + energyEnv * 0.095) : 0;
-      const targetScale = Math.min(1.45, 1 + breathAmp * breath + 0.34 * curvedPulse);
-      const targetSkew = 3.0 * curvedPulse + (hasAudio ? Math.sin(icon._breathPhase * 1.35) * energyEnv * 0.85 : 0);
+      const breathAmp = hasAudio ? (0.10 + energyEnv * 0.18) : 0;
+      const targetScale = Math.min(1.62, 1 + breathAmp * breath + 0.48 * curvedPulse);
+      const targetSkew = 4.2 * curvedPulse + (hasAudio ? Math.sin(icon._breathPhase * 1.35) * energyEnv * 1.25 : 0);
       const curScale = (icon._smoothScale == null) ? 1 : icon._smoothScale;
       const curSkew = (icon._smoothSkew == null) ? 0 : icon._smoothSkew;
       const scaleTau = targetScale > curScale ? 35 : 240;
