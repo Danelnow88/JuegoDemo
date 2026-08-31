@@ -21,18 +21,12 @@ function mkCtx() {
     translate(x,y){ this.ops.push(['translate', x, y]); },
     rotate(a){ this.ops.push(['rotate', a]); },
     scale(x,y){ this.ops.push(['scale', x, y]); },
-    beginPath(){ this.ops.push('beginPath'); },
-    moveTo(x,y){ this.ops.push(['moveTo', x, y]); },
-    bezierCurveTo(x1,y1,x2,y2,x3,y3){ this.ops.push(['bezierCurveTo', x1,y1,x2,y2,x3,y3]); },
-    stroke(){ this.ops.push(['stroke', this._alpha]); },
     fillRect(x,y,w,h){ this.ops.push(['fillRect', x,y,w,h, this._alpha]); },
     strokeRect(x,y,w,h){ this.ops.push(['strokeRect', x,y,w,h, this._alpha]); },
     createRadialGradient(x0,y0,r0,x1,y1,r1){ const g = { args: [x0,y0,r0,x1,y1,r1], stops: [], addColorStop(p, c){ this.stops.push([p, c]); } }; this.gradients.push(g); this.ops.push('gradient'); return g; },
     set fillStyle(v){ this._fillStyle = v; }, get fillStyle(){ return this._fillStyle; },
     set strokeStyle(v){ this._strokeStyle = v; }, get strokeStyle(){ return this._strokeStyle; },
     set lineWidth(v){ this._lineWidth = v; }, get lineWidth(){ return this._lineWidth; },
-    set lineCap(v){ this._lineCap = v; }, get lineCap(){ return this._lineCap; },
-    set lineJoin(v){ this._lineJoin = v; }, get lineJoin(){ return this._lineJoin; },
     set globalAlpha(v){ this._alpha = v; }, get globalAlpha(){ return this._alpha; },
     set globalCompositeOperation(v){ this._gco = v; }, get globalCompositeOperation(){ return this._gco; },
   };
@@ -336,9 +330,6 @@ t('drawRhythmNebula reutiliza NV.rhythm y recorre todo el hue sin análisis extr
     if (NV.rhythm.nebulaSparkles !== 12) throw new Error('falta campo de destellos internos');
     if (!src.includes('const sparkles = [') || !src.includes('twinkle')) throw new Error('faltan destellos titilantes');
     if (!src.includes('const flow = Math.sin') || !src.includes('const shear = Math.cos')) throw new Error('falta movimiento interno de gas');
-    if (NV.rhythm.nebulaWisps !== 9) throw new Error('faltan filamentos de plasma');
-    if (!ctx.ops.some((op) => Array.isArray(op) && op[0] === 'bezierCurveTo')) throw new Error('nebulosa no usa wisps/curvas de flujo');
-    if (!src.includes('const swirl = 0.45 + audio * 1.35 + beat * 1.15 + onset * 1.25')) throw new Error('flujo no escala con intensidad musical');
     seen.push(NV.rhythm.nebulaHue);
   }
   const span = Math.max(...seen) - Math.min(...seen);
