@@ -86,7 +86,9 @@ function runConfig(label, oldConfig, smoothing) {
     maxBeat = Math.max(maxBeat, b);
     maxBass = Math.max(maxBass, r.bass || 0);
   }
-  const scale = 1 + Math.min(0.35, maxBeat * 2.2);
+  const pulse = Math.min(1, maxBeat * 2.0);
+  const curved = pulse * pulse * (3 - 2 * pulse);
+  const scale = 1 + 0.26 * curved;
   console.log('  [' + label + '] maxBeat=' + maxBeat.toFixed(3) + ' pulsosIcono=' + rising + '/12 maxBass=' + maxBass.toFixed(3) + ' escalaIcono=' + scale.toFixed(3));
   return { maxBeat, rising, scale };
 }
@@ -102,23 +104,28 @@ t('NÚMEROS: con espectro realista la config nueva detecta los 12 kicks con puls
   const oldR = runConfig('ANTES fft256/bin0-excluido/smoothing0.8', true, 0.8);
   const newR = runConfig('AHORA fft512/bin0-incluido/smoothing0.35', false, 0.35);
   if (newR.rising < 8 || newR.maxBeat < 0.2) throw new Error('la config nueva debería detectar (pulsos=' + newR.rising + ' maxBeat=' + newR.maxBeat.toFixed(3) + ')');
-  if (newR.scale < 1.3) throw new Error('escala del icono insuficiente: ' + newR.scale.toFixed(3));
+  if (newR.scale < 1.12) throw new Error('escala del icono insuficiente: ' + newR.scale.toFixed(3));
   if (newR.rising <= oldR.rising) throw new Error('la config nueva no mejora a la vieja (nueva=' + newR.rising + ' vieja=' + oldR.rising + ')');
 });
 
-t('cada kick real con la config nueva alcanza el cap de escala del icono (pulso completo)', () => {
+t('beat de audio real oscila: sube en kicks y baja entre golpes (no queda pegado)', () => {
   const NV = loadNV();
   const r = NV.rhythmFreshState();
   r.state = 'listening'; r.enabled = true;
   const data = smoothed(buildFrames(false), 0.35);
-  let fullPulses = 0, prevScale = 1;
+  let peaks = 0, valleys = 0, prevB = 0, minBetween = 1, maxB = 0;
   for (let f = 0; f < data.length; f++) {
     NV.rhythmAnalyze(r, data[f], f / 60);
-    const scale = 1 + Math.min(0.35, (r.beat || 0) * 2.2);
-    if (scale >= 1.349 && prevScale < 1.349) fullPulses++;
-    prevScale = scale;
+    const b = r.beat || 0;
+    if (b > 0.18 && prevB <= 0.18) peaks++;
+    if (f % 30 > 12 && f % 30 < 25) minBetween = Math.min(minBetween, b);
+    if (f > 60 && b < 0.08) valleys++;
+    maxB = Math.max(maxB, b);
+    prevB = b;
   }
-  if (fullPulses < 8) throw new Error('pulsos completos del icono: ' + fullPulses + '/12');
+  console.log('  [beat envelope] peaks=' + peaks + '/12 maxBeat=' + maxB.toFixed(3) + ' minBetween=' + minBetween.toFixed(3) + ' valleys=' + valleys);
+  if (peaks < 8) throw new Error('pocos picos beat: ' + peaks + '/12');
+  if (minBetween > 0.12 || valleys < 20) throw new Error('beat pegado, no baja: minBetween=' + minBetween.toFixed(3) + ' valleys=' + valleys);
 });
 
 t('rhythmAnalyze incluye el bin 0 en bass/kick (fundamental del bombo)', () => {

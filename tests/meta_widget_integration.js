@@ -51,7 +51,7 @@ function t(desc, fn) {
     // gate: estático sin listening
     if (!game.includes("r.state !== 'listening'")) throw new Error('falta gate de estado listening');
     // pulso de beat convertido a envelope continuo + skew de borde sincronizado
-    if (!game.includes('Math.min(1, beat * 4.2)')) throw new Error('falta targetPulse amplificado');
+    if (!game.includes('Math.min(1, beat * 2.0)')) throw new Error('falta targetPulse amplificado/no saturante');
     if (!game.includes('skewX(')) throw new Error('falta distorsión skew de borde');
     if (!game.includes('pulseEnv') || !game.includes('curvedPulse')) throw new Error('falta envelope/curva del pulso');
     if (!game.includes('pulseEnv * pulseEnv * (3 - 2 * pulseEnv)')) throw new Error('falta smoothstep del pulso');

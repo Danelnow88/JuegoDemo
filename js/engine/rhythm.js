@@ -284,30 +284,30 @@
     // contraste entre golpe y fondo.
     pushHist(hist.bass, state.bass);
     state.peak = Math.max(state.peak * 0.96, state.energy);
-    // Beat: los graves superan la línea de base por el umbral. En música REAL
-    // el bombo sube la banda de graves ~8-15% (la banda siempre trae contenido
-    // melódico, no silencio como en los synthetic tests), por eso el factor
-    // relativo es 1.12 (antes 1.35, tuneado con espectros sintéticos donde la
-    // banda de graves estaba vacía y el golpe multiplicaba x4).
+    // Beat: envelope con decay por frame. Antes el beat podía quedar "pegado"
+    // porque el branch de flujo hacía Math.max(state.beat, kick) y lastBeatAt se
+    // refrescaba con eventos frecuentes, evitando el decay. Ahora calculamos un
+    // target instantáneo y publicamos max(beat*decay, target): sube con golpes y
+    // baja aunque haya actividad musical moderada entre ellos.
     const bassBase = Math.max(0.001, pct(hist.bass, 0.55));
     const thr = Math.max(0.02, bassBase * state.thresholdRel);
+    let beatTarget = 0;
     if (state.bass > thr && state.bass > 0.02) {
-      state.beat = Math.max(state.kick, Math.min(1, state.bass / (Math.max(0.05, bassBase) * 1.8)));
+      const rel = state.bass / Math.max(0.05, bassBase);
+      beatTarget = Math.max(beatTarget, Math.min(1, Math.max(0, (rel - state.thresholdRel) / 0.45)));
       state.lastBeatAt = nowSec || 0;
-    } else if (freshKick > 0.05 || freshOnset > 0.1) {
+    }
+    if (freshKick > 0.05 || freshOnset > 0.1) {
       // Evento de flujo espectral confirmado (peak-pick local + umbral robusto
       // + refractario): aunque el salto de graves no supere la línea base P55
       // (banda cargada de contenido melódico), el ataque sí es un golpe. Sin
       // esta vía beat quedaba en 0 con audio real aunque kick/onset se
-      // detectaran correctamente. Se usa el ENVELOPE de kick (decae 0.66/frame)
-      // con tope 0.65: beat sigue variando entre golpes (el alpha del render
-      // respira en música densa) y el icono alcanza su cap de escala igual
-      // (0.65 * gain 2.2 > cap 0.35).
-      state.beat = Math.max(state.beat, Math.min(0.65, state.kick));
+      // detectaran correctamente. No arrastramos state.beat anterior: eso era
+      // lo que lo dejaba fijo al máximo.
+      beatTarget = Math.max(beatTarget, Math.min(0.85, Math.max(state.kick, freshKick, freshOnset * 0.75)));
       state.lastBeatAt = nowSec || 0;
-    } else if ((nowSec || 0) - state.lastBeatAt > 0.25) {
-      state.beat = Math.max(0, state.beat - 0.06);
     }
+    state.beat = Math.max((state.beat || 0) * 0.78, beatTarget);
     if (freshOnset > 0.35 || freshKick > 0.45 || freshSnare > 0.45) {
       if ((nowSec || 0) - state.lastOnsetAt > 0.16) {
         state.lastOnsetAt = nowSec || 0;
