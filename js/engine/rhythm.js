@@ -458,6 +458,59 @@
     return Math.min(0.26, 0.055 + hit * 0.18);
   };
 
+  // Nebulosa decorativa de fondo: reutiliza el mismo estado NV.rhythm ya
+  // calculado por rhythmTick (sin capturas/análisis extra). Va debajo del
+  // starfield y de toda la jugabilidad, con alfa bajo y movimiento continuo.
+  NV.drawRhythmNebula = function (ctx, w, h, frame) {
+    const r = NV.rhythm;
+    if (!r || !r.enabled || r.state !== 'listening') return;
+    const cap = r.intensityCap || 0.55;
+    const energy = Math.min(cap, Math.max(0, r.energy || 0));
+    const beat = Math.min(cap, Math.max(0, r.beat || 0));
+    const onset = Math.min(cap, Math.max(0, r.onset || 0));
+    const bass = Math.min(cap, Math.max(0, r.bass || 0));
+    const mids = Math.min(cap, Math.max(0, r.mids || 0));
+    const highs = Math.min(cap, Math.max(0, r.highs || 0));
+    const audio = Math.min(1, energy / cap);
+    if (audio <= 0.015) return;
+
+    // Deriva lineal en 360°: garantiza recorrido uniforme por toda la rueda de
+    // color. La música modula fase/offset, pero no comprime la paleta a una
+    // franja. `forceHue` sigue sirviendo para diagnóstico visual directo.
+    let hue = (frame || 0) * 0.18 + (r.hue || 0) * 0.25 + (bass - highs) * 48 + mids * 22 + onset * 70;
+    if (r.forceHue != null) hue = r.forceHue;
+    hue = wrapHue(hue);
+    r.nebulaHue = Math.round(hue);
+
+    const alpha = Math.min(0.13, 0.018 + audio * 0.07 + beat * 0.04 + onset * 0.035);
+    r.nebulaAlpha = alpha;
+    const t = (frame || 0) * 0.004;
+    const maxDim = Math.max(w, h);
+    const blobs = [
+      { ox: 0.50, oy: 0.48, sx: 0.16, sy: 0.12, ph: 0.0,  hue: 0,   rad: 0.72, a: 1.00 },
+      { ox: 0.24, oy: 0.62, sx: 0.10, sy: 0.10, ph: 2.1,  hue: 82,  rad: 0.48, a: 0.55 },
+      { ox: 0.76, oy: 0.34, sx: 0.11, sy: 0.09, ph: 4.15, hue: 164, rad: 0.52, a: 0.48 },
+    ];
+
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+    for (let i = 0; i < blobs.length; i++) {
+      const b = blobs[i];
+      const speed = 0.55 + i * 0.17;
+      const cx = w * (b.ox + Math.sin(t * speed + b.ph) * (b.sx + highs * 0.025));
+      const cy = h * (b.oy + Math.cos(t * (speed * 0.83) + b.ph) * (b.sy + bass * 0.025));
+      const rad = maxDim * (b.rad + energy * 0.14 + beat * 0.08);
+      const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, rad);
+      const ha = hue + b.hue;
+      g.addColorStop(0, hsla(ha, 70 + audio * 12, 58 + audio * 8, alpha * b.a));
+      g.addColorStop(0.45, hsla(ha + 42 + onset * 28, 66, 48, alpha * b.a * 0.46));
+      g.addColorStop(1, 'rgba(1,3,13,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, w, h);
+    }
+    ctx.restore();
+  };
+
   // Capa decorativa de fondo. Debe llamarse después del fondo/starfield y antes de
   // entidades/jugabilidad. Usa alfa bajo y límites duros para no competir con HUD/combate.
   NV.drawRhythmLayer = function (ctx, w, h, frame) {

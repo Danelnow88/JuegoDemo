@@ -309,20 +309,51 @@ t('drawRhythmLayer dibuja solo fondo sutil con alfa acotado', () => {
   if (ctx._lineWidth > 6) throw new Error('borde demasiado grueso: ' + ctx._lineWidth);
 });
 
+t('drawRhythmNebula reutiliza NV.rhythm y recorre todo el hue sin análisis extra', () => {
+  const src = fs.readFileSync('js/engine/rhythm.js', 'utf8');
+  if (!src.includes('NV.drawRhythmNebula = function')) throw new Error('falta drawRhythmNebula');
+  if (!src.includes('const r = NV.rhythm')) throw new Error('no reutiliza NV.rhythm');
+  if (!src.includes('(frame || 0) * 0.18')) throw new Error('falta deriva uniforme de hue por frame');
+  if (!src.includes('r.nebulaHue')) throw new Error('no expone nebulaHue diagnóstico');
+  const NV = loadNV();
+  Object.assign(NV.rhythm, { enabled: true, state: 'listening', energy: 0.5, beat: 0.2, onset: 0.1, bass: 0.2, mids: 0.4, highs: 0.7, intensityCap: 0.55, hue: 120 });
+  const seen = [];
+  for (const frame of [0, 500, 1000, 1500, 2000]) {
+    const ctx = mkCtx();
+    NV.drawRhythmNebula(ctx, 900, 520, frame);
+    if (ctx.gradients.length < 3) throw new Error('nebulosa demasiado pobre: ' + ctx.gradients.length);
+    seen.push(NV.rhythm.nebulaHue);
+  }
+  const span = Math.max(...seen) - Math.min(...seen);
+  if (span < 250) throw new Error('hue no recorre suficiente espectro: ' + seen.join(','));
+});
+
+t('drawRhythmNebula es decorativa y no dibuja sin listening', () => {
+  const NV = loadNV();
+  const ctx = mkCtx();
+  NV.rhythm.enabled = true;
+  NV.rhythm.state = 'off';
+  NV.drawRhythmNebula(ctx, 900, 520, 0);
+  if (ctx.ops.length) throw new Error('nebulosa dibujó estando off');
+});
+
 t('game.js usa fondo galaxia mas oscuro para contraste sin aclarar combate', () => {
   const g = fs.readFileSync('js/game.js', 'utf8');
   if (!g.includes("ctx.fillStyle = '#01030d'")) throw new Error('fondo galaxia no aplicado');
   const bg = g.indexOf("ctx.fillStyle = '#01030d'");
+  const nebula = g.indexOf('NV.drawRhythmNebula(ctx, W, H, frame)', bg);
   const star = g.indexOf('NV.drawStarfield(ctx, W, H, frame, player.x, player.y, NV.rhythm)', bg);
-  if (!(star > bg)) throw new Error('fondo no precede starfield');
+  if (!(nebula > bg && star > nebula)) throw new Error('fondo/nebulosa/starfield no respetan orden');
 });
 
 t('game.js integra drawRhythmLayer después del starfield y antes de gameplay/HUD', () => {
   const g = fs.readFileSync('js/game.js', 'utf8');
+  const nebula = g.indexOf('NV.drawRhythmNebula(ctx, W, H, frame)');
   const star = g.indexOf('NV.drawStarfield(ctx, W, H, frame, player.x, player.y, NV.rhythm)');
   const rhythm = g.indexOf('NV.drawRhythmLayer(ctx, W, H, frame)');
   const grid = g.indexOf('const gridAlpha', rhythm);
   const special = g.indexOf('if (specialVFX)', rhythm);
+  if (!(nebula >= 0 && star > nebula)) throw new Error('nebulosa debe ir debajo del starfield');
   if (!(star >= 0 && rhythm > star)) throw new Error('no va después del starfield');
   if (!(grid > rhythm && special > rhythm)) throw new Error('no queda antes de capas de gameplay');
 });
