@@ -495,15 +495,25 @@
       { ox: 0.82, oy: 0.58, sx: 0.07, sy: 0.06, ph: 2.6,  hue: 286, rad: 0.38, a: 0.22, scx: 1.05, scy: 0.64, rot: 0.92 },
       { ox: 0.16, oy: 0.36, sx: 0.06, sy: 0.05, ph: 6.1,  hue: 318, rad: 0.34, a: 0.20, scx: 1.42, scy: 0.66, rot: -1.05 },
     ];
+    const sparkles = [
+      { x: 0.34, y: 0.42, ph: 0.2, s: 0.8, a: 0.62 }, { x: 0.48, y: 0.36, ph: 1.1, s: 0.45, a: 0.46 },
+      { x: 0.58, y: 0.50, ph: 2.7, s: 0.65, a: 0.54 }, { x: 0.68, y: 0.31, ph: 4.4, s: 0.38, a: 0.42 },
+      { x: 0.27, y: 0.64, ph: 3.8, s: 0.50, a: 0.48 }, { x: 0.43, y: 0.72, ph: 5.6, s: 0.32, a: 0.36 },
+      { x: 0.74, y: 0.58, ph: 0.9, s: 0.55, a: 0.50 }, { x: 0.18, y: 0.38, ph: 2.0, s: 0.28, a: 0.34 },
+      { x: 0.52, y: 0.23, ph: 3.2, s: 0.42, a: 0.40 }, { x: 0.61, y: 0.69, ph: 4.9, s: 0.35, a: 0.38 },
+      { x: 0.39, y: 0.54, ph: 6.0, s: 0.24, a: 0.32 }, { x: 0.80, y: 0.45, ph: 1.8, s: 0.30, a: 0.34 },
+    ];
 
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
     for (let i = 0; i < blobs.length; i++) {
       const b = blobs[i];
       const speed = 0.55 + i * 0.17;
-      const cx = w * (b.ox + Math.sin(t * speed + b.ph) * (b.sx + highs * 0.025));
-      const cy = h * (b.oy + Math.cos(t * (speed * 0.83) + b.ph) * (b.sy + bass * 0.025));
-      const rad = maxDim * (b.rad + energy * 0.14 + beat * 0.08);
+      const flow = Math.sin(t * (1.18 + i * 0.09) + b.ph);
+      const shear = Math.cos(t * (0.92 + i * 0.07) + b.ph * 1.7);
+      const cx = w * (b.ox + Math.sin(t * speed + b.ph) * (b.sx + highs * 0.025) + flow * 0.012 * audio);
+      const cy = h * (b.oy + Math.cos(t * (speed * 0.83) + b.ph) * (b.sy + bass * 0.025) + shear * 0.010 * audio);
+      const rad = maxDim * (b.rad + energy * 0.14 + beat * 0.08 + flow * 0.025);
       const g = ctx.createRadialGradient(0, 0, rad * 0.02, 0, 0, rad);
       const ha = hue + b.hue;
       // Fade largo con muchas paradas: evita borde circular marcado y mezcla
@@ -517,10 +527,27 @@
       ctx.fillStyle = g;
       ctx.save();
       ctx.translate(cx, cy);
-      ctx.rotate(b.rot + Math.sin(t * 0.33 + b.ph) * 0.08);
-      ctx.scale(b.scx + bass * 0.16, b.scy + highs * 0.12);
+      ctx.rotate(b.rot + Math.sin(t * 0.33 + b.ph) * 0.08 + shear * 0.035 * audio);
+      ctx.scale(b.scx + bass * 0.16 + flow * 0.08, b.scy + highs * 0.12 - flow * 0.045);
       ctx.fillRect(-rad, -rad, rad * 2, rad * 2);
       ctx.restore();
+    }
+    r.nebulaSparkles = sparkles.length;
+    for (let i = 0; i < sparkles.length; i++) {
+      const s = sparkles[i];
+      const driftX = Math.sin(t * (0.75 + i * 0.03) + s.ph) * (10 + highs * 14);
+      const driftY = Math.cos(t * (0.62 + i * 0.04) + s.ph) * (7 + bass * 12);
+      const x = w * s.x + driftX;
+      const y = h * s.y + driftY;
+      const twinkle = 0.35 + 0.65 * (0.5 + 0.5 * Math.sin((frame || 0) * (0.035 + s.s * 0.012) + s.ph));
+      const sr = 1.3 + s.s * 2.4 + onset * 1.4;
+      const sa = Math.min(0.48, alpha * s.a * twinkle + beat * 0.045);
+      const sg = ctx.createRadialGradient(x, y, 0, x, y, sr * 5.5);
+      sg.addColorStop(0, hsla(hue + 35 + i * 17, 86, 82, sa));
+      sg.addColorStop(0.22, hsla(hue + 50 + i * 17, 82, 68, sa * 0.36));
+      sg.addColorStop(1, 'rgba(1,3,13,0)');
+      ctx.fillStyle = sg;
+      ctx.fillRect(x - sr * 5.5, y - sr * 5.5, sr * 11, sr * 11);
     }
     ctx.restore();
   };

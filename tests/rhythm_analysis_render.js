@@ -324,9 +324,12 @@ t('drawRhythmNebula reutiliza NV.rhythm y recorre todo el hue sin análisis extr
   for (const frame of [0, 500, 1000, 1500, 2000]) {
     const ctx = mkCtx();
     NV.drawRhythmNebula(ctx, 900, 520, frame);
-    if (ctx.gradients.length < 7) throw new Error('nebulosa demasiado pobre: ' + ctx.gradients.length);
+    if (ctx.gradients.length < 19) throw new Error('nebulosa demasiado pobre: ' + ctx.gradients.length);
     if (!ctx.ops.some((op) => Array.isArray(op) && op[0] === 'scale' && op[1] !== op[2])) throw new Error('nebulosa no usa capas elípticas orgánicas');
     if (!ctx.gradients[0].stops.some((s) => s[0] === 0.88)) throw new Error('falta fade largo/difuso hacia borde');
+    if (NV.rhythm.nebulaSparkles !== 12) throw new Error('falta campo de destellos internos');
+    if (!src.includes('const sparkles = [') || !src.includes('twinkle')) throw new Error('faltan destellos titilantes');
+    if (!src.includes('const flow = Math.sin') || !src.includes('const shear = Math.cos')) throw new Error('falta movimiento interno de gas');
     seen.push(NV.rhythm.nebulaHue);
   }
   const span = Math.max(...seen) - Math.min(...seen);
