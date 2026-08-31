@@ -399,6 +399,8 @@
         icon._smoothScale = 1;
         icon._smoothSkew = 0;
         icon._pulseEnv = 0;
+        icon._energyEnv = 0;
+        icon._breathPhase = 0;
         icon._smoothT = 0;
         icon.style.color = '';
         icon.style.opacity = '';
@@ -408,25 +410,33 @@
       const hue = (r.hue == null) ? 200 : r.hue;
       const beat = r.beat || 0;
       const energy = Math.max(0, Math.min(1, r.energy || 0));
-      // Pulso amplificado del beat, suavizado por JS (no CSS transition): el
-      // análisis actualiza por frame y el valor crudo de beat puede saltar
-      // fuerte. Primero lo convertimos en un envelope continuo con ataque
-      // moderado y release más largo; después aplicamos una curva smoothstep.
-      // Resultado: el ícono sigue reaccionando al golpe, pero el tamaño respira
-      // como una curva fluida en vez de saltar entre targets crudos.
+      // Movimiento del ícono: beat + respiración continua por energía. El beat
+      // da golpes notorios, pero mientras haya audio real (energy > piso) el
+      // ícono nunca queda 100% quieto: respira suavemente proporcional al nivel.
       const targetPulse = Math.min(1, beat * 1.8);
       const nowMs = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
       const prevMs = icon._smoothT || nowMs;
       const dtMs = Math.max(0, Math.min(80, nowMs - prevMs));
       icon._smoothT = nowMs;
+      const dtSec = dtMs / 1000;
       const curPulse = icon._pulseEnv || 0;
       const pulseTau = targetPulse > curPulse ? 45 : 300;
       const pulseA = 1 - Math.exp(-dtMs / pulseTau);
       const pulseEnv = curPulse + (targetPulse - curPulse) * pulseA;
       icon._pulseEnv = pulseEnv;
       const curvedPulse = pulseEnv * pulseEnv * (3 - 2 * pulseEnv);
-      const targetScale = 1 + 0.42 * curvedPulse;
-      const targetSkew = 3.2 * curvedPulse;
+      const curEnergy = icon._energyEnv || 0;
+      const energyTau = energy > curEnergy ? 180 : 520;
+      const energyA = 1 - Math.exp(-dtMs / energyTau);
+      const energyEnv = curEnergy + (energy - curEnergy) * energyA;
+      icon._energyEnv = energyEnv;
+      const hasAudio = energyEnv > 0.025;
+      const phaseSpeed = (1.35 + energyEnv * 2.4 + curvedPulse * 1.2) * Math.PI * 2;
+      icon._breathPhase = (icon._breathPhase || 0) + (hasAudio ? dtSec * phaseSpeed : 0);
+      const breath = hasAudio ? (0.5 + 0.5 * Math.sin(icon._breathPhase)) : 0;
+      const breathAmp = hasAudio ? (0.055 + energyEnv * 0.095) : 0;
+      const targetScale = Math.min(1.45, 1 + breathAmp * breath + 0.34 * curvedPulse);
+      const targetSkew = 3.0 * curvedPulse + (hasAudio ? Math.sin(icon._breathPhase * 1.35) * energyEnv * 0.85 : 0);
       const curScale = (icon._smoothScale == null) ? 1 : icon._smoothScale;
       const curSkew = (icon._smoothSkew == null) ? 0 : icon._smoothSkew;
       const scaleTau = targetScale > curScale ? 35 : 240;
