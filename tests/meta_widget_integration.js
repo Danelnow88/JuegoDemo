@@ -51,12 +51,14 @@ function t(desc, fn) {
     // gate: estático sin listening
     if (!game.includes("r.state !== 'listening'")) throw new Error('falta gate de estado listening');
     // pulso de beat convertido a envelope continuo + skew de borde sincronizado
-    if (!game.includes('Math.min(1, beat * 2.0)')) throw new Error('falta targetPulse amplificado/no saturante');
+    if (!game.includes('Math.min(1, beat * 1.8)')) throw new Error('falta targetPulse amplificado/no saturante');
     if (!game.includes('skewX(')) throw new Error('falta distorsión skew de borde');
     if (!game.includes('pulseEnv') || !game.includes('curvedPulse')) throw new Error('falta envelope/curva del pulso');
     if (!game.includes('pulseEnv * pulseEnv * (3 - 2 * pulseEnv)')) throw new Error('falta smoothstep del pulso');
     if (!game.includes('targetScale') || !game.includes('smoothScale')) throw new Error('falta suavizado de escala');
     if (!game.includes('pulseTau') || !game.includes('scaleTau') || !game.includes('skewTau')) throw new Error('falta attack/release temporal');
+    if (!game.includes('targetScale = 1 + 0.42')) throw new Error('falta rango visual notorio de escala');
+    if (!game.includes('targetSkew = 3.2')) throw new Error('falta rango visual notorio de skew');
     if (!game.includes('Math.exp(-dtMs / pulseTau)')) throw new Error('falta lerp exponencial del envelope por dt');
     if (!game.includes('Math.exp(-dtMs / scaleTau)')) throw new Error('falta lerp exponencial de escala por dt');
     if (!game.includes('transform = \'scale(')) throw new Error('falta apply scale');

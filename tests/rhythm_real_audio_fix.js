@@ -81,14 +81,14 @@ function runConfig(label, oldConfig, smoothing) {
   for (let f = 0; f < data.length; f++) {
     NV.rhythmAnalyze(r, data[f], f / 60);
     const b = r.beat || 0;
-    if (b > 0.15 && prevB <= 0.15) rising++; // beat*2.2>=0.33 ~ cap => pulso pleno del icono
+    if (b > 0.15 && prevB <= 0.15) rising++; // umbral visual: ya genera pulso perceptible del icono
     prevB = b;
     maxBeat = Math.max(maxBeat, b);
     maxBass = Math.max(maxBass, r.bass || 0);
   }
-  const pulse = Math.min(1, maxBeat * 2.0);
+  const pulse = Math.min(1, maxBeat * 1.8);
   const curved = pulse * pulse * (3 - 2 * pulse);
-  const scale = 1 + 0.26 * curved;
+  const scale = 1 + 0.42 * curved;
   console.log('  [' + label + '] maxBeat=' + maxBeat.toFixed(3) + ' pulsosIcono=' + rising + '/12 maxBass=' + maxBass.toFixed(3) + ' escalaIcono=' + scale.toFixed(3));
   return { maxBeat, rising, scale };
 }

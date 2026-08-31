@@ -414,23 +414,23 @@
       // moderado y release más largo; después aplicamos una curva smoothstep.
       // Resultado: el ícono sigue reaccionando al golpe, pero el tamaño respira
       // como una curva fluida en vez de saltar entre targets crudos.
-      const targetPulse = Math.min(1, beat * 2.0);
+      const targetPulse = Math.min(1, beat * 1.8);
       const nowMs = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
       const prevMs = icon._smoothT || nowMs;
       const dtMs = Math.max(0, Math.min(80, nowMs - prevMs));
       icon._smoothT = nowMs;
       const curPulse = icon._pulseEnv || 0;
-      const pulseTau = targetPulse > curPulse ? 125 : 360;
+      const pulseTau = targetPulse > curPulse ? 45 : 300;
       const pulseA = 1 - Math.exp(-dtMs / pulseTau);
       const pulseEnv = curPulse + (targetPulse - curPulse) * pulseA;
       icon._pulseEnv = pulseEnv;
       const curvedPulse = pulseEnv * pulseEnv * (3 - 2 * pulseEnv);
-      const targetScale = 1 + 0.26 * curvedPulse;
-      const targetSkew = 2.2 * curvedPulse;
+      const targetScale = 1 + 0.42 * curvedPulse;
+      const targetSkew = 3.2 * curvedPulse;
       const curScale = (icon._smoothScale == null) ? 1 : icon._smoothScale;
       const curSkew = (icon._smoothSkew == null) ? 0 : icon._smoothSkew;
-      const scaleTau = targetScale > curScale ? 90 : 260;
-      const skewTau = targetSkew > curSkew ? 80 : 220;
+      const scaleTau = targetScale > curScale ? 35 : 240;
+      const skewTau = targetSkew > curSkew ? 35 : 200;
       const scaleA = 1 - Math.exp(-dtMs / scaleTau);
       const skewA = 1 - Math.exp(-dtMs / skewTau);
       const smoothScale = curScale + (targetScale - curScale) * scaleA;
