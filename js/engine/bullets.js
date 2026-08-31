@@ -26,6 +26,7 @@
         const hitRadius = playerRadius + (b.radius || 5);
         if (d < hitRadius) {
           const contactDebug = !!(st.contactDebug || NV._contactDebug);
+          const hpDebug = !!(st.hpDebug || NV._hpDebug);
           if (contactDebug && !b._contactDbgId) b._contactDbgId = ++NV._contactDbgBulletSeq;
           if (player.bulwark > 0) {
             // Muralla: refleja la bala enemiga hacia el enemigo
@@ -49,9 +50,11 @@
                 });
               }
               addFloatText(player.x, player.y - 20, 'ESQUIVA', '#8dfaff');
+              if (hpDebug) console.log('[hp-debug] NO-DAMAGE', { frame: st.frame, cause: 'enemy-bullet:dodge', hp: player.hp, id: b._contactDbgId || bullets.indexOf(b) });
             } else {
               const damage = hit.dmg;
               player.hp -= damage;
+              if (hpDebug) console.log('[hp-debug] HP DOWN', { frame: st.frame, cause: 'enemy-bullet', dmg: damage, crit: !!hit.crit, hpBefore, hpAfter: player.hp, id: b._contactDbgId || bullets.indexOf(b), bullet: { x: b ? Number(b.x.toFixed(1)) : 0, y: b ? Number(b.y.toFixed(1)) : 0 } });
               if (contactDebug) {
                 console.log('[contact-debug] ENEMY BULLET HIT', {
                   frame: st.frame, id: b._contactDbgId, damageBase: b.damage, damage, crit: !!hit.crit,

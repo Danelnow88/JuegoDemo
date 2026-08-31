@@ -111,6 +111,7 @@
       st.spawnExplosion(e.x, e.y, 26, '#ff5f9b', 0.9);
       if (st.computePlayerHit && Math.hypot(e.x - st.player.x, e.y - st.player.y) < 90) {
         st.computePlayerHit(20);
+        if (st.hpDebug || NV._hpDebug) console.log('[hp-debug] INFO explosion-no-damage', { frame: st.frame, cause: 'mine', dmg: 20, reason: 'computePlayerHit result discarded in killEnemy -> no actual hp change' });
       }
     }
     // KAMIKAZE: siempre detona al morir (por disparo o por autodetonacion).
@@ -118,6 +119,7 @@
       st.spawnExplosion(e.x, e.y, 34, '#ff5f3d', 1.1);
       if (st.computePlayerHit && Math.hypot(e.x - st.player.x, e.y - st.player.y) < 95) {
         st.computePlayerHit(24);
+        if (st.hpDebug || NV._hpDebug) console.log('[hp-debug] INFO explosion-no-damage', { frame: st.frame, cause: 'kamikaze', dmg: 24, reason: 'computePlayerHit result discarded in killEnemy -> no actual hp change' });
       }
     }
     if (st.sfx.enemyDeath) st.sfx.enemyDeath(e.isElite ? 'elite' : 'normal', { x: e.x, worldWidth: st.W || 900 });
@@ -157,6 +159,7 @@
     let gameOver = false;
     const contactDebug = !!(st.contactDebug || NV._contactDebug);
     const contactDebugNow = contactDebug ? (typeof performance !== 'undefined' ? performance.now() : Date.now()) : 0;
+    const hpDebug = !!(st.hpDebug || NV._hpDebug);
 
     for (const e of enemies) {
       if (e.dead) continue;
@@ -305,9 +308,11 @@
           }
           e.atkFlash = 0.25; // gesto corto: destaca QUÉ enemigo intentó golpear
           addFloatText(st.player.x, st.player.y - 20, 'ESQUIVA', '#8dfaff');
+          if (hpDebug) console.log('[hp-debug] NO-DAMAGE', { frame: st.frame, cause: 'contact:' + e.behavior + ':dodge', hp: st.player.hp, id: e._contactDbgId || enemies.indexOf(e) });
         } else {
           const damage = hit.dmg;
           st.player.hp -= damage;
+          if (hpDebug) console.log('[hp-debug] HP DOWN', { frame: st.frame, cause: 'contact:' + e.behavior + (e.isElite ? ':elite' : ''), dmg: damage, crit: !!hit.crit, hpBefore, hpAfter: st.player.hp, id: e._contactDbgId || enemies.indexOf(e) });
           if (st.sfx && st.sfx.playerHit && st.player.hp > 0) st.sfx.playerHit();
           st.player.invuln = 0.5;
           const contactAngle = d > 0 ? Math.atan2(e.y - st.player.y, e.x - st.player.x) : e.angle || 0;
