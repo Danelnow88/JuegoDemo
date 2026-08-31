@@ -50,12 +50,15 @@ function t(desc, fn) {
     if (!game.includes('function updateRhythmWidgetIcon')) throw new Error('falta updateRhythmWidgetIcon');
     // gate: estático sin listening
     if (!game.includes("r.state !== 'listening'")) throw new Error('falta gate de estado listening');
-    // pulso de beat amplificado (cap 0.35) + skew de borde sincronizado
-    if (!game.includes('Math.min(0.35, beat * 2.2)')) throw new Error('falta escale ampliado (cap 0.35)');
+    // pulso de beat convertido a envelope continuo + skew de borde sincronizado
+    if (!game.includes('Math.min(1, beat * 4.2)')) throw new Error('falta targetPulse amplificado');
     if (!game.includes('skewX(')) throw new Error('falta distorsión skew de borde');
+    if (!game.includes('pulseEnv') || !game.includes('curvedPulse')) throw new Error('falta envelope/curva del pulso');
+    if (!game.includes('pulseEnv * pulseEnv * (3 - 2 * pulseEnv)')) throw new Error('falta smoothstep del pulso');
     if (!game.includes('targetScale') || !game.includes('smoothScale')) throw new Error('falta suavizado de escala');
-    if (!game.includes('scaleTau') || !game.includes('skewTau')) throw new Error('falta attack/release temporal');
-    if (!game.includes('Math.exp(-dtMs / scaleTau)')) throw new Error('falta lerp exponencial por dt');
+    if (!game.includes('pulseTau') || !game.includes('scaleTau') || !game.includes('skewTau')) throw new Error('falta attack/release temporal');
+    if (!game.includes('Math.exp(-dtMs / pulseTau)')) throw new Error('falta lerp exponencial del envelope por dt');
+    if (!game.includes('Math.exp(-dtMs / scaleTau)')) throw new Error('falta lerp exponencial de escala por dt');
     if (!game.includes('transform = \'scale(')) throw new Error('falta apply scale');
     // color por hue
     if (!game.includes("icon.style.color = 'hsl(")) throw new Error('falta color por hue');
@@ -81,6 +84,7 @@ function t(desc, fn) {
   t('game.js resetea estado interno del suavizado cuando no hay captura', () => {
     if (!game.includes('icon._smoothScale = 1')) throw new Error('no resetea smoothScale');
     if (!game.includes('icon._smoothSkew = 0')) throw new Error('no resetea smoothSkew');
+    if (!game.includes('icon._pulseEnv = 0')) throw new Error('no resetea pulseEnv');
     if (!game.includes('icon._smoothT = 0')) throw new Error('no resetea smoothT');
   });
 
