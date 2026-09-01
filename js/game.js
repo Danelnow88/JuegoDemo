@@ -82,7 +82,7 @@
   const WEAPONS = NV.WEAPONS;
 
   const RARITY_COLORS = NV.RARITY_COLORS;
-  let currentWeapon = WEAPONS[0], fireTimer = 0;
+  let currentWeapon = NV.starterWeapon(), fireTimer = 0;
   let killCombo = { count: 0, timer: 0 }; // combo de kills (E1)
   let heartbeatTimer = 0, heartbeatWasCritical = false;
   let countdownLastSecond = 0;
@@ -283,7 +283,7 @@
     // === CAMBIO DE ARMA CON LA RUEDA DEL MOUSE (pistola base + inventario, circular) ===
     function cycleWeapon(dir) {
       if (state !== 'playing' || paused) return;
-      const list = [WEAPONS[0]].concat(inventory);
+      const list = [NV.starterWeapon()].concat(inventory);
       // Normalizar currentWeapon a un índice válido de `list`: si quedó desreferenciado
       // (p.ej. tras fusionar o recoger el arma equipada) cae a la pistola base (list[0]),
       // para que indexOf nunca falle y el ciclo sea estable. (Hipótesis A del bug)
@@ -563,7 +563,7 @@
     enemies = []; bullets = []; particles = []; pickups = [];
     floatTexts = []; trails = []; weaponPickups = []; bossChests = [];
     shockwaves = []; drones = []; meteors = [];
-    inventory = []; currentWeapon = WEAPONS[0]; consumableItems = [];
+    inventory = []; currentWeapon = NV.starterWeapon(); consumableItems = [];
     consumSel = 0;
     weaponLevels = {}; weaponKills = {}; weaponFus = {}; fireTimer = 0;
         boss = null; shake = 0; hitstop = 0; flashAlpha = 0;
@@ -768,7 +768,7 @@
         // Click = equipar / soltar
         slot.addEventListener('click', () => {
           if (weapon === currentWeapon) {
-            currentWeapon = WEAPONS[0];
+            currentWeapon = NV.starterWeapon();
             addFloatText(W/2, H/2, 'ARMA EQUIPADA: PISTOLA', '#fff');
           } else {
             currentWeapon = weapon;
@@ -789,7 +789,7 @@
           if (dom.shopShards) dom.shopShards.textContent = shards;
           inventory.splice(i, 1);
           if (currentWeapon === weapon) {
-            currentWeapon = WEAPONS[0];
+            currentWeapon = NV.starterWeapon();
           }
           addFloatText(W / 2, H / 2, '+' + val + ' 💎', '#ffcf76');
           updateHUD();

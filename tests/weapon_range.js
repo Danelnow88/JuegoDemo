@@ -18,7 +18,8 @@ t('helpers de armas: lookup, starter y validación WEAPONS↔BULLET_DEFS', () =>
   if (typeof NV.validateWeaponData !== 'function') throw new Error('validateWeaponData ausente');
   if (NV.weaponById('pistol') !== NV.WEAPONS[0]) throw new Error('lookup pistol incorrecto');
   if (NV.weaponById('nope') !== null) throw new Error('lookup desconocido no devuelve null');
-  if (NV.starterWeapon() !== NV.WEAPONS[0]) throw new Error('starter no preserva arma inicial actual');
+  if (NV.STARTER_WEAPON_ID !== 'pistol') throw new Error('starter id inesperado');
+  if (NV.starterWeapon() !== NV.weaponById(NV.STARTER_WEAPON_ID)) throw new Error('starter no usa id explícito');
   const result = NV.validateWeaponData();
   if (!result.ok) throw new Error(result.errors.join('; '));
 });

@@ -8,7 +8,7 @@ const sbx = { window: { NV: {} }, console, Math };
 load('js/data/gameData.js', sbx);
 load('js/core/utils.js', sbx);
 const NV = sbx.window.NV;
-const pistol = NV.WEAPONS[0], rifle = NV.WEAPONS[1], smg = NV.WEAPONS[2];
+const pistol = NV.starterWeapon(), rifle = NV.WEAPONS[1], smg = NV.WEAPONS[2];
 const list = [pistol, rifle, smg];
 
 t('rueda abajo (dir +1): avanza en orden y es circular (última -> primera)', () => {

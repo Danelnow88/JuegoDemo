@@ -204,7 +204,7 @@
     var bx = W - pw - 10;
     var by = 10;
     ctx.textAlign = 'left';
-    var pistol = NV.WEAPONS[0];
+    var pistol = NV.starterWeapon ? NV.starterWeapon() : NV.WEAPONS[0];
     var wEntries = [{ weapon: pistol, color: RARITY_COLORS[pistol.rarity], glow: GLOW_BY_RARITY[pistol.rarity] || 0.3, fuse: 0 }].concat(
       inventory.slice(0, 5).map(function (wItem) { return { weapon: wItem, color: RARITY_COLORS[wItem.rarity], glow: GLOW_BY_RARITY[wItem.rarity] || 0.3, fuse: wItem.fuseLevel || 0 }; })
     );

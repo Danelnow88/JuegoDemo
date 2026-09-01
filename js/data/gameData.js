@@ -59,6 +59,7 @@
   };
 
   // === ARMAS (10) ===
+  NV.STARTER_WEAPON_ID = 'pistol';
   NV.WEAPONS = [
     { id: 'pistol', name: 'Pistola', range: 380, damage: 12, speed: 500, fireRate: 30, color: '#fff', rarity: 'common', pro: 'Versátil', con: 'Daño bajo' },
     { id: 'rifle', name: 'Rifle', range: 480, damage: 20, speed: 700, fireRate: 25, color: '#4ade80', rarity: 'uncommon', pro: 'Daño alto', con: 'Cadencia media' },
@@ -97,7 +98,7 @@
   };
 
   NV.starterWeapon = function () {
-    return NV.WEAPONS[0];
+    return NV.weaponById(NV.STARTER_WEAPON_ID) || NV.WEAPONS[0];
   };
 
   NV.validateWeaponData = function () {
