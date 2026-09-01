@@ -144,6 +144,22 @@
       ctx.beginPath(); ctx.arc(0, 0, r + 4, 0, Math.PI * 2); ctx.stroke();
     }
 
+    // Congelante: hint visual de enemigo ralentizado. Brillo azulado + halo exterior
+    // que parpadea sutilmente. 100% visual: no altera datos de gameplay.
+    if (e.slowUntil > 0) {
+      const cold = 0.5 + Math.sin(frame * 0.35) * 0.5; // parpadeo suave
+      ctx.fillStyle = 'rgba(103,232,249,' + (cold * 0.22) + ')';
+      ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#67e8f9';
+      ctx.globalAlpha = cold * 0.6;
+      ctx.lineWidth = 2;
+      ctx.shadowColor = '#67e8f9';
+      ctx.shadowBlur = 12;
+      ctx.beginPath(); ctx.arc(0, 0, r + 4, 0, Math.PI * 2); ctx.stroke();
+      ctx.globalAlpha = 1;
+      ctx.shadowBlur = 0;
+    }
+
     ctx.shadowBlur = 0;
     NV.drawEnemyEyes(ctx, e, player);
 

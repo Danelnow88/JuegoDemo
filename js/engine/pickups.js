@@ -24,6 +24,14 @@
     let shards = 0;
     for (const p of pickups) {
       if (p.dead) continue;
+      if (p.magnetPull) {
+        const dxp = player.x - p.x, dyp = player.y - p.y;
+        const dist = Math.max(1, Math.hypot(dxp, dyp));
+        const speed = Math.min(1400, 520 + dist * 5.5);
+        p.x += (dxp / dist) * speed * dt;
+        p.y += (dyp / dist) * speed * dt;
+        p.magnetLife = Math.max(0, (p.magnetLife || 0) - dt);
+      }
       const d = Math.hypot(p.x - player.x, p.y - player.y);
       if (d < 30) {
         p.dead = true;
@@ -51,6 +59,14 @@
     };
     for (const wp of weaponPickups) {
       if (wp.dead) continue;
+      if (wp.magnetPull) {
+        const dxp = player.x - wp.x, dyp = player.y - wp.y;
+        const dist = Math.max(1, Math.hypot(dxp, dyp));
+        const speed = Math.min(1400, 520 + dist * 5.5);
+        wp.x += (dxp / dist) * speed * dt;
+        wp.y += (dyp / dist) * speed * dt;
+        wp.magnetLife = Math.max(0, (wp.magnetLife || 0) - dt);
+      }
       const d = Math.hypot(wp.x - player.x, wp.y - player.y);
       if (d < 30) {
         if (tryFusion) {
@@ -89,12 +105,16 @@
     }
     return { weaponPickups: weaponPickups.filter((wp) => !wp.dead), currentWeapon };
   };
-// ---- Cofre de jefe: al matar al jefe suelta un cofre que al tocarlo libera 1-3 pickups ----
-  // Consumible imán: acerca todos los shards/armas del campo al jugador (los recoge casi ya).
+  // ---- Cofre de jefe: al matar al jefe suelta un cofre que al tocarlo libera 1-3 pickups ----
+  // Consumible imán: atrae todos los shards/armas del campo al jugador con una transición visible.
   NV.magnetCollect = function (pickups, weaponPickups, player) {
     let n = 0;
-    for (const p of pickups) { if (!p.dead) { p.x = player.x + (Math.random() - 0.5) * 8; p.y = player.y + (Math.random() - 0.5) * 8; n++; } }
-    for (const w of weaponPickups) { if (!w.dead) { w.x = player.x + (Math.random() - 0.5) * 8; w.y = player.y + (Math.random() - 0.5) * 8; n++; } }
+    for (const p of pickups) {
+      if (!p.dead) { p.magnetPull = true; p.magnetLife = 0.8; n++; }
+    }
+    for (const w of weaponPickups) {
+      if (!w.dead) { w.magnetPull = true; w.magnetLife = 0.8; n++; }
+    }
     return n;
   };
   // Abre si el jugador está cerca; suelta shards (pickups) y/o armas (weaponPickups).

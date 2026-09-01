@@ -25,6 +25,7 @@ t('consumeByType: quita el PRIMER ítem del tipo elegido, no el primero de la co
 
 t('tope acumulado de consumibles por tipo: addConsumable bloquea al llegar a 10', () => {
   NV.CONSUMABLE_STACK_CAP = 10;
+  NV.CONSUMABLE_TYPE_SLOT_CAP = 6;
   const items = Array.from({ length: 10 }, () => ({ type: 'potion', name: 'Poción' }));
   if (NV.consumableCountByType(items, 'potion') !== 10) throw new Error('count potion');
   if (NV.canAddConsumable(items, 'potion', 10)) throw new Error('debería bloquear potion llena');
@@ -32,6 +33,20 @@ t('tope acumulado de consumibles por tipo: addConsumable bloquea al llegar a 10'
   if (!NV.addConsumable(items, { type: 'shield', name: 'Escudo' }, 10)) throw new Error('bloqueó otro tipo');
   NV.consumeByType(items, 'potion');
   if (!NV.addConsumable(items, { type: 'potion', name: 'Poción' }, 10)) throw new Error('no permitió tras consumir');
+});
+
+t('tope de slots por tipo: bloquea 7mo tipo pero permite stackear tipo existente', () => {
+  NV.CONSUMABLE_STACK_CAP = 10;
+  NV.CONSUMABLE_TYPE_SLOT_CAP = 6;
+  const types = ['potion', 'overdrive', 'shield', 'bomb', 'freeze', 'magnet'];
+  const items = types.map((type) => ({ type, name: type }));
+  if (NV.consumableTypeCount(items) !== 6) throw new Error('tipos=' + NV.consumableTypeCount(items));
+  if (NV.canAddConsumable(items, 'bounty', 10, 6)) throw new Error('debería bloquear 7mo tipo');
+  if (NV.addConsumable(items, { type: 'bounty', name: 'Recompensa' }, 10, 6)) throw new Error('agregó 7mo tipo');
+  if (!NV.addConsumable(items, { type: 'potion', name: 'Poción' }, 10, 6)) throw new Error('bloqueó stack de tipo existente');
+  for (let i = 0; i < 2; i++) NV.consumeByType(items, 'potion');
+  if (NV.consumableTypeCount(items) !== 5) throw new Error('al vaciar tipo deberían quedar 5');
+  if (!NV.addConsumable(items, { type: 'bounty', name: 'Recompensa' }, 10, 6)) throw new Error('no permitió tipo nuevo tras liberar slot');
 });
 
 t('cycleIndex: cicla selección en ambos sentidos sin salirse', () => {

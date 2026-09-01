@@ -53,13 +53,21 @@
     return (items || []).filter((it) => it && it.type === type).length;
   };
 
-  NV.canAddConsumable = function (items, type, cap) {
-    const max = cap === undefined ? NV.CONSUMABLE_STACK_CAP : cap;
-    return NV.consumableCountByType(items, type) < max;
+  NV.consumableTypeCount = function (items) {
+    return NV.groupConsumables(items).length;
   };
 
-  NV.addConsumable = function (items, item, cap) {
-    if (!items || !item || !item.type || !NV.canAddConsumable(items, item.type, cap)) return false;
+  NV.canAddConsumable = function (items, type, stackCap, typeCap) {
+    const maxStack = stackCap === undefined ? NV.CONSUMABLE_STACK_CAP : stackCap;
+    const maxTypes = typeCap === undefined ? NV.CONSUMABLE_TYPE_SLOT_CAP : typeCap;
+    const currentOfType = NV.consumableCountByType(items, type);
+    if (currentOfType >= maxStack) return false;
+    if (currentOfType === 0 && NV.consumableTypeCount(items) >= maxTypes) return false;
+    return true;
+  };
+
+  NV.addConsumable = function (items, item, stackCap, typeCap) {
+    if (!items || !item || !item.type || !NV.canAddConsumable(items, item.type, stackCap, typeCap)) return false;
     items.push(item);
     return true;
   };

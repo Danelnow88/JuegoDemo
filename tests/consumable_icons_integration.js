@@ -22,7 +22,7 @@ t('HUD usa drawConsumableIcon y no g.icon', () => {
 });
 
 t('consumibles comprados se guardan por type/name sin icon legacy', () => {
-  if (!game.includes('NV.addConsumable(consumableItems, { type: c.key, name: c.name }, CONSUMABLE_STACK_CAP)')) throw new Error('alta conserva campos no esperados');
+  if (!game.includes('NV.addConsumable(consumableItems, { type: c.key, name: c.name }, CONSUMABLE_STACK_CAP, CONSUMABLE_TYPE_SLOT_CAP)')) throw new Error('alta conserva campos no esperados');
   if (utils.includes('icon: it.icon')) throw new Error('groupConsumables conserva icon');
 });
 

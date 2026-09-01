@@ -99,7 +99,7 @@
     if (st.player.bounty > 0) {
       score += e.score; // doble (ya sumamos el base arriba)
       st.pickups.push({ x: e.x, y: e.y, type: 'shard', value: 1, dead: false });
-      st.addFloatText(st.player.x, st.player.y - 20, 'BOUNTY +1💎', '#ffd700');
+      st.addFloatText(e.x, e.y - 20, '+1 💎 BONUS', '#ffd700');
     }
     // Evento DÍA DE PAGO: cada derribo suelta además un shard extra de valor 2.
     if (st.waveEvent === 'payday') {

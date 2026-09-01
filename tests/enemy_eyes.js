@@ -140,6 +140,24 @@ t('drawEnemy con atkFlash dibuja gesto de ataque (lunge + anillo) sin mutar dato
   if (!ctx.strokeStyles.some((s) => s === '#ffffff')) throw new Error('sin outline blanco de atacante');
 });
 
+t('drawEnemy con slowUntil > 0 dibuja halo azul de congelación sin mutar datos', () => {
+  const baseCtx = mkCtx();
+  const e = { x: 0, y: 0, radius: 10, color: '#fff', shape: 'dot', slowUntil: 4 };
+  const pl = { x: 50, y: 0, invuln: 0 };
+  const snapshot = JSON.stringify(e);
+  NV.drawEnemy(baseCtx, e, 3, pl, null);
+  if (JSON.stringify(e) !== snapshot) throw new Error('drawEnemy mutó datos del enemigo');
+  if (!baseCtx.strokeStyles.some((s) => s === '#67e8f9')) throw new Error('sin halo azul de congelación');
+  if (!baseCtx.arcs.some((a) => Math.abs(a.r - 14) < 0.5)) throw new Error('sin anillo de congelación (r+4)');
+});
+
+t('drawEnemy con slowUntil = 0 NO dibuja halo azul (solo activo cuando está ralentizado)', () => {
+  const ctx = mkCtx();
+  const pl = { x: 50, y: 0, invuln: 0 };
+  NV.drawEnemy(ctx, { x: 0, y: 0, radius: 10, color: '#fff', shape: 'dot', slowUntil: 0 }, 3, pl, null);
+  if (ctx.strokeStyles.some((s) => s === '#67e8f9')) throw new Error('halo azul no debería estar activo sin slow');
+});
+
 t('game.js dibuja a los atacantes (atkFlash) en segunda pasada (z-order)', () => {
   const g = fs.readFileSync('js/game.js', 'utf8');
   if (!g.includes('for (const e of enemies) if (!(e.atkFlash > 0)) drawEnemy(e);')) throw new Error('falta primera pasada (no atacantes)');

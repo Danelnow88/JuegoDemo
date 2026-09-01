@@ -18,6 +18,9 @@
   // Tope acumulado por tipo durante la partida. Generoso para permitir preparación,
   // pero evita stacks infinitos que rompen el balance de supervivencia/daño.
   NV.CONSUMABLE_STACK_CAP = 10;
+  // Los slots de consumibles representan tipos distintos equipados/disponibles.
+  // El HUD tiene 6 espacios; no se puede cargar un 7mo tipo simultáneo.
+  NV.CONSUMABLE_TYPE_SLOT_CAP = 6;
   NV.consumableList = function () {
     return NV.CONSUMABLE_ORDER.map((key) => NV.CONSUMABLES[key]).filter(Boolean);
   };

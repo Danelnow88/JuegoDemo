@@ -66,6 +66,7 @@
   const CONSUMABLE_CAP = 3;
   let consumableBought = {};
   const CONSUMABLE_STACK_CAP = NV.CONSUMABLE_STACK_CAP;
+  const CONSUMABLE_TYPE_SLOT_CAP = NV.CONSUMABLE_TYPE_SLOT_CAP;
 
   // Mejoras permanentes comprables con metaShards (afectan a TODOS los personajes).
   // El coste crece con el nivel y tienen un tope máximo (MAX_PERM_LEVEL).
@@ -667,6 +668,7 @@
   function spawnExplosion(x, y, count, color, speedMult) {
     NV.spawnExplosion(particles, MAX_PARTICLES, x, y, count, color, speedMult);
   }
+  function spawnShockwave(x, y, opts) { NV.spawnShockwave(shockwaves, x, y, opts); }
 
 
   function skipShop() {
@@ -685,7 +687,7 @@
     generateOffers();
     renderInventory();
   }
-// === CONSUMIBLES (se usan con la tecla F en partida) ===
+  // === CONSUMIBLES (se usan con la tecla F en partida) ===
   function useConsumable() {
     if (state !== 'playing' || paused || consumableItems.length === 0) return;
     // Usa el TIPO seleccionado (elegido con Q / click en el HUD), no siempre el primero.
@@ -693,7 +695,7 @@
     consumSel = Math.min(consumSel, groups.length - 1);
     const item = NV.consumeByType(consumableItems, groups[consumSel].type);
     if (!item) { consumSel = Math.max(0, consumSel - 1); return; }
-    NV.applyConsumable(item, { player, enemies, boss, pickups, weaponPickups, addFloatText, triggerFlash });
+    NV.applyConsumable(item, { player, enemies, boss, pickups, weaponPickups, addFloatText, triggerFlash, spawnExplosion, spawnShockwave });
     triggerFlash('#7cf8ff');
     sfx.consume(item.type);
     updateHUD();
@@ -873,18 +875,23 @@
 
     NV.consumableList().forEach((c) => {
       const bought = consumableBought[c.key] || 0;
+      const typeCount = NV.consumableTypeCount(consumableItems);
       const stacked = NV.consumableCountByType(consumableItems, c.key);
       const stackFull = stacked >= CONSUMABLE_STACK_CAP;
+      const typeSlotsFull = stacked === 0 && typeCount >= CONSUMABLE_TYPE_SLOT_CAP;
       if (bought >= CONSUMABLE_CAP) return; // tope por visita: la oferta desaparece
       consumables.push({
         consumableType: c.key, name: c.name,
-        desc: c.desc + ' (' + bought + '/' + CONSUMABLE_CAP + ') · Stock ' + stacked + '/' + CONSUMABLE_STACK_CAP,
+        desc: (stacked > 0 ? 'Equipado' : 'Nuevo') + ' · ' + c.desc + ' (' + bought + '/' + CONSUMABLE_CAP + ') · Stock ' + stacked + '/' + CONSUMABLE_STACK_CAP + ' · Tipos ' + typeCount + '/' + CONSUMABLE_TYPE_SLOT_CAP,
         price: c.price,
-        disabled: stackFull,
-        disabledReason: 'Límite ' + CONSUMABLE_STACK_CAP + '/' + CONSUMABLE_STACK_CAP,
+        disabled: stackFull || typeSlotsFull,
+        disabledReason: stackFull ? ('Límite ' + CONSUMABLE_STACK_CAP + '/' + CONSUMABLE_STACK_CAP) : ('Slots ' + CONSUMABLE_TYPE_SLOT_CAP + '/' + CONSUMABLE_TYPE_SLOT_CAP),
         buy: () => {
-          if (!NV.addConsumable(consumableItems, { type: c.key, name: c.name }, CONSUMABLE_STACK_CAP)) {
-            showBanner(c.name + ': límite ' + CONSUMABLE_STACK_CAP + '/' + CONSUMABLE_STACK_CAP, '#ff5f9b');
+          if (!NV.addConsumable(consumableItems, { type: c.key, name: c.name }, CONSUMABLE_STACK_CAP, CONSUMABLE_TYPE_SLOT_CAP)) {
+            const reason = NV.consumableCountByType(consumableItems, c.key) >= CONSUMABLE_STACK_CAP
+              ? ('límite ' + CONSUMABLE_STACK_CAP + '/' + CONSUMABLE_STACK_CAP)
+              : ('slots ' + CONSUMABLE_TYPE_SLOT_CAP + '/' + CONSUMABLE_TYPE_SLOT_CAP);
+            showBanner(c.name + ': ' + reason, '#ff5f9b');
             return false;
           }
           consumableBought[c.key] = (consumableBought[c.key] || 0) + 1;
@@ -1070,6 +1077,7 @@
     if (player.stun > 0) { player.stun = Math.max(0, player.stun - dt); }
     if (player.phase) { player.phase -= dt; if (player.phase <= 0) { player.phase = 0; player.invuln = 0; detonatePhase(); } }
     if (player.bulwark > 0) { player.bulwark -= dt; if (player.bulwark < 0) player.bulwark = 0; }
+    if (player.shield > 0) { player.shield -= dt; if (player.shield < 0) player.shield = 0; }
     if (player.overdrive > 0) {
       player.overdrive -= dt;
       if (player.overdrive <= 0) { player.speed /= 1.5; triggerFlash('#caa7ff'); }
