@@ -44,36 +44,37 @@
           <h1>NEON VOID</h1>
           <p class="subtitle">Elegí tu piloto y sobreviví a las oleadas del Vacío</p>
           <div id="charGrid" class="char-grid"></div>
-          <button id="startBtn" class="primary" type="button">COMENZAR</button>
-                              <button id="permBtn" class="primary perm-btn" type="button">📈 MEJORAS PERMANENTES</button>
-          <p class="tip">WASD/Flechas: mover | ESPACIO: habilidad | TAB: stats | F: consumible</p>
-        </div>
-
         <div id="shop" class="shop-screen hidden">
-          <h2 class="shop-title">🛒 TIENDA DEL VACÍO</h2>
-          <p class="shop-sub">Oleada superada · Gastá tus fragmentos para volverte más fuerte</p>
-          <div class="shard-bar"><span>💎</span><span id="shopShards">0</span></div>
+          <div class="shop-terminal-head">
+            <div>
+              <h2 class="shop-title">◉ TERMINAL DE REABASTECIMIENTO</h2>
+              <p class="shop-sub">Seleccioná tu kit para la oleada <span id="shopWave">1</span></p>
+            </div>
+            <div class="shard-bar"><span>💎</span><span id="shopShards">0</span></div>
+          </div>
           <div class="shop-grid">
-            <div class="shop-section">
-              <div class="shop-section-title">MEJORAS</div>
-              <div id="upgradesOffers" class="offers"></div>
+            <div class="shop-section shop-section-calibrations">
+              <div class="shop-section-title"><span class="section-chip">SYS</span> CALIBRACIONES</div>
+              <div id="upgradesOffers" class="offers offers-upgrades"></div>
             </div>
-            <div class="shop-section">
-              <div class="shop-section-title">ARMAS</div>
-              <div id="weaponOffers" class="offers"></div>
+            <div class="shop-section shop-section-armory">
+              <div class="shop-section-title"><span class="section-chip">WPN</span> ARMERÍA</div>
+              <div id="invPanel" class="inv-panel shop-weapon-dock">
+                <div class="dock-label">DOCK DE ARMAS <span class="inv-hint">clic equipar · vender</span></div>
+                <div id="invSlots" class="inv-slots"></div>
+              </div>
+              <div id="weaponOffers" class="offers offers-weapons"></div>
             </div>
-            <div class="shop-section">
-              <div class="shop-section-title">CONSUMIBLES</div>
-              <div id="consumableOffers" class="offers"></div>
+            <div class="shop-section shop-section-protocols">
+              <div class="shop-section-title"><span class="section-chip">PRT</span> PROTOCOLOS</div>
+              <div class="protocol-loadout">
+                <div class="dock-label">CONSUMIBLES EQUIPADOS <span class="inv-hint">tipos 0/6 · stack 0/10</span></div>
+                <div id="shopConsumableLoadout" class="consumable-loadout"></div>
+              </div>
+              <div id="consumableOffers" class="offers offers-consumables"></div>
             </div>
           </div>
-          <div class="shop-section">
-            <div class="shop-section-title">INVENTARIO <span class="inv-hint">(clic para equipar · teclas 1-6 o rueda del mouse en partida)</span></div>
-            <div id="invPanel" class="inv-panel">
-              <div id="invSlots" class="inv-slots"></div>
-            </div>
-          </div>
-          <button id="skipWave" class="primary" type="button">▶ CONTINUAR</button>
+          <button id="skipWave" class="primary shop-deploy" type="button">▶ DESPLEGAR EN OLEADA <span id="shopNextWave">2</span></button>
         </div>
 
         <div id="permShop" class="shop-screen hidden">

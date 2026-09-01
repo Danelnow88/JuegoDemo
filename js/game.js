@@ -684,6 +684,8 @@
     updateHUD(); // La habilidad no debe seguir pulsando fuera del combate.
     dom.shop.classList.remove('hidden');
     dom.shopShards.textContent = shards;
+    if (dom.shopWave) dom.shopWave.textContent = wave + 1;
+    if (dom.shopNextWave) dom.shopNextWave.textContent = wave + 1;
     generateOffers();
     renderInventory();
   }
@@ -756,6 +758,7 @@
       if (i < inventory.length) {
         const weapon = inventory[i];
         const fusLevel = weaponFusionLevel(weapon.id);
+        slot.classList.add('rarity-' + visualRarity(weapon.rarity, 25));
         slot.innerHTML = `
           <div class="inv-icon"><canvas width="32" height="32" aria-label="${weapon.name}"></canvas></div>
           <div class="inv-name">${weapon.name}</div>
@@ -803,11 +806,42 @@
         slot.appendChild(sellBtn);
       } else {
         slot.classList.add('empty');
-        slot.innerHTML = '<div class="inv-icon" style="opacity:0.2">•</div>';
         slot.style.cursor = 'default';
       }
       dom.invSlots.appendChild(slot);
     }
+  }
+
+  function renderShopConsumableLoadout() {
+    if (!dom.shopConsumableLoadout) return;
+    dom.shopConsumableLoadout.innerHTML = '';
+    const groups = NV.groupConsumables(consumableItems);
+    const hint = dom.shopConsumableLoadout.parentElement && dom.shopConsumableLoadout.parentElement.querySelector('.inv-hint');
+    if (hint) hint.textContent = 'tipos ' + groups.length + '/' + CONSUMABLE_TYPE_SLOT_CAP + ' · stack máx ' + CONSUMABLE_STACK_CAP;
+    for (let i = 0; i < CONSUMABLE_TYPE_SLOT_CAP; i++) {
+      const g = groups[i];
+      const slot = document.createElement('div');
+      slot.className = 'loadout-slot' + (g ? '' : ' empty');
+      if (g) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 32; canvas.height = 32;
+        slot.appendChild(canvas);
+        drawConsumableCanvas(canvas, g.type, 32, 24);
+        slot.insertAdjacentHTML('beforeend', '<span class="slot-index">' + (i + 1) + '</span><span class="slot-badge">x' + g.count + '</span>');
+        slot.title = g.name + ' x' + g.count + '/' + CONSUMABLE_STACK_CAP;
+      } else {
+        slot.title = 'Slot de protocolo vacío';
+      }
+      dom.shopConsumableLoadout.appendChild(slot);
+    }
+  }
+
+  function visualRarity(rarity, price) {
+    if (rarity === 'legendary') return 'legendary';
+    if (rarity === 'epic') return 'epic';
+    if (rarity === 'rare') return 'rare';
+    if (price >= 30) return 'rare';
+    return 'common';
   }
 
   function generateOffers() {
@@ -817,25 +851,25 @@
 
     if ((shopBought.hp || 0) < SHOP_CAPS.hp) {
       upgrades.push({
-        metaIcon: 'hp', name: '+25 HP', desc: 'Vida máxima +25 (' + (shopBought.hp || 0) + '/' + SHOP_CAPS.hp + ')',
+        kind: 'upgrade', metaIcon: 'hp', name: '+25 HP', desc: 'Vida máxima +25 (' + (shopBought.hp || 0) + '/' + SHOP_CAPS.hp + ')', rarity: 'common',
         price: 15, buy: () => { player.maxHp += 25; player.hp += 25; shopBought.hp = (shopBought.hp || 0) + 1; },
       });
     }
     if (player.agility < MAX_AGILITY) {
       upgrades.push({
-        metaIcon: 'speed', name: 'Agilidad', desc: 'Responde más rápido: acelera y frena mejor (máx +100%)',
+        kind: 'upgrade', metaIcon: 'speed', name: 'Agilidad', desc: 'Acelera y frena mejor (máx +100%)', rarity: 'rare',
         price: 15, buy: () => { player.agility = Math.min(MAX_AGILITY, player.agility + AGILITY_PER_UPGRADE); },
       });
     }
     if ((shopBought.armor || 0) < SHOP_CAPS.armor) {
       upgrades.push({
-        metaIcon: 'armor', name: 'Armadura', desc: '+3 armadura (' + (shopBought.armor || 0) + '/' + SHOP_CAPS.armor + ')',
+        kind: 'upgrade', metaIcon: 'armor', name: 'Armadura', desc: '+3 armadura (' + (shopBought.armor || 0) + '/' + SHOP_CAPS.armor + ')', rarity: 'epic',
         price: 20, buy: () => { player.armor += 3; shopBought.armor = (shopBought.armor || 0) + 1; },
       });
     }
     if ((shopBought.luck || 0) < SHOP_CAPS.luck) {
       upgrades.push({
-        metaIcon: 'luck', name: 'Suerte', desc: '+2 suerte (' + (shopBought.luck || 0) + '/' + SHOP_CAPS.luck + ')',
+        kind: 'upgrade', metaIcon: 'luck', name: 'Suerte', desc: '+2 suerte (' + (shopBought.luck || 0) + '/' + SHOP_CAPS.luck + ')', rarity: 'rare',
         price: 20, buy: () => { player.luck += 2; shopBought.luck = (shopBought.luck || 0) + 1; },
       });
     }
@@ -850,7 +884,7 @@
       if (owned && fus >= MAX_WEAPON_FUSION) return;
       const canFuse = owned && fus < MAX_WEAPON_FUSION;
       weapons.push({
-        name: w.name, weapon: w,
+        kind: 'weapon', name: w.name, weapon: w, rarity: w.rarity,
         desc: canFuse
           ? ('FUSIONAR: +' + Math.round(WEAPON_FUSION_DMG * 100) + '% daño (Nv' + (fus + 1) + '/' + MAX_WEAPON_FUSION + ')')
           : (w.rarity + ' | daño ' + w.damage + ' | ' + (w.pro || '')),
@@ -881,8 +915,9 @@
       const typeSlotsFull = stacked === 0 && typeCount >= CONSUMABLE_TYPE_SLOT_CAP;
       if (bought >= CONSUMABLE_CAP) return; // tope por visita: la oferta desaparece
       consumables.push({
-        consumableType: c.key, name: c.name,
-        desc: (stacked > 0 ? 'Equipado' : 'Nuevo') + ' · ' + c.desc + ' (' + bought + '/' + CONSUMABLE_CAP + ') · Stock ' + stacked + '/' + CONSUMABLE_STACK_CAP + ' · Tipos ' + typeCount + '/' + CONSUMABLE_TYPE_SLOT_CAP,
+        kind: 'consumable', consumableType: c.key, name: c.name,
+        desc: c.desc,
+        badge: (stacked > 0 ? ('Equipado x' + stacked) : 'Nuevo') + ' · ' + bought + '/' + CONSUMABLE_CAP,
         price: c.price,
         disabled: stackFull || typeSlotsFull,
         disabledReason: stackFull ? ('Límite ' + CONSUMABLE_STACK_CAP + '/' + CONSUMABLE_STACK_CAP) : ('Slots ' + CONSUMABLE_TYPE_SLOT_CAP + '/' + CONSUMABLE_TYPE_SLOT_CAP),
@@ -904,6 +939,7 @@
     renderOffers(dom.upgradesOffers, upgrades);
     renderOffers(dom.weaponOffers, weapons);
     renderOffers(dom.consumableOffers, consumables);
+    renderShopConsumableLoadout();
   }
 
   function drawWeaponCanvas(canvas, weapon, canvasSize, iconSize) {
@@ -947,10 +983,12 @@
     container.innerHTML = "";
     items.forEach(item => {
       const el = document.createElement("div");
-      el.className = "offer" + (item.disabled ? " disabled" : "");
+      const kind = item.kind || (item.weapon ? 'weapon' : item.consumableType ? 'consumable' : 'upgrade');
+      el.className = "offer offer-" + kind + " rarity-" + visualRarity(item.rarity, item.price) + (item.disabled ? " disabled" : "");
       const iconHtml = item.weapon || item.consumableType || item.metaIcon ? '<div class="offer-icon"><canvas></canvas></div>' : '<div class="offer-icon">•</div>';
       const priceHtml = item.disabled ? item.disabledReason : ('💎 ' + item.price);
-            el.innerHTML = iconHtml + '<div class="offer-name">' + item.name + "</div><div class=\"offer-desc\">" + item.desc + "</div><div class='offer-price'>" + priceHtml + "</div>";
+      const badgeHtml = item.badge ? '<div class="offer-badge">' + item.badge + '</div>' : '';
+      el.innerHTML = iconHtml + '<div class="offer-name">' + item.name + "</div><div class=\"offer-desc\">" + item.desc + "</div>" + badgeHtml + "<div class='offer-price'>" + priceHtml + "</div>";
       el.addEventListener("click", () => {
         if (item.disabled) {
           addFloatText(W/2, H/2, item.disabledReason || 'Límite alcanzado', '#ff5f9b');
@@ -959,9 +997,9 @@
         if (shards >= item.price) {
           shards -= item.price;
           item.buy();
+          el.classList.add('just-bought');
           dom.shopShards.textContent = shards;
-          generateOffers();
-          updateHUD();
+          setTimeout(() => { generateOffers(); updateHUD(); renderInventory(); }, 180);
           if (!item.weapon) sfx.shopBuy();
         } else {
           addFloatText(W/2, H/2, "Fragmentos insuficientes", "#ff5f9b");
