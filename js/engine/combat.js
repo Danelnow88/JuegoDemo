@@ -15,17 +15,30 @@
     return { dmg: crit ? Math.round(base * 1.6) : base, crit };
   };
 
+  NV.characterDodgeChance = function (char) {
+    if (!char) return 0;
+    if (char.passiveId === 'swarm_dodge') return 0.15;
+    return char.dodge || 0;
+  };
+
+  NV.characterTakeDmgMult = function (char) {
+    if (!char) return 1;
+    if (char.passiveId === 'nova_glass_cannon') return 1.2;
+    if (char.passiveId === 'rook_tank') return 0.85;
+    return char.takeDmgMult || 1;
+  };
+
   // Daño que recibe el jugador: crítica → armadura (plano) → pasiva del personaje → esquiva.
   NV.computePlayerHit = function (base, st) {
     const char = st.CHARACTERS[st.player.character];
     // Esquiva: pasiva del personaje + mejora permanente (+0.4%/nivel).
-    const dodge = (char.dodge || 0) + (st.player.permDodge || 0) * NV.BALANCE.DODGE_PERM_CHANCE;
+    const dodge = NV.characterDodgeChance(char) + (st.player.permDodge || 0) * NV.BALANCE.DODGE_PERM_CHANCE;
     if (dodge > 0 && Math.random() < dodge) {
       return { dodged: true };
     }
     const c = st.calcEnemyDamage(base);
     let dmg = Math.max(1, c.dmg - st.player.armor);
-    const mult = char.takeDmgMult || 1;
+    const mult = NV.characterTakeDmgMult(char);
     dmg = Math.max(1, Math.round(dmg * mult));
     return { dodged: false, dmg, crit: c.crit };
   };

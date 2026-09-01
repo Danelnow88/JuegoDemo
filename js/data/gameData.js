@@ -44,7 +44,7 @@
     },
     nova: {
       name: 'NOVA', color: '#caa7ff', bodyColor: '#9b59b6', eyeColor: '#ff0', size: 18,
-      special: 'phase', maxCd: 7, passive: 'Daño +20%, recibe +20%', takeDmgMult: 1.2,
+      special: 'phase', maxCd: 7, passive: 'Daño +20%, recibe +20%', passiveId: 'nova_glass_cannon', takeDmgMult: 1.2,
       skillName: 'Fase Fantasma', skillDesc: 'Aura espectral de área potente (afecta jefes); al terminar, detona un golpe final sobre lo alcanzado',
       card: {
         tag: 'Veloz', previewClass: 'char-preview-nova', statLine: 'HP 80 · SPD 280 · ARM 0',
@@ -54,7 +54,7 @@
     },
     rook: {
       name: 'ROOK', color: '#ffcf76', bodyColor: '#f39c12', eyeColor: '#000', size: 26,
-      special: 'bulwark', maxCd: 12, passive: '-15% daño recibido', takeDmgMult: 0.85,
+      special: 'bulwark', maxCd: 12, passive: '-15% daño recibido', passiveId: 'rook_tank', takeDmgMult: 0.85,
       skillName: 'Muralla', skillDesc: 'Escudo que refleja balas con más fuerza; onda de choque que aturde y empuja al activarse',
       card: {
         tag: 'Tanque', previewClass: 'char-preview-rook', statLine: 'HP 160 · SPD 150 · ARM 5',
@@ -64,7 +64,7 @@
     },
     swarm: {
       name: 'ENJAMBRE', color: '#8dfaff', bodyColor: '#00d4aa', eyeColor: '#fff', size: 16,
-      special: 'hivemind', maxCd: 10, passive: '15% esquiva', dodge: 0.15,
+      special: 'hivemind', maxCd: 10, passive: '15% esquiva', passiveId: 'swarm_dodge', dodge: 0.15,
       skillName: 'Drones de Combate', skillDesc: '6 drones escoltas que apuntan solos al enemigo o jefe más cercano a distancia',
       card: {
         tag: 'Esquivo', previewClass: 'char-preview-swarm', statLine: 'HP 90 · SPD 240 · ARM 0',

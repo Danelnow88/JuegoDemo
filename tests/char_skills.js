@@ -1,7 +1,7 @@
 // Tests de habilidades de personaje (v40): nerf de Lluvia Estelar contra jefes.
 const fs = require('fs'), vm = require('vm');
 const sbx = { window: { NV: {} }, console, Math };
-for (const f of ['js/data/balance.js', 'js/data/gameData.js', 'js/data/consumables.js', 'js/engine/meteors.js', 'js/engine/consumables.js']) vm.runInNewContext(fs.readFileSync(f, 'utf8'), sbx, { filename: f });
+for (const f of ['js/data/balance.js', 'js/data/gameData.js', 'js/data/consumables.js', 'js/engine/meteors.js', 'js/engine/consumables.js', 'js/engine/combat.js']) vm.runInNewContext(fs.readFileSync(f, 'utf8'), sbx, { filename: f });
 const NV = sbx.window.NV;
 let pass = 0, fail = 0;
 function t(desc, fn) { try { fn(); pass++; console.log('  ok  ' + desc); } catch (e) { fail++; console.log('  FAIL ' + desc + ' -> ' + e.message); } }
@@ -29,6 +29,33 @@ t('BOTI: regeneración usa passiveId y conserva tick cada 300 frames con límite
   const legacyTextOnly = { passive: 'Regenera 1 HP cada 5s' };
   player.hp = 90;
   if (NV.applyBotiPassiveRegen(legacyTextOnly, player, 900, addFloatText) !== false || player.hp !== 90) throw new Error('curó sin passiveId');
+});
+
+t('pasivas declarativas preservan daño recibido y esquiva de Nova/Rook/Swarm', () => {
+  for (const [id, passiveId] of [['nova', 'nova_glass_cannon'], ['rook', 'rook_tank'], ['swarm', 'swarm_dodge']]) {
+    if (NV.CHARACTERS[id].passiveId !== passiveId) throw new Error(id + ' passiveId=' + NV.CHARACTERS[id].passiveId);
+  }
+  if (NV.characterTakeDmgMult(NV.CHARACTERS.nova) !== 1.2) throw new Error('nova mult');
+  if (NV.characterTakeDmgMult(NV.CHARACTERS.rook) !== 0.85) throw new Error('rook mult');
+  if (NV.characterTakeDmgMult(NV.CHARACTERS.swarm) !== 1) throw new Error('swarm mult');
+  if (NV.characterDodgeChance(NV.CHARACTERS.swarm) !== 0.15) throw new Error('swarm dodge');
+
+  const oldRandom = Math.random;
+  try {
+    Math.random = () => 0.99;
+    let st = { CHARACTERS: NV.CHARACTERS, player: { character: 'nova', armor: 0, permDodge: 0 }, calcEnemyDamage: () => ({ dmg: 10, crit: false }) };
+    let hit = NV.computePlayerHit(10, st);
+    if (hit.dmg !== 12) throw new Error('nova dmg=' + hit.dmg);
+    st = { CHARACTERS: NV.CHARACTERS, player: { character: 'rook', armor: 0, permDodge: 0 }, calcEnemyDamage: () => ({ dmg: 20, crit: false }) };
+    hit = NV.computePlayerHit(20, st);
+    if (hit.dmg !== 17) throw new Error('rook dmg=' + hit.dmg);
+    Math.random = () => 0.1;
+    st = { CHARACTERS: NV.CHARACTERS, player: { character: 'swarm', armor: 0, permDodge: 0 }, calcEnemyDamage: () => ({ dmg: 10, crit: false }) };
+    hit = NV.computePlayerHit(10, st);
+    if (!hit.dodged) throw new Error('swarm no esquivó');
+  } finally {
+    Math.random = oldRandom;
+  }
 });
 
 t('Lluvia Estelar: daño a jefe reducido por METEOR_BOSS_DMG_MULT', () => {
