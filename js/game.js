@@ -895,16 +895,7 @@
       });
     });
 
-    const consumableDefs = [
-      { key: 'potion',    name: 'Poción',     desc: 'Cura 40 HP (tecla F en partida)',     price: 10, banner: 'Poción guardada (F para usar)',  color: '#22c55e' },
-      { key: 'overdrive', name: 'Overdrive',  desc: '+50% velocidad 5s (tecla F)',         price: 18, banner: 'Overdrive guardado (F)',         color: '#caa7ff' },
-      { key: 'shield',    name: 'Escudo',     desc: 'Invulnerable 2s (tecla F)',           price: 22, banner: 'Escudo guardado (F)',            color: '#ffcf76' },
-      { key: 'bomb',      name: 'Bomba',      desc: 'Daña 25% HP a todos (tecla F)',       price: 34, banner: 'Bomba guardada (F)',             color: '#ff5f9b' },
-      { key: 'freeze',    name: 'Congelante', desc: 'Enemigos lentos 50% por 4s (F)',      price: 26, banner: 'Congelante guardado (F)',        color: '#67e8f9' },
-      { key: 'magnet',    name: 'Imán',       desc: 'Atrae todos los shards/armas (F)',    price: 20, banner: 'Imán guardado (F)',              color: '#7cf8ff' },
-      { key: 'bounty',    name: 'Recompensa', desc: '10s: kills dan +1 💎 y x2 score (F)', price: 30, banner: 'Recompensa guardada (F)',        color: '#ffd700' },
-    ];
-    consumableDefs.forEach((c) => {
+    NV.consumableList().forEach((c) => {
       const bought = consumableBought[c.key] || 0;
       if (bought >= CONSUMABLE_CAP) return; // tope por visita: la oferta desaparece
       consumables.push({

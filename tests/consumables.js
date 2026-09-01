@@ -7,10 +7,24 @@ function load() {
   const sbx = { window: { NV: {} }, console, Math };
   vm.runInNewContext(fs.readFileSync('js/data/balance.js', 'utf8'), sbx, { filename: 'b' });
   vm.runInNewContext(fs.readFileSync('js/data/gameData.js', 'utf8'), sbx, { filename: 'g' });
+  vm.runInNewContext(fs.readFileSync('js/data/consumables.js', 'utf8'), sbx, { filename: 'c' });
   vm.runInNewContext(fs.readFileSync('js/engine/enemies.js', 'utf8'), sbx, { filename: 'e' });
   vm.runInNewContext(fs.readFileSync('js/engine/pickups.js', 'utf8'), sbx, { filename: 'p' });
   return sbx.window.NV;
 }
+
+t('CONSUMABLES centraliza los 7 consumibles reales en orden/precio actual', () => {
+  const NV = load();
+  const expected = ['potion', 'overdrive', 'shield', 'bomb', 'freeze', 'magnet', 'bounty'];
+  if (NV.CONSUMABLE_ORDER.join(',') !== expected.join(',')) throw new Error('orden=' + NV.CONSUMABLE_ORDER.join(','));
+  const list = NV.consumableList();
+  if (list.map((c) => c.key).join(',') !== expected.join(',')) throw new Error('lista=' + list.map((c) => c.key).join(','));
+  const prices = { potion: 10, overdrive: 18, shield: 22, bomb: 34, freeze: 26, magnet: 20, bounty: 30 };
+  for (const key of expected) {
+    if (!NV.CONSUMABLES[key]) throw new Error('falta ' + key);
+    if (NV.CONSUMABLES[key].price !== prices[key]) throw new Error(key + ' price=' + NV.CONSUMABLES[key].price);
+  }
+});
 
 t('voidBomb: baja 25% HP máx a todos y al jefe, nunca a 0', () => {
   const NV = load();
@@ -62,10 +76,10 @@ t('killEnemy aplica RECOMPENSA: doble score + shard extra', () => {
   if (shards.length < 1 || !shards.some((s) => s.value === 1)) throw new Error('sin shard bounty');
 });
 
-t('game.js conecta los 4 consumibles nuevos + defs', () => {
+t('game.js conecta los 4 consumibles nuevos y la tienda usa NV.consumableList', () => {
   const g = fs.readFileSync('js/game.js', 'utf8');
+  if (!g.includes('NV.consumableList().forEach')) throw new Error('tienda no usa NV.consumableList');
   for (const key of ['bomb', 'freeze', 'magnet', 'bounty']) {
-    if (!g.includes("key: '" + key + "'")) throw new Error('falta def ' + key);
     if (!g.includes("item.type === '" + key + "'")) throw new Error('falta rama ' + key);
   }
 });

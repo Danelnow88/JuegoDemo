@@ -3,6 +3,7 @@ const fs = require('fs');
 let pass = 0, fail = 0;
 function t(desc, fn) { try { fn(); pass++; console.log('  ok  ' + desc); } catch (e) { fail++; console.log('  FAIL ' + desc + ' -> ' + e.message); } }
 const g = fs.readFileSync('js/game.js', 'utf8');
+const c = fs.readFileSync('js/data/consumables.js', 'utf8');
 
 t('?fresh=1: saltea loadMeta y congela guardado', () => {
   if (!/fresh=1/.test(g) || !/\.test\(\(window\.location && window\.location\.search\) \|\| ''\)/.test(g)) throw new Error('flag no detectado');
@@ -28,8 +29,9 @@ t('tope de consumibles: cap 3 por visita, reset en showShop', () => {
   const i = g.indexOf('function showShop()');
   if (!g.slice(i, i + 300).includes('consumableBought = {};')) throw new Error('no se resetea por visita');
   if (!g.includes("bought >= CONSUMABLE_CAP")) throw new Error('puerta del tope ausente');
+  if (!g.includes('NV.consumableList().forEach')) throw new Error('tienda no usa lista centralizada');
   for (const k of ['potion', 'overdrive', 'shield']) {
-    if (!g.includes("key: '" + k + "'")) throw new Error('falta def de ' + k);
+    if (!c.includes("key: '" + k + "'")) throw new Error('falta def de ' + k);
   }
   if ((g.match(/consumableItems\.push/g) || []).length !== 1) throw new Error('push de consumible fuera del patrón único');
 });
