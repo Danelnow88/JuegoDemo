@@ -691,33 +691,7 @@
     consumSel = Math.min(consumSel, groups.length - 1);
     const item = NV.consumeByType(consumableItems, groups[consumSel].type);
     if (!item) { consumSel = Math.max(0, consumSel - 1); return; }
-    if (item.type === 'potion') {
-      player.hp = Math.min(player.maxHp, player.hp + CONSUMABLES.potion.hp);
-      addFloatText(player.x, player.y, '+40 HP', '#0f0');
-    } else if (item.type === 'overdrive') {
-      // Solo se multiplica la velocidad una vez para no inflarla con compras repetidas.
-      if (player.overdrive <= 0) player.speed *= CONSUMABLES.overdrive.speedMult;
-      player.overdrive = CONSUMABLES.overdrive.duration;
-      addFloatText(player.x, player.y, 'OVERDRIVE', '#caa7ff');
-    } else if (item.type === 'shield') {
-      player.invuln = CONSUMABLES.shield.duration;
-      addFloatText(player.x, player.y, 'ESCUDO', '#ffcf76');
-    } else if (item.type === 'bomb') {
-      NV.voidBomb(enemies, boss);
-      addFloatText(player.x, player.y, '¡BOMBA DE VACÍO!', '#ff5f9b');
-      triggerFlash('#ff5f9b');
-    } else if (item.type === 'freeze') {
-      NV.freezeEnemies(enemies, 4);
-      addFloatText(player.x, player.y, '¡CONGELADO!', '#caa7ff');
-      triggerFlash('#caa7ff');
-    } else if (item.type === 'magnet') {
-      const n = NV.magnetCollect(pickups, weaponPickups, player);
-      addFloatText(player.x, player.y, 'IMÁN (' + n + ')', '#7cf8ff');
-    } else if (item.type === 'bounty') {
-      player.bounty = 10;
-      addFloatText(player.x, player.y, 'RECOMPENSA 10s', '#ffd700');
-      triggerFlash('#ffd700');
-    }
+    NV.applyConsumable(item, { player, enemies, boss, pickups, weaponPickups, addFloatText, triggerFlash });
     triggerFlash('#7cf8ff');
     sfx.consume(item.type);
     updateHUD();

@@ -10,6 +10,7 @@ function load() {
   vm.runInNewContext(fs.readFileSync('js/data/consumables.js', 'utf8'), sbx, { filename: 'c' });
   vm.runInNewContext(fs.readFileSync('js/engine/enemies.js', 'utf8'), sbx, { filename: 'e' });
   vm.runInNewContext(fs.readFileSync('js/engine/pickups.js', 'utf8'), sbx, { filename: 'p' });
+  vm.runInNewContext(fs.readFileSync('js/engine/consumables.js', 'utf8'), sbx, { filename: 'co' });
   return sbx.window.NV;
 }
 
@@ -76,12 +77,41 @@ t('killEnemy aplica RECOMPENSA: doble score + shard extra', () => {
   if (shards.length < 1 || !shards.some((s) => s.value === 1)) throw new Error('sin shard bounty');
 });
 
+t('applyConsumable preserva efectos y feedback de los 7 consumibles', () => {
+  const NV = load();
+  const floatTexts = [], flashes = [];
+  const player = { x: 10, y: 20, hp: 70, maxHp: 100, speed: 200, overdrive: 0 };
+  const enemies = [{ dead: false, hp: 100, maxHp: 100 }, { dead: false }];
+  const boss = { dead: false, hp: 200, maxHp: 200 };
+  const pickups = [{ dead: false, x: 999, y: 999 }];
+  const weaponPickups = [{ dead: false, x: 500, y: 500 }];
+  const ctx = {
+    player, enemies, boss, pickups, weaponPickups,
+    addFloatText(x, y, text, color) { floatTexts.push({ x, y, text, color }); },
+    triggerFlash(color) { flashes.push(color); },
+  };
+  if (!NV.applyConsumable({ type: 'potion' }, ctx) || player.hp !== 100) throw new Error('potion');
+  if (!NV.applyConsumable({ type: 'overdrive' }, ctx) || player.speed !== 300 || player.overdrive !== 5) throw new Error('overdrive');
+  if (!NV.applyConsumable({ type: 'shield' }, ctx) || player.invuln !== 2) throw new Error('shield');
+  if (!NV.applyConsumable({ type: 'bomb' }, ctx) || enemies[0].hp !== 75 || boss.hp !== 150) throw new Error('bomb');
+  if (!NV.applyConsumable({ type: 'freeze' }, ctx) || enemies[0].slowUntil !== 4) throw new Error('freeze');
+  if (!NV.applyConsumable({ type: 'magnet' }, ctx) || Math.abs(pickups[0].x - player.x) > 5 || Math.abs(weaponPickups[0].y - player.y) > 5) throw new Error('magnet');
+  if (!NV.applyConsumable({ type: 'bounty' }, ctx) || player.bounty !== 10) throw new Error('bounty');
+  if (NV.applyConsumable({ type: 'unknown' }, ctx) !== false) throw new Error('unknown no devuelve false');
+  for (const text of ['+40 HP', 'OVERDRIVE', 'ESCUDO', '¡BOMBA DE VACÍO!', '¡CONGELADO!', 'IMÁN (2)', 'RECOMPENSA 10s']) {
+    if (!floatTexts.some((f) => f.text === text)) throw new Error('falta float ' + text);
+  }
+  for (const color of ['#ff5f9b', '#caa7ff', '#ffd700']) {
+    if (!flashes.includes(color)) throw new Error('falta flash ' + color);
+  }
+});
+
 t('game.js conecta los 4 consumibles nuevos y la tienda usa NV.consumableList', () => {
   const g = fs.readFileSync('js/game.js', 'utf8');
+  const html = fs.readFileSync('index.html', 'utf8');
+  if (!html.includes('js/engine/consumables.js')) throw new Error('script consumables engine no cargado');
+  if (!g.includes('NV.applyConsumable(item')) throw new Error('game.js no delega a NV.applyConsumable');
   if (!g.includes('NV.consumableList().forEach')) throw new Error('tienda no usa NV.consumableList');
-  for (const key of ['bomb', 'freeze', 'magnet', 'bounty']) {
-    if (!g.includes("item.type === '" + key + "'")) throw new Error('falta rama ' + key);
-  }
 });
 
 console.log('RESULT consumables: pass=' + pass + ' fail=' + fail);
