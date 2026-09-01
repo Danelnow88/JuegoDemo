@@ -67,26 +67,17 @@
     return NV.waveDuration(wave, waveEvent) / NV.waveDuration(wave);
   };
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+  // ===== B1: escalado de HP enemigo =====
+  // Curva ORIGINAL: 1 + 0.30*wave (lineal) — crecía más rápido que el poder del
+  // jugador y generaba la espiral descendente que mataba la partida antes de la 30.
+  // Nueva curva: idéntica hasta la oleada 10 (onboarding intacto) y pendiente 0.22
+  // a partir de ahí (continua en w=10: 4.0 = 1 + 0.30*10). Pura y testeable;
+  // spawnEnemy (enemies.js) es su único consumidor.
+  NV.enemyHpScale = function (wave) {
+    const w = Math.max(1, wave || 1);
+    if (w <= 10) return 1 + 0.30 * w;
+    return 4 + (w - 10) * 0.22;
+  };
 
   Object.freeze(NV.BALANCE);
 })();

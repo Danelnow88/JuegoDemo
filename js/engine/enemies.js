@@ -16,7 +16,7 @@
     const type = available[Math.floor(Math.random() * available.length)];
     const side = Math.random() < 0.5 ? 0 : st.W;
     const y = 80 + Math.random() * (st.H - 200);
-    const hpScale = 1 + st.wave * 0.30;
+    const hpScale = NV.enemyHpScale(st.wave); // B1: curva única en balance.js
     const dmgScale = Math.min(60, Math.round(st.wave * 1.5)); // el daño enemigo también escala
     st.enemies.push({
       x: side, y: y,

@@ -9,9 +9,10 @@ t('WAVE_EVENTS define los 4', () => {
 });
 
 function loadNV() {
-  const rm = { random: () => 0.2, floor: Math.floor, hypot: Math.hypot, min: Math.min, round: Math.round, imul: Math.imul };
+  const rm = { random: () => 0.2, floor: Math.floor, hypot: Math.hypot, min: Math.min, max: Math.max, round: Math.round, imul: Math.imul };
   const sbx = { window: { NV: {} }, console, Math: rm };
   vm.runInNewContext(fs.readFileSync('js/data/gameData.js', 'utf8'), sbx, { filename: 'g' });
+  vm.runInNewContext(fs.readFileSync('js/data/balance.js', 'utf8'), sbx, { filename: 'bal' });
   vm.runInNewContext(fs.readFileSync('js/engine/enemies.js', 'utf8'), sbx, { filename: 'e' });
   return sbx.window.NV;
 }
