@@ -22,7 +22,7 @@ t('HUD usa drawConsumableIcon y no g.icon', () => {
 });
 
 t('consumibles comprados se guardan por type/name sin icon legacy', () => {
-  if (!game.includes('consumableItems.push({ type: c.key, name: c.name })')) throw new Error('push conserva campos no esperados');
+  if (!game.includes('NV.addConsumable(consumableItems, { type: c.key, name: c.name }, CONSUMABLE_STACK_CAP)')) throw new Error('alta conserva campos no esperados');
   if (utils.includes('icon: it.icon')) throw new Error('groupConsumables conserva icon');
 });
 
@@ -34,9 +34,9 @@ t('datos runtime de NV.CONSUMABLES no conservan campo icon', () => {
 t('no quedan emojis viejos de los 7 consumibles en runtime', () => {
   const defsStart = game.indexOf('const consumableDefs = [');
   const defsEnd = game.indexOf('];', defsStart);
-  const pushStart = game.indexOf('consumableItems.push');
-  const pushEnd = game.indexOf('showBanner', pushStart);
-  const runtime = [game.slice(defsStart, defsEnd), game.slice(pushStart, pushEnd), hud, data, utils].join('\n');
+  const addStart = game.indexOf('NV.addConsumable(consumableItems');
+  const addEnd = game.indexOf('showBanner', addStart);
+  const runtime = [game.slice(defsStart, defsEnd), game.slice(addStart, addEnd), hud, data, utils].join('\n');
   for (const old of ['\u{1F9EA}','\u{26A1}','\u{1F6E1}','\u{1F4A3}','\u{23F1}','\u{1F9F2}','\u{1F3AF}']) {
     if (runtime.includes(old)) throw new Error('quedó placeholder viejo de consumible: ' + old);
   }

@@ -49,4 +49,19 @@
     return items.splice(idx, 1)[0];
   };
 
+  NV.consumableCountByType = function (items, type) {
+    return (items || []).filter((it) => it && it.type === type).length;
+  };
+
+  NV.canAddConsumable = function (items, type, cap) {
+    const max = cap === undefined ? NV.CONSUMABLE_STACK_CAP : cap;
+    return NV.consumableCountByType(items, type) < max;
+  };
+
+  NV.addConsumable = function (items, item, cap) {
+    if (!items || !item || !item.type || !NV.canAddConsumable(items, item.type, cap)) return false;
+    items.push(item);
+    return true;
+  };
+
 })();

@@ -23,6 +23,17 @@ t('consumeByType: quita el PRIMER ítem del tipo elegido, no el primero de la co
   if (NV.consumeByType([], 'potion') !== null) throw new Error('vacío debería dar null');
 });
 
+t('tope acumulado de consumibles por tipo: addConsumable bloquea al llegar a 10', () => {
+  NV.CONSUMABLE_STACK_CAP = 10;
+  const items = Array.from({ length: 10 }, () => ({ type: 'potion', name: 'Poción' }));
+  if (NV.consumableCountByType(items, 'potion') !== 10) throw new Error('count potion');
+  if (NV.canAddConsumable(items, 'potion', 10)) throw new Error('debería bloquear potion llena');
+  if (NV.addConsumable(items, { type: 'potion', name: 'Poción' }, 10)) throw new Error('agregó sobre cap');
+  if (!NV.addConsumable(items, { type: 'shield', name: 'Escudo' }, 10)) throw new Error('bloqueó otro tipo');
+  NV.consumeByType(items, 'potion');
+  if (!NV.addConsumable(items, { type: 'potion', name: 'Poción' }, 10)) throw new Error('no permitió tras consumir');
+});
+
 t('cycleIndex: cicla selección en ambos sentidos sin salirse', () => {
   if (NV.cycleIndex(0, 3, -1) !== 2) throw new Error('wrap abajo');
   if (NV.cycleIndex(2, 3, 1) !== 0) throw new Error('wrap arriba');

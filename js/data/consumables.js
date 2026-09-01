@@ -15,6 +15,9 @@
     bounty:    { key: 'bounty',    name: 'Recompensa', useName: 'RECOMPENSA', desc: '10s: kills dan +1 💎 y x2 score (F)', price: 30, banner: 'Recompensa guardada (F)',        color: '#ffd700', duration: 10 },
   };
   NV.CONSUMABLE_ORDER = ['potion', 'overdrive', 'shield', 'bomb', 'freeze', 'magnet', 'bounty'];
+  // Tope acumulado por tipo durante la partida. Generoso para permitir preparación,
+  // pero evita stacks infinitos que rompen el balance de supervivencia/daño.
+  NV.CONSUMABLE_STACK_CAP = 10;
   NV.consumableList = function () {
     return NV.CONSUMABLE_ORDER.map((key) => NV.CONSUMABLES[key]).filter(Boolean);
   };

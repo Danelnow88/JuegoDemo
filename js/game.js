@@ -65,6 +65,7 @@
   // Tope de compras del mismo consumible POR VISITA a la tienda (se resetea en showShop).
   const CONSUMABLE_CAP = 3;
   let consumableBought = {};
+  const CONSUMABLE_STACK_CAP = NV.CONSUMABLE_STACK_CAP;
 
   // Mejoras permanentes comprables con metaShards (afectan a TODOS los personajes).
   // El coste crece con el nivel y tienen un tope máximo (MAX_PERM_LEVEL).
@@ -872,15 +873,23 @@
 
     NV.consumableList().forEach((c) => {
       const bought = consumableBought[c.key] || 0;
+      const stacked = NV.consumableCountByType(consumableItems, c.key);
+      const stackFull = stacked >= CONSUMABLE_STACK_CAP;
       if (bought >= CONSUMABLE_CAP) return; // tope por visita: la oferta desaparece
       consumables.push({
         consumableType: c.key, name: c.name,
-        desc: c.desc + ' (' + bought + '/' + CONSUMABLE_CAP + ')',
+        desc: c.desc + ' (' + bought + '/' + CONSUMABLE_CAP + ') · Stock ' + stacked + '/' + CONSUMABLE_STACK_CAP,
         price: c.price,
+        disabled: stackFull,
+        disabledReason: 'Límite ' + CONSUMABLE_STACK_CAP + '/' + CONSUMABLE_STACK_CAP,
         buy: () => {
-          consumableItems.push({ type: c.key, name: c.name });
+          if (!NV.addConsumable(consumableItems, { type: c.key, name: c.name }, CONSUMABLE_STACK_CAP)) {
+            showBanner(c.name + ': límite ' + CONSUMABLE_STACK_CAP + '/' + CONSUMABLE_STACK_CAP, '#ff5f9b');
+            return false;
+          }
           consumableBought[c.key] = (consumableBought[c.key] || 0) + 1;
           showBanner(c.banner, c.color);
+          return true;
         },
       });
     });
@@ -931,10 +940,15 @@
     container.innerHTML = "";
     items.forEach(item => {
       const el = document.createElement("div");
-      el.className = "offer";
+      el.className = "offer" + (item.disabled ? " disabled" : "");
       const iconHtml = item.weapon || item.consumableType || item.metaIcon ? '<div class="offer-icon"><canvas></canvas></div>' : '<div class="offer-icon">•</div>';
-            el.innerHTML = iconHtml + '<div class="offer-name">' + item.name + "</div><div class=\"offer-desc\">" + item.desc + "</div><div class='offer-price'>💎 " + item.price + "</div>";
+      const priceHtml = item.disabled ? item.disabledReason : ('💎 ' + item.price);
+            el.innerHTML = iconHtml + '<div class="offer-name">' + item.name + "</div><div class=\"offer-desc\">" + item.desc + "</div><div class='offer-price'>" + priceHtml + "</div>";
       el.addEventListener("click", () => {
+        if (item.disabled) {
+          addFloatText(W/2, H/2, item.disabledReason || 'Límite alcanzado', '#ff5f9b');
+          return;
+        }
         if (shards >= item.price) {
           shards -= item.price;
           item.buy();
