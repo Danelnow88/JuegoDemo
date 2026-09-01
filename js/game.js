@@ -58,7 +58,7 @@
 
   // === PROGRESIÓN PERMANENTE ===
   let metaShards = 0;
-  let permUpgrades = { damage: 0, speed: 0, hp: 0, armor: 0, luck: 0, crit: 0, dodge: 0, regen: 0, greed: 0 };
+  let permUpgrades = NV.defaultPermUpgrades();
   // Compras por partida en la tienda de oleada (topes anti-acumulación infinita).
   let shopBought = {};
   const SHOP_CAPS = { hp: 8, armor: 5, luck: 7 }; // +25 HP ×8, +3 armadura ×5, +2 suerte ×7
@@ -158,7 +158,7 @@
     if (/[?&]fresh=1/.test((window.location && window.location.search) || '')) {
       metaFrozen = true;
       metaShards = 0;
-      permUpgrades = { damage: 0, speed: 0, hp: 0, armor: 0, luck: 0, crit: 0, dodge: 0, regen: 0, greed: 0 };
+      permUpgrades = NV.defaultPermUpgrades();
       console.log('[META] Modo ?fresh=1: mejoras permanentes y meta-shards en cero (no se guarda progreso).');
     } else {
       loadMeta();
@@ -509,7 +509,7 @@
     try {
       const saved = JSON.parse(localStorage.getItem('neonVoidMeta') || '{}');
       metaShards = saved.metaShards || 0;
-      permUpgrades = saved.permUpgrades || { damage: 0, speed: 0, hp: 0, armor: 0, luck: 0, crit: 0, dodge: 0, regen: 0, greed: 0 };
+      permUpgrades = NV.normalizePermUpgrades(saved.permUpgrades);
     } catch (e) { console.warn('[META] Error:', e); }
   }
   // Modo testing (?fresh=1): empieza sin permanentes ni meta-shards y NO guarda,

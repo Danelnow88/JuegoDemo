@@ -53,10 +53,19 @@ t('regeneración constante + bloque en game.js', () => {
   if (!g.includes('permRegen') || !g.includes('REGEN_PERM_HPSEC') || !g.includes('regenAcc')) throw new Error('bloque de regen ausente');
 });
 
-t('defaults de permUpgrades incluyen las 4 claves (game.js x3)', () => {
+t('defaults de permUpgrades se derivan de PERM_UPGRADES y normalizan guardados antiguos', () => {
+  if (typeof NV.defaultPermUpgrades !== 'function') throw new Error('defaultPermUpgrades ausente');
+  if (typeof NV.normalizePermUpgrades !== 'function') throw new Error('normalizePermUpgrades ausente');
+  const defaults = NV.defaultPermUpgrades();
+  for (const u of NV.PERM_UPGRADES) {
+    if (defaults[u.key] !== 0) throw new Error('default faltante/incorrecto: ' + u.key);
+  }
+  const normalized = NV.normalizePermUpgrades({ damage: 2, crit: 3 });
+  if (normalized.damage !== 2 || normalized.crit !== 3) throw new Error('no preserva guardado existente');
+  if (normalized.speed !== 0 || normalized.greed !== 0) throw new Error('no completa claves faltantes');
   const g = fs.readFileSync('js/game.js', 'utf8');
-  const n = (g.match(/crit: 0, dodge: 0, regen: 0, greed: 0/g) || []).length;
-  if (n < 3) throw new Error('solo ' + n + ' defaults actualizados');
+  if (!g.includes('NV.defaultPermUpgrades()')) throw new Error('game.js no usa defaults centralizados');
+  if (!g.includes('NV.normalizePermUpgrades(saved.permUpgrades)')) throw new Error('loadMeta no normaliza guardados');
   if (!g.includes('player.permCrit = permUpgrades.crit')) throw new Error('stats no aplicados en selección/arranque');
 });
 

@@ -18,6 +18,18 @@
     { key: 'greed',  name: 'Codicia', base: 42, desc: '+3% chance de drop de 💎 por nivel' },
   ];
 
+  // Defaults derivados de la lista de permanentes: evita duplicar claves en game.js
+  // y permite que guardados antiguos reciban claves nuevas sin romper compatibilidad.
+  NV.defaultPermUpgrades = function () {
+    const defaults = {};
+    NV.PERM_UPGRADES.forEach((u) => { defaults[u.key] = 0; });
+    return defaults;
+  };
+
+  NV.normalizePermUpgrades = function (saved) {
+    return Object.assign(NV.defaultPermUpgrades(), saved || {});
+  };
+
   // === PERSONAJES ===
   NV.CHARACTERS = {
     boti: {
