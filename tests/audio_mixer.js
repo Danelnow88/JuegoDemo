@@ -129,6 +129,16 @@ t('playWeaponSound cubre las 10 armas conocidas sin crash', () => {
   for (const id of ids) { try { NV.playWeaponSound({ id }); } catch (e) { throw new Error('arma ' + id + ' lanzo: ' + e.message); } }
 });
 
+t('playWeaponSound usa tabla declarativa con fallback seguro', () => {
+  const NV = loadSynth(); NV.initAudio();
+  if (!NV.WEAPON_SOUND_HANDLERS) throw new Error('WEAPON_SOUND_HANDLERS no exportado');
+  const ids = ['pistol','rifle','smg','shotgun','sniper','laser','plasma','flamethrower','bow','railgun'];
+  for (const id of ids) {
+    if (typeof NV.WEAPON_SOUND_HANDLERS[id] !== 'function') throw new Error('handler ausente ' + id);
+  }
+  try { NV.playWeaponSound({ id: 'arma-futura' }, { channel: 'sfxPlayer' }); } catch (e) { throw new Error('fallback lanzo: ' + e.message); }
+});
+
 // ---- musicState expone combo y phase ----
 t('musicState expone combo (number) y phase default "normal"', () => {
   const NV = loadSynth();

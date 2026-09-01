@@ -403,6 +403,23 @@
     scheduleNoise(0.3, 0.06);
   };
 
+  function defaultWeaponSound(_weapon, opts, fus, vol) {
+    playToneEx(880, 0.08, 'square', 0.03 * vol, opts);
+  }
+
+  const WEAPON_SOUND_HANDLERS = {
+    pistol: (_weapon, opts, _fus, vol) => playToneEx(880, 0.08, 'square', 0.03 * vol, opts),
+    rifle: (_weapon, opts, _fus, vol) => playToneEx(640, 0.07, 'square', 0.035 * vol, opts),
+    smg: (_weapon, opts, _fus, vol) => playToneEx(990, 0.04, 'square', rapidFireVolume('smg', 0.028 * vol), opts),
+    shotgun: (_weapon, opts, fus, vol) => { scheduleNoise(0.18, 0.07); playToneEx(170 * fus, 0.18, 'sawtooth', 0.09 * vol, opts); },
+    sniper: (_weapon, opts, _fus, vol) => { playToneEx(110, 0.45, 'square', 0.11 * vol, opts); scheduleNoise(0.25, 0.05); },
+    laser: (_weapon, opts, _fus, vol) => playToneEx(1250, 0.12, 'sine', 0.045 * vol, opts),
+    plasma: (_weapon, opts, _fus, vol) => playToneEx(720, 0.1, 'triangle', 0.05 * vol, opts),
+    flamethrower: (_weapon, opts, fus, vol) => { scheduleNoise(0.14, 0.05); playToneEx(95 * fus, 0.13, 'sawtooth', 0.08 * vol, opts); },
+    bow: (_weapon, opts, _fus, vol) => playToneEx(430, 0.09, 'sine', 0.045 * vol, opts),
+    railgun: (_weapon, opts, fus, vol) => { playToneEx(150 * fus, 0.5, 'sawtooth', rapidFireVolume('railgun', 0.12 * vol), opts); scheduleNoise(0.3, rapidFireVolume('railgun', 0.06)); },
+  };
+
   // Sonido distintivo por tipo de arma
   // opts?: { crit, fusion, channel } → variación de timbre/pitch (Tarea 1).
   // playWeaponSound(weapon) sigue funcionando (backwards compatible).
@@ -411,20 +428,11 @@
     opts = opts || {};
     const fus = opts.fusion > 0 ? 1 + opts.fusion * 0.05 : 1; // pitch ↑ +5% por nivel de fusión
     const vol = (opts.crit ? 1.15 : 1) * (opts.fusion ? 1 + opts.fusion * 0.03 : 1);
-    switch (weapon.id) {
-      case 'pistol': playToneEx(880, 0.08, 'square', 0.03 * vol, opts); break;
-      case 'rifle': playToneEx(640, 0.07, 'square', 0.035 * vol, opts); break;
-      case 'smg': playToneEx(990, 0.04, 'square', rapidFireVolume('smg', 0.028 * vol), opts); break;
-      case 'shotgun': scheduleNoise(0.18, 0.07); playToneEx(170 * fus, 0.18, 'sawtooth', 0.09 * vol, opts); break;
-      case 'sniper': playToneEx(110, 0.45, 'square', 0.11 * vol, opts); scheduleNoise(0.25, 0.05); break;
-      case 'laser': playToneEx(1250, 0.12, 'sine', 0.045 * vol, opts); break;
-      case 'plasma': playToneEx(720, 0.1, 'triangle', 0.05 * vol, opts); break;
-      case 'flamethrower': scheduleNoise(0.14, 0.05); playToneEx(95 * fus, 0.13, 'sawtooth', 0.08 * vol, opts); break;
-      case 'bow': playToneEx(430, 0.09, 'sine', 0.045 * vol, opts); break;
-      case 'railgun': playToneEx(150 * fus, 0.5, 'sawtooth', rapidFireVolume('railgun', 0.12 * vol), opts); scheduleNoise(0.3, rapidFireVolume('railgun', 0.06)); break;
-            default: playToneEx(880, 0.08, 'square', 0.03 * vol, opts);
-    }
+    const handler = WEAPON_SOUND_HANDLERS[weapon.id] || defaultWeaponSound;
+    handler(weapon, opts, fus, vol);
   }
+
+  NV.WEAPON_SOUND_HANDLERS = WEAPON_SOUND_HANDLERS;
 
   // Sonidos de ataque distintos para cada jefe
   sfx.bossAttack = {
