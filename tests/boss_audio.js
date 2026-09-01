@@ -100,7 +100,11 @@ t('game.js invoca sfx.bossEnter al crear el jefe en nextWave', () => {
   const src = fs.readFileSync('js/game.js', 'utf8');
   const i = src.indexOf('function nextWave()');
   if (i < 0) throw new Error('nextWave no encontrada');
-  if (!src.slice(i, i + 1500).includes('sfx.bossEnter()')) throw new Error('nextWave no llama sfx.bossEnter()');
+  // Busca dentro de toda la función nextWave (hasta el siguiente "function " de nivel 1).
+  const tail = src.slice(i);
+  const j = tail.indexOf('\n  function ', 1);
+  const block = j > 0 ? tail.slice(0, j) : tail;
+  if (!block.includes('sfx.bossEnter()')) throw new Error('nextWave no llama sfx.bossEnter()');
 });
 
 t('startGame resetea musicState.phase a "normal" (sin residuo de partida anterior)', () => {

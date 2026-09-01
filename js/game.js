@@ -562,6 +562,7 @@
     heartbeatTimer = 0; heartbeatWasCritical = false; countdownLastSecond = 0;
     enemies = []; bullets = []; particles = []; pickups = [];
     floatTexts = []; trails = []; weaponPickups = []; bossChests = [];
+    shockwaves = []; drones = []; meteors = [];
     inventory = []; currentWeapon = WEAPONS[0]; consumableItems = [];
     consumSel = 0;
     weaponLevels = {}; weaponKills = {}; weaponFus = {}; fireTimer = 0;
@@ -583,7 +584,12 @@
     waveEvent = (wave % 5 !== 0 && wave % 3 === 0) ? pickWaveEvent() : null;
     waveTimer = NV.waveDuration(wave, waveEvent);
     spawnTimer = 0;
-    enemies = []; bullets = []; pickups = []; shockwaves = [];
+    // Limpieza completa de entidades por oleada (rendimiento): no dejar restos de
+    // partículas, drones, meteoros, estelas, textos/cofres/armas del suelo de la
+    // oleada anterior acumulándose entre oleadas (deuda técnica de rendimiento).
+    enemies = []; bullets = []; particles = []; pickups = [];
+    floatTexts = []; trails = []; shockwaves = []; weaponPickups = [];
+    drones = []; meteors = []; bossChests = [];
 
     if (wave % 5 === 0) {
       const bossIndex = ((wave / 5 - 1) % BOSS_TYPES.length + BOSS_TYPES.length) % BOSS_TYPES.length;
