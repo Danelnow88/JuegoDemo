@@ -147,6 +147,42 @@
     for (const e of enemies) { if (!e.dead) e.slowUntil = duration; }
   };
 
+  // ----- Cuadrícula espacial (spatial hash) para vecinos cercanos -----
+  // Reemplaza los loops O(n²) de separación entre enemigos (común, swarm, ranged)
+  // por un barrido de celdas adyacentes: O(n) amortizado. Preserva los radios de
+  // búsqueda y las fórmulas de empuje EXACTAS, solo cambia la forma de hallar
+  // vecinos. CELL_SIZE fijo >= máximo radio de separación (GOLIATH 36*2+6=78).
+  const SEP_CELL = 96;
+  function gridCellX(x) { return Math.floor(x / SEP_CELL); }
+  function gridCellY(y) { return Math.floor(y / SEP_CELL); }
+  function buildSpatialGrid(enemies) {
+    const grid = new Map();
+    for (let i = 0; i < enemies.length; i++) {
+      const it = enemies[i];
+      if (it.dead) continue;
+      const cx = gridCellX(it.x), cy = gridCellY(it.y);
+      const key = cx + ',' + cy;
+      if (!grid.has(key)) grid.set(key, []);
+      grid.get(key).push(it);
+    }
+    return grid;
+  }
+  // Llama cb(otro) para cada enemigo vivo en celdas adyacentes a e (dx,dy en {-1,0,1}).
+  // Como SEP_CELL >= radio de separación, 3x3 celdas siempre cubren el vecindario.
+  function forEachGridNeighbor(e, grid, cb) {
+    const cx = gridCellX(e.x), cy = gridCellY(e.y);
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dy = -1; dy <= 1; dy++) {
+        const cell = grid.get((cx + dx) + ',' + (cy + dy));
+        if (!cell) continue;
+        for (let k = 0; k < cell.length; k++) {
+          const other = cell[k];
+          if (other !== e) cb(other);
+        }
+      }
+    }
+  }
+
   // ---- Update de todos los enemigos (comportamientos, daño al jugador) ----
   // Devuelve { enemies, shake, gameOver }. Mutaciones de array/player por ref; los
   // primitivos let (enemies filtrado, shake) y el flag gameOver vuelven del retorno.
@@ -154,6 +190,9 @@
     const { enemies, player, bullets, MAX_BULLETS, MAX_ENEMY_BULLETS, enemyBulletCount, computePlayerHit, addFloatText } = st;
     let shake = st.shake || 0;
     let gameOver = false;
+    // Cuadrícula espacial de vecinos (una pasada O(n)) — reutilizada por las 3
+    // separaciones (común, swarm, ranged) y el chequeo de contacto posterior.
+    const grid = buildSpatialGrid(enemies);
 
     for (const e of enemies) {
       if (e.dead) continue;
@@ -204,13 +243,15 @@
           const angle = Math.atan2(st.player.y - e.y, st.player.x - e.x);
           e.x += (Math.cos(angle) * spd + kbx) * dt;
           e.y += (Math.sin(angle) * spd + kby2) * dt;
-          for (const other of enemies) {
-            if (other !== e && !other.dead && Math.hypot(other.x - e.x, other.y - e.y) < e.radius * 4) {
+          // Evitar amontonarse con otros swarm próximos (cuadrícula, no O(n²)):
+          // mismo radio (radius*4) y mismo empuje (10*dt) que antes.
+          forEachGridNeighbor(e, grid, (other) => {
+            if (!other.dead && Math.hypot(other.x - e.x, other.y - e.y) < e.radius * 4) {
               const oa = Math.atan2(other.y - e.y, other.x - e.x);
               e.x -= Math.cos(oa) * 10 * dt;
               e.y -= Math.sin(oa) * 10 * dt;
             }
-          }
+          });
         } else if (e.behavior === 'shield') {
           const angle = Math.atan2(st.player.y - e.y, st.player.x - e.x);
           const dist = Math.hypot(st.player.x - e.x, st.player.y - e.y);
@@ -225,8 +266,10 @@
             e.x += Math.cos(angle) * spd * 0.5 * dt + kbx * dt;
             e.y += Math.sin(angle) * spd * 0.5 * dt + kby2 * dt;
           } else {
-            for (const other of enemies) {
-              if (other === e || other.dead) continue;
+            // Separación ranged (cuadrícula, no O(n²)): mismo radio (radius+...)*0.7
+            // y mismo empuje ((minD-od)*1.2*dt) que antes.
+            forEachGridNeighbor(e, grid, (other) => {
+              if (other.dead) return;
               const od = Math.hypot(other.x - e.x, other.y - e.y);
               const minD = (e.radius + other.radius) * 0.7;
               if (od > 0 && od < minD) {
@@ -235,7 +278,7 @@
                 e.x += Math.cos(a2) * push;
                 e.y += Math.sin(a2) * push;
               }
-            }
+            });
             e.shootTimer += dt;
             if (e.shootTimer > 1.2) {
               e.shootTimer = 0;
@@ -249,21 +292,22 @@
 
       // Separación suave común para enemigos cuerpo a cuerpo: evita que varios
       // chase/kami/erratic/shield se apilen sobre el mismo punto del jugador.
+      // Cuadrícula espacial (no O(n²)): mismo minD (r+r+6) y mismo empuje que antes.
       if (e.behavior !== 'ranged') {
-        const selfIndex = enemies.indexOf(e);
-        for (let oi = 0; oi < enemies.length; oi++) {
-          const other = enemies[oi];
-          if (other === e || other.dead) continue;
+        const idx = enemies.indexOf(e);
+        forEachGridNeighbor(e, grid, (other) => {
+          if (other.dead) return;
           const dx = e.x - other.x, dy = e.y - other.y;
           const od = Math.hypot(dx, dy);
           const minD = e.radius + other.radius + 6;
           if (od < minD) {
-            const a = od > 0 ? Math.atan2(dy, dx) : (selfIndex - oi) * 2.399963229728653;
+            // superposición exacta: dirección determinística por índice (igual que antes)
+            const a = od > 0 ? Math.atan2(dy, dx) : (idx - enemies.indexOf(other)) * 2.399963229728653;
             const push = Math.min(1.6, (minD - od) * 7 * dt);
             e.x += Math.cos(a) * push;
             e.y += Math.sin(a) * push;
           }
-        }
+        });
       }
 
       e.knockVelX = (e.knockVelX || 0) * 0.92;
