@@ -79,5 +79,15 @@
     return 4 + (w - 10) * 0.22;
   };
 
+  // ===== B2: piso de poder del jugador =====
+  // El daño del arma escala +5% por oleada completada (automático, sin comprar),
+  // para que el poder nunca quede estático contra el HP creciente (B1).
+  // wave=1 -> x1.00 (partida igual a siempre). Pura y testeable;
+  // shoot (weapons.js) es su único consumidor.
+  NV.waveWeaponMult = function (wave) {
+    const w = Math.max(1, wave || 1);
+    return 1 + (w - 1) * 0.05;
+  };
+
   Object.freeze(NV.BALANCE);
 })();

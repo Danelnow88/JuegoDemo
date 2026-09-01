@@ -1,4 +1,5 @@
 // Tests B1: curva de HP enemigo (NV.enemyHpScale) — pendiente 0.22 desde w=10.
+// Tests B2: piso de poder (NV.waveWeaponMult) — +5% de daño de arma por oleada.
 const fs = require('fs'), vm = require('vm');
 let pass = 0, fail = 0;
 function t(desc, fn) { try { fn(); pass++; console.log('  ok  ' + desc); } catch (e) { fail++; console.log('  FAIL ' + desc + ' -> ' + e.message); } }
@@ -40,6 +41,31 @@ t('spawnEnemy consume la curva unica (sin formula duplicada)', () => {
 t('wave invalida cae a 1 de forma segura', () => {
   if (NV.enemyHpScale(0) !== NV.enemyHpScale(1)) throw new Error('w=0 no cae a 1');
   if (NV.enemyHpScale(undefined) !== NV.enemyHpScale(1)) throw new Error('undefined no cae a 1');
+});
+
+// ===== B2 =====
+t('B2: w=1 no altera el daño inicial (partida igual a siempre)', () => {
+  if (NV.waveWeaponMult(1) !== 1) throw new Error('w=1 -> ' + NV.waveWeaponMult(1));
+});
+
+t('B2: +5% lineal por oleada completada', () => {
+  for (const [w, exp] of [[2, 1.05], [10, 1.45], [20, 1.95], [30, 2.45]]) {
+    if (Math.abs(NV.waveWeaponMult(w) - exp) > 1e-9) throw new Error('w=' + w + ' esperado ' + exp);
+  }
+});
+
+t('B2: wave invalida cae a 1 de forma segura', () => {
+  if (NV.waveWeaponMult(0) !== 1) throw new Error('w=0 -> ' + NV.waveWeaponMult(0));
+  if (NV.waveWeaponMult(undefined) !== 1) throw new Error('undefined -> ' + NV.waveWeaponMult(undefined));
+});
+
+t('B2: shoot escala el daño del arma (unico consumidor)', () => {
+  const src = fs.readFileSync('js/engine/weapons.js', 'utf8');
+  if (!src.includes('NV.waveWeaponMult(state.wave)')) throw new Error('shoot no usa NV.waveWeaponMult');
+  const others = ['js/engine/bullets.js', 'js/engine/enemies.js', 'js/engine/boss.js', 'js/engine/combat.js'];
+  for (const f of others) {
+    if (fs.readFileSync(f, 'utf8').includes('waveWeaponMult')) throw new Error('uso inesperado en ' + f);
+  }
 });
 
 console.log('RESULT wave_balance: pass=' + pass + ' fail=' + fail);
