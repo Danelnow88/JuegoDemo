@@ -129,7 +129,7 @@
       const d = Math.hypot(c.x - player.x, c.y - player.y);
       if (d < 34) {
         c.dead = true;
-        addFloatText(c.x, c.y - 18, 'TESORO DEL JEFE! ◆', '#ffd700');
+        addFloatText(c.x, c.y - 18, 'TESORO DEL JEFE! ◆', '#7cf8ff');
         const n = 1 + Math.floor(Math.random() * 3); // 1..3
         for (let i = 0; i < n; i++) {
           const ox = c.x + (Math.random() - 0.5) * 26;

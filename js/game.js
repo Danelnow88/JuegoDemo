@@ -798,7 +798,7 @@
           if (currentWeapon === weapon) {
             currentWeapon = NV.starterWeapon();
           }
-          addFloatText(W / 2, H / 2, '+◆ ' + val, '#ffcf76');
+          addFloatText(W / 2, H / 2, '+◆ ' + val, '#7cf8ff');
           updateHUD();
           renderInventory();
           sfx.shopSell();
@@ -1272,7 +1272,7 @@
     score += cb.bonusScore;
     if (cb.gemBonus) shards += cb.gemBonus;
     if (cb.count >= 3) sfx.combo(cb.count);
-    if (cb.count >= 3) addFloatText(e.x, e.y - 25, 'COMBO x' + cb.count + (cb.milestone ? ' ◆+1' : ''), '#ffd700');
+    if (cb.count >= 3) addFloatText(e.x, e.y - 25, 'COMBO x' + cb.count + (cb.milestone ? ' ◆+1' : ''), '#7cf8ff');
   }
 
   function updateEnemies(dt) {
