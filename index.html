@@ -43,36 +43,7 @@
         <div id="startScreen" class="overlay">
           <h1>NEON VOID</h1>
           <p class="subtitle">Elegí tu piloto y sobreviví a las oleadas del Vacío</p>
-          <div class="char-grid">
-            <button data-char="boti" class="char-card selected">
-              <div class="char-preview char-preview-boti"><div class="char-eye"></div><div class="char-eye"></div></div>
-              <div class="char-name">BOTI</div>
-              <div class="char-tag">Equilibrado</div>
-              <div class="char-stat">HP 120 · SPD 200 · ARM 0</div>
-              <div class="char-desc">Regenera 1 HP cada 5s. <canvas class="char-skill-icon" data-skill-icon="meteor" aria-label="Lluvia Estelar"></canvas> <b>Lluvia Estelar</b>: <span class="dmg-highlight">devasta enemigos normales</span>, aunque <span class="cd-note">tiene recarga larga</span> y <span class="dmg-highlight">golpea menos a los jefes</span>.</div>
-            </button>
-            <button data-char="nova" class="char-card">
-              <div class="char-preview char-preview-nova"><div class="char-eye"></div><div class="char-eye"></div></div>
-              <div class="char-name">NOVA</div>
-              <div class="char-tag">Veloz</div>
-              <div class="char-stat">HP 80 · SPD 280 · ARM 0</div>
-              <div class="char-desc">+20% daño, +20% daño recibido. <canvas class="char-skill-icon" data-skill-icon="phase" aria-label="Fase Fantasma"></canvas> <b>Fase Fantasma</b>: <span class="cc-highlight">aura espectral que quema a los cercanos (también jefes)</span> y <span class="dmg-highlight">detona un golpe final</span> al terminar.</div>
-            </button>
-            <button data-char="rook" class="char-card">
-              <div class="char-preview char-preview-rook"><div class="char-eye"></div><div class="char-eye"></div></div>
-              <div class="char-name">ROOK</div>
-              <div class="char-tag">Tanque</div>
-              <div class="char-stat">HP 160 · SPD 150 · ARM 5</div>
-              <div class="char-desc">-15% daño recibido. <canvas class="char-skill-icon" data-skill-icon="bulwark" aria-label="Muralla"></canvas> <b>Muralla</b>: <span class="def-highlight">escudo que refleja balas con más fuerza</span> y <span class="cc-highlight">onda de choque que aturde y empuja</span> a los cercanos.</div>
-            </button>
-            <button data-char="swarm" class="char-card">
-              <div class="char-preview char-preview-swarm"><div class="char-eye"></div><div class="char-eye"></div></div>
-              <div class="char-name">ENJAMBRE</div>
-              <div class="char-tag">Esquivo</div>
-              <div class="char-stat">HP 90 · SPD 240 · ARM 0</div>
-              <div class="char-desc">15% esquive. <canvas class="char-skill-icon" data-skill-icon="hivemind" aria-label="Drones de Combate"></canvas> <b>Drones de Combate</b>: <span class="def-highlight">6 drones te escoltan</span> y <span class="cc-highlight">apuntan solos al enemigo más cercano</span>, incluso a distancia.</div>
-            </button>
-          </div>
+          <div id="charGrid" class="char-grid"></div>
           <button id="startBtn" class="primary" type="button">COMENZAR</button>
                               <button id="permBtn" class="primary perm-btn" type="button">📈 MEJORAS PERMANENTES</button>
           <p class="tip">WASD/Flechas: mover | ESPACIO: habilidad | TAB: stats | F: consumible</p>
@@ -143,6 +114,7 @@
     <script src="js/data/consumables.js"></script>
     <script src="js/audio/synth.js"></script>
     <script src="js/ui/dom.js"></script>
+    <script src="js/ui/characters.js"></script>
     <script src="js/render/canvas.js"></script>
     <script src="js/render/projectiles.js"></script>
     <script src="js/render/enemies.js"></script>

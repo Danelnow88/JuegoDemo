@@ -165,6 +165,7 @@
     }
     if (NV.rhythmRestorePref) NV.rhythmRestorePref();
     resizeCanvas();
+    NV.renderCharacterCards(dom.charGrid, CHARACTERS, player.character);
     renderMenuSkillIcons();
 
     const charCards = document.querySelectorAll('.char-card');

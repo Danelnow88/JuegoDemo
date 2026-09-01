@@ -8,6 +8,14 @@ const data = fs.readFileSync('js/data/gameData.js', 'utf8');
 const hud = fs.readFileSync('js/render/hud.js', 'utf8');
 const html = fs.readFileSync('index.html', 'utf8');
 const css = fs.readFileSync('css/styles.css', 'utf8');
+const vm = require('vm');
+
+function generatedCharacterHtml() {
+  const sbx = { window: { NV: {} }, console };
+  vm.runInNewContext(data, sbx, { filename: 'gameData.js' });
+  vm.runInNewContext(fs.readFileSync('js/ui/characters.js', 'utf8'), sbx, { filename: 'characters.js' });
+  return sbx.window.NV.characterCardsHtml(null, 'boti');
+}
 
 t('tienda permanente renderiza mejoras con canvas aprobado 64/48', () => {
   if (!game.includes('function drawMetaSkillCanvas')) throw new Error('falta drawMetaSkillCanvas');
@@ -44,8 +52,9 @@ t('CHARACTERS conserva special/skillName sin skillIcon legacy', () => {
 t('menú inicial renderiza 4 canvas de habilidades de personaje', () => {
   if (!game.includes('function renderMenuSkillIcons')) throw new Error('falta renderMenuSkillIcons');
   if (!game.includes("drawMetaSkillCanvas(canvas, canvas.getAttribute('data-skill-icon'), 36, 24)")) throw new Error('menú no dibuja canvas 36/24');
+  if (!game.includes('NV.renderCharacterCards(dom.charGrid, CHARACTERS, player.character);')) throw new Error('init no renderiza cards dinámicas');
   if (!game.includes('renderMenuSkillIcons();')) throw new Error('init no pinta skills del menú');
-  const icons = html.match(/class="char-skill-icon" data-skill-icon="/g) || [];
+  const icons = generatedCharacterHtml().match(/class="char-skill-icon" data-skill-icon="/g) || [];
   if (icons.length !== 4) throw new Error('canvas menú=' + icons.length);
   if (!css.includes('.char-skill-icon')) throw new Error('falta CSS char-skill-icon');
 });
