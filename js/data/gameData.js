@@ -36,26 +36,47 @@
       name: 'BOTI', color: '#7cf8ff', bodyColor: '#4a9eff', eyeColor: '#fff', size: 22,
       special: 'meteor', maxCd: 14, passive: 'Regenera 1 HP cada 5s',
       skillName: 'Lluvia Estelar', skillDesc: 'Meteoritos devastadores contra enemigos normales; recarga larga y daño reducido contra jefes',
+      card: {
+        tag: 'Equilibrado', previewClass: 'char-preview-boti', statLine: 'HP 120 · SPD 200 · ARM 0',
+        descHtml: 'Regenera 1 HP cada 5s. <canvas class="char-skill-icon" data-skill-icon="meteor" aria-label="Lluvia Estelar"></canvas> <b>Lluvia Estelar</b>: <span class="dmg-highlight">devasta enemigos normales</span>, aunque <span class="cd-note">tiene recarga larga</span> y <span class="dmg-highlight">golpea menos a los jefes</span>.',
+      },
       stats: { hp: 120, speed: 200, armor: 0, luck: 0 },
     },
     nova: {
       name: 'NOVA', color: '#caa7ff', bodyColor: '#9b59b6', eyeColor: '#ff0', size: 18,
       special: 'phase', maxCd: 7, passive: 'Daño +20%, recibe +20%', takeDmgMult: 1.2,
       skillName: 'Fase Fantasma', skillDesc: 'Aura espectral de área potente (afecta jefes); al terminar, detona un golpe final sobre lo alcanzado',
+      card: {
+        tag: 'Veloz', previewClass: 'char-preview-nova', statLine: 'HP 80 · SPD 280 · ARM 0',
+        descHtml: '+20% daño, +20% daño recibido. <canvas class="char-skill-icon" data-skill-icon="phase" aria-label="Fase Fantasma"></canvas> <b>Fase Fantasma</b>: <span class="cc-highlight">aura espectral que quema a los cercanos (también jefes)</span> y <span class="dmg-highlight">detona un golpe final</span> al terminar.',
+      },
       stats: { hp: 80, speed: 280, armor: 0, luck: 5 },
     },
     rook: {
       name: 'ROOK', color: '#ffcf76', bodyColor: '#f39c12', eyeColor: '#000', size: 26,
       special: 'bulwark', maxCd: 12, passive: '-15% daño recibido', takeDmgMult: 0.85,
       skillName: 'Muralla', skillDesc: 'Escudo que refleja balas con más fuerza; onda de choque que aturde y empuja al activarse',
+      card: {
+        tag: 'Tanque', previewClass: 'char-preview-rook', statLine: 'HP 160 · SPD 150 · ARM 5',
+        descHtml: '-15% daño recibido. <canvas class="char-skill-icon" data-skill-icon="bulwark" aria-label="Muralla"></canvas> <b>Muralla</b>: <span class="def-highlight">escudo que refleja balas con más fuerza</span> y <span class="cc-highlight">onda de choque que aturde y empuja</span> a los cercanos.',
+      },
       stats: { hp: 160, speed: 150, armor: 5, luck: 0 },
     },
     swarm: {
       name: 'ENJAMBRE', color: '#8dfaff', bodyColor: '#00d4aa', eyeColor: '#fff', size: 16,
       special: 'hivemind', maxCd: 10, passive: '15% esquiva', dodge: 0.15,
       skillName: 'Drones de Combate', skillDesc: '6 drones escoltas que apuntan solos al enemigo o jefe más cercano a distancia',
+      card: {
+        tag: 'Esquivo', previewClass: 'char-preview-swarm', statLine: 'HP 90 · SPD 240 · ARM 0',
+        descHtml: '15% esquive. <canvas class="char-skill-icon" data-skill-icon="hivemind" aria-label="Drones de Combate"></canvas> <b>Drones de Combate</b>: <span class="def-highlight">6 drones te escoltan</span> y <span class="cc-highlight">apuntan solos al enemigo más cercano</span>, incluso a distancia.',
+      },
       stats: { hp: 90, speed: 240, armor: 0, luck: 10 },
     },
+  };
+
+  NV.CHARACTER_ORDER = ['boti', 'nova', 'rook', 'swarm'];
+  NV.characterList = function () {
+    return NV.CHARACTER_ORDER.map((id) => ({ id, data: NV.CHARACTERS[id] })).filter((entry) => !!entry.data);
   };
 
   // === ARMAS (10) ===

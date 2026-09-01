@@ -1,7 +1,14 @@
 // Tests de descripciones: clases de resalte definidas, textos actualizados, sin CD viejos.
 const fs = require('fs');
+const vm = require('vm');
 let pass = 0, fail = 0;
 function t(desc, fn) { try { fn(); pass++; console.log('  ok  ' + desc); } catch (e) { fail++; console.log('  FAIL ' + desc + ' -> ' + e.message); } }
+
+function loadData() {
+  const sbx = { window: { NV: {} }, console };
+  vm.runInNewContext(fs.readFileSync('js/data/gameData.js', 'utf8'), sbx, { filename: 'gameData.js' });
+  return sbx.window.NV;
+}
 
 t('CSS define las 4 clases de resalte', () => {
   const css = fs.readFileSync('css/styles.css', 'utf8');
@@ -38,6 +45,24 @@ t('textos reflejan el balance actual', () => {
   const data = fs.readFileSync('js/data/gameData.js', 'utf8');
   for (const k of ['daño reducido contra jefes', 'detona un golpe final', 'aturde y empuja', 'jefe más cercano']) {
     if (!data.includes(k)) throw new Error('gameData falta: ' + k);
+  }
+});
+
+t('CHARACTERS incluye metadata de card equivalente al HTML actual', () => {
+  const NV = loadData();
+  const html = fs.readFileSync('index.html', 'utf8');
+  const expected = ['boti', 'nova', 'rook', 'swarm'];
+  if (NV.CHARACTER_ORDER.join(',') !== expected.join(',')) throw new Error('orden=' + NV.CHARACTER_ORDER.join(','));
+  if (NV.characterList().map((e) => e.id).join(',') !== expected.join(',')) throw new Error('characterList desordenada');
+  for (const id of expected) {
+    const char = NV.CHARACTERS[id];
+    if (!char.card) throw new Error('sin card ' + id);
+    for (const field of ['tag', 'previewClass', 'statLine', 'descHtml']) {
+      if (!char.card[field]) throw new Error('falta ' + field + ' en ' + id);
+      if (!html.includes(char.card[field])) throw new Error('metadata no coincide con HTML: ' + id + '.' + field);
+    }
+    if (!char.card.descHtml.includes('data-skill-icon="' + char.special + '"')) throw new Error('skill icon no coincide ' + id);
+    if (!char.card.descHtml.includes('aria-label="' + char.skillName + '"')) throw new Error('aria skill no coincide ' + id);
   }
 });
 
