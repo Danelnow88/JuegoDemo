@@ -151,18 +151,18 @@ Definidos en `const CHARACTERS`. Se eligen en el menú inicial (tarjetas HTML) y
 
 Definidas en `const WEAPONS` con rareza `common / uncommon / rare / epic / legendary`.
 
-| ID | Nombre | Daño | Vel. | Cadencia | Rareza | Pro | Con |
-|----|--------|------|------|----------|--------|-----|-----|
-| `pistol` | Pistola | 12 | 500 | 30 | common | Versátil | Daño bajo |
-| `rifle` | Rifle | 20 | 700 | 25 | uncommon | Daño alto | Cadencia media |
-| `smg` | Subfusil | 7 | 450 | 12 | rare | Muy rápido | Daño bajo |
-| `shotgun` | Escopeta | 8 | 400 | 45 | rare | Área | Corto alcance |
-| `sniper` | Francotirador | 50 | 1200 | 70 | epic | Daño extrema | Lenta |
-| `laser` | Láser | 25 | 900 | 20 | epic | Penetra 1 | Daño medio |
-| `plasma` | Plasma | 40 | 600 | 35 | legendary | Doble disparo | Lento |
-| `flamethrower` | Lanzallamas | 6 | 260 | 14 | epic | Área amplia | Daño bajo |
-| `bow` | Arco | 22 | 800 | 40 | rare | Penetra 3 | Cadencia media |
-| `railgun` | Cañón de Riel | 70 | 1500 | 90 | legendary | Máximo daño | Muy lenta |
+| ID | Nombre | Daño | Vel. | Cadencia | Alcance | Pierce | Rareza | Pro | Con |
+|----|--------|------|------|----------|---------|--------|--------|-----|-----|
+| `pistol` | Pistola | 12 | 500 | 30 | 380 | 1 implícito | common | Versátil | Daño bajo |
+| `rifle` | Rifle | 20 | 700 | 25 | 480 | 1 implícito | uncommon | Daño alto | Cadencia media |
+| `smg` | Subfusil | 7 | 450 | 12 | 320 | 1 implícito | rare | Muy rápido | Daño bajo |
+| `shotgun` | Escopeta | 8 | 400 | 45 | 240 | 1 implícito por perdigón | rare | Área | Corto alcance |
+| `sniper` | Francotirador | 50 | 1200 | 70 | 700 | 4 | epic | Daño extrema | Lenta |
+| `laser` | Láser | 25 | 900 | 20 | 450 | 2 | epic | Penetra 1 | Daño medio |
+| `plasma` | Plasma | 40 | 600 | 35 | 520 | 1 implícito por proyectil | legendary | Doble disparo | Lento |
+| `flamethrower` | Lanzallamas | 6 | 260 | 14 | 170 | 2 por llama | epic | Área amplia | Daño bajo |
+| `bow` | Arco | 22 | 800 | 36 | 540 | 4 | rare | Penetra 3 | Cadencia media |
+| `railgun` | Cañón de Riel | 70 | 1500 | 84 | 800 | 8 | legendary | Máximo daño | Muy lenta |
 
 ---
 

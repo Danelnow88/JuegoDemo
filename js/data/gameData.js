@@ -86,12 +86,12 @@
     { id: 'rifle', name: 'Rifle', range: 480, damage: 20, speed: 700, fireRate: 25, color: '#4ade80', rarity: 'uncommon', pro: 'Daño alto', con: 'Cadencia media' },
     { id: 'smg', name: 'Subfusil', range: 320, damage: 7, speed: 450, fireRate: 12, color: '#facc15', rarity: 'rare', pro: 'Muy rápido', con: 'Daño bajo' },
     { id: 'shotgun', name: 'Escopeta', range: 240, damage: 8, speed: 400, fireRate: 45, count: 5, spread: 0.25, color: '#f97316', rarity: 'rare', pro: 'Área', con: 'Corto alcance' },
-    { id: 'sniper', name: 'Francotirador', range: 700, damage: 50, speed: 1200, fireRate: 70, color: '#ef4444', rarity: 'epic', pro: 'Daño extrema', con: 'Lenta' },
-    { id: 'laser', name: 'Láser', range: 450, damage: 25, speed: 900, fireRate: 20, color: '#f472b6', rarity: 'epic', pro: 'Penetra 1', con: 'Daño medio' },
+    { id: 'sniper', name: 'Francotirador', range: 700, damage: 50, speed: 1200, fireRate: 70, pierce: 4, color: '#ef4444', rarity: 'epic', pro: 'Daño extrema', con: 'Lenta' },
+    { id: 'laser', name: 'Láser', range: 450, damage: 25, speed: 900, fireRate: 20, pierce: 2, color: '#f472b6', rarity: 'epic', pro: 'Penetra 1', con: 'Daño medio' },
     { id: 'plasma', name: 'Plasma', range: 520, damage: 40, speed: 600, fireRate: 35, count: 2, spread: 0.1, color: '#a855f7', rarity: 'legendary', pro: 'Doble disparo', con: 'Lento' },
-    { id: 'flamethrower', name: 'Lanzallamas', range: 170, damage: 6, speed: 260, fireRate: 14, count: 3, spread: 0.35, color: '#fb923c', rarity: 'epic', pro: 'Área amplia', con: 'Daño bajo' },
-    { id: 'bow', name: 'Arco', range: 540, damage: 22, speed: 800, fireRate: 40, pierce: 3, color: '#22c55e', rarity: 'rare', pro: 'Penetra 3', con: 'Cadencia media' },
-    { id: 'railgun', name: 'Cañón de Riel', range: 800, damage: 70, speed: 1500, fireRate: 90, pierce: 5, color: '#06b6d4', rarity: 'legendary', pro: 'Máximo daño', con: 'Muy lenta' },
+    { id: 'flamethrower', name: 'Lanzallamas', range: 170, damage: 6, speed: 260, fireRate: 14, count: 3, spread: 0.35, pierce: 2, color: '#fb923c', rarity: 'epic', pro: 'Área amplia', con: 'Daño bajo' },
+    { id: 'bow', name: 'Arco', range: 540, damage: 22, speed: 800, fireRate: 36, pierce: 4, color: '#22c55e', rarity: 'rare', pro: 'Penetra 3', con: 'Cadencia media' },
+    { id: 'railgun', name: 'Cañón de Riel', range: 800, damage: 70, speed: 1500, fireRate: 84, pierce: 8, color: '#06b6d4', rarity: 'legendary', pro: 'Máximo daño', con: 'Muy lenta' },
   ];
 
   // === COLORES DE TIER DE DISPARO: cada 10 niveles cambia la apariencia ===

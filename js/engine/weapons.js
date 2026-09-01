@@ -84,7 +84,7 @@
         x: player.x, y: player.y - 20,
         vx: Math.cos(angle) * weapon.speed, vy: Math.sin(angle) * weapon.speed,
         damage: crit ? finalDmg * 2 : finalDmg,
-        color: weapon.color, dead: false, isEnemy: false, pierce: weapon.pierce || 0,
+        color: weapon.color, dead: false, isEnemy: false, pierce: weapon.pierce || 1,
         crit, stunChance: 0,
         // Estética de tier (visual; no se usa en colisiones). wid selecciona la forma.
         tier: vTier, glowColor, wid: weapon.id,
