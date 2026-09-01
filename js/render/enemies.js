@@ -90,7 +90,10 @@
     }
     ctx.translate(e.x + rx + lx, e.y + ry + ly);
     ctx.fillStyle = e.color;
-    ctx.shadowBlur = e.isElite ? 14 : 10;
+    // Glow base moderado (neón presente pero barato): 4/8 en vez de 10/14.
+    // Los glows intensos quedan reservados a transitorios importantes (atkFlash,
+    // kamikaze armado / mecha, jefe) donde de verdad aportan feedback.
+    ctx.shadowBlur = e.isElite ? 8 : 4;
     ctx.shadowColor = e.color;
     // KAMIKAZE armado: parpadeo rápido + anillo de mecha expansivo (aviso claro de peligro)
     if (e.armed) {
