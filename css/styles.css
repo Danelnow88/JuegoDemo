@@ -415,7 +415,7 @@ canvas {
 .offer-upgrade .offer-icon { width: 24px; height: 24px; }
 .offer-upgrade .offer-name, .offer-upgrade .offer-desc { width: 100%; }
 .offer-weapon { min-height: 90px; }
-.offer-consumable { min-height: 90px; }
+.offer-consumable { min-height: 90px; height: 90px; }
 .rarity-common { border-color: rgba(124,248,255,.30); }
 .rarity-rare { border-color: rgba(202,167,255,.55); box-shadow: 0 0 12px rgba(202,167,255,.20); }
 .rarity-epic { border-color: rgba(255,207,118,.62); box-shadow: 0 0 14px rgba(255,207,118,.30); }
