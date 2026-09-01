@@ -1,4 +1,4 @@
-﻿# 🔷 NEON VOID — Roguelite de supervivencia
+﻿#  NEON VOID — Roguelite de supervivencia
 
 > **Juego arcade roguelite** estilo *synthwave* / *neon*, hecho 100% con **HTML5 Canvas + JavaScript + CSS** (sin frameworks ni dependencias externas: se juega abriendo `index.html` en el navegador).
 
@@ -16,7 +16,7 @@
 
 ---
 
-## 📁 Estructura del proyecto
+##  Estructura del proyecto
 
 ```
 JuegoDemo/
@@ -80,9 +80,9 @@ previews/                # Páginas HTML de confirmación visual/manual de icono
 
 ---
 
-## 🎮 Presentación general
+##  Presentación general
 
-El jugador controla una nave/entidad en un área de `900 × 520` (escalada responsive al tamaño de pantalla) y debe **sobrevivir oleadas** de enemigos. Al completar una oleada (o al vencer un jefe cada 5 oleadas) se abre una **tienda** donde el jugador gasta **fragmentos (💎 shards)** para comprar mejoras, armas y consumibles. También puede recoger armas durante la partida y guardarlas en un **inventario de 6 slots** (teclas 1–6 en partida para equipar). El objetivo es acumular puntaje, avanzar oleadas y conseguir **progresión permanente** (meta) que se conserva entre partidas.
+El jugador controla una nave/entidad en un área de `900 × 520` (escalada responsive al tamaño de pantalla) y debe **sobrevivir oleadas** de enemigos. Al completar una oleada (o al vencer un jefe cada 5 oleadas) se abre una **tienda** donde el jugador gasta **fragmentos (shards shards)** para comprar mejoras, armas y consumibles. También puede recoger armas durante la partida y guardarlas en un **inventario de 6 slots** (teclas 1–6 en partida para equipar). El objetivo es acumular puntaje, avanzar oleadas y conseguir **progresión permanente** (meta) que se conserva entre partidas.
 
 ### Cierre remasterización de iconos
 - **Set armas**: 10 iconos canvas en `js/render/weaponIcons.js` (`NV.drawWeaponIcon`), integrados en HUD, tienda, inventario y pickups.
@@ -92,7 +92,7 @@ El jugador controla una nave/entidad en un área de `900 × 520` (escalada respo
 
 ---
 
-## 🧠 Arquitectura y flujo del código (`js/game.js`)
+##  Arquitectura y flujo del código (`js/game.js`)
 
 El archivo se organiza en secciones claramente comentadas. Flujo general:
 
@@ -119,7 +119,7 @@ También hay estado por partida: `wave`, `score`, `shards`, `boss`, `inventory`,
 
 ---
 
-## 🕹️ Controles
+## ️ Controles
 
 | Input | Acción |
 |-------|--------|
@@ -134,7 +134,7 @@ También hay estado por partida: `wave`, `score`, `shards`, `boss`, `inventory`,
 
 ---
 
-## 👤 Personajes jugables (4)
+##  Personajes jugables (4)
 
 Definidos en `const CHARACTERS`. Se eligen en el menú inicial (tarjetas HTML) y cada uno tiene stats base, pasiva y habilidad especial.
 
@@ -166,7 +166,7 @@ Definidas en `const WEAPONS` con rareza `common / uncommon / rare / epic / legen
 
 ---
 
-## 👾 Enemigos básicos (7 tipos)
+##  Enemigos básicos (7 tipos)
 
 Definidos en `const ENEMY_TYPES`.
 
@@ -182,7 +182,7 @@ Definidos en `const ENEMY_TYPES`.
 
 ---
 
-## 💀 Élites (8 tipos)
+##  Élites (8 tipos)
 
 Definidos en `const ELITE_TYPES`. Aparecen aleatoriamente durante las oleadas, tienen más HP, score y xp, y se aturden brevemente al recibir daño (`e.stun = 0.25` en `updateBullets`).
 
@@ -199,7 +199,7 @@ Definidos en `const ELITE_TYPES`. Aparecen aleatoriamente durante las oleadas, t
 
 ---
 
-## 👑 Jefes (10 tipos)
+##  Jefes (10 tipos)
 
 Definidos en `const BOSS_TYPES`. Aparecen cada 5 oleadas. Cada jefe tiene patrón de movimiento, tipo de ataque y forma propia.
 
@@ -218,7 +218,7 @@ Definidos en `const BOSS_TYPES`. Aparecen cada 5 oleadas. Cada jefe tiene patró
 
 ---
 
-## 🛒 Tienda del Vacío
+##  Tienda del Vacío
 
 Se abre al completar una oleada o derrotar un jefe. Tiene **3 secciones** generadas dinámicamente por `generateOffers()` y renderizadas con `renderOffers()`:
 
@@ -228,11 +228,11 @@ Se abre al completar una oleada o derrotar un jefe. Tiene **3 secciones** genera
 
 También incluye el **INVENTARIO** (`dom.invSlots`) con 6 slots. Para comprar, seleccionar una oferta y confirmar. Las armas recogidas se guardan en el inventario y se pueden equipar con las teclas **1–6** durante la partida.
 
-Cada oferta muestra un **icono descriptivo** y un **precio en 💎** (fragmentos): mejoras/consumibles conservan sus pictogramas, y las ofertas de armas usan los **iconos minimalistas canvas aprobados** (`NV.drawWeaponIcon` vía `drawWeaponCanvas`) renderizados en un canvas de 64×64px dentro del `offer-icon`.
+Cada oferta muestra un **icono descriptivo** y un **precio en shards** (fragmentos): mejoras/consumibles conservan sus pictogramas, y las ofertas de armas usan los **iconos minimalistas canvas aprobados** (`NV.drawWeaponIcon` vía `drawWeaponCanvas`) renderizados en un canvas de 64×64px dentro del `offer-icon`.
 
 ---
 
-## 📦 Inventario
+##  Inventario
 
 - **6 slots** (`INVENTORY_SLOTS`).
 - Si el inventario está lleno, comprar un arma la equipa automáticamente.
@@ -241,7 +241,7 @@ Cada oferta muestra un **icono descriptivo** y un **precio en 💎** (fragmentos
 
 ---
 
-## 📊 Progresión
+##  Progresión
 
 ### Progresión por partida
 - `wave`: oleada actual (aumenta al limpiar oleadas o derrotar jefes).
@@ -261,7 +261,7 @@ Los datos de meta se guardan en `localStorage` (`neonVoidMeta`) mediante `loadMe
 
 ---
 
-## 🔊 Audio
+##  Audio
 
 Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 
@@ -297,7 +297,7 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 
 ---
 
-## 🎨 Efectos visuales
+##  Efectos visuales
 
 | Efecto | Dónde | Descripción |
 |--------|-------|-------------|
@@ -314,7 +314,7 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 
 ---
 
-## 🏗️ Detalle de sistemas principales
+## ️ Detalle de sistemas principales
 
 ### Spawn de enemigos
 - `spawnEnemy()` elige entre `ENEMY_TYPES` y, con probabilidad, un `ELITE_TYPES`.
@@ -339,7 +339,7 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 
 ---
 
-## 🕒 Timeline / versionado
+##  Timeline / versionado
 
 ### v59 — Bloque 1: AGC + umbrales robustos (anti-aplanado deathcore)
 - **Diagnóstico**: con master muy comprimido (deathcore, blast beats) la energía cruda quedaba 5x por encima de otros estilos y clavaba el render al tope; las medias móviles EMA de los umbrales se contaminaban con los propios golpes detectados y colapsaban el contraste de transientes (sd/media ~0.63).
@@ -373,7 +373,7 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 
 ### v4 — Bugs críticos
 - **BUG CRÍTICO — oleadas que terminan en segundos**: la condición de fin de oleada (`transition <= 0 && waveTimer <= 0 && !boss`) se evaluaba después del countdown que abría la tienda. Cuando `transition` llegaba a 0, `showShop()` abría la tienda y, en el mismo frame, la condición volvía a dispararse → victorias automáticas (~1.3 s por oleada). **Fix**: fin de oleada evaluado antes del countdown de transición, reiniciando `waveTimer` limpio. Las oleadas duran de verdad y no "se ganan solas". (`update()`)
-- **BUG — botón 📊 sin función**: `charBtn` no tenía listener. **Fix**: agregado a `dom` y vinculado a `showStats`. (`init()`)
+- **BUG — botón  sin función**: `charBtn` no tenía listener. **Fix**: agregado a `dom` y vinculado a `showStats`. (`init()`)
 - **Limpieza de estado al iniciar partida**: `startGame()` resetea `transition`, `paused` y `showStats`. (`startGame()`)
 - **Nota sobre el "boss roto"**: tras la corrección de la cascada de oleadas, el flujo de jefe (spawn en múltiplo de 5, daño, `hitFlash`, barra de HP, derrota → victoria épica → tienda) quedó coherente.
 
@@ -388,7 +388,7 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 - **BUG CRÍTICO — CSS de ofertas corrupto**: la regla `.offer` estaba envuelta en `@"..."@` (delimitadores de C#, no de CSS), lo que rompía el parsing y dejaba las ofertas de la tienda totalmente sin estilar. **Fix**: eliminados los caracteres `@"` y `"@`. (`css/styles.css`: sección tienda/offers)
 - **BUG CRÍTICO — `gameOver()` fuera de la IIFE**: la función tenía indentación 0, quedando fuera del `(() => { ... })();`. Al morir el jugador lanzaba `ReferenceError: triggerFlash is not defined`, congelando el juego e impidiendo avanzar/reiniciar. **Fix**: reindentada a 2 espacios para quedar dentro de la IIFE. (`js/game.js`, función `gameOver()`)
 - **Iconos de ofertas rotos**: mejoras y consumibles mostraban los caracteres `?`, `??`, `???` (signos literales). **Fix histórico**: fueron reemplazados por identificadores visuales descriptivos; hoy esa UI usa canvas mediante `drawMetaSkillCanvas`/`drawConsumableCanvas`. (`js/game.js`, `generateOffers()`)
-- **Icono de precio roto**: el precio de cada oferta mostraba `??` en lugar de 💎. **Fix**: reemplazado por 💎 (diamante), coherente con la barra de fragmentos. (`js/game.js`, `renderOffers()`)
+- **Icono de precio roto**: el precio de cada oferta mostraba `??` en lugar de shards. **Fix**: reemplazado por shards (diamante), coherente con la barra de fragmentos. (`js/game.js`, `renderOffers()`)
 - **Rediseño a pantalla de tienda dedicada (sin overlay)**: la tienda dejó de usar la clase compartida `.overlay` (fondo translúcido, centrado, scroll) y el botón quedaba recortado (`overflow-y: hidden`). Ahora es una pantalla propia `.shop-screen` con fondo sólido, `overflow: hidden` (sin scroll) y todo el contenido en cuadrículas auto-ajustables: `.shop-grid` (secciones MEJORAS / ARMAS / CONSUMIBLES con `flex: 1` y columnas `repeat(auto-fit, minmax(200px, 1fr))`) y `.offers` dentro de cada sección (`repeat(auto-fill, minmax(88px, 1fr))`). La sección de inventario y el botón ▶ CONTINUAR quedan al pie, siempre visibles. (`index.html` — div `#shop`, `css/styles.css` — `.shop-screen`)
 - **Verificación**: `node --check js/game.js` pasa sin errores; la tienda vuelve a mostrarse estilizada y funcional (comprar, equipar, continuar).
 
@@ -615,7 +615,7 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 
 
 ### v53 — Tanda E final: combo, Kamikaze y pulido de proyectiles
-- **Combo de kills** (`kill_combo` 6/6): derribos en ventana <2s suben el contador; milestones cada ×5 dan +1💎, bonus de score escalable con tope, y se resetea al recibir daño. HUD con texto pulsante arcoíris.
+- **Combo de kills** (`kill_combo` 6/6): derribos en ventana <2s suben el contador; milestones cada ×5 dan +1shards, bonus de score escalable con tope, y se resetea al recibir daño. HUD con texto pulsante arcoíris.
 - **Enemigo Kamikaze** (`kamikaze` 6/6): nuevo tipo desde oleada 10 — se "arma" a <130px del jugador (mecha 1s, parpadeo), y al morir detona daño en área solo si estás cerca. Spawn filtrado por `minWave` para no alterar umbrales de los otros tipos.
 - **Proyectil refleja tu arma** (`bullet_polish` 5/5): las balas crecen +2% por nivel de arma y +6% por nivel de fusión (tope 40%, solo estético vía `NV.bulletSizeGrowth`); armas fusionadas disparan con **halo dorado** identificable.
 - Corregido harness de `weapon_range.js` que ya no cargaba `balance.js` tras D2.
@@ -682,7 +682,7 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
   - **Imán** (`magnet`): acerca todos los shards/armas del campo al jugador.
   - **Recompensa** (`bounty`): 10s, cada derribo da score doble y +1 shard (campo `player.bounty`, decrementado por frame).
 - Lógica pura testeable: `NV.voidBomb`, `NV.freezeEnemies` (enemies.js), `NV.magnetCollect` (pickups.js); bounty integrado en `NV.killEnemy`.
-- Precios coherentes con la economía (26-34💎): son poderosos pero consumibles de una vez. Tests `consumables` 6/6.
+- Precios coherentes con la economía (26-34shards): son poderosos pero consumibles de una vez. Tests `consumables` 6/6.
 ### v52 — Tanda D: permanentes nuevas (crítico, esquiva, regeneración, codicia)
 - `PERM_UPGRADES` pasa de 5 a **9 mejoras** (mismas reglas: nivel 10, coste progresivo). Bases: Crítico 45 · Esquiva 40 · Regeneración 38 · Codicia 42 — coherentes con la economía lenta de meta-shards.
 - Hooks: crítico propio `+0.5%/nivel` en el roll de disparo (`weapons.js`); esquiva `+0.4%/nivel` sumada a la pasiva del personaje (`computePlayerHit`); regeneración `+0.2 HP/s/nivel` solo fuera de peligro (<170px de un enemigo corta la regen y resetea el acumulador) en `game.js`; codicia `+3% drop/nivel` en el roll de shards básicos (`killEnemy`).
@@ -700,19 +700,19 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 - El cofre queda en el campo hasta recogerlo; expira tras 30s. Visual: cofre dorado pulsante con glow (reutiliza la paleta del jefe/tienda).
 - `NV.updateBossChests(dt, chests, player, pickups, weaponPickups, WEAPONS, addFloatText, pickupSfx)` puro y testeable en `pickups.js`; `spawnBossChest` se invoca desde `boss.js` al morir (callback opcional, no rompe la lógica de jefe existente). Tests `boss_chest` 7/7.
 ### v50 — Tanda B2: venta de armas desde el inventario
-- El botón de "quitar" (✕) ahora es **vender** (💰): da 💎 según rareza, siempre por debajo del precio de compra (25) para no farmear economías.
+- El botón de "quitar" (✕) ahora es **vender** (venta): da shards según rareza, siempre por debajo del precio de compra (25) para no farmear economías.
 - Tabla centralizada `WEAPON_SELL_PRICES` en balance.js (common 6 · uncommon 9 · rare 12 · epic 16 · legendary 20); `NV.weaponSellValue(weapon, sellMap)` puro y testeable.
-- Vender libera el slot, y si era la equipada vuelve a Pistola. Muestra "+X 💎" y actualiza el contador de la tienda.
+- Vender libera el slot, y si era la equipada vuelve a Pistola. Muestra "+X shards" y actualiza el contador de la tienda.
 - Visual: botón dorado coherente con la paleta (antes era una ✕ rosa de interfaz web). Tests `weapon_sell` 5/5.
 ### v50 — Tanda B1: fusión de armas repetidas
 - **Drops**: recoger un arma que ya poseés NO ocupa slot nuevo — sube su **nivel de fusión** (aviso "FUSIÓN Nv X"). Al alcanzar el tope, el drop queda en el suelo con "FUSIÓN MÁX".
 - **Daño**: `NV.weaponFusionDamage(base, fus, 0.2)` = +20% de daño por nivel de fusión (cap 3, aplicado sobre base+nivel, críticos incluidos). Puro y testeable.
-- **Tienda**: comprar un arma repetida ahora ofrece **FUSIONAR** (15💎, más barato que comprar 25) subiendo el nivel; al máximo no se ofrece. Las ofertas no repetidas se compran igual que siempre.
+- **Tienda**: comprar un arma repetida ahora ofrece **FUSIONAR** (15shards, más barato que comprar 25) subiendo el nivel; al máximo no se ofrece. Las ofertas no repetidas se compran igual que siempre.
 - **Visual**: badge dorado "Fusión NvX" en el slot del inventario (`inv-fuse`).
 - Constantes centralizadas en `balance.js`: `MAX_WEAPON_FUSION:3`, `WEAPON_FUSION_DMG:0.20`, `WEAPON_FUSE_PRICE:15`. Retrocompat: `updateWeaponPickups` acepta `tryFusion` opcional (tests viejos siguen verdes). Tests `weapon_fusion` 6/6.
 ### v49 — Tanda A: identidad visual y feedback (juego "vivo")
 - **A1 · Ojos**: todos los enemigos tienen ojos que **miran al jugador** (`NV.drawEnemyEyes`, esclerótica blanca + pupila orientada por `atan2`); pupilas rojas en élites. Firma `drawEnemy(ctx, e, frame, player)` extendida con retrocompatibilidad (sin player no dibuja ojos). Tests `enemy_eyes` 3/3.
-- **A2 · Reacción de jefes**: golpe ≥2,5% de su HP máx => globo de enojo (`@%$#!`, 😡, 💢…) sobre el jefe (`NV.bossHitReaction`) con cooldown de 1,6s decrementado en `updateBoss`. Conectado desde `bullets.js` al aplicar daño. Tests `boss_rage` 4/4.
+- **A2 · Reacción de jefes**: golpe ≥2,5% de su HP máx => globo de enojo (`@%$#!`, RAGE, ALERT…) sobre el jefe (`NV.bossHitReaction`) con cooldown de 1,6s decrementado en `updateBoss`. Conectado desde `bullets.js` al aplicar daño. Tests `boss_rage` 4/4.
 - **A3 · Feedback ambiental**: campo de 90 estrellas con **parallax de 3 capas** contra la posición del jugador + titileo (`NV.drawStarfield` puro y determinista, canvas.js); **polvo de propulsión** cian detrás del jugador mientras desliza (Shift). Tests `ambient_fx` 4/4.
 - Robustez: `init()` tolera entornos sin `window.location` (sandboxes de tests).
 
@@ -787,7 +787,7 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 
 ### v36 — rebalancing (tienda, economía y dificultad)
 - **Topes de tienda por partida** (`SHOP_CAPS`): +25 HP ×8, Armadura +3 ×5, Suerte +2 ×7. La oferta desaparece al agotar el tope (muestra `n/max`); se resetean en cada partida (`shopBought`). Agilidad ya tenía tope propio.
-- **Economía de 💎**: élite garantiza un shard de **valor 3** (`p.value`, soportado por `updatePickups`); jefe paga **50 + wave×5** (antes 30 fijos); fin de oleada da **8 + wave×2** (antes 10).
+- **Economía de shards**: élite garantiza un shard de **valor 3** (`p.value`, soportado por `updatePickups`); jefe paga **50 + wave×5** (antes 30 fijos); fin de oleada da **8 + wave×2** (antes 10).
 - **PvE más difícil**: escala de HP enemiga `0.18→0.22/oleada`; velocidad `+2.5/oleada` con cap `+40`; crítico enemigo base `8%→10%`; élites desde oleada **3**, en oleadas impares (antes desde la 2, pares).
 - **Jefes realmente difíciles**: **+35% HP** (`(bt.hp + wave*25)×1.35`); FASE 2 acelera ataques ×1.4 (antes ×0.9) y movimiento ×0.6; cadencias reducidas: heavy 1.8→1.35, summon 3.5→2.6 (cap esbirros 26), spread 1.7→1.25, volley 1.3→0.95, bomb 2.0→1.6, orbs 1.4→1.1, split 1.5→1.15, rage cd `0.55+hpct×1.2`, default 1.5→1.1, beam 4.6→3.6.
 - **Tests**: nuevo `tests/economy.js` (3/3) — recompensa de jefe, valor de shards y topes definidos; `tests/space_special.js` sigue 4/4.
@@ -850,7 +850,7 @@ El proyecto es **100% front-end, sin build ni servidor**. Para jugar:
 
 ---
 
-## 🧭 Estado actual del desarrollo
+##  Estado actual del desarrollo
 
 El **README describe fielmente el juego jugable** (motor, 4 personajes, 10 armas, 7 enemigos, 8 élites, 10 jefes, tienda, inventario, niveles, audio y meta persistente). Todo esto está implementado y verificado con `node --check`.
 
@@ -876,7 +876,7 @@ El **README describe fielmente el juego jugable** (motor, 4 personajes, 10 armas
 ## ✅ Funcionalidades implementadas
 
 - Motor Canvas 2D con bucle `requestAnimationFrame`, `dt` limitado (`0.03`) y `resizeCanvas()` responsive (escala lógica 900×520).
-- Estados de juego: `menu`, `playing`, `shop`, `gameover`; pausa (`P`), stats (`TAB`), mostrar/ocultar HUD (`👁️`).
+- Estados de juego: `menu`, `playing`, `shop`, `gameover`; pausa (`P`), stats (`TAB`), mostrar/ocultar HUD (`HUD️`).
 - 4 personajes (`CHARACTERS`) con stats, pasiva y habilidad especial únicas (meteor, phase, bulwark, hivemind).
 - 10 armas (`WEAPONS`) con rareza, daño, velocidad y cadencia determinista escalada por la oleada **y** por el nivel del arma (`weaponFireInterval`, v15-v17) y propiedades especiales (escopeta multi-disparo, láser/arco/riel con penetración, plasma doble).
 - Estética de disparos con identidad geométrica por arma (`BULLET_DEFS`, v19) + tier visual cada 10 niveles (`weaponVisualTier`, v18): bala, flecha, rayo, orbe, perdigones y llama, con glow/color por tier, todo sin tocar colisiones.
@@ -915,7 +915,7 @@ El **README describe fielmente el juego jugable** (motor, 4 personajes, 10 armas
 
 ---
 
-## 🐛 Bugs / problemas conocidos
+##  Bugs / problemas conocidos
 
 > ✅ **Corregidos en v7:** mojibake de caracteres, bug de Overdrive (velocidad inflada), patrón `teleport` de NÉMESIS, `player.stun` duplicado y código muerto.
 
@@ -931,7 +931,7 @@ El **README describe fielmente el juego jugable** (motor, 4 personajes, 10 armas
 
 ---
 
-## 🧨 Zonas delicadas al modificar el código
+##  Zonas delicadas al modificar el código
 
 - **`js/game.js` es un archivo monolítico en una IIFE** (`(() => { 'use strict' ... })();`). Toda la lógica, render y audio viven ahí. Al agregar código mantené la indentación dentro de la IIFE: un desbalance de llaves (como pasó con `gameOver()` en v6) saca funciones y rompe el juego con `ReferenceError`.
 - **Estados globales compartidos**: `state`, `player`, `wave`, `currentWeapon`, `inventory`, `boss` y los arrays de entidades. Si se cambia un sistema, verificá dependencias cruzadas (p. ej. `spawnEnemy` no corre durante jefe; `update()` retorna antes de `frame++` fuera de `playing`).
@@ -944,7 +944,7 @@ El **README describe fielmente el juego jugable** (motor, 4 personajes, 10 armas
 
 ---
 
-## 🎨 Iconos canvas integrados
+##  Iconos canvas integrados
 
 - **Armas**: `js/render/weaponIcons.js` expone `NV.drawWeaponIcon(ctx, weaponOrId, x, y, size, opts)` y reemplaza los iconos legacy en HUD, tienda, inventario y pickups.
 - **Consumibles**: `js/render/consumableIcons.js` expone `NV.drawConsumableIcon(ctx, typeOrItem, x, y, size, opts)` para los 7 consumibles actuales (`potion`, `overdrive`, `shield`, `bomb`, `freeze`, `magnet`, `bounty`). Los SVG aprobados de `previews/consumable-icons-preview.html` fueron convertidos a paths/primitivas canvas sobre grilla lógica `32×32`.
@@ -956,7 +956,7 @@ El **README describe fielmente el juego jugable** (motor, 4 personajes, 10 armas
 
 ---
 
-## 🧠 Notas de implementación y observaciones de auditoría (14/08/2026)
+##  Notas de implementación y observaciones de auditoría (14/08/2026)
 
 Comportamientos reales verificados al leer el código completo (`js/game.js`, ~2155 líneas en una IIFE; el audio ya no está inline — pasó a `js/audio/synth.js` (~186 líneas); `css/styles.css` ~380 líneas; `index.html` ~136 líneas). Útil para retomar desarrollo sin re-descubrir.
 

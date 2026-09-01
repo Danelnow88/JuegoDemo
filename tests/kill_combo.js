@@ -36,7 +36,7 @@ t('milestones cada 5 kills (x5, x10)', () => {
   if (r6.milestone) throw new Error('milestone fuera de múltiplos de 5');
 });
 
-t('bonus de score escala y el milestone paga +1 💎', () => {
+t('bonus de score escala y el milestone paga +1 shard', () => {
   const lo = NV.comboOnKill({ count: 0, timer: 0 });
   const hi = NV.comboOnKill({ count: 7, timer: 1 });
   if (!(hi.bonusScore > lo.bonusScore)) throw new Error('bonusScore no escaló');

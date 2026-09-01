@@ -15,7 +15,7 @@
     { key: 'crit',   name: 'Crítico', base: 45, desc: '+0,5% prob. de crítico propio por nivel' },
     { key: 'dodge',  name: 'Esquiva', base: 40, desc: '+0,4% de esquivar golpes por nivel' },
     { key: 'regen',  name: 'Regeneración', base: 38, desc: '+0,2 HP/s fuera de peligro por nivel' },
-    { key: 'greed',  name: 'Codicia', base: 42, desc: '+3% chance de drop de 💎 por nivel' },
+    { key: 'greed',  name: 'Codicia', base: 42, desc: '+3% chance de drop de shards por nivel' },
   ];
 
   // Defaults derivados de la lista de permanentes: evita duplicar claves en game.js
@@ -178,7 +178,7 @@
   // Eventos de oleada aleatorios (cada ~3 oleadas): modifican la run sin tocar las mecánicas base.
   NV.WAVE_EVENTS = {
     elites:  { name: 'DIAS DE ÉLITES',   color: '#ff0',    desc: '¡Más élites' },
-    payday:  { name: 'DÍA DE PAGO',      color: '#7cf8ff', desc: 'Drops de 💎 x2' },
+    payday:  { name: 'DÍA DE PAGO',      color: '#7cf8ff', desc: 'Drops de shards x2' },
     fog:     { name: 'NEBLINA',          color: '#caa7ff', desc: 'Visibilidad reducida' },
     mines:   { name: 'CAMPO MINADO',     color: '#ff5f9b', desc: '¡Enemigos explosivos!' },
   };

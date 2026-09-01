@@ -144,7 +144,7 @@
   };
 
   // ---- Reacción de dolor/enojo: golpe fuerte => globo de texto (con cooldown interno) ----
-  const BOSS_RAGE_TEXTS = ['@%$#!', '¡GRRR!', '😡', '💢', '#@!*', '¡¿QUÉ?!', '😤', '¡DUELE!'];
+  const BOSS_RAGE_TEXTS = ['@%$#!', '¡GRRR!', 'RAGE', 'ALERT', '#@!*', '¡¿QUÉ?!', 'FURY', '¡DUELE!'];
   NV.bossHitReaction = function (boss, damage, addFloatText) {
     if (!boss || boss.dead) return false;
     if ((boss.rageCd || 0) > 0) return false;

@@ -187,7 +187,7 @@
         player.permCrit = permUpgrades.crit; player.permDodge = permUpgrades.dodge;
         player.permRegen = permUpgrades.regen; player.permGreed = permUpgrades.greed;
         player.maxCd = char.maxCd;
-        dom.sound.textContent = NV.soundOn ? '🔊 SONIDO' : '🔇 SONIDO';
+        dom.sound.textContent = NV.soundOn ? '♫ ON' : '♫ OFF';
         dom.sound.classList.toggle('off', !NV.soundOn);
         console.log('[CHAR] Seleccionado:', player.character);
       });
@@ -302,7 +302,7 @@
 
     dom.sound.addEventListener('click', () => {
       NV.soundOn = !NV.soundOn;
-      dom.sound.textContent = NV.soundOn ? '🔊 SONIDO' : '🔇 SONIDO';
+      dom.sound.textContent = NV.soundOn ? '♫ ON' : '♫ OFF';
       dom.sound.classList.toggle('off', !NV.soundOn);
     });
 
@@ -312,7 +312,7 @@
       dom.hudToggle.addEventListener('click', () => {
         showHUD = !showHUD;
         dom.hudToggle.classList.toggle('active', showHUD);
-        dom.hudToggle.textContent = showHUD ? '👁️' : '🚫';
+        dom.hudToggle.textContent = showHUD ? 'HUD' : 'NO HUD';
       });
     }
     if (dom.charBtn) {
@@ -655,7 +655,7 @@
       triggerFlash('#7cf8ff');
       spawnExplosion(W / 2, H / 2, 55, '#7cf8ff', 1);
       spawnExplosion(W / 2, H / 2, 35, '#caa7ff', 0.8);
-      showBanner('⭐ ¡OLEADA ' + wave + ' COMPLETA! 💎', '#7cf8ff');
+      showBanner('Oleada ' + wave + ' completa! ◆', '#7cf8ff');
     }
     sfx.victory(wave, { milestone: isBoss || wave % 5 === 0 || wave % 10 === 0 || wave % 25 === 0 });
   }
@@ -718,7 +718,7 @@
       el.innerHTML = '<div class="offer-icon"><canvas></canvas></div>' +
         '<div class="offer-name">' + u.name + ' Nv ' + lvl + (maxed ? ' (MÁX)' : '') + '</div>' +
         '<div class="offer-desc">' + u.desc + '</div>' +
-        "<div class='offer-price'>" + (maxed ? 'MÁX' : '💎 ' + cost) + '</div>';
+        "<div class='offer-price'>" + (maxed ? 'MÁX' : '◆ ' + cost) + '</div>';
       el.addEventListener('click', () => {
         if (maxed) { showBanner(u.name + ' al máximo', '#aaa'); return; }
         if (metaShards >= cost) {
@@ -784,11 +784,11 @@
           renderInventory();
         });
 
-        // Botón vender: da 💎 según rareza (coherente con la economía; < compra siempre).
+        // Botón vender: da shards según rareza (coherente con la economía; < compra siempre).
         const sellBtn = document.createElement('button');
         sellBtn.className = 'inv-remove';
-        sellBtn.textContent = '💰';
-        sellBtn.title = 'Vender por ' + NV.weaponSellValue(weapon, WEAPON_SELL_PRICES) + ' 💎';
+        sellBtn.textContent = 'SELL';
+        sellBtn.title = 'Vender por ' + NV.weaponSellValue(weapon, WEAPON_SELL_PRICES) + ' shards';
         sellBtn.addEventListener('click', (e) => {
           e.stopPropagation();
           const val = NV.weaponSellValue(weapon, WEAPON_SELL_PRICES);
@@ -798,7 +798,7 @@
           if (currentWeapon === weapon) {
             currentWeapon = NV.starterWeapon();
           }
-          addFloatText(W / 2, H / 2, '+' + val + ' 💎', '#ffcf76');
+          addFloatText(W / 2, H / 2, '+◆ ' + val, '#ffcf76');
           updateHUD();
           renderInventory();
           sfx.shopSell();
@@ -986,7 +986,7 @@
       const kind = item.kind || (item.weapon ? 'weapon' : item.consumableType ? 'consumable' : 'upgrade');
       el.className = "offer offer-" + kind + " rarity-" + visualRarity(item.rarity, item.price) + (item.disabled ? " disabled" : "");
       const iconHtml = item.weapon || item.consumableType || item.metaIcon ? '<div class="offer-icon"><canvas></canvas></div>' : '<div class="offer-icon">•</div>';
-      const priceHtml = item.disabled ? item.disabledReason : ('💎 ' + item.price);
+      const priceHtml = item.disabled ? item.disabledReason : ('◆ ' + item.price);
       const badgeHtml = item.badge ? '<div class="offer-badge">' + item.badge + '</div>' : '';
       el.innerHTML = iconHtml + '<div class="offer-name">' + item.name + "</div><div class=\"offer-desc\">" + item.desc + "</div>" + badgeHtml + "<div class='offer-price'>" + priceHtml + "</div>";
       el.addEventListener("click", () => {
@@ -1272,7 +1272,7 @@
     score += cb.bonusScore;
     if (cb.gemBonus) shards += cb.gemBonus;
     if (cb.count >= 3) sfx.combo(cb.count);
-    if (cb.count >= 3) addFloatText(e.x, e.y - 25, 'COMBO x' + cb.count + (cb.milestone ? ' 💎+1' : ''), '#ffd700');
+    if (cb.count >= 3) addFloatText(e.x, e.y - 25, 'COMBO x' + cb.count + (cb.milestone ? ' ◆+1' : ''), '#ffd700');
   }
 
   function updateEnemies(dt) {
@@ -1386,7 +1386,7 @@
 
 
   function updateHUD() {
-    dom.wave.textContent = 'OLEADA ' + wave;
+    dom.wave.textContent = 'Oleada ' + wave;
     dom.score.textContent = formatPoints(score);
     dom.shards.textContent = shards;
     dom.hpText.textContent = Math.max(0, Math.round(player.hp)) + '/' + player.maxHp;
@@ -1515,7 +1515,7 @@
       ctx.fillStyle = '#7cf8ff';
       ctx.font = '16px system-ui';
       ctx.textAlign = 'center';
-      ctx.fillText('💎', p.x, p.y);
+      ctx.fillText('◆', p.x, p.y);
     }
 
     // Drones de combate

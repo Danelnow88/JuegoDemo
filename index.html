@@ -9,7 +9,7 @@
   <body>
     <main class="shell">
       <header class="hud">
-        <div class="logo"><span>◉</span> NEON VOID</div>
+        <div class="logo"><span>NV</span> NEON VOID</div>
         <div id="rhythm-widget" class="rhythm-widget" title="Control de música externa (permite capturar audio de una pestaña o ventana)">
           <span class="rw-icon" aria-hidden="true">
             <svg class="mn" viewBox="0 0 32 32" width="20" height="20" focusable="false">
@@ -19,20 +19,20 @@
               <path class="mn-ghost" d="M5 9h6M5 13h4" />
             </svg>
           </span>
-          <button id="rwAddMusicBtn" class="rw-btn" type="button" title="Agregar música (capturar pestaña/ventana)">➕</button>
+          <button id="rwAddMusicBtn" class="rw-btn" type="button" title="Agregar música (capturar pestaña/ventana)">♫+</button>
           <button id="rwStopBtn" class="rw-btn" type="button" title="Detener captura">⏹</button>
         </div>
         <div class="stats" aria-label="Estado de la partida">
-          <div class="stat stat-wave" title="Oleada"><span class="stat-icon" aria-hidden="true">&#x1F300;</span><span id="wave">OLEADA 1</span></div>
-          <div class="stat stat-score" title="Puntaje"><span class="stat-icon" aria-hidden="true">&#x2726;</span><span id="score">0</span></div>
-          <div class="stat shard" title="Fragmentos"><span class="stat-icon" aria-hidden="true">&#x1F48E;</span><span id="shards">0</span></div>
+          <div class="stat stat-wave" title="Oleada"><span class="stat-icon" aria-hidden="true">W</span><span id="wave">Oleada 1</span></div>
+          <div class="stat stat-score" title="Puntaje"><span class="stat-icon" aria-hidden="true">★</span><span id="score">0</span></div>
+          <div class="stat shard" title="Fragmentos"><span class="stat-icon shard-icon" aria-hidden="true">◆</span><span id="shards">0</span></div>
           <div class="hp-bar" aria-label="Vida"><div id="hpFill"></div><span id="hpText">100/100</span></div>
           <div class="special-cooldown" aria-label="Recarga de habilidad" title="Recarga de habilidad"><div id="specialFill"></div></div>
         </div>
         <div class="hud-btns">
-          <button id="charBtn" class="hud-btn" type="button" title="Estadísticas (TAB)">📊</button>
-          <button id="hudToggle" class="hud-btn active" type="button" title="Mostrar/ocultar HUD">👁️</button>
-          <button id="sound" class="sound" type="button" title="Activar o silenciar sonido">🔊 SONIDO</button>
+          <button id="charBtn" class="hud-btn" type="button" title="Estadísticas (TAB)">★</button>
+          <button id="hudToggle" class="hud-btn active" type="button" title="Mostrar/ocultar HUD">HUD</button>
+          <button id="sound" class="sound" type="button" title="Activar o silenciar sonido">♫ ON</button>
         </div>
       </header>
 
@@ -44,13 +44,16 @@
           <h1>NEON VOID</h1>
           <p class="subtitle">Elegí tu piloto y sobreviví a las oleadas del Vacío</p>
           <div id="charGrid" class="char-grid"></div>
+          <button id="startBtn" class="primary" type="button">JUGAR</button>
+          <button id="permBtn" class="primary secondary" type="button">MEJORAS PERMANENTES</button>
+        </div>
         <div id="shop" class="shop-screen hidden">
           <div class="shop-terminal-head">
             <div>
-              <h2 class="shop-title">◉ TERMINAL DE REABASTECIMIENTO</h2>
+              <h2 class="shop-title">SYS TERMINAL DE REABASTECIMIENTO</h2>
               <p class="shop-sub">Seleccioná tu kit para la oleada <span id="shopWave">1</span></p>
             </div>
-            <div class="shard-bar"><span>💎</span><span id="shopShards">0</span></div>
+            <div class="shard-bar"><span class="shard-glyph">◆</span><span id="shopShards">0</span></div>
           </div>
           <div class="shop-grid">
             <div class="shop-section shop-section-calibrations">
@@ -74,13 +77,13 @@
               <div id="consumableOffers" class="offers offers-consumables"></div>
             </div>
           </div>
-          <button id="skipWave" class="primary shop-deploy" type="button">▶ DESPLEGAR EN OLEADA <span id="shopNextWave">2</span></button>
+          <button id="skipWave" class="primary shop-deploy" type="button">DESPLEGAR EN OLEADA <span id="shopNextWave">2</span></button>
         </div>
 
         <div id="permShop" class="shop-screen hidden">
-          <h2 class="shop-title">📈 MEJORAS PERMANENTES</h2>
-          <p class="shop-sub">Gastá fragmentos de meta (💎) · se ganan al terminar una partida · mejoran a todos los pilotos</p>
-          <div class="shard-bar"><span>💎</span><span id="permShards">0</span></div>
+          <h2 class="shop-title">MEJORAS PERMANENTES</h2>
+          <p class="shop-sub">Gastá fragmentos de meta · se ganan al terminar una partida · mejoran a todos los pilotos</p>
+          <div class="shard-bar"><span class="shard-glyph">◆</span><span id="permShards">0</span></div>
           <div class="shop-grid">
             <div class="shop-section">
               <div class="shop-section-title">MEJORAS GLOBALES</div>
@@ -103,7 +106,7 @@
 
       <nav class="controls" aria-label="Controles" style="display:none;">
         <button id="left" class="move" type="button">←</button>
-        <button id="specialBtn" class="special" type="button">✦ ESPECIAL ✦</button>
+          <button id="specialBtn" class="special" type="button">ESPECIAL</button>
         <button id="right" class="move" type="button">→</button>
       </nav>
     </main>

@@ -88,7 +88,7 @@ t('killEnemy aplica RECOMPENSA: doble score + shard extra', () => {
   const sc = NV.killEnemy(st);
   if (sc !== 20) throw new Error('score=' + sc + ' (esperaba doble 20)');
   if (shards.length < 1 || !shards.some((s) => s.value === 1)) throw new Error('sin shard bounty');
-  if (!texts.some((t) => t.text === '+1 💎 BONUS' && t.color === '#ffd700')) throw new Error('sin feedback bounty');
+  if (!texts.some((t) => t.text === '+1 SHD BONUS' && t.color === '#ffd700')) throw new Error('sin feedback bounty');
 });
 
 t('applyConsumable preserva efectos y feedback de los 7 consumibles', () => {

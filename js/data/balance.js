@@ -62,7 +62,7 @@
 
 
   // Compensación económica (PASO 3): factor para escalar el intervalo de spawn en
-  // oleadas largas, manteniendo la cantidad total de spawns (y score/💎) por oleada.
+  // oleadas largas, manteniendo la cantidad total de spawns (y score/shards) por oleada.
   NV.waveSpawnFactor = function (wave, waveEvent) {
     return NV.waveDuration(wave, waveEvent) / NV.waveDuration(wave);
   };

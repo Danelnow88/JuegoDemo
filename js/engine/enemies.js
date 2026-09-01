@@ -99,7 +99,7 @@
     if (st.player.bounty > 0) {
       score += e.score; // doble (ya sumamos el base arriba)
       st.pickups.push({ x: e.x, y: e.y, type: 'shard', value: 1, dead: false });
-      st.addFloatText(e.x, e.y - 20, '+1 💎 BONUS', '#ffd700');
+      st.addFloatText(e.x, e.y - 20, '+1 SHD BONUS', '#ffd700');
     }
     // Evento DÍA DE PAGO: cada derribo suelta además un shard extra de valor 2.
     if (st.waveEvent === 'payday') {
@@ -129,7 +129,7 @@
   NV.comboOnKill = function (combo) {
     combo.count = combo.timer > 0 ? combo.count + 1 : 1;
     combo.timer = 2;
-    const milestone = combo.count % 5 === 0; // cada 5: +1 💎
+    const milestone = combo.count % 5 === 0; // cada 5: +1 shard
     return { count: combo.count, bonusScore: Math.min(50, 2 * combo.count), gemBonus: milestone ? 1 : 0, milestone };
   };
 

@@ -10,7 +10,7 @@ const dom = fs.readFileSync('js/ui/dom.js', 'utf8');
 
 t('cabecera técnica: terminal de reabastecimiento, shards y oleada dinámica', () => {
   if (!html.includes('shop-terminal-head')) throw new Error('sin header terminal');
-  if (!html.includes('◉ TERMINAL DE REABASTECIMIENTO')) throw new Error('copy de header incorrecto');
+  if (!html.includes('SYS TERMINAL DE REABASTECIMIENTO')) throw new Error('copy de header incorrecto');
   if (!html.includes('id="shopWave"') || !html.includes('id="shopNextWave"')) throw new Error('sin placeholders de oleada');
   if (!game.includes('dom.shopWave.textContent = wave + 1')) throw new Error('shopWave no es dinámico');
   if (!game.includes('dom.shopNextWave.textContent = wave + 1')) throw new Error('shopNextWave no es dinámico');

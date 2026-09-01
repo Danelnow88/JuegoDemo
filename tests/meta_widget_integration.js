@@ -17,7 +17,7 @@ function t(desc, fn) {
 
   t('widget tiene ícono SVG music-note (sin emoji) y 2 botones', () => {
     if (!html.includes('class="rw-icon"')) throw new Error('falta .rw-icon');
-    if (html.includes('>🎵')) throw new Error('no debe quedar el emoji 🎵 en el widget');
+    if (html.includes('>\u{1F3B5}')) throw new Error('no debe quedar el emoji de musica en el widget');
     // SVG music-note con líneas de vibración ghost
     if (!html.includes('<svg class="mn"')) throw new Error('falta svg.mn');
     if (!html.includes('class="mn-ghost"')) throw new Error('falta líneas de vibración ghost');
