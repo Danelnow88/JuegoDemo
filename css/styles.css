@@ -487,8 +487,8 @@ canvas {
   min-width: 0;
   transition: border-color .15s, box-shadow .15s, filter .15s;
 }
-.loadout-slot { height: 32px; }
-.loadout-slot canvas { width: 20px; height: 20px; }
+.loadout-slot { height: 40px; }
+.loadout-slot canvas { width: 32px; height: 32px; }
 .loadout-slot .slot-badge { position: absolute; right: 2px; bottom: 1px; color: #fff; font-size: 8px; font-weight: 900; text-shadow: 0 0 6px #000; }
 .loadout-slot .slot-index { position: absolute; left: 3px; top: 1px; color: #7cf8ff; font-size: 7px; opacity: .7; }
 .loadout-slot.empty, .inv-slot.empty { border-style: dashed; color: rgba(124,248,255,.38); }
