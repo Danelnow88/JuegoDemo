@@ -531,9 +531,10 @@ canvas {
 .inv-slot.empty { cursor: default; }
 .inv-slot.empty:hover { border-color: rgba(124,248,255,.20); box-shadow: none; }
 .shop-deploy {
-  position: relative;
+  position: absolute;
   z-index: 1;
-  align-self: flex-end;
+  right: clamp(8px, 1.5vw, 18px);
+  bottom: 7px;
   min-width: 220px;
   padding-top: 8px;
   padding-bottom: 8px;
