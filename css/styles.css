@@ -375,7 +375,7 @@ canvas {
   overflow: hidden;
   min-height: 0;
 }
-.offers-upgrades { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.offers-upgrades { grid-template-columns: repeat(2, minmax(0, 1fr)); padding-right: 2px; }
 .offers-weapons { grid-template-columns: repeat(2, minmax(0, 1fr)); overflow-y: auto; padding-right: 2px; max-height: calc(100vh - 246px); }
 .offers-consumables { grid-template-columns: repeat(2, minmax(0, 1fr)); overflow-y: auto; padding-right: 2px; max-height: calc(100vh - 246px); }
 .offer {
