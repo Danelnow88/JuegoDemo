@@ -51,6 +51,7 @@ t('regeneración constante + bloque en game.js', () => {
   if (NV.BALANCE.REGEN_PERM_HPSEC !== 0.2) throw new Error('REGEN_PERM_HPSEC inesperado');
   const g = fs.readFileSync('js/game.js', 'utf8');
   if (!g.includes('permRegen') || !g.includes('REGEN_PERM_HPSEC') || !g.includes('regenAcc')) throw new Error('bloque de regen ausente');
+  if (g.includes("passive.includes('Regenera')")) throw new Error('regen BOTI no debe depender de texto');
 });
 
 t('defaults de permUpgrades se derivan de PERM_UPGRADES y normalizan guardados antiguos', () => {

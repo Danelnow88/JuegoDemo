@@ -34,7 +34,7 @@
   NV.CHARACTERS = {
     boti: {
       name: 'BOTI', color: '#7cf8ff', bodyColor: '#4a9eff', eyeColor: '#fff', size: 22,
-      special: 'meteor', maxCd: 14, passive: 'Regenera 1 HP cada 5s',
+      special: 'meteor', maxCd: 14, passive: 'Regenera 1 HP cada 5s', passiveId: 'boti_regen',
       skillName: 'Lluvia Estelar', skillDesc: 'Meteoritos devastadores contra enemigos normales; recarga larga y daño reducido contra jefes',
       card: {
         tag: 'Equilibrado', previewClass: 'char-preview-boti', statLine: 'HP 120 · SPD 200 · ARM 0',

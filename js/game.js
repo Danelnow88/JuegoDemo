@@ -1031,10 +1031,7 @@
 
     // Regeneración pasiva BOTI
     const char = CHARACTERS[player.character];
-    if (char.passive.includes('Regenera') && frame % 300 === 0 && player.hp < player.maxHp) {
-      player.hp = Math.min(player.maxHp, player.hp + 1);
-      addFloatText(player.x, player.y - 40, '+1', '#7cf8ff');
-    }
+    NV.applyBotiPassiveRegen(char, player, frame, addFloatText);
 
     // Regeneración permanente (+0.2 HP/s por nivel, solo fuera de peligro)
     if ((player.permRegen || 0) > 0 && player.hp < player.maxHp && state !== 'gameover') {

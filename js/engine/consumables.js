@@ -48,4 +48,11 @@
     handler(ctx);
     return true;
   };
+
+  NV.applyBotiPassiveRegen = function (char, player, frame, addFloatText) {
+    if (!char || char.passiveId !== 'boti_regen' || frame % 300 !== 0 || player.hp >= player.maxHp) return false;
+    player.hp = Math.min(player.maxHp, player.hp + 1);
+    addFloatText(player.x, player.y - 40, '+1', '#7cf8ff');
+    return true;
+  };
 })();
