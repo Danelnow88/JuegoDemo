@@ -92,6 +92,29 @@
     railgun:{ shape: 'bullet', len: 20, w: 3 },
   };
 
+  NV.weaponById = function (id) {
+    return NV.WEAPONS.find((w) => w.id === id) || null;
+  };
+
+  NV.starterWeapon = function () {
+    return NV.WEAPONS[0];
+  };
+
+  NV.validateWeaponData = function () {
+    const errors = [];
+    const seen = {};
+    NV.WEAPONS.forEach((w) => {
+      if (!w || !w.id) { errors.push('weapon sin id'); return; }
+      if (seen[w.id]) errors.push('weapon duplicada: ' + w.id);
+      seen[w.id] = true;
+      if (!NV.BULLET_DEFS[w.id]) errors.push('falta BULLET_DEFS para ' + w.id);
+    });
+    Object.keys(NV.BULLET_DEFS).forEach((id) => {
+      if (!seen[id]) errors.push('BULLET_DEFS sin weapon: ' + id);
+    });
+    return { ok: errors.length === 0, errors };
+  };
+
   // === ENEMIGOS BÁSICOS (7 tipos) ===
   NV.ENEMY_TYPES = [
     { id: 'drone', name: 'DRON', hp: 25, speed: 75, radius: 11, color: '#f07bad', shape: 'circle', score: 10, xp: 10, behavior: 'chase', knockbackRes: 0, damage: 12, minWave: 1 },

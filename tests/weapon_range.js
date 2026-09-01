@@ -12,6 +12,17 @@ t('TODAS las armas tienen range definido y positivo', () => {
   }
 });
 
+t('helpers de armas: lookup, starter y validación WEAPONS↔BULLET_DEFS', () => {
+  if (typeof NV.weaponById !== 'function') throw new Error('weaponById ausente');
+  if (typeof NV.starterWeapon !== 'function') throw new Error('starterWeapon ausente');
+  if (typeof NV.validateWeaponData !== 'function') throw new Error('validateWeaponData ausente');
+  if (NV.weaponById('pistol') !== NV.WEAPONS[0]) throw new Error('lookup pistol incorrecto');
+  if (NV.weaponById('nope') !== null) throw new Error('lookup desconocido no devuelve null');
+  if (NV.starterWeapon() !== NV.WEAPONS[0]) throw new Error('starter no preserva arma inicial actual');
+  const result = NV.validateWeaponData();
+  if (!result.ok) throw new Error(result.errors.join('; '));
+});
+
 t('Orden relativo coherente: railgun > sniper > bow > rifle > smg > shotgun > flamethrower', () => {
   const r = id => NV.WEAPONS.find(w => w.id === id).range;
   if (!(r('railgun') > r('sniper'))) throw new Error('railgun<=sniper');
