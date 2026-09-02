@@ -10,6 +10,7 @@
   // Vertex: deforma el plano para humo/tinta líquida. PlaneGeometry(1,1,12,16)
   // => posiciones en [-0.5, 0.5]. uOffset = fase individual por enemigo para que
   // nunca se muevan sincronizados; uTime lo alimenta game.js (un solo rAF).
+  // Amplitudes SUTILES: el movimiento no debe romper la escala de enemigos chicos.
   NV.ESPECTRO_VERTEX = `
     uniform float uTime;
     uniform float uOffset;
@@ -24,24 +25,26 @@
       float taper = mix(0.45, 1.0, smoothstep(0.0, 1.0, uv.y));
       pos.x *= taper;
 
-      // Ondulacion de humo/tinta liquida.
-      float waveX = sin(pos.y * 10.0 + t * 2.0) * 0.08;
-      float waveY = cos(pos.x * 16.0 + t * 1.5) * 0.06;
+      // Ondulacion sutil de humo/tinta liquida (amplitudes acotadas).
+      float waveX = sin(pos.y * 10.0 + t * 2.0) * 0.05;
+      float waveY = cos(pos.x * 16.0 + t * 1.5) * 0.035;
       pos.x += waveX;
       pos.y += waveY;
 
-      // La base se "derrite" hacia afuera (gota de tinta).
+      // La base se "derrite" apenas hacia afuera (gota de tinta).
       if (uv.y < 0.25) {
-        pos.x += sin(t * 3.0 + pos.y * 24.0) * 0.18;
-        pos.y -= cos(t * 2.0) * 0.05;
+        pos.x += sin(t * 3.0 + pos.y * 24.0) * 0.10;
+        pos.y -= cos(t * 2.0) * 0.03;
       }
 
       gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
     }
   `;
 
-  // Fragment: cuerpo negro azabache, lava naranja parpadeante por UV abajo y
-  // ojos rojos brillantes al frente (halo suave para fundir con sprites aditivos).
+  // Fragment: identidad "Espectro de Tinta y Lava". Todo el brillo se calcula
+  // por matematica en el shader (sin post-procesado/bloom): cuerpo negro azabache,
+  // lava naranja parpadeante por UV en la base, ojos rojos puros al frente con
+  // halo por degradado matematico, y reflejo gris sutil arriba para volumen.
   NV.ESPECTRO_FRAGMENT = `
     uniform float uTime;
     uniform float uOffset;
@@ -51,32 +54,43 @@
     void main() {
       float t = uTime + uOffset;
 
-      // Colores base: tinta negra profunda + lava naranja + borde gris oscuro.
-      vec3 colorTinta = vec3(0.02, 0.02, 0.02);
-      vec3 colorLava = vec3(1.0, 0.4, 0.0);
-      vec3 colorBorde = vec3(0.1, 0.1, 0.1);
+      // Colores de identidad.
+      vec3 colorTinta = vec3(0.02, 0.02, 0.02);  // negro azabache profundo
+      vec3 colorLava = vec3(1.0, 0.5, 0.0);      // naranja intenso
+      vec3 colorBorde = vec3(0.16, 0.16, 0.18);  // reflejo gris (volumen sin luces)
 
-      // Zona inferior: lava parpadeante (ruido matematico por UV).
-      if (vUv.y < 0.3) {
-        float fuego = sin(vUv.x * 20.0 + t * 8.0) * 0.5 + 0.5;
-        fuego = max(fuego, sin(vUv.x * 40.0 - t * 12.0) * 0.5 + 0.5);
-        colorTinta = mix(colorTinta, colorLava, fuego * 0.8 * uIntensity);
+      // === ZONA INFERIOR (vUv.y < 0.25): LAVA PARPADEANTE ===
+      if (vUv.y < 0.25) {
+        // Fuego por superposicion de senos: dos frecuencias + pulso vertical.
+        float fuego = sin(vUv.x * 22.0 + t * 7.0) * 0.5 + 0.5;
+        fuego = max(fuego, sin(vUv.x * 41.0 - t * 11.0) * 0.5 + 0.5);
+        float pulso = sin(t * 5.0 + vUv.x * 9.0) * 0.5 + 0.5;
+        float mezcla = fuego * (0.55 + 0.35 * pulso);
+        colorTinta = mix(colorTinta, colorLava, mezcla * 0.85 * uIntensity);
+      } else if (vUv.y > 0.7) {
+        // === ZONA SUPERIOR (vUv.y > 0.7): REFLEJO GRIS SUTIL ===
+        // Degradado hacia los bordes superiores para volumen 3D sin luces.
+        float reflejo = smoothstep(0.7, 1.0, vUv.y);
+        float brillo = sin(vUv.y * 6.0 + t * 0.8) * 0.5 + 0.5;
+        colorTinta = mix(colorTinta, colorBorde, reflejo * (0.35 + 0.15 * brillo));
       } else {
-        // Zona media/superior: tinta con leves reflejos que dan volumen.
+        // === CUERPO: TINTA NEGRA con leve textura viva ===
         float brillo = sin(vUv.y * 5.0 + t) * 0.05;
-        colorTinta = mix(colorTinta, colorBorde, brillo);
+        colorTinta = mix(colorTinta, colorBorde, brillo * 0.6);
       }
 
-      // Ojos rojos brillantes: nucleo solido + halo (calculados por UV).
-      float dL = distance(vUv, vec2(0.35, 0.65));
-      float dR = distance(vUv, vec2(0.65, 0.65));
+      // === OJOS FRONTALES Y BRILLANTES (x 0.35 / 0.65, y 0.7) ===
+      float dL = distance(vUv, vec2(0.35, 0.7));
+      float dR = distance(vUv, vec2(0.65, 0.7));
       float dOjo = min(dL, dR);
       float radio = 0.05;
       if (dOjo < radio) {
+        // Nucleo del ojo: ROJO PURO.
         colorTinta = vec3(1.0, 0.0, 0.0);
       } else {
-        float halo = smoothstep(radio * 2.4, radio, dOjo);
-        colorTinta += vec3(1.0, 0.05, 0.0) * halo * 0.55 * uIntensity;
+        // Halo/resplandor por degradado matematico (cero post-procesado).
+        float halo = exp(-pow((dOjo - radio) / (radio * 1.8), 2.0));
+        colorTinta += vec3(1.0, 0.05, 0.0) * halo * 0.6 * uIntensity;
       }
 
       // Humo: alfa se desvanece en el borde superior y laterales (sin rectangulo duro).

@@ -21,9 +21,14 @@ t('shaders del espectro existen y usan uTime + offset por enemigo', () => {
     if (!s.includes('uTime') || !s.includes('uOffset')) throw new Error('uniforms de fase ausentes');
   }
   if (!v.includes('projectionMatrix * modelViewMatrix')) throw new Error('vertex sin transform estandar');
-  if (!f.includes('vec3(1.0, 0.4, 0.0)')) throw new Error('lava naranja ausente');
+  if (!f.includes('vec3(1.0, 0.5, 0.0)')) throw new Error('lava naranja intensa ausente');
   if (!f.includes('vec3(1.0, 0.0, 0.0)')) throw new Error('ojos rojos ausentes');
   if (!f.includes('vec3(0.02, 0.02, 0.02)')) throw new Error('tinta negra ausente');
+  // Identidad visual prescripta: ojos frontales y halo matematico, lava en base, reflejo gris.
+  if (!f.includes('vec2(0.35, 0.7)') || !f.includes('vec2(0.65, 0.7)')) throw new Error('ojos no frontales (y=0.7)');
+  if (!f.includes('exp(-pow(')) throw new Error('halo de ojos no es degradado matematico');
+  if (!f.includes('vUv.y < 0.25')) throw new Error('zona de lava incorrecta');
+  if (!f.includes('vUv.y > 0.7')) throw new Error('sin reflejo gris superior');
 });
 
 t('hash de fase estable, determinista y distribuido (no sincronizados)', () => {
