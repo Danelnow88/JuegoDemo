@@ -256,6 +256,47 @@
       return entry;
     }
 
+    // Sincroniza exclusivamente la representación visual. No muta el enemigo
+    // Canvas2D ni conoce vida, IA, colisiones o lógica de oleadas.
+    syncEnemy(entry, options) {
+      if (!NV.ESPECTRO_LITE_ACTIVE || !this.initialized || !entry) return false;
+      const opts = options || {};
+      const x = Number(opts.x) || 0;
+      const y = Number(opts.y) || 0;
+      const z = Number(opts.z) || 0;
+      const scale = clampScale(opts.scale);
+      entry.body.position.set(x, y, z);
+      entry.body.scale.set(scale, scale, 1);
+      entry.eyeL.position.set(x - scale * 15, y + scale * 20, z + 0.01);
+      entry.eyeR.position.set(x + scale * 15, y + scale * 20, z + 0.01);
+      entry.lava.position.set(x, y - scale * 35, z + 0.01);
+      entry.eyeL.scale.set(scale * 35, scale * 35, 1);
+      entry.eyeR.scale.set(scale * 35, scale * 35, 1);
+      entry.lava.scale.set(scale * 90, scale * 50, 1);
+      return true;
+    }
+
+    removeEnemy(entry) {
+      if (!entry) return false;
+      const index = this.entries.indexOf(entry);
+      if (index < 0) return false;
+      if (this.scene) this.scene.remove(entry.body, entry.eyeL, entry.eyeR, entry.lava);
+      entry.body.material.dispose();
+      this.entries.splice(index, 1);
+      return true;
+    }
+
+    clearEnemies() {
+      while (this.entries.length) this.removeEnemy(this.entries[this.entries.length - 1]);
+      return true;
+    }
+
+    setVisible(visible) {
+      if (!this.renderer || !this.renderer.domElement) return false;
+      this.renderer.domElement.style.display = visible ? 'block' : 'none';
+      return true;
+    }
+
     // No tiene bucle propio: el hook externo decide cuándo actualizar.
     update(time, beat) {
       if (!NV.ESPECTRO_LITE_ACTIVE || !this.initialized) return false;
@@ -273,11 +314,7 @@
     }
 
     dispose() {
-      for (const entry of this.entries) {
-        this.scene.remove(entry.body, entry.eyeL, entry.eyeR, entry.lava);
-        entry.body.material.dispose();
-      }
-      this.entries.length = 0;
+      this.clearEnemies();
       if (this.geometry) this.geometry.dispose();
       if (this.bodyMaterial) this.bodyMaterial.dispose();
       if (this.eyeMaterial) {

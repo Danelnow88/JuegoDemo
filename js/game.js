@@ -19,6 +19,19 @@
   }
   const W = GW, H = GH;
 
+  // === PUENTE OPCIONAL ESPECTRO LITE (Fase A) ===
+  // Apagado por defecto: sin import de Three.js, canvas extra ni recursos GPU.
+  NV.ESPECTRO_LITE_ACTIVE = false;
+  const MAX_LITE_ENEMIES = 6;
+  const ESPECTRO_THREE_CDN = 'https://unpkg.com/three@0.160.0/build/three.module.js';
+  const espectroEntries = new Map();
+  const ESPECTRO_VARIANTS = [
+    [1, 0, 0], [1, 0.5, 0], [1, 0, 0.5], [1, 0.3, 0.1], [0.72, 0, 0.18],
+  ];
+  let espectroLiteLoading = false;
+  let espectroLiteFailed = false;
+  let espectroTime = 0;
+
   // === ESTADO ===
   let state = 'menu', frame = 0, lastTime = 0;
   let shake = 0, hitstop = 0, flashColor = null, flashAlpha = 0, specialVFX = null;
@@ -42,6 +55,113 @@
   // Cuenta cuántas balas hay de cada bando (para respetar los topes propios).
   function playerBulletCount() { let n = 0; for (const b of bullets) if (!b.isEnemy) n++; return n; }
   function enemyBulletCount() { let n = 0; for (const b of bullets) if (b.isEnemy) n++; return n; }
+
+  function espectroHash(e, salt) {
+    const value = Math.sin((e.x || 0) * 12.9898 + (e.y || 0) * 78.233 + (e.radius || 1) * 37.719 + salt * 43.1234) * 43758.5453;
+    return value - Math.floor(value);
+  }
+
+  function shouldUseEspectroLite(e) {
+    return !!(NV.ESPECTRO_LITE_ACTIVE && e && !e.dead && !e.isElite && e.enemyTypeId === 'wisp');
+  }
+
+  function isEnemyRenderedByLite(e) {
+    return !!(NV.ESPECTRO_LITE_ACTIVE && NV.espectroLite && NV.espectroLite.initialized && espectroEntries.has(e));
+  }
+
+  function ensureEspectroLite() {
+    if (!NV.ESPECTRO_LITE_ACTIVE || espectroLiteLoading || espectroLiteFailed) return;
+    if (NV.espectroLite && NV.espectroLite.initialized) return;
+    espectroLiteLoading = true;
+    import(ESPECTRO_THREE_CDN).then((THREE) => {
+      if (!NV.ESPECTRO_LITE_ACTIVE) return;
+      const host = canvas.parentElement;
+      const rect = canvas.getBoundingClientRect();
+      const webglCanvas = document.createElement('canvas');
+      webglCanvas.className = 'espectro-lite-canvas';
+      const camera = new THREE.OrthographicCamera(-W / 2, W / 2, H / 2, -H / 2, 0.1, 100);
+      camera.position.z = 10;
+      const lite = NV.initEspectroLite(THREE, {
+        host, canvas: webglCanvas, camera,
+        width: Math.max(1, Math.round(rect.width)),
+        height: Math.max(1, Math.round(rect.height)),
+      });
+      if (!lite) throw new Error('No se pudo inicializar Espectro Lite');
+      lite.setVisible(false);
+    }).catch(() => {
+      espectroLiteFailed = true;
+      NV.ESPECTRO_LITE_ACTIVE = false;
+    }).finally(() => { espectroLiteLoading = false; });
+  }
+
+  function clearEspectroBridge() {
+    if (NV.espectroLite) {
+      NV.espectroLite.clearEnemies();
+      NV.espectroLite.setVisible(false);
+    }
+    espectroEntries.clear();
+  }
+
+  function updateEspectroBridge(dt) {
+    if (!NV.ESPECTRO_LITE_ACTIVE || state !== 'playing' || paused) {
+      if (NV.espectroLite) NV.espectroLite.setVisible(false);
+      return;
+    }
+
+    const selected = [];
+    for (const e of enemies) {
+      if (shouldUseEspectroLite(e) && selected.length < MAX_LITE_ENEMIES) selected.push(e);
+    }
+    if (!selected.length) {
+      clearEspectroBridge();
+      return;
+    }
+
+    ensureEspectroLite();
+    const lite = NV.espectroLite;
+    if (!lite || !lite.initialized) return; // Canvas2D continúa visible durante carga/fallo
+
+    const selectedSet = new Set(selected);
+    for (const [enemy, entry] of espectroEntries) {
+      if (!selectedSet.has(enemy)) {
+        lite.removeEnemy(entry);
+        espectroEntries.delete(enemy);
+      }
+    }
+
+    for (const e of selected) {
+      let entry = espectroEntries.get(e);
+      if (!entry) {
+        const variantIndex = Math.floor(espectroHash(e, 3) * ESPECTRO_VARIANTS.length);
+        entry = lite.createEnemy({
+          x: e.x - W / 2, y: H / 2 - e.y,
+          scale: Math.max(0.2, Math.min(0.4, e.radius / 30)),
+          phase: espectroHash(e, 2) * Math.PI * 2,
+          form: espectroHash(e, 1),
+          variantColor: ESPECTRO_VARIANTS[variantIndex],
+        });
+        if (entry) espectroEntries.set(e, entry);
+      }
+      if (entry) {
+        lite.syncEnemy(entry, {
+          x: e.x - W / 2, y: H / 2 - e.y,
+          scale: Math.max(0.2, Math.min(0.4, e.radius / 30)),
+        });
+      }
+    }
+
+    espectroTime += dt;
+    const beat = NV.rhythm ? Math.max(NV.rhythm.kick || 0, NV.rhythm.onset || 0) : 0;
+    lite.setVisible(espectroEntries.size > 0);
+    NV.updateEspectroLite(espectroTime, beat);
+  }
+
+  NV.toggleEspectroLite = function (enabled) {
+    NV.ESPECTRO_LITE_ACTIVE = !!enabled;
+    espectroLiteFailed = false;
+    if (!NV.ESPECTRO_LITE_ACTIVE) clearEspectroBridge();
+    return NV.ESPECTRO_LITE_ACTIVE;
+  };
 
   // === PROGRESO ===
   let wave = 1, score = 0, shards = 0, waveTimer = 0, spawnTimer = 0, boss = null, transition = 0;
@@ -575,6 +695,7 @@
     killCombo = { count: 0, timer: 0 };
     heartbeatTimer = 0; heartbeatWasCritical = false; countdownLastSecond = 0;
     enemies = []; bullets = []; particles = []; pickups = [];
+    clearEspectroBridge();
     floatTexts = []; trails = []; weaponPickups = []; bossChests = [];
     shockwaves = []; drones = []; meteors = [];
     inventory = []; currentWeapon = NV.starterWeapon(); consumableItems = [];
@@ -602,6 +723,7 @@
     // partículas, drones, meteoros, estelas, textos/cofres/armas del suelo de la
     // oleada anterior acumulándose entre oleadas (deuda técnica de rendimiento).
     enemies = []; bullets = []; particles = []; pickups = [];
+    clearEspectroBridge();
     floatTexts = []; trails = []; shockwaves = []; weaponPickups = [];
     drones = []; meteors = []; bossChests = [];
 
@@ -1790,6 +1912,9 @@
 
 
   function drawEnemy(e) {
+    // Solo ocultar Canvas2D cuando el mesh WebGL de ESTE enemigo ya existe.
+    // Durante carga, fallo o flag apagado, el render original sigue intacto.
+    if (isEnemyRenderedByLite(e)) return;
     NV.drawEnemy(ctx, e, frame, player, NV.rhythm);
   }
 
@@ -1828,6 +1953,7 @@
     update(dt);
     if ((state === 'menu' || state === 'shop') && !paused) updateMusic(dt);
     draw();
+    updateEspectroBridge(dt);
 
     if (shake > 0 && (state === 'playing' || state === 'gameover')) {
       const sx = (Math.random() - 0.5) * 8 * shake * (state === 'gameover' ? 2 : 1);

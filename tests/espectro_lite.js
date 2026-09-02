@@ -53,9 +53,45 @@ t('escala miniatura permanece entre 0.2 y 0.4', () => {
   if (!src.includes('Math.max(0.2, Math.min(0.4')) throw new Error('clamp de escala ausente');
 });
 
-t('game.js no conoce ni invoca EspectroLite', () => {
+t('módulo expone APIs encapsuladas de sincronización y visibilidad', () => {
+  const src = fs.readFileSync('js/render/espectroLite.js', 'utf8');
+  for (const name of ['syncEnemy(entry, options)', 'removeEnemy(entry)', 'setVisible(visible)', 'clearEnemies()']) {
+    if (!src.includes(name)) throw new Error('API ausente: ' + name);
+  }
+});
+
+t('puente Fase A queda apagado y limitado a seis wisp normales', () => {
   const game = fs.readFileSync('js/game.js', 'utf8');
-  if (/EspectroLite|espectroLite|updateEspectroLite/.test(game)) throw new Error('game.js fue acoplado al módulo');
+  if (!game.includes('NV.ESPECTRO_LITE_ACTIVE = false')) throw new Error('flag no inicia apagado');
+  if (!game.includes('const MAX_LITE_ENEMIES = 6')) throw new Error('cap no es 6');
+  if (!game.includes("e.enemyTypeId === 'wisp'")) throw new Error('selector no usa wisp');
+  if (!game.includes('!e.isElite') || !game.includes('!e.dead')) throw new Error('filtros elite/dead ausentes');
+  if (!game.includes('import(ESPECTRO_THREE_CDN)')) throw new Error('Three no carga dinámicamente');
+});
+
+t('puente conserva fallback Canvas2D y mapea coordenadas lógicas', () => {
+  const game = fs.readFileSync('js/game.js', 'utf8');
+  if (!game.includes('function isEnemyRenderedByLite(e)')) throw new Error('guard de mesh ausente');
+  if (!game.includes('if (isEnemyRenderedByLite(e)) return;')) throw new Error('Canvas2D no usa guard seguro');
+  if (!game.includes('x: e.x - W / 2, y: H / 2 - e.y')) throw new Error('mapeo de coordenadas ausente');
+  if (!game.includes('if (!lite || !lite.initialized) return;')) throw new Error('fallback durante carga ausente');
+});
+
+t('puente oculta WebGL fuera de playing/pausa y no avanza uTime', () => {
+  const game = fs.readFileSync('js/game.js', 'utf8');
+  const start = game.indexOf('function updateEspectroBridge(dt)');
+  const end = game.indexOf('NV.toggleEspectroLite', start);
+  const bridge = game.slice(start, end);
+  if (!bridge.includes("state !== 'playing' || paused")) throw new Error('guard state/pausa ausente');
+  const guard = bridge.indexOf("state !== 'playing' || paused");
+  const time = bridge.indexOf('espectroTime += dt');
+  if (!(guard >= 0 && time > guard)) throw new Error('uTime puede avanzar durante pausa');
+  if (!bridge.includes('NV.espectroLite.setVisible(false)')) throw new Error('no oculta canvas');
+});
+
+t('spawn normal conserva id de tipo para selección visual', () => {
+  const enemies = fs.readFileSync('js/engine/enemies.js', 'utf8');
+  if (!enemies.includes('enemyTypeId: type.id')) throw new Error('metadata enemyTypeId ausente');
 });
 
 t('index solo carga la definición antes de game.js', () => {

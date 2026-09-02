@@ -23,6 +23,7 @@
       hp: Math.round(type.hp * hpScale), maxHp: Math.round(type.hp * hpScale),
       speed: type.speed + Math.min(40, st.wave * 2.5),
       radius: type.radius, color: type.color, shape: type.shape,
+      enemyTypeId: type.id,
       score: type.score * (1 + st.wave * 0.1), xp: type.xp * (1 + st.wave * 0.1),
       dead: false, behavior: type.behavior,
       angle: Math.random() * Math.PI * 2, erraticTimer: 0,
