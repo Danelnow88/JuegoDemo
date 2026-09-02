@@ -97,7 +97,7 @@
     </section>
     <div class="legend">
       <span>20 instancias en X [-400, 400] e Y [-200, 200]</span>
-      <span>Escalas alternadas: 0.2 y 0.4</span>
+      <span>Formas, colores, fases y escalas 0.2/0.4 únicas</span>
     </div>
   </main>
 
@@ -136,17 +136,29 @@
     }
 
     const total = 20;
+    const variants = [
+      [1, 0, 0],       // rojo puro
+      [1, 0.5, 0],     // naranja/fuego
+      [1, 0, 0.5],     // rojo profundo casi purpura
+      [1, 0.3, 0.1],   // brasa
+      [0.72, 0, 0.18], // sangre oscura
+      [1, 0.75, 0.08], // amarillo incandescente
+    ];
     for (let i = 0; i < total; i++) {
+      const form = random();
+      const variantColor = variants[Math.floor(random() * variants.length)].slice();
       lite.createEnemy({
         x: -400 + random() * 800,
         y: -200 + random() * 400,
         z: i * 0.001,
         scale: i % 2 === 0 ? 0.2 : 0.4,
         phase: random() * Math.PI * 2,
+        form,
+        variantColor,
       });
     }
 
-    status.textContent = total + ' espectros activos';
+    status.textContent = total + ' espectros únicos activos';
 
     // Bucle exclusivo de esta prueba manual. No toca el bucle de game.js.
     const startedAt = performance.now();
