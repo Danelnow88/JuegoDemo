@@ -1357,6 +1357,7 @@
     if (player.specialCd > 0) player.specialCd -= dt;
 
     fireTimer -= dt;
+    if (currentAutoTarget && (currentAutoTarget.dead || Math.hypot(currentAutoTarget.x - player.x, currentAutoTarget.y - player.y) > (currentWeapon.range || Infinity))) currentAutoTarget = null;
     if (fireTimer <= 0 && hitstop <= 0) {
       if (playerBulletCount() < MAX_PLAYER_BULLETS) {
         if (shoot() !== false) fireTimer = weaponFireInterval();
@@ -1860,6 +1861,7 @@
     // visualmente y no es tapado por los superpuestos. Solo orden de dibujo.
     for (const e of enemies) if (!(e.atkFlash > 0)) drawEnemy(e);
     for (const e of enemies) if (e.atkFlash > 0) drawEnemy(e);
+    if (NV.drawAutofireTarget) NV.drawAutofireTarget(ctx, currentAutoTarget, frame);
     for (const e of enemies) if (NV.drawContactReadability) NV.drawContactReadability(ctx, e, player, NV.META_DEBUG);
     if (boss && !boss.dead) drawBoss();
 

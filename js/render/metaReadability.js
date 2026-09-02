@@ -142,4 +142,23 @@
     ctx.restore();
     return true;
   };
+
+  NV.drawAutofireTarget = function (ctx, target, frame) {
+    if (!target || target.dead) return false;
+    const r = (target.radius || 10) + 5;
+    const pulse = 0.08 + (Math.sin((frame || 0) * 0.12) * 0.5 + 0.5) * 0.05;
+    ctx.save();
+    ctx.globalAlpha = pulse;
+    ctx.strokeStyle = '#7cf8ff';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 4; i++) {
+      const a = i * Math.PI / 2;
+      ctx.beginPath();
+      ctx.moveTo(target.x + Math.cos(a) * r, target.y + Math.sin(a) * r);
+      ctx.lineTo(target.x + Math.cos(a) * (r + 4), target.y + Math.sin(a) * (r + 4));
+      ctx.stroke();
+    }
+    ctx.restore();
+    return true;
+  };
 })();
