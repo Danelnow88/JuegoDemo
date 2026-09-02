@@ -32,9 +32,9 @@ t('API pública updateEspectroLite acepta time y beat sin rAF propio', () => {
   if (/requestAnimationFrame/.test(src)) throw new Error('incluye rAF propio');
 });
 
-t('geometría mínima y brillo aditivo sin post-procesado', () => {
+t('geometría mínima visible y brillo aditivo sin post-procesado', () => {
   const src = fs.readFileSync('js/render/espectroLite.js', 'utf8');
-  if (!src.includes('new THREE.PlaneGeometry(1, 1)')) throw new Error('no usa plano de 2 triángulos');
+  if (!src.includes('new THREE.PlaneGeometry(100, 130)')) throw new Error('no usa plano base visible de 2 triángulos');
   if (!src.includes('THREE.AdditiveBlending')) throw new Error('sin blending aditivo');
   const forbidden = ['Effect' + 'Composer', 'Unreal' + 'BloomPass'];
   for (const name of forbidden) if (src.includes(name)) throw new Error('post-procesado prohibido: ' + name);

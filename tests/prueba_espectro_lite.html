@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Prueba controlada - Espectro Lite</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body {
+      min-height: 100vh;
+      margin: 0;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      font-family: system-ui, sans-serif;
+      color: #dffcff;
+      background:
+        radial-gradient(circle at 50% 45%, rgba(65, 20, 10, .18), transparent 42%),
+        #02030a;
+    }
+    .demo {
+      width: min(94vw, 900px);
+    }
+    .demo-head {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 10px;
+    }
+    h1 {
+      margin: 0;
+      color: #ff8a24;
+      font-size: 18px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    .status {
+      margin: 0;
+      color: #91a7b8;
+      font-size: 12px;
+    }
+    #battlefield {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 900 / 520;
+      overflow: hidden;
+      border: 1px solid rgba(255, 120, 30, .35);
+      border-radius: 10px;
+      background:
+        linear-gradient(rgba(255, 100, 20, .035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 100, 20, .035) 1px, transparent 1px),
+        radial-gradient(circle at center, #090713, #010207 75%);
+      background-size: 40px 40px, 40px 40px, auto;
+      box-shadow: inset 0 0 80px rgba(0, 0, 0, .8), 0 0 30px rgba(255, 80, 15, .08);
+    }
+    #specterCanvas {
+      position: absolute;
+      inset: 0;
+      display: block;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+    .legend {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 8px;
+      color: #708496;
+      font-size: 11px;
+    }
+  </style>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+    }
+  }
+  </script>
+
+  <!-- El módulo solo define su API; no crea recursos ni se inicia por sí mismo. -->
+  <script>
+    window.NV = window.NV || {};
+  </script>
+  <script src="../js/render/espectroLite.js"></script>
+</head>
+<body>
+  <main class="demo">
+    <header class="demo-head">
+      <h1>Espectro Lite - prueba aislada</h1>
+      <p id="status" class="status">Inicializando Three.js...</p>
+    </header>
+    <section id="battlefield" aria-label="Campo de batalla de prueba">
+      <canvas id="specterCanvas"></canvas>
+    </section>
+    <div class="legend">
+      <span>20 instancias en X [-400, 400] e Y [-200, 200]</span>
+      <span>Escalas alternadas: 0.2 y 0.4</span>
+    </div>
+  </main>
+
+  <script type="module">
+    import * as THREE from 'three';
+
+    const NV = window.NV;
+    const host = document.getElementById('battlefield');
+    const canvas = document.getElementById('specterCanvas');
+    const status = document.getElementById('status');
+
+    // Cámara de prueba: cubre las coordenadas solicitadas con margen vertical.
+    const camera = new THREE.OrthographicCamera(-450, 450, 260, -260, 0.1, 100);
+    camera.position.z = 10;
+
+    // Activación e inicialización EXPLÍCITAS: el módulo permanece inerte sin esto.
+    NV.ESPECTRO_LITE_ACTIVE = true;
+    const lite = NV.initEspectroLite(THREE, {
+      host,
+      canvas,
+      camera,
+      width: 900,
+      height: 520,
+    });
+
+    if (!lite) {
+      status.textContent = 'No se pudo inicializar Espectro Lite';
+      throw new Error('NV.initEspectroLite devolvió null');
+    }
+
+    // Semilla determinista para que la distribución visual sea reproducible.
+    let seed = 18731;
+    function random() {
+      seed = (seed * 1664525 + 1013904223) >>> 0;
+      return seed / 4294967296;
+    }
+
+    const total = 20;
+    for (let i = 0; i < total; i++) {
+      lite.createEnemy({
+        x: -400 + random() * 800,
+        y: -200 + random() * 400,
+        z: i * 0.001,
+        scale: i % 2 === 0 ? 0.2 : 0.4,
+        phase: random() * Math.PI * 2,
+      });
+    }
+
+    status.textContent = total + ' espectros activos';
+
+    // Bucle exclusivo de esta prueba manual. No toca el bucle de game.js.
+    const startedAt = performance.now();
+    function animate(now) {
+      const time = (now - startedAt) / 1000;
+      const beat = Math.pow(Math.max(0, Math.sin(time * Math.PI * 2)), 6);
+      NV.updateEspectroLite(time, beat);
+      requestAnimationFrame(animate);
+    }
+    requestAnimationFrame(animate);
+
+    window.addEventListener('beforeunload', () => lite.dispose(), { once: true });
+  </script>
+</body>
+</html>

@@ -129,7 +129,9 @@
       this.camera.position.z = 10;
 
       // PlaneGeometry sin segmentos extra: 2 triangulos, compartida por todos.
-      this.geometry = new THREE.PlaneGeometry(1, 1);
+      // Base 100x130 unidades: con escala 0.2-0.4 produce espectros de 20x26
+      // a 40x52 unidades, visibles en un mundo Canvas2D de 900x520.
+      this.geometry = new THREE.PlaneGeometry(100, 130);
       this.bodyMaterial = new THREE.ShaderMaterial({
         vertexShader: VERTEX_SHADER,
         fragmentShader: FRAGMENT_SHADER,
@@ -170,12 +172,12 @@
       const scale = clampScale(opts.scale);
       body.scale.set(scale, scale, 1);
       body.position.set(Number(opts.x) || 0, Number(opts.y) || 0, Number(opts.z) || 0);
-      eyeL.position.set(body.position.x - scale * 0.15, body.position.y + scale * 0.2, body.position.z + 0.01);
-      eyeR.position.set(body.position.x + scale * 0.15, body.position.y + scale * 0.2, body.position.z + 0.01);
-      lava.position.set(body.position.x, body.position.y - scale * 0.35, body.position.z + 0.01);
-      eyeL.scale.set(scale * 0.35, scale * 0.35, 1);
-      eyeR.scale.set(scale * 0.35, scale * 0.35, 1);
-      lava.scale.set(scale * 0.9, scale * 0.5, 1);
+      eyeL.position.set(body.position.x - scale * 15, body.position.y + scale * 20, body.position.z + 0.01);
+      eyeR.position.set(body.position.x + scale * 15, body.position.y + scale * 20, body.position.z + 0.01);
+      lava.position.set(body.position.x, body.position.y - scale * 35, body.position.z + 0.01);
+      eyeL.scale.set(scale * 35, scale * 35, 1);
+      eyeR.scale.set(scale * 35, scale * 35, 1);
+      lava.scale.set(scale * 90, scale * 50, 1);
       this.scene.add(body, eyeL, eyeR, lava);
       const entry = { body, eyeL, eyeR, lava, phase };
       this.entries.push(entry);
