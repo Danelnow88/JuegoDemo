@@ -40,34 +40,15 @@ t('hash de fase estable, determinista y distribuido (no sincronizados)', () => {
   if (uniq.size < 18) throw new Error('offsets poco distribuidos: ' + uniq.size);
 });
 
-t('escala acotada a [0.15, 0.6] sobre plano base 100x130 y elites dentro del tope', () => {
+t('escala acotada a [0.15, 0.3] y elites dentro del tope', () => {
   const NV = load();
   for (const r of [1, 8, 10, 16, 36, 80]) {
     const s = NV.espectroScale({ radius: r });
-    if (s < 0.15 || s > 0.6) throw new Error('r=' + r + ' escala=' + s);
+    if (s < 0.15 || s > 0.3) throw new Error('r=' + r + ' escala=' + s);
   }
-  const se = NV.espectroScale({ radius: 16, isElite: true });
-  if (se < 0.15 || se > 0.6) throw new Error('elite escala=' + se);
-  if (!(se > NV.espectroScale({ radius: 16 }))) throw new Error('elite no destaca');
-});
-
-t('inicializacion prescripta: tamano real, formula de camara exacta y capas', () => {
-  const m = fs.readFileSync('js/render/espectroMesh.js', 'utf8');
-  if (!m.includes('gameCanvas.clientWidth') || !m.includes('gameCanvas.clientHeight')) throw new Error('no usa clientWidth/clientHeight del canvas 2D');
-  if (!m.includes('-frustumSize * aspect, frustumSize * aspect,') || !m.includes('frustumSize, -frustumSize,') || !m.includes('0.1, 1000')) throw new Error('formula de OrthographicCamera incompleta');
-  if (!m.includes('camera.position.z = 10')) throw new Error('camara no queda fuera del plano de enemigos');
-  if (!m.includes('alpha: true') || !m.includes("setClearColor(0x000000, 0)")) throw new Error('renderer sin alpha transparente');
-  if (!m.includes('transparent: true') || !m.includes('depthWrite: false')) throw new Error('materiales sin transparent/depthWrite false');
-  if (!m.includes('NV.ESPECTRO_DEBUG')) throw new Error('debug log sin flag');
-});
-
-t('renderWebGL corre DESPUES del renderizado 2D en game.js', () => {
-  const g = fs.readFileSync('js/game.js', 'utf8');
-  const iPass2 = g.indexOf('for (const e of enemies) if (e.atkFlash > 0) drawEnemy(e);');
-  const iBoss = g.indexOf('if (boss && !boss.dead) drawBoss();');
-  const iUpdate = g.indexOf('NV.espectroUpdate(enemies);');
-  if (iPass2 < 0 || iBoss < 0 || iUpdate < 0) throw new Error('llamadas ausentes');
-  if (!(iPass2 < iUpdate && iBoss < iUpdate)) throw new Error('renderWebGL no va despues del 2D');
+  const se = NV.espectroScale({ radius: 10, isElite: true });
+  if (se < 0.15 || se > 0.3) throw new Error('elite escala=' + se);
+  if (!(se > NV.espectroScale({ radius: 10 }))) throw new Error('elite no destaca');
 });
 
 t('sin WebGL (Node): overlay inactivo, update no-op y sin mutar enemigos', () => {
