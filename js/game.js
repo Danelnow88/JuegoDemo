@@ -66,7 +66,33 @@
   }
 
   function isEnemyRenderedByLite(e) {
-    return !!(NV.ESPECTRO_LITE_ACTIVE && NV.espectroLite && NV.espectroLite.initialized && espectroEntries.has(e));
+    return !!(NV.ESPECTRO_LITE_ACTIVE && hasEspectroLiteApi(NV.espectroLite) && NV.espectroLite.initialized && espectroEntries.has(e));
+  }
+
+  function hasEspectroLiteApi(lite) {
+    return !!(lite
+      && typeof lite.setVisible === 'function'
+      && typeof lite.clearEnemies === 'function'
+      && typeof lite.removeEnemy === 'function'
+      && typeof lite.createEnemy === 'function'
+      && typeof lite.syncEnemy === 'function'
+      && typeof lite.update === 'function');
+  }
+
+  // Cortafuegos: una incompatibilidad, caché vieja o error WebGL jamás debe
+  // propagarse al requestAnimationFrame ni alterar el gameplay Canvas2D.
+  function disableEspectroLiteSafely() {
+    const lite = NV.espectroLite;
+    try {
+      if (lite && typeof lite.setVisible === 'function') lite.setVisible(false);
+      else {
+        const staleCanvas = document.querySelector('.espectro-lite-canvas');
+        if (staleCanvas) staleCanvas.style.display = 'none';
+      }
+    } catch (_) { /* fallback Canvas2D: ignorar errores de una capa visual */ }
+    espectroEntries.clear();
+    espectroLiteFailed = true;
+    NV.ESPECTRO_LITE_ACTIVE = false;
   }
 
   function ensureEspectroLite() {
@@ -86,74 +112,89 @@
         width: Math.max(1, Math.round(rect.width)),
         height: Math.max(1, Math.round(rect.height)),
       });
-      if (!lite) throw new Error('No se pudo inicializar Espectro Lite');
+      if (!lite || !hasEspectroLiteApi(lite)) throw new Error('API incompatible de Espectro Lite');
       lite.setVisible(false);
     }).catch(() => {
-      espectroLiteFailed = true;
-      NV.ESPECTRO_LITE_ACTIVE = false;
+      disableEspectroLiteSafely();
     }).finally(() => { espectroLiteLoading = false; });
   }
 
   function clearEspectroBridge() {
-    if (NV.espectroLite) {
-      NV.espectroLite.clearEnemies();
-      NV.espectroLite.setVisible(false);
+    const lite = NV.espectroLite;
+    if (hasEspectroLiteApi(lite)) {
+      try {
+        lite.clearEnemies();
+        lite.setVisible(false);
+      } catch (_) {
+        disableEspectroLiteSafely();
+      }
+    } else if (lite) {
+      disableEspectroLiteSafely();
     }
     espectroEntries.clear();
   }
 
   function updateEspectroBridge(dt) {
-    if (!NV.ESPECTRO_LITE_ACTIVE || state !== 'playing' || paused) {
-      if (NV.espectroLite) NV.espectroLite.setVisible(false);
-      return;
-    }
-
-    const selected = [];
-    for (const e of enemies) {
-      if (shouldUseEspectroLite(e) && selected.length < MAX_LITE_ENEMIES) selected.push(e);
-    }
-    if (!selected.length) {
-      clearEspectroBridge();
-      return;
-    }
-
-    ensureEspectroLite();
-    const lite = NV.espectroLite;
-    if (!lite || !lite.initialized) return; // Canvas2D continúa visible durante carga/fallo
-
-    const selectedSet = new Set(selected);
-    for (const [enemy, entry] of espectroEntries) {
-      if (!selectedSet.has(enemy)) {
-        lite.removeEnemy(entry);
-        espectroEntries.delete(enemy);
+    try {
+      if (!NV.ESPECTRO_LITE_ACTIVE || state !== 'playing' || paused) {
+        const inactiveLite = NV.espectroLite;
+        if (inactiveLite) {
+          if (!hasEspectroLiteApi(inactiveLite)) disableEspectroLiteSafely();
+          else inactiveLite.setVisible(false);
+        }
+        return;
       }
-    }
 
-    for (const e of selected) {
-      let entry = espectroEntries.get(e);
-      if (!entry) {
-        const variantIndex = Math.floor(espectroHash(e, 3) * ESPECTRO_VARIANTS.length);
-        entry = lite.createEnemy({
-          x: e.x - W / 2, y: H / 2 - e.y,
-          scale: Math.max(0.2, Math.min(0.4, e.radius / 30)),
-          phase: espectroHash(e, 2) * Math.PI * 2,
-          form: espectroHash(e, 1),
-          variantColor: ESPECTRO_VARIANTS[variantIndex],
-        });
-        if (entry) espectroEntries.set(e, entry);
+      const selected = [];
+      for (const e of enemies) {
+        if (shouldUseEspectroLite(e) && selected.length < MAX_LITE_ENEMIES) selected.push(e);
       }
-      if (entry) {
-        lite.syncEnemy(entry, {
-          x: e.x - W / 2, y: H / 2 - e.y,
-          scale: Math.max(0.2, Math.min(0.4, e.radius / 30)),
-        });
+      if (!selected.length) {
+        clearEspectroBridge();
+        return;
       }
-    }
 
-    espectroTime += dt;
-    const beat = NV.rhythm ? Math.max(NV.rhythm.kick || 0, NV.rhythm.onset || 0) : 0;
-    lite.setVisible(espectroEntries.size > 0);
-    NV.updateEspectroLite(espectroTime, beat);
+      ensureEspectroLite();
+      const lite = NV.espectroLite;
+      if (!lite || !lite.initialized) return; // Canvas2D continúa visible durante carga/fallo
+      if (!hasEspectroLiteApi(lite)) { disableEspectroLiteSafely(); return; }
+
+      const selectedSet = new Set(selected);
+      for (const [enemy, entry] of espectroEntries) {
+        if (!selectedSet.has(enemy)) {
+          lite.removeEnemy(entry);
+          espectroEntries.delete(enemy);
+        }
+      }
+
+      for (const e of selected) {
+        let entry = espectroEntries.get(e);
+        if (!entry) {
+          const variantIndex = Math.floor(espectroHash(e, 3) * ESPECTRO_VARIANTS.length);
+          entry = lite.createEnemy({
+            x: e.x - W / 2, y: H / 2 - e.y,
+            scale: Math.max(0.2, Math.min(0.4, e.radius / 30)),
+            phase: espectroHash(e, 2) * Math.PI * 2,
+            form: espectroHash(e, 1),
+            variantColor: ESPECTRO_VARIANTS[variantIndex],
+          });
+          if (entry) espectroEntries.set(e, entry);
+        }
+        if (entry) {
+          lite.syncEnemy(entry, {
+            x: e.x - W / 2, y: H / 2 - e.y,
+            scale: Math.max(0.2, Math.min(0.4, e.radius / 30)),
+          });
+        }
+      }
+
+      espectroTime += dt;
+      const beat = NV.rhythm ? Math.max(NV.rhythm.kick || 0, NV.rhythm.onset || 0) : 0;
+      lite.setVisible(espectroEntries.size > 0);
+      NV.updateEspectroLite(espectroTime, beat);
+    } catch (_) {
+      disableEspectroLiteSafely();
+    }
   }
 
   NV.toggleEspectroLite = function (enabled) {

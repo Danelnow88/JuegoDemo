@@ -86,7 +86,21 @@ t('puente oculta WebGL fuera de playing/pausa y no avanza uTime', () => {
   const guard = bridge.indexOf("state !== 'playing' || paused");
   const time = bridge.indexOf('espectroTime += dt');
   if (!(guard >= 0 && time > guard)) throw new Error('uTime puede avanzar durante pausa');
-  if (!bridge.includes('NV.espectroLite.setVisible(false)')) throw new Error('no oculta canvas');
+  if (!bridge.includes('inactiveLite.setVisible(false)')) throw new Error('no oculta canvas');
+});
+
+t('cortafuegos visual valida API y nunca propaga errores al loop', () => {
+  const game = fs.readFileSync('js/game.js', 'utf8');
+  if (!game.includes('function hasEspectroLiteApi(lite)')) throw new Error('validador API ausente');
+  for (const method of ['setVisible', 'clearEnemies', 'removeEnemy', 'createEnemy', 'syncEnemy', 'update']) {
+    if (!game.includes("typeof lite." + method + " === 'function'")) throw new Error('no valida ' + method);
+  }
+  const start = game.indexOf('function updateEspectroBridge(dt)');
+  const end = game.indexOf('NV.toggleEspectroLite', start);
+  const bridge = game.slice(start, end);
+  if (!bridge.includes('try {') || !bridge.includes('catch (_)')) throw new Error('puente sin límite de excepción');
+  if (!bridge.includes('disableEspectroLiteSafely()')) throw new Error('no cae a Canvas2D seguro');
+  if (!game.includes('NV.ESPECTRO_LITE_ACTIVE = false;')) throw new Error('fallback no desactiva WebGL');
 });
 
 t('spawn normal conserva id de tipo para selección visual', () => {
