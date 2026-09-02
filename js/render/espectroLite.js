@@ -21,7 +21,7 @@
       vUv = uv;
       vec3 pos = position;
       float phaseSeed = fract(sin(uPhase * 17.17) * 43758.5453);
-      float speed = mix(0.72, 1.38, phaseSeed);
+      float speed = mix(0.38, 0.72, phaseSeed);
       float t = uTime * speed + uPhase;
 
       // Factor de forma por arquetipo, sin agregar vertices:
@@ -61,11 +61,11 @@
 
     void main() {
       float phaseSeed = fract(sin(uPhase * 17.17) * 43758.5453);
-      float inkSpeed = mix(0.72, 1.38, phaseSeed);
-      float fireSpeed = mix(0.65, 1.55, fract(phaseSeed * 7.31));
-      float eyeSpeed = mix(1.2, 4.8, fract(phaseSeed * 13.7));
+      float inkSpeed = mix(0.38, 0.72, phaseSeed);
+      float fireSpeed = mix(0.42, 0.86, fract(phaseSeed * 7.31));
+      float eyeSpeed = mix(0.65, 1.8, fract(phaseSeed * 13.7));
       float t = uTime * inkSpeed + uPhase;
-      vec3 ink = vec3(0.02, 0.02, 0.02);
+      vec3 ink = vec3(0.035, 0.035, 0.04);
       vec3 variant = clamp(uVariant, vec3(0.0), vec3(1.0));
       vec3 lavaVariant = vec3(variant.r, max(variant.g, 0.04), variant.b * 0.35);
       vec3 lava = mix(vec3(1.0, 0.5, 0.0), lavaVariant, 0.58);
@@ -78,16 +78,16 @@
         float fireA = sin(fireT * 7.0 + vUv.x * 22.0) * 0.5 + 0.5;
         float fireB = sin(fireT * -10.0 + vUv.x * 39.0) * 0.5 + 0.5;
         float fire = max(fireA, fireB);
-        color = mix(ink, lava, fire * (0.72 + clamp(uBeat, 0.0, 1.0) * 0.18));
+        color = mix(ink, lava, fire * (0.80 + clamp(uBeat, 0.0, 1.0) * 0.16));
       } else if (vUv.y > 0.7) {
         // Reflejo gris superior para volumen, sin luces.
         float rim = smoothstep(0.7, 1.0, vUv.y);
-        color = mix(ink, vec3(0.13, 0.13, 0.15), rim * 0.35);
+        color = mix(ink, vec3(0.18, 0.18, 0.21), rim * 0.46);
       }
 
       // Ojos frontales: color y parpadeo varian por enemigo mediante fase/variant.
-      float eyeDrift = sin(uTime * eyeSpeed + uPhase) * 0.012;
-      float blink = 0.72 + 0.28 * (sin(uTime * eyeSpeed * 1.7 + uPhase) * 0.5 + 0.5);
+      float eyeDrift = sin(uTime * eyeSpeed + uPhase) * 0.005;
+      float blink = 0.82 + 0.18 * (sin(uTime * eyeSpeed * 1.35 + uPhase) * 0.5 + 0.5);
       vec2 eyeCenterL = vec2(0.35, 0.7) + vec2(eyeDrift, 0.0);
       vec2 eyeCenterR = vec2(0.65, 0.7) + vec2(eyeDrift, 0.0);
       float eyeL = distance(vUv, eyeCenterL);
@@ -95,7 +95,7 @@
       float eye = min(eyeL, eyeR);
       float core = 1.0 - smoothstep(0.035, 0.05, eye);
       float halo = 1.0 - smoothstep(0.05, 0.13, eye);
-      color += eyeColor * halo * 0.45 * blink;
+      color += eyeColor * halo * 0.58 * blink;
       color = mix(color, eyeColor, core * blink);
 
       // Silueta por fragmento: variedad real sin subdividir PlaneGeometry.
@@ -122,7 +122,7 @@
       float bottomMask = smoothstep(bottomEdge - 0.018, bottomEdge + 0.018, vUv.y);
       float topMask = 1.0 - smoothstep(0.92, 1.0, vUv.y);
       float alpha = sideMask * bottomMask * topMask;
-      gl_FragColor = vec4(color, alpha * 0.94);
+      gl_FragColor = vec4(color, alpha * 0.98);
     }
   `;
 

@@ -42,10 +42,18 @@ t('geometría mínima visible y brillo aditivo sin post-procesado', () => {
 
 t('shader lite contiene tinta, lava y ojos frontales', () => {
   const src = fs.readFileSync('js/render/espectroLite.js', 'utf8');
-  if (!src.includes('vec3(0.02, 0.02, 0.02)')) throw new Error('sin tinta negra');
+  if (!src.includes('vec3(0.035, 0.035, 0.04)')) throw new Error('sin tinta negra visible');
   if (!src.includes('vec3(1.0, 0.5, 0.0)')) throw new Error('sin lava naranja');
   if (!src.includes('vec2(0.35, 0.7)') || !src.includes('vec2(0.65, 0.7)')) throw new Error('sin ojos frontales');
   if (!src.includes('vec3(1.0, 0.0, 0.0)')) throw new Error('ojos no son rojo puro');
+});
+
+t('animación visual queda lenta y legible sin cambiar movimiento del gameplay', () => {
+  const src = fs.readFileSync('js/render/espectroLite.js', 'utf8');
+  if (!src.includes('float inkSpeed = mix(0.38, 0.72')) throw new Error('tinta demasiado rápida');
+  if (!src.includes('float fireSpeed = mix(0.42, 0.86')) throw new Error('lava demasiado rápida');
+  if (!src.includes('float eyeSpeed = mix(0.65, 1.8')) throw new Error('ojos demasiado rápidos');
+  if (!src.includes('alpha * 0.98')) throw new Error('opacidad visual insuficiente');
 });
 
 t('escala miniatura permanece entre 0.2 y 0.4', () => {
