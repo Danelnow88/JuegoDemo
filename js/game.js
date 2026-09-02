@@ -62,6 +62,9 @@
   // Compras por partida en la tienda de oleada (topes anti-acumulación infinita).
   let shopBought = {};
   const SHOP_CAPS = { hp: 8, armor: 5, luck: 7 }; // +25 HP ×8, +3 armadura ×5, +2 suerte ×7
+  // Tope global de mejoras por partida: cada compra ocupa un slot del panel MEJORAS (6 en total).
+  const UPGRADE_SLOT_CAP = 6;
+  let upgradeSlots = []; // mejoras adquiridas en la partida actual, en orden de compra
   // Tope de compras del mismo consumible POR VISITA a la tienda (se resetea en showShop).
   const CONSUMABLE_CAP = 3;
   let consumableBought = {};
@@ -561,6 +564,7 @@
     wave = 1; score = 0; shards = 0;
     waveEvent = null;
     shopBought = {};
+    upgradeSlots = []; // los slots de mejoras se reinician por partida, igual que shopBought
     killCombo = { count: 0, timer: 0 };
     heartbeatTimer = 0; heartbeatWasCritical = false; countdownLastSecond = 0;
     enemies = []; bullets = []; particles = []; pickups = [];
@@ -836,6 +840,31 @@
     }
   }
 
+  // Slots de mejoras adquiridas en la partida (panel MEJORAS): misma estética que
+  // el dock de armas y los consumibles equipados. Vacíos = contorno punteado.
+  function renderUpgradeSlots() {
+    if (!dom.upgradeSlots) return;
+    dom.upgradeSlots.innerHTML = '';
+    const hint = dom.upgradeSlots.parentElement && dom.upgradeSlots.parentElement.querySelector('.inv-hint');
+    if (hint) hint.textContent = 'compradas ' + upgradeSlots.length + '/' + UPGRADE_SLOT_CAP;
+    for (let i = 0; i < UPGRADE_SLOT_CAP; i++) {
+      const u = upgradeSlots[i];
+      const slot = document.createElement('div');
+      slot.className = 'loadout-slot' + (u ? '' : ' empty');
+      if (u) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 32; canvas.height = 32;
+        slot.appendChild(canvas);
+        drawMetaSkillCanvas(canvas, u.icon, 32, 24);
+        slot.insertAdjacentHTML('beforeend', '<span class="slot-index">' + (i + 1) + '</span>');
+        slot.title = u.name;
+      } else {
+        slot.title = 'Slot de mejora vacío';
+      }
+      dom.upgradeSlots.appendChild(slot);
+    }
+  }
+
   function visualRarity(rarity, price) {
     if (rarity === 'legendary') return 'legendary';
     if (rarity === 'epic') return 'epic';
@@ -848,29 +877,35 @@
     const upgrades = [];
     const weapons = [];
     const consumables = [];
+    // Tope global de mejoras: cuando los 6 slots están llenos, ninguna mejora se puede comprar.
+    const upgradeSlotsFull = upgradeSlots.length >= UPGRADE_SLOT_CAP;
 
     if ((shopBought.hp || 0) < SHOP_CAPS.hp) {
       upgrades.push({
         kind: 'upgrade', metaIcon: 'hp', name: '+25 HP', desc: 'Vida máxima +25 (' + (shopBought.hp || 0) + '/' + SHOP_CAPS.hp + ')', rarity: 'common',
-        price: 15, buy: () => { player.maxHp += 25; player.hp += 25; shopBought.hp = (shopBought.hp || 0) + 1; },
+        disabled: upgradeSlotsFull, disabledReason: 'Slots ' + UPGRADE_SLOT_CAP + '/' + UPGRADE_SLOT_CAP,
+        price: 15, buy: () => { player.maxHp += 25; player.hp += 25; shopBought.hp = (shopBought.hp || 0) + 1; upgradeSlots.push({ icon: 'hp', name: '+25 HP' }); },
       });
     }
     if (player.agility < MAX_AGILITY) {
       upgrades.push({
         kind: 'upgrade', metaIcon: 'speed', name: 'Agilidad', desc: 'Acelera y frena mejor (máx +100%)', rarity: 'rare',
-        price: 15, buy: () => { player.agility = Math.min(MAX_AGILITY, player.agility + AGILITY_PER_UPGRADE); },
+        disabled: upgradeSlotsFull, disabledReason: 'Slots ' + UPGRADE_SLOT_CAP + '/' + UPGRADE_SLOT_CAP,
+        price: 15, buy: () => { player.agility = Math.min(MAX_AGILITY, player.agility + AGILITY_PER_UPGRADE); upgradeSlots.push({ icon: 'speed', name: 'Agilidad' }); },
       });
     }
     if ((shopBought.armor || 0) < SHOP_CAPS.armor) {
       upgrades.push({
         kind: 'upgrade', metaIcon: 'armor', name: 'Armadura', desc: '+3 armadura (' + (shopBought.armor || 0) + '/' + SHOP_CAPS.armor + ')', rarity: 'epic',
-        price: 20, buy: () => { player.armor += 3; shopBought.armor = (shopBought.armor || 0) + 1; },
+        disabled: upgradeSlotsFull, disabledReason: 'Slots ' + UPGRADE_SLOT_CAP + '/' + UPGRADE_SLOT_CAP,
+        price: 20, buy: () => { player.armor += 3; shopBought.armor = (shopBought.armor || 0) + 1; upgradeSlots.push({ icon: 'armor', name: 'Armadura' }); },
       });
     }
     if ((shopBought.luck || 0) < SHOP_CAPS.luck) {
       upgrades.push({
         kind: 'upgrade', metaIcon: 'luck', name: 'Suerte', desc: '+2 suerte (' + (shopBought.luck || 0) + '/' + SHOP_CAPS.luck + ')', rarity: 'rare',
-        price: 20, buy: () => { player.luck += 2; shopBought.luck = (shopBought.luck || 0) + 1; },
+        disabled: upgradeSlotsFull, disabledReason: 'Slots ' + UPGRADE_SLOT_CAP + '/' + UPGRADE_SLOT_CAP,
+        price: 20, buy: () => { player.luck += 2; shopBought.luck = (shopBought.luck || 0) + 1; upgradeSlots.push({ icon: 'luck', name: 'Suerte' }); },
       });
     }
 
@@ -940,6 +975,7 @@
     renderOffers(dom.weaponOffers, weapons);
     renderOffers(dom.consumableOffers, consumables);
     renderShopConsumableLoadout();
+    renderUpgradeSlots();
   }
 
   function drawWeaponCanvas(canvas, weapon, canvasSize, iconSize) {

@@ -23,6 +23,7 @@
     weaponOffers: document.getElementById('weaponOffers'),
     consumableOffers: document.getElementById('consumableOffers'),
     shopConsumableLoadout: document.getElementById('shopConsumableLoadout'),
+    upgradeSlots: document.getElementById('upgradeSlots'),
     invSlots: document.getElementById('invSlots'),
     skipWave: document.getElementById('skipWave'),
     restartBtn: document.getElementById('restartBtn'),
