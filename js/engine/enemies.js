@@ -285,7 +285,7 @@
               e.shootTimer = 0;
               const angle = Math.atan2(st.player.y - e.y, st.player.x - e.x);
               if (bullets.length < MAX_BULLETS && st.enemyBulletCount() < MAX_ENEMY_BULLETS)
-                bullets.push({ x: e.x, y: e.y, vx: Math.cos(angle) * 250, vy: Math.sin(angle) * 250, damage: e.damage, color: e.color, isEnemy: true, dead: false });
+                bullets.push({ x: e.x, y: e.y, vx: Math.cos(angle) * 250, vy: Math.sin(angle) * 250, damage: e.damage, color: e.color, isEnemy: true, dead: false, sourceEnemy: e, sourceType: e.enemyTypeId || 'ranged' });
             }
           }
         }

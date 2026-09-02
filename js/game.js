@@ -1578,7 +1578,7 @@
   }
 
   function recordPlayerDamage(hit) {
-    const e = hit.enemy || null;
+    const e = hit.enemy || (hit.projectile && hit.projectile.sourceEnemy) || null;
     let sourceX = e ? e.x : player.x, sourceY = e ? e.y : player.y;
     if (!e && hit.projectile) {
       const projectileSpeed = Math.max(1, Math.hypot(hit.projectile.vx || 0, hit.projectile.vy || 0));
@@ -1588,13 +1588,29 @@
     damageFeedback = { life: 0.55, sourceX, sourceY, critical: !!hit.crit, cause: hit.cause };
     invulnerabilityFeedback = { life: 0.5, duration: 0.5, kind: 'start' };
     if (!NV.META_DEBUG || !NV.recordMetaDamage) return;
+    let within50 = 0, within100 = 0, within170 = 0, aliveEnemies = 0, overlap = 0;
+    for (const enemy of enemies) {
+      if (enemy.dead) continue;
+      aliveEnemies++;
+      const d = Math.hypot(enemy.x - player.x, enemy.y - player.y);
+      if (d <= 50) within50++;
+      if (d <= 100) {
+        within100++;
+        const density = densityField && densityField.info.get(enemy);
+        if (density) overlap += density.overlap;
+      }
+      if (d <= 170) within170++;
+    }
     NV.recordMetaDamage({
-      cause: hit.cause, enemy: e, enemyType: e && (e.enemyTypeId || e.behavior || e.shape),
+      cause: hit.cause, enemy: e,
+      enemyType: (hit.projectile && hit.projectile.sourceType) || (e && (e.enemyTypeId || e.behavior || e.shape)),
       hpBefore: hit.hpBefore, hpAfter: hit.hpAfter, critical: !!hit.crit, wave,
       playerX: player.x, playerY: player.y,
       speed: Math.hypot(player.moveVx || 0, player.moveVy || 0),
       moveVx: player.moveVx || 0, moveVy: player.moveVy || 0,
       shift: !!slideHeld, invulnerability: player.invuln || 0,
+      within50, within100, within170, nearbyDensity: within100,
+      overlap, aliveEnemies, autofireTarget: currentAutoTarget,
     });
   }
 

@@ -25,7 +25,7 @@
     const sc = (stun !== undefined ? stun : b.stunChance) || 0;
     for (let i = 0; i < cnt && st.bullets.length < st.MAX_BULLETS && st.enemyBulletCount() < st.MAX_ENEMY_BULLETS; i++) {
       const a = cnt > 1 ? baseAngle + (i - (cnt - 1) / 2) * spreadA : baseAngle;
-      st.bullets.push({ x: b.x, y: b.y + 40, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, damage: damage, color: color || b.color, radius: radius || 5, isEnemy: true, dead: false, stunChance: sc });
+      st.bullets.push({ x: b.x, y: b.y + 40, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, damage: damage, color: color || b.color, radius: radius || 5, isEnemy: true, dead: false, stunChance: sc, sourceEnemy: b, sourceType: 'boss' });
     }
   };
 
@@ -95,7 +95,7 @@
           for (let i = 0; i < cnt; i++) {
             const a = b.spiralOff + (i / cnt) * Math.PI * 2;
             if (st.bullets.length >= st.MAX_BULLETS || st.enemyBulletCount() >= st.MAX_ENEMY_BULLETS) break;
-            st.bullets.push({ x: b.x, y: b.y + 40, vx: Math.cos(a) * 260, vy: Math.sin(a) * 260, damage: 18, color: b.color, radius: 5, isEnemy: true, dead: false });
+            st.bullets.push({ x: b.x, y: b.y + 40, vx: Math.cos(a) * 260, vy: Math.sin(a) * 260, damage: 18, color: b.color, radius: 5, isEnemy: true, dead: false, sourceEnemy: b, sourceType: 'boss' });
           }
           b.atkTimer = 0;
         }
@@ -120,7 +120,7 @@
         if (b.atkTimer >= 1.1) {
           st.sfx.bossAttack.orbs();
           const a = Math.atan2(st.player.y - b.y, st.player.x - b.x) + (Math.random() - 0.5) * 0.4;
-          if (st.bullets.length < st.MAX_BULLETS && st.enemyBulletCount() < st.MAX_ENEMY_BULLETS) st.bullets.push({ x: b.x, y: b.y + 40, vx: Math.cos(a) * 300, vy: Math.sin(a) * 300, damage: 18, color: '#e0ffff', radius: 5, isEnemy: true, dead: false });
+          if (st.bullets.length < st.MAX_BULLETS && st.enemyBulletCount() < st.MAX_ENEMY_BULLETS) st.bullets.push({ x: b.x, y: b.y + 40, vx: Math.cos(a) * 300, vy: Math.sin(a) * 300, damage: 18, color: '#e0ffff', radius: 5, isEnemy: true, dead: false, sourceEnemy: b, sourceType: 'boss' });
           b.atkTimer = 0;
         }
         break;
