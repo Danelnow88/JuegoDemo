@@ -260,6 +260,7 @@
   let currentAutoTarget = null;
   let densityField = null;
   let damageFeedback = null, invulnerabilityFeedback = null, previousInvulnerability = 0;
+  const momentumVisual = { shift: false, previousVx: 0, previousVy: 0, previousSpeed: 0 };
   let heartbeatTimer = 0, heartbeatWasCritical = false;
   let countdownLastSecond = 0;
   // Cadencia determinista (en segundos). fireRate se interpreta como frames a ~60fps.
@@ -1306,6 +1307,7 @@
     player.y += player.moveVy * dt;
     player.x = Math.max(20, Math.min(W - 20, player.x));
     player.y = Math.max(30, Math.min(H - 20, player.y));
+    momentumVisual.shift = sliding;
 
     if (frame % 3 === 0) {
       const char = CHARACTERS[player.character];
@@ -1915,6 +1917,7 @@
     }
     ctx.globalAlpha = 1;
 
+    if (NV.drawMomentumReadability) NV.drawMomentumReadability(ctx, player, momentumVisual);
     drawPlayer();
     if (NV.drawDamageFeedback) NV.drawDamageFeedback(ctx, player, damageFeedback);
     if (NV.drawInvulnerabilityFeedback) NV.drawInvulnerabilityFeedback(ctx, player, invulnerabilityFeedback);
@@ -1998,6 +2001,9 @@
     }
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
+    momentumVisual.previousVx = player.moveVx || 0;
+    momentumVisual.previousVy = player.moveVy || 0;
+    momentumVisual.previousSpeed = Math.hypot(momentumVisual.previousVx, momentumVisual.previousVy);
   }
 
   function drawSpecialVFX(vfx) {

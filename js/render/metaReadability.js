@@ -110,4 +110,36 @@
     ctx.restore();
     return true;
   };
+
+  NV.drawMomentumReadability = function (ctx, player, state) {
+    if (!state) return false;
+    const vx = player.moveVx || 0, vy = player.moveVy || 0;
+    const speed = Math.hypot(vx, vy);
+    if (speed < 35) return false;
+    const nx = vx / speed, ny = vy / speed;
+    const length = Math.min(42, 8 + speed * 0.075);
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.globalAlpha = state.shift ? 0.2 : 0.1;
+    ctx.strokeStyle = state.shift ? '#7cf8ff' : '#9bb6c8';
+    ctx.lineWidth = state.shift ? 2 : 1.2;
+    ctx.beginPath();
+    ctx.moveTo(player.x - nx * 8, player.y - ny * 8);
+    ctx.lineTo(player.x - nx * length, player.y - ny * length);
+    ctx.stroke();
+    if (state.previousSpeed > 35) {
+      const px = state.previousVx / state.previousSpeed, py = state.previousVy / state.previousSpeed;
+      const turn = 1 - Math.max(-1, Math.min(1, nx * px + ny * py));
+      if (turn > 0.08) {
+        ctx.globalAlpha = Math.min(0.12, turn * 0.1);
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(player.x - px * 7, player.y - py * 7);
+        ctx.lineTo(player.x - px * Math.min(30, state.previousSpeed * 0.055), player.y - py * Math.min(30, state.previousSpeed * 0.055));
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+    return true;
+  };
 })();
