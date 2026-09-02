@@ -1621,12 +1621,6 @@
       ctx.globalAlpha = 1;
     }
 
-    // Espectros WebGL (overlay): carga perezosa del CDN + sincronizacion con el
-    // estado del juego. Si el overlay esta activo, los espectros dibujan ellos
-    // (drawEnemy hace no-op) y si no, el Canvas2D de siempre mantiene el render.
-    NV.espectroEnsure({ W, H });
-    NV.espectroUpdate(enemies);
-
     // Legibilidad del golpe: dibujar PRIMERO a los no-atacantes y DESPUÉS a los
     // atacantes (atkFlash activo) => el enemigo que golpea queda por encima
     // visualmente y no es tapado por los superpuestos. Solo orden de dibujo.
@@ -1796,8 +1790,6 @@
 
 
   function drawEnemy(e) {
-    // Overlay WebGL activo => los espectros ya dibujaron este enemigo (no-op).
-    if (NV.espectroActive && NV.espectroActive()) return;
     NV.drawEnemy(ctx, e, frame, player, NV.rhythm);
   }
 
