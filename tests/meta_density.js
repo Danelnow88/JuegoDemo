@@ -1,0 +1,7 @@
+const fs=require('fs'),vm=require('vm'); let pass=0,fail=0; function t(n,f){try{f();pass++;console.log('  ok  '+n)}catch(e){fail++;console.log('  FAIL '+n+' -> '+e.message)}}
+const NV={}; vm.runInNewContext(fs.readFileSync('js/render/metaReadability.js','utf8'),{window:{NV},Map,WeakMap,Math});
+t('campo distingue masa comprimida de enemigos aislados',()=>{const dense=Array.from({length:8},(_,i)=>({x:100+i,y:100,radius:10})); const lone={x:500,y:400,radius:10}; const f=NV.buildDensityField(dense.concat(lone)); if(!(f.info.get(dense[0]).intensity>f.info.get(lone).intensity))throw Error('sin contraste');});
+t('spatial grid evita comparación cuadrática en 80 dispersos',()=>{const es=Array.from({length:80},(_,i)=>({x:(i%10)*200,y:Math.floor(i/10)*200,radius:10})); const f=NV.buildDensityField(es); if(f.comparisons>300)throw Error('comparaciones='+f.comparisons);});
+t('cálculo no muta objetos de gameplay',()=>{const e={x:1,y:2,radius:10};const before=JSON.stringify(e);NV.buildDensityField([e]);if(JSON.stringify(e)!==before)throw Error('mutó');});
+t('render de densidad es conservador y contextual',()=>{const calls=[];const ctx=new Proxy({save(){},restore(){},beginPath(){},arc(){calls.push('arc')},stroke(){}},{set(){return true}}); if(NV.drawEnemyDensity(ctx,{radius:10},{intensity:.1,overlap:0}))throw Error('dibujó baja'); if(!NV.drawEnemyDensity(ctx,{radius:10},{intensity:.8,overlap:1}))throw Error('no dibujó alta');});
+console.log('RESULT meta_density: pass='+pass+' fail='+fail);process.exit(fail?1:0);

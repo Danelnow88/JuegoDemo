@@ -258,6 +258,7 @@
   let currentWeapon = NV.starterWeapon(), fireTimer = 0;
   let killCombo = { count: 0, timer: 0 }; // combo de kills (E1)
   let currentAutoTarget = null;
+  let densityField = null;
   let heartbeatTimer = 0, heartbeatWasCritical = false;
   let countdownLastSecond = 0;
   // Cadencia determinista (en segundos). fireRate se interpreta como frames a ~60fps.
@@ -1601,8 +1602,21 @@
       moveVx: player.moveVx || 0, moveVy: player.moveVy || 0,
       shift: !!slideHeld, invulnerability: player.invuln || 0,
       within50, within100, within170, nearbyDensity: within100,
-      overlap: 0, aliveEnemies: alive, autofireTarget: currentAutoTarget,
+      overlap: densityField ? densityField.playerOverlap || 0 : 0, aliveEnemies: alive, autofireTarget: currentAutoTarget,
     });
+  }
+
+  function prepareDensityReadability() {
+    if (!NV.buildDensityField) return;
+    densityField = NV.buildDensityField(enemies);
+    NV.metaDensityInfo = densityField.info;
+    let playerOverlap = 0;
+    for (const e of enemies) {
+      if (e.dead) continue;
+      const visual = densityField.info.get(e);
+      if (Math.hypot(e.x - player.x, e.y - player.y) <= 100 && visual) playerOverlap += visual.overlap;
+    }
+    densityField.playerOverlap = playerOverlap;
   }
 
   function updateParticles(dt) {
@@ -1692,6 +1706,7 @@
   function draw() {
     resizeCanvas();
     ctx.setTransform(scaleX, 0, 0, scaleY, 0, 0);
+    prepareDensityReadability();
 
     // Fondo galaxia más oscuro: mejora el contraste de los visuales rítmicos
     // sin aclarar el campo donde se leen enemigos, balas y HUD.
