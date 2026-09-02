@@ -6,6 +6,54 @@
   'use strict';
   const NV = window.NV;
 
+  function hasHitTarget(b, target) {
+    return Array.isArray(b.hitTargets) && b.hitTargets.indexOf(target) !== -1;
+  }
+
+  function rememberHitTarget(b, target) {
+    if (!Array.isArray(b.hitTargets)) b.hitTargets = [];
+    if (b.hitTargets.indexOf(target) === -1) b.hitTargets.push(target);
+  }
+
+  function applyPlayerBulletDamage(b, e, st) {
+    const { addFloatText, killEnemy, applyKnockback } = st;
+    const dealt = Math.max(1, b.damage - (e.resist || 0));
+    e.hp -= dealt;
+    if (e.isElite) e.stun = 0.25;
+    if (b.crit) addFloatText(e.x, e.y - e.radius - 6, '★CRIT', '#ff0');
+    if (e.hp <= 0) killEnemy(e);
+    applyKnockback(e, b.x, b.y, 60);
+  }
+
+  function findBounceTarget(from, enemies, b) {
+    const radius = b.splashRadius || 180;
+    let next = null, best = Infinity;
+    for (const e of enemies) {
+      if (e.dead || hasHitTarget(b, e)) continue;
+      const d = Math.hypot(e.x - from.x, e.y - from.y);
+      if (d <= radius && d < best) { best = d; next = e; }
+    }
+    return next;
+  }
+
+  function explodeSplash(b, st) {
+    const radius = b.splashRadius || 0;
+    if (radius <= 0) return;
+    const { enemies, boss, spawnExplosion } = st;
+    spawnExplosion(b.x, b.y, 18, b.color, 0.75);
+    for (const other of enemies) {
+      if (other.dead || hasHitTarget(b, other)) continue;
+      if (Math.hypot(other.x - b.x, other.y - b.y) > radius + other.radius) continue;
+      rememberHitTarget(b, other);
+      applyPlayerBulletDamage(b, other, st);
+    }
+    if (boss && !boss.dead && Math.hypot(boss.x - b.x, boss.y - b.y) <= radius + boss.radius) {
+      boss.hp -= b.damage;
+      boss.hitFlash = Math.max(boss.hitFlash, 0.15);
+      NV.bossHitReaction(boss, b.damage, st.addFloatText);
+    }
+  }
+
   NV.updateBullets = function (dt, st) {
     const { bullets, W, H, player, enemies, boss, CHARACTERS, SHIELD_COOLDOWN,
       computePlayerHit, addFloatText, killEnemy, applyKnockback, spawnExplosion } = st;
@@ -17,7 +65,11 @@
       if (b.dead) continue;
       b.x += b.vx * dt;
       b.y += b.vy * dt;
-      if (b.x < -10 || b.x > W + 10 || b.y < -10 || b.y > H + 10) { b.dead = true; continue; }
+      if (b.x < -10 || b.x > W + 10 || b.y < -10 || b.y > H + 10) {
+        if (!b.isEnemy && b.impactType === 'splash') explodeSplash(b, st);
+        b.dead = true;
+        continue;
+      }
 
       if (b.isEnemy) {
         const d = Math.hypot(b.x - player.x, b.y - player.y);
@@ -53,8 +105,10 @@
         let hitCount = 0;
         for (const e of enemies) {
           if (e.dead) continue;
+          if (hasHitTarget(b, e)) continue;
           const d = Math.hypot(b.x - e.x, b.y - e.y);
-          if (d < e.radius + 4) {
+          if ((b.impactType === 'sustain' && d < e.radius + (b.splashRadius || 18)) ||
+              (b.impactType !== 'sustain' && d < e.radius + 4)) {
             // ESCUDO (shielder): bloquea balas frontales solo cuando el escudo está listo.
             if (e.shield) {
               if (e.shieldCd <= 0) {
@@ -69,20 +123,36 @@
                 }
               }
             }
-            const dealt = Math.max(1, b.damage - (e.resist || 0));
-            e.hp -= dealt;
+            rememberHitTarget(b, e);
+            applyPlayerBulletDamage(b, e, st);
             hitCount++;
-            if (e.isElite) e.stun = 0.25; // Élite se aturde un instante al recibir daño
-            if (b.crit) addFloatText(e.x, e.y - e.radius - 6, '★CRIT', '#ff0');
-            if (e.hp <= 0) killEnemy(e);
-            // Knockback al enemigo al dispararle
-            applyKnockback(e, b.x, b.y, 60);
+            if (b.impactType === 'splash') explodeSplash(b, st);
+            if (b.impactType === 'bounce' && b.bounceLeft > 0) {
+              let from = e;
+              while (b.bounceLeft > 0) {
+                const next = findBounceTarget(from, enemies, b);
+                if (!next) break;
+                b.x = next.x; b.y = next.y;
+                rememberHitTarget(b, next);
+                applyPlayerBulletDamage(b, next, st);
+                b.bounceLeft--;
+                from = next;
+              }
+              b.dead = true;
+              break;
+            }
             if (b.pierce && hitCount >= b.pierce) { b.dead = true; break; }
           }
         }
         if (boss && !boss.dead && !b.dead) {
           const d = Math.hypot(b.x - boss.x, b.y - boss.y);
-          if (d < boss.radius + 4) { boss.hp -= b.damage; boss.hitFlash = Math.max(boss.hitFlash, 0.15); b.dead = true; hitstop = 0.03; NV.bossHitReaction(boss, b.damage, addFloatText); }
+          const contactRadius = b.impactType === 'sustain' ? (b.splashRadius || 18) : 4;
+          if (d < boss.radius + contactRadius) {
+            boss.hp -= b.damage;
+            boss.hitFlash = Math.max(boss.hitFlash, 0.15);
+            if (b.impactType === 'splash') explodeSplash(b, st);
+            b.dead = true; hitstop = 0.03; NV.bossHitReaction(boss, b.damage, addFloatText);
+          }
         }
       }
     }

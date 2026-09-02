@@ -48,6 +48,16 @@
     return Math.min(0.4, lv * 0.02 + (fus || 0) * 0.06);
   };
 
+  NV.weaponImpactProfile = function (weapon) {
+    const id = weapon && weapon.id;
+    if (id === 'rifle') return { type: 'pierce', pierce: 2 };
+    if (id === 'railgun') return { type: 'pierce', pierce: Infinity };
+    if (id === 'bow') return { type: 'bounce', bounces: 3, radius: 180 };
+    if (id === 'flamethrower') return { type: 'sustain', pierce: Infinity, radius: 18 };
+    if (id === 'plasma') return { type: 'splash', pierce: 1, radius: 58 };
+    return { type: 'direct', pierce: weapon.pierce || 1 };
+  };
+
   // Disparo del arma actual: genera proyectiles amistosos (con crítico y tier visual).
   // state: { player, enemies, boss, bullets, currentWeapon, currentWeaponLevel,
   //          weaponVisualTier, BULLET_TIER_COLORS, MAX_BULLETS, permDamageBonus, playWeaponSound }
@@ -80,12 +90,14 @@
       const baseDmg = (weapon.damage + state.permDamageBonus * 2 + state.currentWeaponLevel()) * NV.waveWeaponMult(state.wave); // daño aditivo: base + meta + nivel de arma, escalado por oleada (B2)
       // Fusión de repetidas: multiplicador extra (puro, cap en game.js).
       const finalDmg = NV.weaponFusionDamage(baseDmg, state.currentWeaponFusion, state.fusionStep);
+      const impact = NV.weaponImpactProfile(weapon);
       bullets.push({
         x: player.x, y: player.y - 20,
         vx: Math.cos(angle) * weapon.speed, vy: Math.sin(angle) * weapon.speed,
         damage: crit ? finalDmg * 2 : finalDmg,
-        color: weapon.color, dead: false, isEnemy: false, pierce: weapon.pierce || 1,
+        color: weapon.color, dead: false, isEnemy: false, pierce: impact.pierce,
         crit, stunChance: 0,
+        impactType: impact.type, splashRadius: impact.radius || 0, bounceLeft: impact.bounces || 0, hitTargets: [],
         // Estética de tier (visual; no se usa en colisiones). wid selecciona la forma.
         tier: vTier, glowColor, wid: weapon.id,
         // Crecimiento por nivel/fusión + halo dorado si el arma está fusionada.
