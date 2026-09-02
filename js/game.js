@@ -1841,6 +1841,7 @@
     // visualmente y no es tapado por los superpuestos. Solo orden de dibujo.
     for (const e of enemies) if (!(e.atkFlash > 0)) drawEnemy(e);
     for (const e of enemies) if (e.atkFlash > 0) drawEnemy(e);
+    for (const e of enemies) if (NV.drawContactReadability) NV.drawContactReadability(ctx, e, player, NV.META_DEBUG);
     if (boss && !boss.dead) drawBoss();
 
     for (const b of bullets) {

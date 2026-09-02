@@ -55,4 +55,24 @@
     ctx.restore();
     return true;
   };
+
+  NV.drawContactReadability = function (ctx, e, player, debug) {
+    if (!player || !e || e.dead) return false;
+    const contactRadius = e.radius + 20; // espejo visual exacto; no participa en colisión
+    const d = Math.hypot(e.x - player.x, e.y - player.y);
+    const imminent = d < contactRadius + 18;
+    if (!debug && !imminent && !(e.atkFlash > 0)) return false;
+    const closeness = Math.max(0, Math.min(1, 1 - (d - contactRadius) / 18));
+    ctx.save();
+    ctx.globalAlpha = debug ? 0.32 : Math.min(0.16, 0.035 + closeness * 0.1 + (e.atkFlash > 0 ? 0.04 : 0));
+    ctx.strokeStyle = e.atkFlash > 0 ? '#ff4054' : '#ffcf76';
+    ctx.lineWidth = debug ? 1.25 : 0.8 + closeness * 0.7;
+    if (debug) ctx.setLineDash([4, 5]);
+    ctx.beginPath();
+    ctx.arc(e.x, e.y, contactRadius, 0, Math.PI * 2);
+    ctx.stroke();
+    if (debug) ctx.setLineDash([]);
+    ctx.restore();
+    return true;
+  };
 })();
