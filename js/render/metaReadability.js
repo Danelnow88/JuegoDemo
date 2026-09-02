@@ -161,4 +161,38 @@
     ctx.restore();
     return true;
   };
+
+  NV.drawEnemyIntent = function (ctx, e, player) {
+    if (!e || e.dead || !player) return false;
+    let drawn = false;
+    ctx.save();
+    if (e.behavior === 'erratic' && (e.erraticTimer || 0) < 0.16) {
+      const a = e.angle || 0, r = e.radius + 5;
+      ctx.globalAlpha = 0.12;
+      ctx.strokeStyle = '#caa7ff';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(e.x + Math.cos(a) * r, e.y + Math.sin(a) * r);
+      ctx.lineTo(e.x + Math.cos(a) * (r + 5), e.y + Math.sin(a) * (r + 5));
+      ctx.stroke(); drawn = true;
+    }
+    if (e.behavior === 'ranged') {
+      const d = Math.hypot(player.x - e.x, player.y - e.y);
+      if (d <= 170) {
+        const a = Math.atan2(player.y - e.y, player.x - e.x);
+        ctx.globalAlpha = 0.09;
+        ctx.strokeStyle = '#6dc4c0'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.arc(e.x, e.y, e.radius + 5, a - 0.8, a + 0.8); ctx.stroke(); drawn = true;
+      }
+    }
+    if (e.behavior === 'shield') {
+      const a = Math.atan2(player.y - e.y, player.x - e.x);
+      ctx.globalAlpha = e.shieldCd > 0 ? 0.07 : 0.16;
+      ctx.strokeStyle = e.shieldCd > 0 ? '#807090' : '#caa7ff';
+      ctx.lineWidth = e.shieldCd > 0 ? 1 : 2;
+      ctx.beginPath(); ctx.arc(e.x, e.y, e.radius + 6, a - Math.PI / 2, a + Math.PI / 2); ctx.stroke(); drawn = true;
+    }
+    ctx.restore();
+    return drawn;
+  };
 })();

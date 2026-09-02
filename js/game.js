@@ -1863,6 +1863,7 @@
     for (const e of enemies) if (e.atkFlash > 0) drawEnemy(e);
     if (NV.drawAutofireTarget) NV.drawAutofireTarget(ctx, currentAutoTarget, frame);
     for (const e of enemies) if (NV.drawContactReadability) NV.drawContactReadability(ctx, e, player, NV.META_DEBUG);
+    for (const e of enemies) if (NV.drawEnemyIntent) NV.drawEnemyIntent(ctx, e, player);
     if (boss && !boss.dead) drawBoss();
 
     for (const b of bullets) {
