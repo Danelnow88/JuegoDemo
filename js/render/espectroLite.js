@@ -171,6 +171,8 @@
       this.bodyMaterial = null;
       this.eyeMaterial = null;
       this.lavaMaterial = null;
+      this.renderWidth = 0;
+      this.renderHeight = 0;
     }
 
     // Debe invocarse explicitamente y solo funciona con el flag habilitado.
@@ -189,7 +191,10 @@
       this.renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: false });
       this.renderer.setPixelRatio(1);
       this.renderer.setSize(width, height, false);
+      this.renderWidth = Math.round(width);
+      this.renderHeight = Math.round(height);
       this.renderer.setClearColor(0x000000, 0);
+      canvas.style.pointerEvents = 'none';
       this.scene = new THREE.Scene();
       this.camera = this.options.camera || new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 100);
       this.camera.position.z = 10;
@@ -273,6 +278,31 @@
       entry.eyeL.scale.set(scale * 35, scale * 35, 1);
       entry.eyeR.scale.set(scale * 35, scale * 35, 1);
       entry.lava.scale.set(scale * 90, scale * 50, 1);
+      const lookX = Number(opts.lookX);
+      const lookY = Number(opts.lookY);
+      if (Number.isFinite(lookX) && Number.isFinite(lookY)) {
+        const dx = lookX - x;
+        const dy = lookY - y;
+        const length = Math.hypot(dx, dy) || 1;
+        const eyeShift = scale * 5;
+        const sx = dx / length * eyeShift;
+        const sy = dy / length * eyeShift;
+        entry.eyeL.position.x += sx;
+        entry.eyeL.position.y += sy;
+        entry.eyeR.position.x += sx;
+        entry.eyeR.position.y += sy;
+      }
+      return true;
+    }
+
+    resize(width, height) {
+      if (!this.renderer || !this.camera) return false;
+      const w = Math.max(1, Math.round(Number(width) || 1));
+      const h = Math.max(1, Math.round(Number(height) || 1));
+      if (w === this.renderWidth && h === this.renderHeight) return true;
+      this.renderer.setSize(w, h, false);
+      this.renderWidth = w;
+      this.renderHeight = h;
       return true;
     }
 
@@ -348,4 +378,153 @@
     if (!NV.ESPECTRO_LITE_ACTIVE || !NV.espectroLite) return false;
     return NV.espectroLite.update(time, beat);
   };
+
+  // ---- Render 2D Canvas para espectros (compatible con drawEnemy) ----
+  // Replica el estilo visual del shader WebGL: aura pulsante, cuerpo estelar
+  // con picos, ojos que siguen al jugador y partículas flotantes.
+  // ctx viene tras ctx.translate(e.x, e.y) de drawEnemy → dibuja en (0,0).
+  NV.drawSpecter2D = function (ctx, e, frame, player) {
+    if (!ctx || !e) return;
+    const r = e.radius || 10;
+
+    try {
+      _drawSpecter2DImpl(ctx, e, frame, player, r);
+    } catch (_) {
+      // Fallback Canvas2D mínimo, sin marcadores de diagnóstico.
+      ctx.save();
+      ctx.fillStyle = '#ff0000';
+      ctx.shadowBlur = 20;
+      ctx.shadowColor = '#ff0000';
+      ctx.beginPath();
+      ctx.arc(0, 0, r + 10, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+  };
+
+  function _drawSpecter2DImpl(ctx, e, frame, player, r) {
+    const t = (frame || 0) * 0.03; // aproximación de tiempo en segundos (60fps)
+    const isCore = e.enemyTypeId === 'specter_core';
+    const spikeCount = isCore ? 6 : 4;
+    const color = e.color || (isCore ? '#ff2244' : '#ff6a24');
+    const phase = typeof e.specterPhase === 'number' ? e.specterPhase : 0;
+    const form = typeof e.specterForm === 'number' ? e.specterForm : 0;
+
+    ctx.save();
+
+    // Pulsing scale and glow intensity (respiración)
+    const pulse = 1 + Math.sin(t * 2 + phase) * 0.08;
+    const glowPulse = 0.5 + Math.sin(t * 1.3 + phase * 0.7) * 0.5;
+
+    // === Glow aura (radial gradient pulsante) ===
+    const glowR = r * (2.2 + glowPulse * 0.5);
+    const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, glowR);
+    gradient.addColorStop(0, color);
+    gradient.addColorStop(0.4, color);
+    gradient.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.globalAlpha = 0.25 + glowPulse * 0.25;
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.arc(0, 0, glowR, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    // === Cuerpo estelar con picos ===
+    ctx.save();
+    ctx.scale(pulse, pulse);
+
+    const outerR = r * (1 + form * 0.1);
+    const innerR = r * (0.45 + form * 0.1);
+
+    ctx.fillStyle = color;
+    ctx.shadowBlur = 12;
+    ctx.shadowColor = color;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    for (let i = 0; i < spikeCount * 2; i++) {
+      const a = (i / (spikeCount * 2)) * Math.PI * 2 + phase + form;
+      const rr = (i % 2 === 0) ? outerR : innerR;
+      ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Núcleo interno (brillo centrado)
+    const coreGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, r * 0.5);
+    coreGrad.addColorStop(0, color);
+    coreGrad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = coreGrad;
+    ctx.globalAlpha = 0.35;
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 0.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    ctx.restore();
+
+    // === Ojos que siguen al jugador ===
+    if (player) {
+      const eyeSep = r * 0.35;
+      const eyeR = Math.max(2.2, r * 0.18);
+      const eyeY = -r * 0.1;
+
+      // Dirección hacia el jugador (coordenadas mundo)
+      const dx = player.x - e.x;
+      const dy = player.y - e.y;
+      const dist = Math.hypot(dx, dy) || 1;
+      const fwdX = dx / dist;
+      const fwdY = dy / dist;
+
+      for (let side = -1; side <= 1; side += 2) {
+        const eyeX = side * eyeSep;
+        // Blanco del ojo
+        ctx.fillStyle = '#fff';
+        ctx.shadowBlur = 6;
+        ctx.shadowColor = '#fff';
+        ctx.beginPath();
+        ctx.arc(eyeX, eyeY, eyeR, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Pupila oscura que sigue al jugador
+        const pupilR = eyeR * 0.55;
+        const pupilOffset = Math.min(eyeR * 0.6, dist * 0.03);
+        const asymmetry = side * 0.15;
+        ctx.fillStyle = '#10131c';
+        ctx.shadowBlur = 0;
+        ctx.beginPath();
+        ctx.arc(
+          eyeX + fwdX * pupilOffset * (0.8 + asymmetry),
+          eyeY + fwdY * pupilOffset * (0.8 - asymmetry),
+          pupilR, 0, Math.PI * 2
+        );
+        ctx.fill();
+      }
+      ctx.shadowBlur = 0;
+    }
+
+    // === Partículas flotantes (orbes pequeños en órbita) ===
+    const particleCount = isCore ? 8 : 5;
+    ctx.shadowBlur = 8;
+    ctx.shadowColor = color;
+    for (let i = 0; i < particleCount; i++) {
+      const pAngle = t * 0.6 + i * (Math.PI * 2 / particleCount) + phase * 0.5;
+      const pDist = r * (1.3 + Math.sin(t * 0.7 + i) * 0.25);
+      const pX = Math.cos(pAngle) * pDist;
+      const pY = Math.sin(pAngle) * pDist;
+      const pSize = 1.5 + Math.sin(t * 1.1 + i * 0.7) * 0.8;
+      const pAlpha = 0.35 + Math.sin(t * 0.85 + i) * 0.25;
+      ctx.globalAlpha = pAlpha;
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(pX, pY, pSize, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    ctx.shadowBlur = 0;
+
+    ctx.restore();
+  }
+
 })();

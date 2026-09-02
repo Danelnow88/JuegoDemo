@@ -147,6 +147,12 @@
     { id: 'spitter', name: 'ESCOPURAS', hp: 22, speed: 50, radius: 13, color: '#6dc4c0', shape: 'rock', score: 18, xp: 25, behavior: 'ranged', knockbackRes: 0.4, damage: 15, minWave: 12, stunChance: 0.2 },
     { id: 'wisp', name: 'ESPÍRITU', hp: 12, speed: 160, radius: 6, color: '#4ade80', shape: 'dot', score: 6, xp: 6, behavior: 'erratic', knockbackRes: 0.2, damage: 6, minWave: 15 },
     { id: 'kamikaze', name: 'KAMIKAZE', hp: 20, speed: 125, radius: 10, color: '#ff5f3d', shape: 'triangle', score: 22, xp: 22, behavior: 'kami', knockbackRes: 0.2, damage: 14, minWave: 10 },
+
+    // === ESPECTROS (oleadas altas) ===
+    // Formas espectrales: visual WebGL aprobado, con fallback Canvas2D si WebGL falla.
+    // El peso (weight) controla la frecuencia relativa de aparición respecto al resto de tipos.
+    { id: 'specter_lite', name: 'ESPECTRO LÚTIL', hp: 18, speed: 100, radius: 12, color: '#ff6a24', shape: 'specter', score: 30, xp: 35, behavior: 'erratic', knockbackRes: 0.1, damage: 8, minWave: 16, weight: 0.08, specterVariant: 'lite' },
+    { id: 'specter_core', name: 'ESPECTRO NÚCLEO', hp: 28, speed: 55, radius: 16, color: '#ff2244', shape: 'specter', score: 50, xp: 55, behavior: 'ranged', knockbackRes: 0.3, damage: 12, minWave: 20, weight: 0.06, specterVariant: 'core' },
   ];
 
   // === ÉLITES (8 tipos) ===

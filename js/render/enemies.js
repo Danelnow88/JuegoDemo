@@ -108,7 +108,12 @@
     }
 
     const r = e.radius;
-    if (e.shape === 'hex') {
+
+    // Fallback Canvas2D. El wrapper de game.js omite este dibujo cuando el mesh
+    // WebGL de este enemigo ya está listo.
+    if (e.shape === 'specter' && typeof NV.drawSpecter2D === 'function') {
+      NV.drawSpecter2D(ctx, e, frame, player);
+    } else if (e.shape === 'hex') {
       ctx.beginPath();
       for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2; ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r); }
       ctx.closePath(); ctx.fill();
@@ -161,7 +166,10 @@
     }
 
     ctx.shadowBlur = 0;
-    NV.drawEnemyEyes(ctx, e, player);
+    // Ojos: skip para espectros (drawSpecter2D los dibuja con seguimiento al jugador)
+    if (e.shape !== 'specter') {
+      NV.drawEnemyEyes(ctx, e, player);
+    }
 
     // Legibilidad del atacante (daño de contacto): halo blanco de selección +
     // anillo rojo reforzado -> se lee por encima de los superpuestos. Solo visual.

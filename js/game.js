@@ -7,30 +7,46 @@
   const GW = 900, GH = 520;
   const canvas = NV.canvas;
   const ctx = NV.ctx;
+  const specterCanvas = document.getElementById('specter-overlay');
   let scaleX = 1, scaleY = 1;
 
   function resizeCanvas() {
     const rect = canvas.getBoundingClientRect();
     const dw = Math.round(rect.width), dh = Math.round(rect.height);
+    if (specterCanvas) {
+      specterCanvas.style.left = canvas.offsetLeft + 'px';
+      specterCanvas.style.top = canvas.offsetTop + 'px';
+      specterCanvas.style.right = 'auto';
+      specterCanvas.style.bottom = 'auto';
+      specterCanvas.style.width = rect.width + 'px';
+      specterCanvas.style.height = rect.height + 'px';
+    }
     if (canvas.width !== dw || canvas.height !== dh) {
       canvas.width = dw; canvas.height = dh;
       scaleX = canvas.width / GW; scaleY = canvas.height / GH;
+      if (specterCanvas && NV.espectroLite && typeof NV.espectroLite.resize === 'function') {
+        NV.espectroLite.resize(dw, dh);
+      }
     }
   }
   const W = GW, H = GH;
 
-  // === PUENTE OPCIONAL ESPECTRO LITE (Fase A) ===
-  // Apagado por defecto: sin import de Three.js, canvas extra ni recursos GPU.
-  NV.ESPECTRO_LITE_ACTIVE = false;
-  const MAX_LITE_ENEMIES = 6;
+  // === PUENTE ESPECTRO LITE WEBGL ===
+  // Activo por defecto; conserva fallback Canvas2D si Three.js/WebGL no está disponible.
+  // NV.SPECTER_ENABLED: flag maestro (default: true)
+  NV.SPECTER_ENABLED = true;
+  NV.ESPECTRO_LITE_ACTIVE = true;
   const ESPECTRO_THREE_CDN = 'https://unpkg.com/three@0.160.0/build/three.module.js';
   const espectroEntries = new Map();
-  const ESPECTRO_VARIANTS = [
-    [1, 0, 0], [1, 0.5, 0], [1, 0, 0.5], [1, 0.3, 0.1], [0.72, 0, 0.18],
-  ];
+  // Identidad visual aprobada en previews/espectro-lite-single-preview.html.
+  const SPECTER_FORM = 0.35;
+  const SPECTER_SCALE = 0.4;
+  const SPECTER_VARIANT = [1, 0, 0];
   let espectroLiteLoading = false;
   let espectroLiteFailed = false;
   let espectroTime = 0;
+  // Tipo de espectro forzado vía URL (?forceSpecter=specter_lite) o consola forceSpecter()
+  let forceSpecterType = null;
 
   // === ESTADO ===
   let state = 'menu', frame = 0, lastTime = 0;
@@ -56,17 +72,14 @@
   function playerBulletCount() { let n = 0; for (const b of bullets) if (!b.isEnemy) n++; return n; }
   function enemyBulletCount() { let n = 0; for (const b of bullets) if (b.isEnemy) n++; return n; }
 
-  function espectroHash(e, salt) {
-    const value = Math.sin((e.x || 0) * 12.9898 + (e.y || 0) * 78.233 + (e.radius || 1) * 37.719 + salt * 43.1234) * 43758.5453;
-    return value - Math.floor(value);
-  }
-
   function shouldUseEspectroLite(e) {
-    return !!(NV.ESPECTRO_LITE_ACTIVE && e && !e.dead && !e.isElite && e.enemyTypeId === 'wisp');
+    return !!(NV.SPECTER_ENABLED !== false && NV.ESPECTRO_LITE_ACTIVE && e && !e.dead && !e.isElite
+      && (e.enemyTypeId === 'specter_lite' || e.enemyTypeId === 'specter_core'));
   }
 
   function isEnemyRenderedByLite(e) {
-    return !!(NV.ESPECTRO_LITE_ACTIVE && hasEspectroLiteApi(NV.espectroLite) && NV.espectroLite.initialized && espectroEntries.has(e));
+    return !!(NV.SPECTER_ENABLED !== false && NV.ESPECTRO_LITE_ACTIVE
+      && hasEspectroLiteApi(NV.espectroLite) && NV.espectroLite.initialized && espectroEntries.has(e));
   }
 
   function hasEspectroLiteApi(lite) {
@@ -96,15 +109,15 @@
   }
 
   function ensureEspectroLite() {
-    if (!NV.ESPECTRO_LITE_ACTIVE || espectroLiteLoading || espectroLiteFailed) return;
+    if (!NV.ESPECTRO_LITE_ACTIVE || !NV.SPECTER_ENABLED || espectroLiteLoading || espectroLiteFailed) return;
     if (NV.espectroLite && NV.espectroLite.initialized) return;
     espectroLiteLoading = true;
-    import(ESPECTRO_THREE_CDN).then((THREE) => {
+    (NV.THREE_READY || import(ESPECTRO_THREE_CDN)).then((THREE) => {
       if (!NV.ESPECTRO_LITE_ACTIVE) return;
       const host = canvas.parentElement;
       const rect = canvas.getBoundingClientRect();
-      const webglCanvas = document.createElement('canvas');
-      webglCanvas.className = 'espectro-lite-canvas';
+      const webglCanvas = specterCanvas;
+      if (!webglCanvas) throw new Error('Canvas #specter-overlay no encontrado');
       const camera = new THREE.OrthographicCamera(-W / 2, W / 2, H / 2, -H / 2, 0.1, 100);
       camera.position.z = 10;
       const lite = NV.initEspectroLite(THREE, {
@@ -113,6 +126,7 @@
         height: Math.max(1, Math.round(rect.height)),
       });
       if (!lite || !hasEspectroLiteApi(lite)) throw new Error('API incompatible de Espectro Lite');
+      if (typeof lite.resize === 'function') lite.resize(rect.width, rect.height);
       lite.setVisible(false);
     }).catch(() => {
       disableEspectroLiteSafely();
@@ -136,6 +150,13 @@
 
   function updateEspectroBridge(dt) {
     try {
+      // La asignación directa NV.SPECTER_ENABLED=false también es efectiva:
+      // retira entidades existentes, limpia meshes y oculta el overlay.
+      if (NV.SPECTER_ENABLED === false) {
+        enemies = enemies.filter((e) => e.shape !== 'specter');
+        clearEspectroBridge();
+        return;
+      }
       if (!NV.ESPECTRO_LITE_ACTIVE || state !== 'playing' || paused) {
         const inactiveLite = NV.espectroLite;
         if (inactiveLite) {
@@ -147,7 +168,7 @@
 
       const selected = [];
       for (const e of enemies) {
-        if (shouldUseEspectroLite(e) && selected.length < MAX_LITE_ENEMIES) selected.push(e);
+        if (shouldUseEspectroLite(e)) selected.push(e);
       }
       if (!selected.length) {
         clearEspectroBridge();
@@ -170,20 +191,21 @@
       for (const e of selected) {
         let entry = espectroEntries.get(e);
         if (!entry) {
-          const variantIndex = Math.floor(espectroHash(e, 3) * ESPECTRO_VARIANTS.length);
           entry = lite.createEnemy({
             x: e.x - W / 2, y: H / 2 - e.y,
-            scale: Math.max(0.2, Math.min(0.4, e.radius / 30)),
-            phase: espectroHash(e, 2) * Math.PI * 2,
-            form: espectroHash(e, 1),
-            variantColor: ESPECTRO_VARIANTS[variantIndex],
+            scale: SPECTER_SCALE,
+            phase: 0,
+            form: SPECTER_FORM,
+            variantColor: SPECTER_VARIANT,
           });
           if (entry) espectroEntries.set(e, entry);
         }
         if (entry) {
           lite.syncEnemy(entry, {
             x: e.x - W / 2, y: H / 2 - e.y,
-            scale: Math.max(0.2, Math.min(0.4, e.radius / 30)),
+            scale: SPECTER_SCALE,
+            lookX: player.x - W / 2,
+            lookY: H / 2 - player.y,
           });
         }
       }
@@ -202,6 +224,23 @@
     espectroLiteFailed = false;
     if (!NV.ESPECTRO_LITE_ACTIVE) clearEspectroBridge();
     return NV.ESPECTRO_LITE_ACTIVE;
+  };
+
+  NV.toggleSpecter = function (enabled) {
+    NV.SPECTER_ENABLED = !!enabled;
+    espectroLiteFailed = false;
+    if (!NV.SPECTER_ENABLED) {
+      enemies = enemies.filter((e) => e.shape !== 'specter');
+      clearEspectroBridge();
+    } else {
+      NV.ESPECTRO_LITE_ACTIVE = true;
+    }
+    return NV.SPECTER_ENABLED;
+  };
+
+  // Ayuda de prueba compatible con el parámetro ?forceSpecter=...
+  NV.forceSpecter = function (typeId) {
+    forceSpecterType = typeId || null;
   };
 
   // === PROGRESO ===
@@ -336,10 +375,18 @@
       metaFrozen = true;
       metaShards = 0;
       permUpgrades = NV.defaultPermUpgrades();
-      console.log('[META] Modo ?fresh=1: mejoras permanentes y meta-shards en cero (no se guarda progreso).');
+            console.log('[META] Modo ?fresh=1: mejoras permanentes y meta-shards en cero (no se guarda progreso).');
     } else {
       loadMeta();
     }
+    // Lectura de parámetro URL para force-spawn de espectros
+    if (typeof window !== 'undefined' && window.location && window.location.search) {
+      const m = /[?&]forceSpecter=([^&]+)/.exec(window.location.search);
+      if (m && m[1]) {
+        forceSpecterType = m[1];
+      }
+    }
+
     if (NV.rhythmRestorePref) NV.rhythmRestorePref();
     resizeCanvas();
     NV.renderCharacterCards(dom.charGrid, CHARACTERS, player.character);
@@ -1263,6 +1310,9 @@
   // === UPDATE ===
   function update(dt) {
     if (state !== 'playing' || paused) return;
+    if (NV.SPECTER_ENABLED === false) {
+      enemies = enemies.filter((e) => e.shape !== 'specter');
+    }
     frame++;
 
     if (shake > 0) shake -= dt;
@@ -1483,7 +1533,7 @@
   }
 
   function spawnEnemy() {
-    NV.spawnEnemy({ enemies, MAX_ENEMIES, boss, wave, ENEMY_TYPES, W, H, waveEvent });
+    NV.spawnEnemy({ enemies, MAX_ENEMIES, boss, wave, ENEMY_TYPES, W, H, waveEvent, forceTypeId: forceSpecterType });
   }
 
   function spawnElite() {
@@ -1585,7 +1635,7 @@
       sourceX = player.x - (hit.projectile.vx || 0) / projectileSpeed * 40;
       sourceY = player.y - (hit.projectile.vy || 0) / projectileSpeed * 40;
     }
-    damageFeedback = { life: 0.55, sourceX, sourceY, critical: !!hit.crit, cause: hit.cause };
+    damageFeedback = { life: 0.55, sourceX, sourceY, critical: !!hit.crit, cause: hit.cause, flash: 0.05 };
     invulnerabilityFeedback = { life: 0.5, duration: 0.5, kind: 'start' };
     if (!NV.META_DEBUG || !NV.recordMetaDamage) return;
     let within50 = 0, within100 = 0, within170 = 0, aliveEnemies = 0, overlap = 0;
@@ -1742,6 +1792,14 @@
   function draw() {
     resizeCanvas();
     ctx.setTransform(scaleX, 0, 0, scaleY, 0, 0);
+
+    // META-VIS: contexto compartido de render (t, saturación, urgencia, gain).
+    const metaRenderEnv = {
+      t: (typeof performance !== 'undefined' && typeof performance.now === 'function') ? performance.now() / 1000 : frame / 60,
+      saturation: Math.min(1, enemies.length / 80),
+      urgency: (player.hp > 0 && player.hp / player.maxHp <= 0.3) ? 1 : 0,
+      gain: 1,
+    };
     prepareDensityReadability();
 
     // Fondo galaxia más oscuro: mejora el contraste de los visuales rítmicos
@@ -1887,9 +1945,10 @@
     // visualmente y no es tapado por los superpuestos. Solo orden de dibujo.
     for (const e of enemies) if (!(e.atkFlash > 0)) drawEnemy(e);
     for (const e of enemies) if (e.atkFlash > 0) drawEnemy(e);
-    if (NV.drawAutofireTarget) NV.drawAutofireTarget(ctx, currentAutoTarget, frame);
-    for (const e of enemies) if (NV.drawContactReadability) NV.drawContactReadability(ctx, e, player, NV.META_DEBUG);
-    for (const e of enemies) if (NV.drawEnemyIntent) NV.drawEnemyIntent(ctx, e, player);
+    const autoTargetInRange = currentAutoTarget ? (Math.hypot(currentAutoTarget.x - player.x, currentAutoTarget.y - player.y) <= (currentWeapon.range || Infinity)) : false;
+    if (NV.drawAutofireTarget) NV.drawAutofireTarget(ctx, currentAutoTarget, frame, player, autoTargetInRange, NV.META_DEBUG, metaRenderEnv);
+    for (const e of enemies) if (NV.drawContactReadability) NV.drawContactReadability(ctx, e, player, NV.META_DEBUG, metaRenderEnv);
+    for (const e of enemies) if (NV.drawEnemyIntent) NV.drawEnemyIntent(ctx, e, player, metaRenderEnv);
     if (boss && !boss.dead) drawBoss();
 
     for (const b of bullets) {
@@ -1946,10 +2005,10 @@
     }
     ctx.globalAlpha = 1;
 
-    if (NV.drawMomentumReadability) NV.drawMomentumReadability(ctx, player, momentumVisual);
+    if (NV.drawMomentumReadability) NV.drawMomentumReadability(ctx, player, momentumVisual, metaRenderEnv);
     drawPlayer();
-    if (NV.drawDamageFeedback) NV.drawDamageFeedback(ctx, player, damageFeedback);
-    if (NV.drawInvulnerabilityFeedback) NV.drawInvulnerabilityFeedback(ctx, player, invulnerabilityFeedback);
+    if (NV.drawDamageFeedback) NV.drawDamageFeedback(ctx, player, damageFeedback, metaRenderEnv);
+    if (NV.drawInvulnerabilityFeedback) NV.drawInvulnerabilityFeedback(ctx, player, invulnerabilityFeedback, metaRenderEnv);
     // Evento NEBLINA: velo oscuro con viñeta que reduce la visibilidad periférica.
     if (waveEvent === 'fog' && state === 'playing') {
       ctx.save();
@@ -2062,7 +2121,7 @@
   function drawEnemy(e) {
     // Solo ocultar Canvas2D cuando el mesh WebGL de ESTE enemigo ya existe.
     // Durante carga, fallo o flag apagado, el render original sigue intacto.
-    if (isEnemyRenderedByLite(e)) return;
+    if ((NV.SPECTER_ENABLED === false && e.shape === 'specter') || isEnemyRenderedByLite(e)) return;
     NV.drawEnemy(ctx, e, frame, player, NV.rhythm);
   }
 
@@ -2108,7 +2167,11 @@
       const sx = (Math.random() - 0.5) * 8 * shake * (state === 'gameover' ? 2 : 1);
       const sy = (Math.random() - 0.5) * 4 * shake * (state === 'gameover' ? 2 : 1);
       canvas.style.transform = `translate(${sx}px, ${sy}px)`;
-    } else { canvas.style.transform = ''; }
+      if (specterCanvas) specterCanvas.style.transform = `translate(${sx}px, ${sy}px)`;
+    } else {
+      canvas.style.transform = '';
+      if (specterCanvas) specterCanvas.style.transform = '';
+    }
 
     requestAnimationFrame(loop);
   }

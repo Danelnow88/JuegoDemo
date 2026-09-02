@@ -67,12 +67,11 @@ t('módulo expone APIs encapsuladas de sincronización y visibilidad', () => {
     if (!src.includes(name)) throw new Error('API ausente: ' + name);
   }
 });
-
-t('puente Fase A queda apagado y limitado a seis wisp normales', () => {
+t('puente WebGL queda activo para los dos tipos de espectro', () => {
   const game = fs.readFileSync('js/game.js', 'utf8');
-  if (!game.includes('NV.ESPECTRO_LITE_ACTIVE = false')) throw new Error('flag no inicia apagado');
-  if (!game.includes('const MAX_LITE_ENEMIES = 6')) throw new Error('cap no es 6');
-  if (!game.includes("e.enemyTypeId === 'wisp'")) throw new Error('selector no usa wisp');
+  if (!game.includes('NV.SPECTER_ENABLED = true')) throw new Error('toggle maestro no inicia activo');
+  if (!game.includes('NV.ESPECTRO_LITE_ACTIVE = true')) throw new Error('WebGL no inicia activo');
+  if (!game.includes("e.enemyTypeId === 'specter_lite'") || !game.includes("e.enemyTypeId === 'specter_core'")) throw new Error('selector no usa espectros');
   if (!game.includes('!e.isElite') || !game.includes('!e.dead')) throw new Error('filtros elite/dead ausentes');
   if (!game.includes('import(ESPECTRO_THREE_CDN)')) throw new Error('Three no carga dinámicamente');
 });
@@ -80,7 +79,7 @@ t('puente Fase A queda apagado y limitado a seis wisp normales', () => {
 t('puente conserva fallback Canvas2D y mapea coordenadas lógicas', () => {
   const game = fs.readFileSync('js/game.js', 'utf8');
   if (!game.includes('function isEnemyRenderedByLite(e)')) throw new Error('guard de mesh ausente');
-  if (!game.includes('if (isEnemyRenderedByLite(e)) return;')) throw new Error('Canvas2D no usa guard seguro');
+  if (!game.includes('isEnemyRenderedByLite(e)) return;')) throw new Error('Canvas2D no usa guard seguro');
   if (!game.includes('x: e.x - W / 2, y: H / 2 - e.y')) throw new Error('mapeo de coordenadas ausente');
   if (!game.includes('if (!lite || !lite.initialized) return;')) throw new Error('fallback durante carga ausente');
 });

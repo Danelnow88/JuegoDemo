@@ -98,6 +98,8 @@ canvas {
   height: 100%;
   pointer-events: none;
   z-index: 1;
+  background: transparent;
+  transform-origin: center center;
 }
 .overlay {
   position: absolute; inset: 0;

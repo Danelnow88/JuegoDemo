@@ -6,14 +6,49 @@
   'use strict';
   const NV = window.NV;
 
+  // ---- Selección ponderada: tipos con 'weight' usan ese valor; el resto defaulta a 1.0 ----
+  // Si ningún tipo disponible define weight, la selección es equivalente a uniforme.
+  NV.weightedRandom = function (items) {
+    if (!items || !items.length) return null;
+    let total = 0;
+    const weights = [];
+    for (let i = 0; i < items.length; i++) {
+      const w = typeof items[i].weight === 'number' ? items[i].weight : 1.0;
+      weights.push(w);
+      total += w;
+    }
+    if (total <= 0) return items[0];
+    let r = Math.random() * total;
+    for (let i = 0; i < items.length; i++) {
+      r -= weights[i];
+      if (r <= 0) return items[i];
+    }
+    return items[items.length - 1];
+  };
+
   // ---- Spawn normal ----
   NV.spawnEnemy = function (st) {
     if (st.enemies.length >= st.MAX_ENEMIES) return;
     if (st.boss && !st.boss.dead) return;
-    // Pool por oleada: cada tipo tiene su minWave. Los umbrales reproducen el
-    // desbloqueo escalonado original (slice por índice); kamikaze entra desde la 10.
-    const available = st.ENEMY_TYPES.filter((t) => (t.minWave || 1) <= st.wave);
-    const type = available[Math.floor(Math.random() * available.length)];
+
+    const spectersEnabled = NV.SPECTER_ENABLED !== false;
+    const enabledTypes = spectersEnabled
+      ? st.ENEMY_TYPES
+      : st.ENEMY_TYPES.filter((t) => t.shape !== 'specter');
+
+    let type;
+    const forcedType = st.forceTypeId && enabledTypes.find((t) => t.id === st.forceTypeId);
+    if (forcedType) {
+      // Force spawn: buscar el tipo específico (ignora minWave para testing/debug).
+      type = forcedType;
+    } else {
+      // Pool por oleada: cada tipo tiene su minWave. Los umbrales reproducen el
+      // desbloqueo escalonado original (slice por índice); kamikaze entra desde la 10.
+      const available = enabledTypes.filter((t) => (t.minWave || 1) <= st.wave);
+      type = NV.weightedRandom(available);
+    }
+    if (!type) return;
+
     const side = Math.random() < 0.5 ? 0 : st.W;
     const y = 80 + Math.random() * (st.H - 200);
     const hpScale = NV.enemyHpScale(st.wave); // B1: curva única en balance.js

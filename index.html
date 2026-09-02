@@ -5,6 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Neon Void</title>
     <link rel="stylesheet" href="css/styles.css" />
+    <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+      }
+    }
+    </script>
+    <script type="module">
+      import * as THREE from 'three';
+      window.NV = window.NV || {};
+      window.NV.THREE_READY = Promise.resolve(THREE);
+    </script>
   </head>
   <body>
     <main class="shell">
@@ -38,6 +50,7 @@
 
       <section class="game-box">
         <canvas id="game" width="900" height="520"></canvas>
+        <canvas id="specter-overlay" class="espectro-lite-canvas" width="900" height="520"></canvas>
         <div id="waveBanner" class="wave-banner hidden"></div>
 
         <div id="startScreen" class="overlay">
