@@ -422,9 +422,15 @@ canvas {
 .rarity-legendary { border-color: rgba(255,95,155,.72); animation: legendary-breathe 1.8s ease-in-out infinite; }
 .offer.disabled {
   cursor: not-allowed;
-  opacity: .78;
-  border-color: rgba(255,95,155,.58);
+  opacity: .82;
+  border-color: rgba(255,95,155,.62);
   filter: saturate(.65);
+  background: linear-gradient(145deg, rgba(255,95,155,.12), rgba(255,95,155,.03)), rgba(1,4,15,.80);
+  animation: blocked-pulse 2.6s ease-in-out infinite;
+}
+@keyframes blocked-pulse {
+  0%, 100% { box-shadow: inset 0 1px rgba(255,255,255,.06), 0 0 10px rgba(255,95,155,.12); }
+  50% { box-shadow: inset 0 1px rgba(255,255,255,.08), 0 0 20px rgba(255,95,155,.26); }
 }
 .offer.disabled::after {
   content: 'BLOQUEADO';
@@ -432,8 +438,9 @@ canvas {
   inset: auto -26px 16px -26px;
   padding: 3px 0;
   transform: rotate(-16deg);
-  background: rgba(255,95,155,.18);
-  border: 1px solid rgba(255,95,155,.5);
+  background: linear-gradient(90deg, rgba(255,95,155,.10), rgba(255,95,155,.32), rgba(255,95,155,.10));
+  border: 1px solid rgba(255,95,155,.55);
+  box-shadow: 0 0 10px rgba(255,95,155,.25);
   color: #ffd2dc;
   text-align: center;
   font-size: 9px;
@@ -493,6 +500,33 @@ canvas {
 .loadout-slot .slot-index { position: absolute; left: 3px; top: 1px; color: #7cf8ff; font-size: 7px; opacity: .7; }
 .loadout-slot.empty, .inv-slot.empty { border-style: dashed; color: rgba(124,248,255,.38); }
 .loadout-slot.empty::before, .inv-slot.empty::before { content: '+'; font-size: 15px; line-height: 1; }
+/* Slot de mejora en nivel máximo: bloqueo rojo con franja diagonal (mismo lenguaje que .offer.disabled). */
+.loadout-slot.blocked {
+  border-color: rgba(255,95,155,.72);
+  background: linear-gradient(145deg, rgba(255,95,155,.16), rgba(255,95,155,.04)), rgba(1,4,15,.78);
+  box-shadow: inset 0 1px rgba(255,255,255,.08), 0 0 12px rgba(255,95,155,.24);
+  overflow: hidden;
+  animation: blocked-pulse 2.6s ease-in-out infinite;
+}
+.loadout-slot.blocked canvas { filter: grayscale(.4) brightness(.85); }
+.loadout-slot.blocked::after {
+  content: 'MAX';
+  position: absolute;
+  left: -16%; right: -16%;
+  top: 50%;
+  transform: translateY(-50%) rotate(-14deg);
+  padding: 1px 0;
+  background: linear-gradient(90deg, rgba(255,95,155,.10), rgba(255,95,155,.30), rgba(255,95,155,.10));
+  border-top: 1px solid rgba(255,95,155,.55);
+  border-bottom: 1px solid rgba(255,95,155,.55);
+  color: #ffd2dc;
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: 1.4px;
+  text-align: center;
+  text-shadow: 0 0 6px rgba(255,95,155,.85);
+  pointer-events: none;
+}
 .inv-panel {
   width: 100%;
   max-width: 100%;
