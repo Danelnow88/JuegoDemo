@@ -92,7 +92,9 @@
               addFloatText(player.x, player.y - 20, 'ESQUIVA', '#8dfaff');
             } else {
               const damage = hit.dmg;
+              const hpBefore = player.hp;
               player.hp -= damage;
+              if (st.onPlayerDamaged) st.onPlayerDamaged({ cause: 'projectile', projectile: b, hpBefore, hpAfter: player.hp, damage, crit: !!hit.crit });
               if (st.sfx && st.sfx.playerHit && player.hp > 0) st.sfx.playerHit();
               if (b.stunChance && Math.random() < b.stunChance) { player.stun = 0.6; addFloatText(player.x, player.y - 30, 'STUN', '#ff0'); }
               shake = Math.max(shake, hit.crit ? 0.3 : 0.1);

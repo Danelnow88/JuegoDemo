@@ -324,7 +324,9 @@
           addFloatText(st.player.x, st.player.y - 20, 'ESQUIVA', '#8dfaff');
         } else {
           const damage = hit.dmg;
+          const hpBefore = st.player.hp;
           st.player.hp -= damage;
+          if (st.onPlayerDamaged) st.onPlayerDamaged({ cause: 'contact', enemy: e, hpBefore, hpAfter: st.player.hp, damage, crit: !!hit.crit });
           if (st.sfx && st.sfx.playerHit && st.player.hp > 0) st.sfx.playerHit();
           st.player.invuln = 0.5;
           const contactAngle = d > 0 ? Math.atan2(e.y - st.player.y, e.x - st.player.x) : e.angle || 0;

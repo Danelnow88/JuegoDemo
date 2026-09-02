@@ -257,6 +257,7 @@
   const RARITY_COLORS = NV.RARITY_COLORS;
   let currentWeapon = NV.starterWeapon(), fireTimer = 0;
   let killCombo = { count: 0, timer: 0 }; // combo de kills (E1)
+  let currentAutoTarget = null;
   let heartbeatTimer = 0, heartbeatWasCritical = false;
   let countdownLastSecond = 0;
   // Cadencia determinista (en segundos). fireRate se interpreta como frames a ~60fps.
@@ -1443,6 +1444,7 @@
       permDamageBonus: permUpgrades.damage, playWeaponSound,
       audioPosition: { x: player.x, worldWidth: W },
       currentWeaponFusion: currentWeaponFusion(), fusionStep: WEAPON_FUSION_DMG,
+      onTarget: (target) => { currentAutoTarget = target; },
     });
   }
 
@@ -1505,6 +1507,7 @@
       enemies, player, bullets, MAX_BULLETS, MAX_ENEMY_BULLETS, shake,
       enemyBulletCount, computePlayerHit, addFloatText, spawnExplosion,
       onKill: (e) => killEnemy(e), // autodestrucción de kamikazes: mismo camino que un kill normal
+      onPlayerDamaged: recordPlayerDamage,
     });
     enemies = res.enemies; shake = res.shake;
     if (res.gameOver) { gameOver(); return; }
@@ -1562,10 +1565,44 @@
       bullets, W, H, player, enemies, boss, shake, hitstop,
       MAX_BULLETS, CHARACTERS, SHIELD_COOLDOWN,
       computePlayerHit, addFloatText, killEnemy, applyKnockback, spawnExplosion, gameOver,
-      sfx,
+      sfx, onPlayerDamaged: recordPlayerDamage,
     });
     bullets = res.bullets; shake = res.shake; hitstop = res.hitstop;
     if (res.gameOver) { gameOver(); return; }
+  }
+
+  function recordPlayerDamage(hit) {
+    if (!NV.META_DEBUG || !NV.recordMetaDamage) return;
+    const e = hit.enemy || null;
+    NV.recordMetaDamage({
+      cause: hit.cause, enemy: e, enemyType: e && (e.enemyTypeId || e.behavior || e.shape),
+      hpBefore: hit.hpBefore, hpAfter: hit.hpAfter, critical: !!hit.crit, wave,
+      playerX: player.x, playerY: player.y,
+      speed: Math.hypot(player.moveVx || 0, player.moveVy || 0),
+      moveVx: player.moveVx || 0, moveVy: player.moveVy || 0,
+      shift: !!slideHeld, invulnerability: player.invuln || 0,
+    });
+  }
+
+  function updateMetaDiagnostics() {
+    if (!NV.META_DEBUG || !NV.updateMetaSnapshot) return;
+    let within50 = 0, within100 = 0, within170 = 0, alive = 0;
+    for (const e of enemies) {
+      if (e.dead) continue;
+      alive++;
+      const d = Math.hypot(e.x - player.x, e.y - player.y);
+      if (d <= 50) within50++;
+      if (d <= 100) within100++;
+      if (d <= 170) within170++;
+    }
+    NV.updateMetaSnapshot({
+      wave, playerX: player.x, playerY: player.y,
+      speed: Math.hypot(player.moveVx || 0, player.moveVy || 0),
+      moveVx: player.moveVx || 0, moveVy: player.moveVy || 0,
+      shift: !!slideHeld, invulnerability: player.invuln || 0,
+      within50, within100, within170, nearbyDensity: within100,
+      overlap: 0, aliveEnemies: alive, autofireTarget: currentAutoTarget,
+    });
   }
 
   function updateParticles(dt) {
@@ -1994,6 +2031,7 @@
     update(dt);
     if ((state === 'menu' || state === 'shop') && !paused) updateMusic(dt);
     draw();
+    updateMetaDiagnostics();
     updateEspectroBridge(dt);
 
     if (shake > 0 && (state === 'playing' || state === 'gameover')) {

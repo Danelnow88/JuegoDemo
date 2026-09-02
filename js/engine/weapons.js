@@ -66,6 +66,7 @@
     const count = Math.min(weapon.count || 1, 7);
     const spread = weapon.spread || 0;
     const target = NV.findTarget({ player, enemies, boss });
+    if (state.onTarget) state.onTarget(target);
 
     // === RANGO DE ACTIVACIÓN ===
     // El arma solo dispara si hay objetivo y está dentro de su alcance (config por arma en WEAPONS.range).

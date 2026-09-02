@@ -1,0 +1,8 @@
+const fs = require('fs'), vm = require('vm');
+let pass=0, fail=0; function t(n,f){try{f();pass++;console.log('  ok  '+n);}catch(e){fail++;console.log('  FAIL '+n+' -> '+e.message);}}
+const NV={}; vm.runInNewContext(fs.readFileSync('js/engine/metaDiagnostics.js','utf8'),{window:{NV},Date,Object});
+t('diagnóstico está apagado por defecto y no registra',()=>{if(NV.META_DEBUG!==false)throw Error('activo'); NV.recordMetaDamage({x:1}); if(NV.metaDiagnostics.damageEvents.length)throw Error('registró');});
+t('diagnóstico opt-in conserva snapshot y buffer acotado',()=>{NV.toggleMetaDebug(true); for(let i=0;i<130;i++)NV.recordMetaDamage({i}); NV.updateMetaSnapshot({wave:2}); const d=NV.getMetaDiagnostics(); if(d.damageEvents.length!==120||d.snapshot.wave!==2)throw Error('estado incorrecto');});
+t('game conecta target y daño sin cambiar fórmulas',()=>{const g=fs.readFileSync('js/game.js','utf8'),w=fs.readFileSync('js/engine/weapons.js','utf8'); if(!g.includes('updateMetaDiagnostics()')||!g.includes('recordPlayerDamage'))throw Error('puente ausente'); if(!w.includes('state.onTarget(target)'))throw Error('target ausente');});
+t('deuda técnica congelada y baseline documentados',()=>{const d=fs.readFileSync('docs/META_TECH_DEBT.md','utf8'); for(const s of ['waveWeaponMult','minas','contactCd','radio fijo','progreso al arma','probabilidad de shard','inventario lleno'])if(!d.includes(s))throw Error('falta '+s);});
+console.log('RESULT meta_visual: pass='+pass+' fail='+fail); process.exit(fail?1:0);
