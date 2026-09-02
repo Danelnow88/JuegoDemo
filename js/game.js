@@ -259,6 +259,7 @@
   let killCombo = { count: 0, timer: 0 }; // combo de kills (E1)
   let currentAutoTarget = null;
   let densityField = null;
+  let damageFeedback = null, invulnerabilityFeedback = null, previousInvulnerability = 0;
   let heartbeatTimer = 0, heartbeatWasCritical = false;
   let countdownLastSecond = 0;
   // Cadencia determinista (en segundos). fireRate se interpreta como frames a ~60fps.
@@ -1339,6 +1340,7 @@
     }
 
     if (player.invuln > 0) { player.invuln -= dt; if (player.invuln < 0) player.invuln = 0; }
+    updateDamageReadability(dt);
     if (player.stun > 0) { player.stun = Math.max(0, player.stun - dt); }
     if (player.phase) { player.phase -= dt; if (player.phase <= 0) { player.phase = 0; player.invuln = 0; detonatePhase(); } }
     if (player.bulwark > 0) { player.bulwark -= dt; if (player.bulwark < 0) player.bulwark = 0; }
@@ -1573,8 +1575,16 @@
   }
 
   function recordPlayerDamage(hit) {
-    if (!NV.META_DEBUG || !NV.recordMetaDamage) return;
     const e = hit.enemy || null;
+    let sourceX = e ? e.x : player.x, sourceY = e ? e.y : player.y;
+    if (!e && hit.projectile) {
+      const projectileSpeed = Math.max(1, Math.hypot(hit.projectile.vx || 0, hit.projectile.vy || 0));
+      sourceX = player.x - (hit.projectile.vx || 0) / projectileSpeed * 40;
+      sourceY = player.y - (hit.projectile.vy || 0) / projectileSpeed * 40;
+    }
+    damageFeedback = { life: 0.55, sourceX, sourceY, critical: !!hit.crit, cause: hit.cause };
+    invulnerabilityFeedback = { life: 0.5, duration: 0.5, kind: 'start' };
+    if (!NV.META_DEBUG || !NV.recordMetaDamage) return;
     NV.recordMetaDamage({
       cause: hit.cause, enemy: e, enemyType: e && (e.enemyTypeId || e.behavior || e.shape),
       hpBefore: hit.hpBefore, hpAfter: hit.hpAfter, critical: !!hit.crit, wave,
@@ -1604,6 +1614,13 @@
       within50, within100, within170, nearbyDensity: within100,
       overlap: densityField ? densityField.playerOverlap || 0 : 0, aliveEnemies: alive, autofireTarget: currentAutoTarget,
     });
+  }
+
+  function updateDamageReadability(dt) {
+    if (damageFeedback) { damageFeedback.life -= dt; if (damageFeedback.life <= 0) damageFeedback = null; }
+    if (invulnerabilityFeedback) { invulnerabilityFeedback.life -= dt; if (invulnerabilityFeedback.life <= 0) invulnerabilityFeedback = null; }
+    if (previousInvulnerability > 0 && player.invuln <= 0) invulnerabilityFeedback = { life: 0.22, duration: 0.22, kind: 'end' };
+    previousInvulnerability = player.invuln || 0;
   }
 
   function prepareDensityReadability() {
@@ -1899,6 +1916,8 @@
     ctx.globalAlpha = 1;
 
     drawPlayer();
+    if (NV.drawDamageFeedback) NV.drawDamageFeedback(ctx, player, damageFeedback);
+    if (NV.drawInvulnerabilityFeedback) NV.drawInvulnerabilityFeedback(ctx, player, invulnerabilityFeedback);
     // Evento NEBLINA: velo oscuro con viñeta que reduce la visibilidad periférica.
     if (waveEvent === 'fog' && state === 'playing') {
       ctx.save();

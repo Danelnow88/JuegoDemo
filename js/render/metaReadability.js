@@ -75,4 +75,39 @@
     ctx.restore();
     return true;
   };
+
+  NV.drawDamageFeedback = function (ctx, player, feedback) {
+    if (!feedback || feedback.life <= 0) return false;
+    const t = Math.max(0, Math.min(1, feedback.life / 0.55));
+    const dx = player.x - feedback.sourceX, dy = player.y - feedback.sourceY;
+    const len = Math.max(1, Math.hypot(dx, dy));
+    ctx.save();
+    ctx.globalAlpha = 0.12 + t * 0.28;
+    ctx.strokeStyle = feedback.critical ? '#fff0a0' : '#ff4054';
+    ctx.lineWidth = feedback.critical ? 3 : 2;
+    ctx.beginPath();
+    ctx.moveTo(player.x - dx / len * 10, player.y - dy / len * 10);
+    ctx.lineTo(player.x - dx / len * 30, player.y - dy / len * 30);
+    ctx.stroke();
+    ctx.globalAlpha = t * 0.22;
+    ctx.beginPath();
+    ctx.arc(player.x, player.y, 24 + (1 - t) * 14, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+    return true;
+  };
+
+  NV.drawInvulnerabilityFeedback = function (ctx, player, phase) {
+    if (!phase || phase.life <= 0) return false;
+    const t = Math.max(0, Math.min(1, phase.life / phase.duration));
+    ctx.save();
+    ctx.globalAlpha = phase.kind === 'end' ? t * 0.1 : t * 0.14;
+    ctx.strokeStyle = phase.kind === 'end' ? '#7cf8ff' : '#ffffff';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(player.x, player.y, 28 + (1 - t) * 8, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+    return true;
+  };
 })();
