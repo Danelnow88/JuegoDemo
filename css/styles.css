@@ -208,18 +208,6 @@ canvas {
   pointer-events: none;
   z-index: 0;
 }
-.shop-screen:not(.hidden)::before {
-  content: '';
-  position: absolute;
-  left: 0; right: 0; bottom: 0;
-  height: 3px;
-  background: linear-gradient(90deg, transparent, rgba(124,248,255,.82), rgba(255,207,118,.85), rgba(202,167,255,.78), transparent);
-  background-size: 220% 100%;
-  box-shadow: 0 0 18px rgba(124,248,255,.45);
-  pointer-events: none;
-  z-index: 2;
-  animation: shop-status-line 4.2s linear infinite;
-}
 .shop-screen:not(.hidden) .shop-title {
   animation: shop-title-in 0.45s cubic-bezier(.22, 1, .36, 1) both;
 }
