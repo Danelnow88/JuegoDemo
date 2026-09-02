@@ -5,6 +5,53 @@
   const CELL = 64;
   NV.metaDensityInfo = new WeakMap();
 
+  // ===== Paleta emocional unificada =====
+  // peligro / info fría / advertencia / densidad-agrupamiento / seguro.
+  NV.META_VIS_PALETTE = {
+    danger: '#FF3333',
+    dangerSoft: '#FF8800',
+    info: '#33CCFF',
+    infoCold: '#00FFFF',
+    warn: '#FFCC00',
+    warnAmber: '#FFAA00',
+    density: '#AA66FF',
+    densityAlt: '#FF66AA',
+    safe: '#66FF33',
+  };
+
+  // Toggles individuales (accesibilidad: cada efecto puede apagarse solo).
+  NV.META_VIS_OPTIONS = {
+    density: true,
+    contact: true,
+    damage: true,
+    invulnerability: true,
+    momentum: true,
+    autofire: true,
+    intent: true,
+    legend: true,
+  };
+
+  NV.setMetaVisOption = function (key, enabled) {
+    if (!(key in NV.META_VIS_OPTIONS)) return false;
+    NV.META_VIS_OPTIONS[key] = !!enabled;
+    return true;
+  };
+
+  // Contexto de render compartido: t (segundos), saturación (0..1),
+  // urgencia (0..1) y gain (multiplicador global de intensidad).
+  function metaEnv(env) {
+    env = env || {};
+    return {
+      t: env.t || 0,
+      saturation: Math.max(0, Math.min(1, env.saturation || 0)),
+      urgency: Math.max(0, Math.min(1, env.urgency || 0)),
+      gain: env.gain == null ? 1 : Math.max(0, Math.min(2, env.gain)),
+    };
+  }
+  NV.resolveMetaEnv = metaEnv;
+
+  const META_FOG_MAX = 10; // tope de brumas por frame (rendimiento)
+
   NV.buildDensityField = function (enemies) {
     const grid = new Map(), info = new WeakMap();
     for (const e of enemies || []) {
@@ -194,5 +241,53 @@
     }
     ctx.restore();
     return drawn;
+  };
+
+  // ===== META-VIS-02b: neblina de densidad =====
+  // Gradiente radial pulsante que emana de los núcleos de masa. Violeta en
+  // densidad normal, naranja cuando el solapamiento es extremo. Partículas
+  // de "calor" se elevan en núcleos muy comprimidos. Tope por frame.
+  NV.drawDensityFog = function (ctx, enemies, info, env) {
+    if (!NV.META_VIS_OPTIONS.density || !enemies) return false;
+    const e2 = metaEnv(env);
+    const dim = e2.gain * (1 - 0.45 * e2.saturation);
+    let drawn = 0;
+    for (const en of enemies) {
+      if (drawn >= META_FOG_MAX) break;
+      if (!en || en.dead) continue;
+      const d = info && info.get ? info.get(en) : null;
+      if (!d || d.intensity < 0.3) continue;
+      drawn++;
+      const pulse = 0.85 + 0.15 * Math.sin(e2.t * 2 + en.x * 0.013);
+      const radius = en.radius * 2.2 + (d.nearby || 0) * 3;
+      const hot = (d.overlap || 0) > 1.2;
+      const gradient = ctx.createRadialGradient(en.x, en.y, 0, en.x, en.y, radius);
+      gradient.addColorStop(0, hot ? 'rgba(255,136,76,0.16)' : 'rgba(170,102,255,0.13)');
+      gradient.addColorStop(0.45, hot ? 'rgba(255,100,50,0.08)' : 'rgba(150,80,220,0.06)');
+      gradient.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.save();
+      ctx.globalAlpha = Math.min(0.5, dim * pulse);
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(en.x, en.y, radius, 0, Math.PI * 2);
+      ctx.fill();
+      // Partículas de calor en núcleos muy comprimidos.
+      if (d.intensity > 0.6) {
+        for (let i = 0; i < 3; i++) {
+          const seed = (i + 1) * 0.37 + en.x * 0.003 + en.y * 0.001;
+          const angle = seed * Math.PI * 2;
+          const drift = (e2.t * 22 + seed * 40) % (radius * 0.8);
+          const px = en.x + Math.cos(angle) * drift;
+          const py = en.y + Math.sin(angle) * drift - ((e2.t * 26 + seed * 50) % 24);
+          ctx.globalAlpha = Math.min(0.35, dim * (0.05 + 0.05 * Math.sin(e2.t * 3 + seed * 9)));
+          ctx.fillStyle = hot ? '#ffb37a' : '#c9a0ff';
+          ctx.beginPath();
+          ctx.arc(px, py, 1 + ((seed * 7) % 1.4), 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+      ctx.restore();
+    }
+    return drawn > 0;
   };
 })();

@@ -89,7 +89,6 @@
       ly = Math.sin(fwd) * Math.sin(atk * Math.PI) * e.radius * 0.45;
     }
     ctx.translate(e.x + rx + lx, e.y + ry + ly);
-    if (NV.drawEnemyDensity) NV.drawEnemyDensity(ctx, e);
     ctx.fillStyle = e.color;
     // Glow base moderado (neón presente pero barato): 4/8 en vez de 10/14.
     // Los glows intensos quedan reservados a transitorios importantes (atkFlash,

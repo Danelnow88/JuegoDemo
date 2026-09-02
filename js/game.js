@@ -1764,6 +1764,16 @@
     for (let x = 0; x < W; x += 40) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
     for (let y = 0; y < H; y += 40) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
 
+    // META-VIS-02b: neblina de densidad (capa 1, bajo entidades). Contexto
+    // compartido de render: t, saturación por cantidad viva, urgencia por HP.
+    if (NV.drawDensityFog && densityField) {
+      NV.drawDensityFog(ctx, enemies, densityField.info, {
+        t: performance.now() / 1000,
+        saturation: Math.min(1, enemies.length / 80),
+        urgency: (player.hp > 0 && player.hp / player.maxHp <= 0.3) ? 1 : 0,
+      });
+    }
+
     // Barra de progreso de oleada
     if (showHUD && state === 'playing' && !boss) {
             const maxWaveTimer = NV.waveDuration(wave, waveEvent);
