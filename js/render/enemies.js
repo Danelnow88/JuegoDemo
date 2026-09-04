@@ -149,6 +149,29 @@
       ctx.beginPath(); ctx.arc(0, 0, r + 4, 0, Math.PI * 2); ctx.stroke();
     }
 
+    // Fusión de enemigos: indicador provisorio MUY explícito para testear lectura.
+    // No toca gameplay; usa e.fusionLevel generado por engine/enemies.js.
+    if ((e.fusionLevel || 0) > 0) {
+      const lvl = e.fusionLevel || 1;
+      const pulse = 0.65 + Math.sin(frame * 0.16 + lvl) * 0.25;
+      ctx.save();
+      ctx.globalAlpha = 0.85;
+      ctx.strokeStyle = e.color || '#ffe04a';
+      ctx.lineWidth = 4;
+      ctx.shadowColor = e.color || '#ffe04a';
+      ctx.shadowBlur = 18;
+      ctx.beginPath(); ctx.arc(0, 0, r + 8 + pulse * 5, 0, Math.PI * 2); ctx.stroke();
+      ctx.shadowBlur = 0;
+      if (ctx.fillText) {
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 11px monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('FUSION ' + lvl, 0, -r - 18);
+      }
+      ctx.restore();
+    }
+
     // Congelante: hint visual de enemigo ralentizado. Brillo azulado + halo exterior
     // que parpadea sutilmente. 100% visual: no altera datos de gameplay.
     if (e.slowUntil > 0) {

@@ -842,7 +842,9 @@
     const bob = Math.sin(t * 1.65 + seed) * 1.6 + Math.sin(t * 3.15 + seed * .4) * 0.35;
     const sway = Math.sin(t * .95 + seed * .7) * .028 + Math.sin(t * 2.4 + seed) * .008;
     const pulse = 1 + Math.sin(t * 2.35 + seed) * .010;
-    const scale = (e.radius || 12) / 54;
+    // Deliberadamente grande: el estilo líquido necesita pantalla para que se
+    // aprecien silueta, borde irregular, partículas y ojo. El hitbox NO cambia.
+    const scale = (e.radius || 12) / 18;
     const rage = e.isElite ? .95 : .75;
     const lookX = player ? player.x - e.x : 0;
     const lookY = player ? player.y - e.y : 0;
@@ -864,8 +866,8 @@
     const tipY = (tipL[1] + tipR[1]) / 2;
     if (poseIdx === 0) {
       // specter_grunt: estilo líquido "hand-drawn" (RB1 Proto-Nodo del lab).
-      drawLiquidBlob(ctx, 0, 12, 58, 14, 9, 1.2, seed, frame || 0);
-      drawLiquidParticles(ctx, 0, 12, 4, 72, seed, frame || 0);
+      drawLiquidBlob(ctx, 0, 18, 110, 18, 13, 1.2, seed, frame || 0);
+      drawLiquidParticles(ctx, 0, 18, 7, 100, seed, frame || 0);
     } else {
       ctx.fillStyle = '#020203';
       ctx.strokeStyle = '#050507';
@@ -909,7 +911,7 @@
     }
     if (poseIdx === 0) {
       // specter_grunt: ojo único líquido (RB1), sin boca.
-      drawLiquidEye(ctx, 0, 8, lookX, lookY, seed, frame || 0, 1.1);
+      drawLiquidEye(ctx, 0, 10, lookX, lookY, seed, frame || 0, 1.35);
     } else {
       drawLabEye(ctx, -(p.eyeSep || 24), p.eyeY || -30, -1, rage, lookX, lookY, p.eye, -(p.eyeAng || 0), p.eyeStyle || 0);
       drawLabEye(ctx, +(p.eyeSep || 24), p.eyeY || -30, 1, rage, lookX, lookY, p.eye, +(p.eyeAng || 0), p.eyeStyle || 0);
@@ -957,6 +959,27 @@
       ctx.lineWidth = (profile.haloWidth || 2.5) * 0.6;
       ctx.beginPath(); ctx.arc(0, 0, e.radius + 9, 0, Math.PI * 2); ctx.stroke();
       ctx.globalAlpha = 1;
+    }
+    if ((e.fusionLevel || 0) > 0) {
+      const lvl = e.fusionLevel || 1;
+      const pulse = 0.65 + Math.sin(frame * 0.16 + lvl) * 0.25;
+      const color = e.color || '#ffe04a';
+      ctx.save();
+      ctx.globalAlpha = 0.9;
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 4;
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 22;
+      ctx.beginPath(); ctx.arc(0, 0, e.radius + 10 + pulse * 7, 0, Math.PI * 2); ctx.stroke();
+      ctx.shadowBlur = 0;
+      if (ctx.fillText) {
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 12px monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('FUSION ' + lvl, 0, -e.radius - 22);
+      }
+      ctx.restore();
     }
     if (e.atkFlash > 0 && player) {
       const r = e.radius;

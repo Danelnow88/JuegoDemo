@@ -68,6 +68,10 @@
       // Evento CAMPO MINADO: algunos enemigos detonan en cadena al morir.
       mine: !!(st.waveEvent === 'mines' && Math.random() < 0.5),
     });
+    // Traza de spawn para los espectros (nuevos y legacy WebGL) en consola.
+    if (type.id && type.id.indexOf('specter_') === 0) {
+      console.log('[SPAWN] wave=' + st.wave + ' type=' + type.id);
+    }
   };
 
   // ---- Spawn élite (cada 2 oleadas, desde la 3) ----
@@ -75,16 +79,31 @@
     if (st.wave < 3) return;
     if (st.wave % 2 === 0) return;
     if (st.boss && !st.boss.dead) return; // no élites durante un jefe
+    // Élites base = ciclo original intacto. Espectrales = minWave + weight.
+    const baseElites = st.ELITE_TYPES.filter((t) => !t.spectralElite);
+    const spectralElites = st.ELITE_TYPES.filter((t) => t.spectralElite && (t.minWave || 1) <= st.wave);
     // Evento LLUVIA DE ÉLITES: 1 élite extra (3 en vez de 2) en cada spawn.
     const count = st.waveEvent === 'elites' ? 3 : 2;
-    const startIndex = ((st.wave / 2 - 1) * 2) % st.ELITE_TYPES.length;
+    const startIndex = baseElites.length ? ((st.wave / 2 - 1) * 2) % baseElites.length : 0;
     for (let i = 0; i < count; i++) {
       if (st.enemies.length >= st.MAX_ENEMIES) break;
-      const elite = st.ELITE_TYPES[(startIndex + i) % st.ELITE_TYPES.length];
+      let elite = baseElites.length ? baseElites[(startIndex + i) % baseElites.length] : null;
+      // Chance rara de reemplazar por un élite espectral disponible (suma de weights).
+      if (spectralElites.length) {
+        const spectralWeight = spectralElites.reduce((s, se) => s + (typeof se.weight === 'number' ? se.weight : 0), 0);
+        if (spectralWeight > 0 && Math.random() < Math.min(0.5, spectralWeight)) {
+          elite = NV.weightedRandom(spectralElites) || elite;
+        }
+      }
+      if (!elite) {
+        // Sin élites base disponibles: cae al espectral disponible o se salta.
+        elite = NV.weightedRandom(spectralElites);
+        if (!elite) continue;
+      }
       const side = Math.random() < 0.5 ? 0 : st.W;
       const y = 80 + Math.random() * (st.H - 200);
       const eliteDmg = elite.damage + Math.min(80, Math.round(st.wave * 2));
-      st.enemies.push({
+      const pushed = {
         x: side, y: y,
         hp: Math.round(elite.hp + st.wave * st.wave * 1.5), maxHp: Math.round(elite.hp + st.wave * st.wave * 1.5),
         speed: elite.speed + st.wave,
@@ -94,7 +113,15 @@
         erraticTimer: 0, isElite: true, eliteDamage: eliteDmg,
         knockbackRes: 0.3, knockVelX: 0, knockVelY: 0, shootTimer: 0,
         stunChance: elite.stunChance || 0, resist: elite.resist || 0,
-      });
+      };
+      // Metadatos para render espectral (solo cuando el tipo define id).
+      if (elite.id) pushed.enemyTypeId = elite.id;
+      if (elite.visualId) pushed.visualId = elite.visualId;
+      st.enemies.push(pushed);
+      // Traza de spawn para élites espectrales.
+      if (elite.spectralElite && elite.id && elite.id.indexOf('specter_') === 0) {
+        console.log('[SPAWN] wave=' + st.wave + ' type=' + elite.id);
+      }
     }
   };
 
@@ -219,6 +246,58 @@
     }
   }
 
+  // ---- Fusión de enemigos: misma especie que se tocan se fusionan en uno más fuerte ----
+  // fusionLevel: 0 = normal, 1+ = fusionado (más HP, daño, tamaño). Indicador visual en render.
+  const FUSION_MIN = 3;       // enemigos mínimos para fusionar
+  const FUSION_RADIUS = 40;   // distancia para considerarse "juntos"
+  function enemyFusionKey(e) {
+    // "Especie" estable: los espectrales usan enemyTypeId; los legacy caen a
+    // visualId/shape/behavior para NO fusionar cualquier enemigo undefined con otro.
+    return e.enemyTypeId || e.visualId || ((e.shape || 'enemy') + '|' + (e.behavior || 'chase') + '|' + (e.isElite ? 'elite' : 'normal'));
+  }
+  function fuseEnemies(enemies, st) {
+    const grid = buildSpatialGrid(enemies);
+    const fused = new Set();
+    for (const e of enemies) {
+      if (e.dead || fused.has(e)) continue;
+      const key = enemyFusionKey(e);
+      // Buscar mismos de su especie cercanos (excluye él mismo).
+      const sameType = [];
+      forEachGridNeighbor(e, grid, (other) => {
+        if (other.dead || fused.has(other) || other === e) return;
+        if (enemyFusionKey(other) !== key) return;
+        if (Math.hypot(other.x - e.x, other.y - e.y) < FUSION_RADIUS) sameType.push(other);
+      });
+      if (sameType.length + 1 < FUSION_MIN) continue; // +1 por e mismo
+      // Fusionar: e es el "anfitrión", los demás mueren y le transfieren poder.
+      const group = [e, ...sameType];
+      let totalHp = 0, totalMaxHp = 0, totalDmg = 0, cx = 0, cy = 0, maxLevel = e.fusionLevel || 0;
+      for (const g of group) {
+        totalHp += g.hp;
+        totalMaxHp += g.maxHp;
+        totalDmg += g.damage;
+        cx += g.x; cy += g.y;
+        maxLevel = Math.max(maxLevel, g.fusionLevel || 0);
+        if (g !== e) { g.dead = true; fused.add(g); }
+      }
+      const n = group.length;
+      e.x = cx / n; e.y = cy / n; // centróide del grupo
+      e.hp = totalHp;
+      e.maxHp = totalMaxHp;
+      e.damage = Math.round(totalDmg * (1 + 0.15 * (n - 1))); // +15% por cada fusión extra
+      e.radius = Math.min(60, e.radius * (1 + 0.18 * (n - 1))); // crece con tope
+      e.fusionLevel = maxLevel + 1;
+      e.color = fusionColor(e.fusionLevel);
+      e.fusionFlash = 0.9;
+      if (st && st.addFloatText) st.addFloatText(e.x, e.y - e.radius - 16, 'FUSION ' + e.fusionLevel, e.color);
+      if (st && st.spawnExplosion) st.spawnExplosion(e.x, e.y, Math.max(18, e.radius * 0.8), e.color, 0.55);
+      fused.add(e);
+    }
+  }
+  function fusionColor(level) {
+    // Progresión visual: normal → amarillo → naranja → rojo → blanco (fusión extrema).
+    return ['#d8f6ff', '#ffe04a', '#ff9a24', '#ff3a24', '#ffffff'][Math.min(level, 4)];
+  }
   // ---- Update de todos los enemigos (comportamientos, daño al jugador) ----
   // Devuelve { enemies, shake, gameOver }. Mutaciones de array/player por ref; los
   // primitivos let (enemies filtrado, shake) y el flag gameOver vuelven del retorno.
@@ -242,6 +321,7 @@
             if (e.shieldCd > 0) e.shieldCd = Math.max(0, e.shieldCd - dt);
             if (e.contactCd > 0) e.contactCd = Math.max(0, e.contactCd - dt);
             if (e.atkFlash > 0) e.atkFlash = Math.max(0, e.atkFlash - dt);
+            if (e.fusionFlash > 0) e.fusionFlash = Math.max(0, e.fusionFlash - dt);
       const stunned = e.stun > 0;
       // Congelante: algunos enemigos ralentizados (slowUntil).
       if (e.slowUntil > 0) e.slowUntil -= dt;
@@ -384,6 +464,9 @@
         }
       }
     }
+    // Fusión posterior al movimiento/contacto del frame: si 3+ enemigos de la
+    // misma especie quedaron tocándose, se condensan en uno más grande y peligroso.
+    fuseEnemies(enemies, st);
     return { enemies: enemies.filter((e) => !e.dead), shake, gameOver };
   };
 })();
