@@ -474,8 +474,10 @@
     const v = Math.sin((seed * 12.9898) + (i * 78.233) + (frame * 0.37)) * 43758.5453;
     return v - Math.floor(v) - 0.5; // -0.5..0.5
   }
-  function drawLiquidBlob(ctx, radius, points, noiseAmp, speedMult, seed, frame) {
+  function drawLiquidBlob(ctx, cx, cy, radius, points, noiseAmp, speedMult, seed, frame) {
     const t = frame * 0.016;
+    ctx.save();
+    ctx.translate(cx, cy);
     ctx.beginPath();
     for (let i = 0; i <= points; i++) {
       const angle = (i / points) * Math.PI * 2;
@@ -507,6 +509,7 @@
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
     ctx.lineWidth = 1;
     ctx.stroke();
+    ctx.restore();
   }
   function drawLiquidParticles(ctx, cx, cy, count, radiusSpread, seed, frame) {
     const t = frame * 0.016;
@@ -861,8 +864,8 @@
     const tipY = (tipL[1] + tipR[1]) / 2;
     if (poseIdx === 0) {
       // specter_grunt: estilo líquido "hand-drawn" (RB1 Proto-Nodo del lab).
-      drawLiquidBlob(ctx, 38, 14, 8, 1.2, seed, frame || 0);
-      drawLiquidParticles(ctx, 0, 0, 4, 48, seed, frame || 0);
+      drawLiquidBlob(ctx, 0, 12, 58, 14, 9, 1.2, seed, frame || 0);
+      drawLiquidParticles(ctx, 0, 12, 4, 72, seed, frame || 0);
     } else {
       ctx.fillStyle = '#020203';
       ctx.strokeStyle = '#050507';
@@ -906,7 +909,7 @@
     }
     if (poseIdx === 0) {
       // specter_grunt: ojo único líquido (RB1), sin boca.
-      drawLiquidEye(ctx, 0, -5, lookX, lookY, seed, frame || 0, 1.1);
+      drawLiquidEye(ctx, 0, 8, lookX, lookY, seed, frame || 0, 1.1);
     } else {
       drawLabEye(ctx, -(p.eyeSep || 24), p.eyeY || -30, -1, rage, lookX, lookY, p.eye, -(p.eyeAng || 0), p.eyeStyle || 0);
       drawLabEye(ctx, +(p.eyeSep || 24), p.eyeY || -30, 1, rage, lookX, lookY, p.eye, +(p.eyeAng || 0), p.eyeStyle || 0);
