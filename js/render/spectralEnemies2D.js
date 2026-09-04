@@ -111,8 +111,6 @@
     ctx.save();
     if (profile.stretch) ctx.scale(profile.stretch, 1);
     ctx.fillStyle = rgba(hexToRgb(profile.body), 0.85);
-    ctx.strokeStyle = rgba(hexToRgb(profile.glow), 0.9);
-    ctx.lineWidth = 1.5;
     const spikes = profile.spikes;
     const innerR = r * (profile.innerRatio || 0.6);
     const spikeLen = r * (profile.spikeLen || 0.3);
@@ -124,7 +122,7 @@
       if (i === 0) ctx.moveTo(Math.cos(a) * rad, Math.sin(a) * rad);
       else ctx.lineTo(Math.cos(a) * rad, Math.sin(a) * rad);
     }
-    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.closePath(); ctx.fill();
     ctx.restore();
     const bodyRgb = hexToRgb(profile.body);
     ctx.fillStyle = rgba(bodyRgb, 0.7);
