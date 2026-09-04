@@ -16,8 +16,8 @@
     specter_archer: { body: '#ffb24a', core: '#ffe0a8', glow: '#ffc76a', spikes: 6, innerRatio: 0.58, spikeLen: 0.34, pulseRate: 1.3, pulseAmt: 0.06, particles: 4, particleSize: 0.45, eyeStyle: 'narrow', radiusMul: 1.0, cannonGlow: true },
     specter_guard: { body: '#67f8c8', core: '#d8fff2', glow: '#8dffe0', spikes: 6, innerRatio: 0.74, spikeLen: 0.22, pulseRate: 0.75, pulseAmt: 0.05, particles: 5, particleSize: 0.55, eyeStyle: 'deep', radiusMul: 1.1, shieldAura: true },
   };
-  // Visual aprobado en previews/enemy-visual-lab.html: seis variantes de fantasma
-  // negro con ojos-runa rojos y cola viva. Se aplica SOLO a los seis enemigos
+  // Visual aprobado en previews/enemy-visual-lab.html: seis variantes líquidas
+  // hand-drawn. Se aplica SOLO a los seis enemigos
   // espectrales nuevos; no cambia datos, IA, daño, vida, velocidad ni spawn.
   const LAB_SPECTER_IDS = {
     specter_grunt: 0,
@@ -27,14 +27,9 @@
     specter_elite_wrath: 4,
     specter_elite_void: 5,
   };
-  const LAB_POSES = [
-    { body:[1.00,.96], tilt:-.10, head:1.00, mouth:0, eye:.92, eyeStyle:0, tailLen:1.00, tailDir:-1, tailAmp:.54, eyeAng:.03, eyeSep:22, eyeY:-31, mouthY:7 },
-    { body:[.94,1.00], tilt:.08,  head:.94, mouth:1, eye:.86, eyeStyle:1, tailLen:.96, tailDir: 1, tailAmp:.42, eyeAng:.02, eyeSep:21, eyeY:-30, mouthY:6 },
-    { body:[1.04,.98], tilt:.05,  head:1.02, mouth:0, eye:.96, eyeStyle:2, tailLen:1.06, tailDir: 1, tailAmp:.58, eyeAng:.02, eyeSep:23, eyeY:-32, mouthY:8 },
-    { body:[1.06,.96], tilt:-.16, head:1.04, mouth:2, eye:.90, eyeStyle:3, tailLen:.98, tailDir:-1, tailAmp:.50, eyeAng:.03, eyeSep:22, eyeY:-30, mouthY:7 },
-    { body:[.98,1.04], tilt:.14,  head:.96, mouth:3, eye:.88, eyeStyle:4, tailLen:1.02, tailDir: 1, tailAmp:.46, eyeAng:.02, eyeSep:21, eyeY:-29, mouthY:8 },
-    { body:[1.05,.95], tilt:-.03, head:1.05, eye:.94, mouth:1, eyeStyle:5, tailLen:1.10, tailDir:-1, tailAmp:.60, eyeAng:.03, eyeSep:23, eyeY:-31, mouthY:6 }
-  ];
+  // Las 6 poses del lab (LAB_POSES) ya no hacen falta: el cuerpo/tamaño de
+  // RB1..RB6 lo define drawLiquidVisualLabEnemy() con los parámetros exactos
+  // del lab (blob radius/points/noiseAmp/speedMult/seed por modelo).
   // Perfiles élite diferenciados por visualId. Mantienen la identidad cromática del
   // élite original pero con estética espectral: halos, spikes reforzados y ojos únicos.
   const ELITE_PROFILES = {
@@ -468,7 +463,7 @@
     slot.elite = !!p.elite;
     return slot;
   }
-  // --- Estilo líquido "hand-drawn" (de enemy-visual-lab) para specter_grunt ---
+  // --- Estilo líquido "hand-drawn" (de enemy-visual-lab) para los 6 espectrales ---
   // Ahora prioriza fidelidad visual al lab; rendimiento se optimiza después.
   function liquidJitter(seed, i, frame) {
     // Emula el Math.random() por-frame del lab: jitter sucio, rápido y no interpolado.
@@ -554,39 +549,106 @@
     }
     ctx.restore();
   }
-  function drawLiquidEye(ctx, cx, cy, lookX, lookY, seed, frame, eyeScale) {
+  function drawLiquidEyes(ctx, eyeX, eyeY, lookX, lookY, count, eyeScale, seed, frame) {
+    // Copia funcional del drawEyes() del enemy-visual-lab.html, con soporte
+    // para 1/2/3 ojos y seguimiento al jugador. Se usa para RB1-RB6.
     const t = frame * 0.03;
     ctx.save();
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = 'source-over';
-    ctx.translate(cx, cy);
-    const dx = lookX - cx;
-    const dy = lookY - cy;
+    ctx.translate(eyeX, eyeY);
+    const dx = lookX - eyeX;
+    const dy = lookY - eyeY;
     const angle = Math.atan2(dy, dx);
     const dist = Math.min(6 * eyeScale, Math.hypot(dx, dy) * 0.05);
     const offsetX = Math.cos(angle) * dist;
     const offsetY = Math.sin(angle) * dist;
-    const jt = liquidJitter(seed, 1, frame) * 1.5;
-    const eyeRadius = (8 * eyeScale) + Math.sin(t * 15) * 1;
-    // Esclera.
-    ctx.beginPath();
-    ctx.arc(jt, jt, eyeRadius, 0, Math.PI * 2);
-    ctx.fillStyle = '#ffffff';
-    ctx.shadowColor = '#ff2a4b';
-    ctx.shadowBlur = 10;
-    ctx.fill();
-    ctx.shadowBlur = 0;
-    // Pupila (roja, rastrea al jugador).
-    ctx.beginPath();
-    ctx.arc(offsetX + jt, offsetY + jt, eyeRadius * 0.45, 0, Math.PI * 2);
-    ctx.fillStyle = '#ff2a4b';
-    ctx.fill();
-    // Brillo (destello blanco).
-    ctx.beginPath();
-    ctx.arc(offsetX - 1.5 + jt, offsetY - 1.5 + jt, eyeRadius * 0.15, 0, Math.PI * 2);
-    ctx.fillStyle = '#ffffff';
-    ctx.fill();
+    const eyeSpacing = 16 * eyeScale;
+    for (let i = 0; i < count; i++) {
+      const posX = count === 1 ? 0 : (i === 0 ? -eyeSpacing / 2 : eyeSpacing / 2);
+      const posY = count === 3 && i === 2 ? -eyeSpacing * 0.7 : 0;
+      const jt = liquidJitter(seed, i + 11, frame) * 1.5;
+      const eyeRadius = (8 * eyeScale) + Math.sin(t * 15 + i) * 1;
+      ctx.beginPath();
+      ctx.arc(posX + jt, posY + jt, eyeRadius, 0, Math.PI * 2);
+      ctx.fillStyle = '#ffffff';
+      ctx.shadowColor = '#ff2a4b';
+      ctx.shadowBlur = 10;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.beginPath();
+      ctx.arc(posX + offsetX + jt, posY + offsetY + jt, eyeRadius * 0.45, 0, Math.PI * 2);
+      ctx.fillStyle = '#ff2a4b';
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(posX + offsetX - 1.5 + jt, posY + offsetY - 1.5 + jt, eyeRadius * 0.15, 0, Math.PI * 2);
+      ctx.fillStyle = '#ffffff';
+      ctx.fill();
+    }
     ctx.restore();
+  }
+  function drawLiquidVisualLabEnemy(ctx, index, frame, lookX, lookY) {
+    // Switch literal de previews/enemy-visual-lab.html, manteniendo el tamaño
+    // aprobado en swarm mode: drawEnemyModel(i, cx, cy, 0.8).
+    const t = (frame || 0) * 0.03;
+    switch (index) {
+      case 0: // RB1 - Proto-Nodo Líquido
+        drawLiquidBlob(ctx, 0, 0, 35, 12, 8, 1.2, 10, frame || 0, true);
+        drawLiquidParticles(ctx, 0, 0, 4, 45, 10, frame || 0, true);
+        drawLiquidEyes(ctx, 0, 0, lookX, lookY, 1, 1, 10, frame || 0);
+        break;
+      case 1: // RB2 - Ameba Coronada
+        drawLiquidBlob(ctx, 0, -30, 18, 8, 10, 1.8, 20, frame || 0, true);
+        drawLiquidBlob(ctx, 0, 5, 40, 14, 10, 1.0, 25, frame || 0, true);
+        drawLiquidParticles(ctx, 0, 0, 6, 52, 20, frame || 0, true);
+        drawLiquidEyes(ctx, 0, -5, lookX, lookY, 2, 0.9, 20, frame || 0);
+        break;
+      case 2: // RB3 - Viscera Manto
+        drawLiquidBlob(ctx, -25, 15, 28, 10, 12, 1.6, 30, frame || 0, true);
+        drawLiquidBlob(ctx, 25, 15, 28, 10, 12, 1.6, 32, frame || 0, true);
+        drawLiquidBlob(ctx, 0, -5, 38, 14, 8, 1.2, 35, frame || 0, true);
+        drawLiquidParticles(ctx, 0, 0, 6, 58, 30, frame || 0, true);
+        drawLiquidEyes(ctx, 0, -8, lookX, lookY, 1, 1.2, 30, frame || 0);
+        break;
+      case 3: // RB4 - Halo Espectral
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(0, 0, 55 + Math.sin(t * 20) * 4, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(255, 42, 75, 0.8)';
+        ctx.lineWidth = 2;
+        ctx.shadowColor = '#ff2a4b';
+        ctx.shadowBlur = 10;
+        if (ctx.setLineDash) ctx.setLineDash([6, 6]);
+        ctx.stroke();
+        if (ctx.setLineDash) ctx.setLineDash([]);
+        ctx.restore();
+        drawLiquidBlob(ctx, 0, 0, 38, 16, 9, 1.3, 40, frame || 0, true);
+        drawLiquidParticles(ctx, 0, 0, 8, 65, 40, frame || 0, true);
+        drawLiquidEyes(ctx, 0, 0, lookX, lookY, 1, 1.1, 40, frame || 0);
+        break;
+      case 4: // RB5 - Núcleo Sigilo
+        drawLiquidBlob(ctx, 0, 0, 42, 14, 11, 1.2, 50, frame || 0, true);
+        ctx.save();
+        ctx.rotate(t * 5);
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.72)';
+        ctx.lineWidth = 1.5;
+        ctx.shadowColor = '#ff2a4b';
+        ctx.shadowBlur = 8;
+        ctx.strokeRect(-12, -12, 24, 24);
+        ctx.restore();
+        drawLiquidParticles(ctx, 0, 0, 7, 55, 50, frame || 0, true);
+        drawLiquidEyes(ctx, 0, 0, lookX, lookY, 2, 0.8, 50, frame || 0);
+        break;
+      case 5: // RB6 - Entidad Hidra
+      default:
+        drawLiquidBlob(ctx, -30, 35, 15, 8, 12, 1.6, 60, frame || 0, true);
+        drawLiquidBlob(ctx, 0, 45, 18, 8, 14, 1.8, 65, frame || 0, true);
+        drawLiquidBlob(ctx, 30, 35, 15, 8, 12, 1.6, 70, frame || 0, true);
+        drawLiquidBlob(ctx, 0, -10, 45, 18, 12, 1.1, 75, frame || 0, true);
+        drawLiquidParticles(ctx, 0, 0, 10, 70, 60, frame || 0, true);
+        drawLiquidEyes(ctx, 0, -12, lookX, lookY, 3, 0.85, 60, frame || 0);
+        break;
+    }
   }
   function drawLabTailGlow(ctx, tail, t, seed) {
     // Perf-01: glow de cola en UNA sola pasada aditiva (antes: 3 trazos con
@@ -868,96 +930,18 @@
   }
   function drawLabSpecterEnemy(ctx, e, frame, player, profile, rx, ry) {
     const poseIdx = labPoseIndex(e);
-    const p = LAB_POSES[poseIdx % LAB_POSES.length];
-    const t = (frame || 0) * 0.016;
-    const seed = hash01(e, 700) * 9.7;
-    if (poseIdx === 0) {
-      // RB1 EXACTO del enemy-visual-lab en tamaño de muestra/swarm:
-      // drawEnemyModel(0, cx, cy, 0.8) con blob radius=35, points=12,
-      // noiseAmp=8, speedMult=1.2, seed=10, particles 4/45 y ojo scale=1.
-      // El gameplay/hitbox siguen usando e.radius; esto solo dibuja.
-      const labScale = 0.8;
-      const lookX = player ? player.x - e.x : 0;
-      const lookY = player ? player.y - e.y : 0;
-      ctx.save();
-      ctx.translate(e.x + rx, e.y + ry);
-      drawStatusLayers(ctx, e, frame || 0, player, profile);
-      ctx.scale(labScale, labScale);
-      drawLiquidBlob(ctx, 0, 0, 35, 12, 8, 1.2, 10, frame || 0, true);
-      drawLiquidParticles(ctx, 0, 0, 4, 45, 10, frame || 0, true);
-      drawLiquidEye(ctx, 0, 0, lookX / labScale, lookY / labScale, 10, frame || 0, 1);
-      ctx.restore();
-      return;
-    }
-    const bob = Math.sin(t * 1.65 + seed) * 1.6 + Math.sin(t * 3.15 + seed * .4) * 0.35;
-    const sway = Math.sin(t * .95 + seed * .7) * .028 + Math.sin(t * 2.4 + seed) * .008;
-    const pulse = 1 + Math.sin(t * 2.35 + seed) * .010;
-    const scale = (e.radius || 12) / 54;
-    const rage = e.isElite ? .95 : .75;
+    // Estilo líquido hand-drawn del enemy-visual-lab aplicado a los 6
+    // espectrales: poseIdx 0..5 elige RB1..RB6 exactamente como en el lab
+    // (drawEnemyModel(i, cx, cy, 0.8) en swarm mode; time += 0.03/frame).
+    // El hitbox/gameplay siguen usando e.radius; esto solo dibuja.
+    const labScale = 0.8;
     const lookX = player ? player.x - e.x : 0;
     const lookY = player ? player.y - e.y : 0;
     ctx.save();
-    ctx.translate(e.x + rx, e.y + ry + bob);
+    ctx.translate(e.x + rx, e.y + ry);
     drawStatusLayers(ctx, e, frame || 0, player, profile);
-    ctx.rotate(p.tilt + sway);
-    ctx.scale(scale * pulse, scale * pulse);
-    labBlobShadow(ctx, 0, 10, e.isElite ? 118 : 92, e.isElite ? .09 : .06);
-    const bw = p.body[0];
-    const bh = p.body[1];
-    const head = p.head;
-    const tail = buildLabTail(0, 70 * bh, p, t, seed);
-    drawLabTailGlow(ctx, tail, t, seed);
-    const L = tail.left, R = tail.right;
-    const nPts = tail.count;
-    const tipL = L[nPts - 1], tipR = R[nPts - 1];
-    const tipX = (tipL[0] + tipR[0]) / 2;
-    const tipY = (tipL[1] + tipR[1]) / 2;
-    if (poseIdx !== 0) {
-      ctx.fillStyle = '#020203';
-      ctx.strokeStyle = '#050507';
-      ctx.lineJoin = 'round'; ctx.lineCap = 'round';
-      ctx.beginPath();
-      ctx.moveTo(-17 * head, -71);
-      ctx.bezierCurveTo(-44 * bw, -70, -55 * bw, -49, -54 * bw, -23);
-      ctx.bezierCurveTo(-53 * bw, -4, -47 * bw, 15, -41 * bw, 30);
-      ctx.bezierCurveTo(-37 * bw, 43, -31 * bw, 56, L[0][0], L[0][1]);
-      for (let i = 1; i < nPts; i++) ctx.lineTo(L[i][0], L[i][1]);
-      ctx.lineTo(tipX, tipY);
-      for (let i = nPts - 2; i >= 0; i--) ctx.lineTo(R[i][0], R[i][1]);
-      ctx.bezierCurveTo(31 * bw, 56, 37 * bw, 43, 41 * bw, 30);
-      ctx.bezierCurveTo(47 * bw, 15, 53 * bw, -4, 54 * bw, -23);
-      ctx.bezierCurveTo(55 * bw, -49, 44 * bw, -70, 17 * head, -72);
-      ctx.bezierCurveTo(7, -74, -7, -74, -17 * head, -71);
-      ctx.closePath(); ctx.fill();
-      ctx.save();
-      ctx.globalAlpha = .10;
-      const shade = ctx.createLinearGradient ? ctx.createLinearGradient(-30, -10, 30, 90) : '#222';
-      if (shade.addColorStop) {
-        shade.addColorStop(0, 'rgba(255,255,255,.18)');
-        shade.addColorStop(.45, 'rgba(255,255,255,.04)');
-        shade.addColorStop(1, 'rgba(255,255,255,0)');
-      }
-      ctx.strokeStyle = shade; ctx.lineWidth = 1.2;
-      ctx.beginPath(); ctx.moveTo(-30, -18); ctx.bezierCurveTo(-26, 20, -19, 47, -11, 74); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(28, -18); ctx.bezierCurveTo(24, 18, 18, 44, 10, 72); ctx.stroke();
-      ctx.restore();
-    }
-    if (e.isElite) {
-      ctx.save();
-      ctx.globalAlpha = .35 + Math.sin(t * 4 + seed) * .10;
-      ctx.strokeStyle = profile.haloColor || '#ff3040';
-      ctx.lineWidth = 4;
-      ctx.beginPath(); ctx.arc(0, -2, 76, 0, Math.PI * 2); ctx.stroke();
-      ctx.globalAlpha *= .65;
-      ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(0, -2, 92, 0, Math.PI * 2); ctx.stroke();
-      ctx.restore();
-    }
-    if (poseIdx !== 0) {
-      drawLabEye(ctx, -(p.eyeSep || 24), p.eyeY || -30, -1, rage, lookX, lookY, p.eye, -(p.eyeAng || 0), p.eyeStyle || 0);
-      drawLabEye(ctx, +(p.eyeSep || 24), p.eyeY || -30, 1, rage, lookX, lookY, p.eye, +(p.eyeAng || 0), p.eyeStyle || 0);
-      drawLabMouth(ctx, p.mouth, p.mouthY || 6);
-    }
+    ctx.scale(labScale, labScale);
+    drawLiquidVisualLabEnemy(ctx, poseIdx, frame || 0, lookX / labScale, lookY / labScale);
     ctx.restore();
   }
   function resolveBossProfile(boss) {
