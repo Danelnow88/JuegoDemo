@@ -469,12 +469,12 @@
     return slot;
   }
   // --- Estilo líquido "hand-drawn" (de enemy-visual-lab) para specter_grunt ---
-  // Optimizado: sin shadowBlur, jitter determinista (sin Math.random / sin GC).
+  // Ahora prioriza fidelidad visual al lab; rendimiento se optimiza después.
   function liquidJitter(seed, i, frame) {
     const v = Math.sin((seed * 12.9898) + (i * 78.233) + (frame * 0.37)) * 43758.5453;
     return v - Math.floor(v) - 0.5; // -0.5..0.5
   }
-  function drawLiquidBlob(ctx, cx, cy, radius, points, noiseAmp, speedMult, seed, frame) {
+  function drawLiquidBlob(ctx, cx, cy, radius, points, noiseAmp, speedMult, seed, frame, withGlow) {
     const t = frame * 0.016;
     ctx.save();
     ctx.translate(cx, cy);
@@ -493,9 +493,11 @@
     ctx.closePath();
     ctx.fillStyle = '#08080e';
     ctx.fill();
-    ctx.lineWidth = 2 + Math.sin(t * 20 + seed) * 0.8;
+    ctx.lineWidth = 2.5 + Math.sin(t * 20 + seed) * 1;
     ctx.strokeStyle = '#ff2a4b';
+    if (withGlow) { ctx.shadowColor = '#ff2a4b'; ctx.shadowBlur = 12; }
     ctx.stroke();
+    ctx.shadowBlur = 0;
     // Tinta interior sutil (blanco, sin glow para rendimiento).
     ctx.beginPath();
     for (let i = 0; i <= points / 2; i++) {
@@ -506,25 +508,27 @@
       if (i === 0) ctx.moveTo(x, y);
       else ctx.lineTo(x, y);
     }
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
     ctx.lineWidth = 1;
     ctx.stroke();
     ctx.restore();
   }
-  function drawLiquidParticles(ctx, cx, cy, count, radiusSpread, seed, frame) {
+  function drawLiquidParticles(ctx, cx, cy, count, radiusSpread, seed, frame, withGlow) {
     const t = frame * 0.016;
     ctx.fillStyle = '#ff2a4b';
     for (let i = 0; i < count; i++) {
       const pAngle = (i / count) * Math.PI * 2 + t * 3 + seed;
-      const dist = radiusSpread + Math.sin(t * 10 + i + seed) * 12;
+      const dist = radiusSpread + Math.sin(t * 10 + i + seed) * 15;
       const px = cx + Math.cos(pAngle) * dist;
-      const py = cy + Math.sin(pAngle) * dist + Math.cos(t * 15 + i) * 4;
-      const pSize = 2 + Math.sin(t * 25 + i) * 1.2;
-      ctx.globalAlpha = 0.6;
+      const py = cy + Math.sin(pAngle) * dist + Math.cos(t * 15 + i) * 5;
+      const pSize = 3 + Math.sin(t * 25 + i) * 2;
+      ctx.globalAlpha = 1;
+      if (withGlow) { ctx.shadowColor = '#ff2a4b'; ctx.shadowBlur = 8; }
       ctx.beginPath();
       ctx.arc(px, py, Math.max(1, pSize), 0, Math.PI * 2);
       ctx.fill();
     }
+    ctx.shadowBlur = 0;
     ctx.globalAlpha = 1;
   }
   function drawLiquidEye(ctx, cx, cy, lookX, lookY, seed, frame, eyeScale) {
@@ -539,11 +543,14 @@
     const offsetY = Math.sin(angle) * dist;
     const jt = liquidJitter(seed, 1, frame) * 1.0;
     const eyeRadius = (8 * eyeScale) + Math.sin(t * 15) * 0.7;
-    // Esclera (blanca, sin glow para rendimiento).
+    // Esclera.
     ctx.beginPath();
     ctx.arc(jt, jt, eyeRadius, 0, Math.PI * 2);
     ctx.fillStyle = '#ffffff';
+    ctx.shadowColor = '#ff2a4b';
+    ctx.shadowBlur = 10;
     ctx.fill();
+    ctx.shadowBlur = 0;
     // Pupila (roja, rastrea al jugador).
     ctx.beginPath();
     ctx.arc(offsetX + jt, offsetY + jt, eyeRadius * 0.45, 0, Math.PI * 2);
@@ -839,12 +846,28 @@
     const p = LAB_POSES[poseIdx % LAB_POSES.length];
     const t = (frame || 0) * 0.016;
     const seed = hash01(e, 700) * 9.7;
+    if (poseIdx === 0) {
+      // RB1 EXACTO del enemy-visual-lab en tamaño de muestra/swarm:
+      // drawEnemyModel(0, cx, cy, 0.8) con blob radius=35, points=12,
+      // noiseAmp=8, speedMult=1.2, seed=10, particles 4/45 y ojo scale=1.
+      // El gameplay/hitbox siguen usando e.radius; esto solo dibuja.
+      const labScale = 0.8;
+      const lookX = player ? player.x - e.x : 0;
+      const lookY = player ? player.y - e.y : 0;
+      ctx.save();
+      ctx.translate(e.x + rx, e.y + ry);
+      drawStatusLayers(ctx, e, frame || 0, player, profile);
+      ctx.scale(labScale, labScale);
+      drawLiquidBlob(ctx, 0, 0, 35, 12, 8, 1.2, 10, frame || 0, true);
+      drawLiquidParticles(ctx, 0, 0, 4, 45, 10, frame || 0, true);
+      drawLiquidEye(ctx, 0, 0, lookX / labScale, lookY / labScale, 10, frame || 0, 1);
+      ctx.restore();
+      return;
+    }
     const bob = Math.sin(t * 1.65 + seed) * 1.6 + Math.sin(t * 3.15 + seed * .4) * 0.35;
     const sway = Math.sin(t * .95 + seed * .7) * .028 + Math.sin(t * 2.4 + seed) * .008;
     const pulse = 1 + Math.sin(t * 2.35 + seed) * .010;
-    // Deliberadamente grande: el estilo líquido necesita pantalla para que se
-    // aprecien silueta, borde irregular, partículas y ojo. El hitbox NO cambia.
-    const scale = (e.radius || 12) / 18;
+    const scale = (e.radius || 12) / 54;
     const rage = e.isElite ? .95 : .75;
     const lookX = player ? player.x - e.x : 0;
     const lookY = player ? player.y - e.y : 0;
@@ -864,11 +887,7 @@
     const tipL = L[nPts - 1], tipR = R[nPts - 1];
     const tipX = (tipL[0] + tipR[0]) / 2;
     const tipY = (tipL[1] + tipR[1]) / 2;
-    if (poseIdx === 0) {
-      // specter_grunt: estilo líquido "hand-drawn" (RB1 Proto-Nodo del lab).
-      drawLiquidBlob(ctx, 0, 18, 110, 18, 13, 1.2, seed, frame || 0);
-      drawLiquidParticles(ctx, 0, 18, 7, 100, seed, frame || 0);
-    } else {
+    if (poseIdx !== 0) {
       ctx.fillStyle = '#020203';
       ctx.strokeStyle = '#050507';
       ctx.lineJoin = 'round'; ctx.lineCap = 'round';
@@ -909,10 +928,7 @@
       ctx.beginPath(); ctx.arc(0, -2, 92, 0, Math.PI * 2); ctx.stroke();
       ctx.restore();
     }
-    if (poseIdx === 0) {
-      // specter_grunt: ojo único líquido (RB1), sin boca.
-      drawLiquidEye(ctx, 0, 10, lookX, lookY, seed, frame || 0, 1.35);
-    } else {
+    if (poseIdx !== 0) {
       drawLabEye(ctx, -(p.eyeSep || 24), p.eyeY || -30, -1, rage, lookX, lookY, p.eye, -(p.eyeAng || 0), p.eyeStyle || 0);
       drawLabEye(ctx, +(p.eyeSep || 24), p.eyeY || -30, 1, rage, lookX, lookY, p.eye, +(p.eyeAng || 0), p.eyeStyle || 0);
       drawLabMouth(ctx, p.mouth, p.mouthY || 6);
