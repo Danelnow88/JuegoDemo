@@ -446,16 +446,25 @@
     return { left, right, centers, elite: !!p.elite };
   }
   function drawLabTailGlow(ctx, tail, t, seed) {
+    // Perf-01: glow de cola en UNA sola pasada aditiva (antes: 3 trazos con
+    // shadowBlur 22/12/7 = ~77% del coste raster de enemigos según
+    // tools/diagnostics/enemy_anim_profiler.js). Se conserva el halo ancho
+    // difuso con blur moderado; el detalle fino del contorno lo aporta el
+    // cuerpo negro que se dibuja justo después encima.
     if (!tail.centers || tail.centers.length < 2) return;
     const pts = tail.centers;
     const pulse = .78 + Math.sin(t * 3.4 + seed) * .12;
-    const trace = function () { ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]); };
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-    ctx.strokeStyle = 'rgba(255,18,35,' + (.055 * pulse) + ')'; ctx.lineWidth = 28; ctx.shadowColor = 'rgba(255,0,28,.42)'; ctx.shadowBlur = 22; trace(); ctx.stroke();
-    ctx.strokeStyle = 'rgba(255,24,42,' + (.10 * pulse) + ')'; ctx.lineWidth = 13; ctx.shadowColor = 'rgba(255,0,25,.52)'; ctx.shadowBlur = 12; trace(); ctx.stroke();
-    ctx.strokeStyle = 'rgba(255,45,55,' + (.12 * pulse) + ')'; ctx.lineWidth = 2.2; ctx.shadowColor = 'rgba(255,15,30,.65)'; ctx.shadowBlur = 7; trace(); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(pts[0][0], pts[0][1]);
+    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+    ctx.strokeStyle = 'rgba(255,24,42,' + (.15 * pulse) + ')';
+    ctx.lineWidth = 14;
+    ctx.shadowColor = 'rgba(255,0,26,.55)';
+    ctx.shadowBlur = 12;
+    ctx.stroke();
     ctx.restore();
   }
   function drawEliteAura(ctx, p, t, seed) {
