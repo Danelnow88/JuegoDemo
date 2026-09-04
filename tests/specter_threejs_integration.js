@@ -1,3 +1,5 @@
+// Garantías de migración del renderer espectral: Three.js legacy DEPRECADO.
+// specter_lite / specter_core ahora usan 100% Canvas 2D líquido (Visual Lab).
 const fs = require('fs');
 let pass = 0, fail = 0;
 
@@ -12,38 +14,33 @@ const css = fs.readFileSync('css/styles.css', 'utf8');
 const lite = fs.readFileSync('js/render/espectroLite.js', 'utf8');
 const en = fs.readFileSync('js/render/enemies.js', 'utf8');
 const engine = fs.readFileSync('js/engine/enemies.js', 'utf8');
-// La copia del preview fue archivada/borrada del repo; la fuente de aprobación
-// vive en tests/prueba_espectro_lite.html. Si la copia reaparece, se compara.
-const previewPath = 'previews/espectro-lite-single-preview.html';
-const preview = fs.existsSync(previewPath) ? fs.readFileSync(previewPath, 'utf8') : null;
-const approvedPreview = fs.readFileSync('tests/prueba_espectro_lite.html', 'utf8');
+const spectral = fs.readFileSync('js/render/spectralEnemies2D.js', 'utf8');
 
 t('NV.SPECTER_ENABLED existe', () => {
   if (!game.includes('NV.SPECTER_ENABLED')) throw new Error('No existe');
 });
 
-t('shouldUseEspectroLite detecta specter_lite', () => {
-  if (!game.includes("e.enemyTypeId === 'specter_lite'")) throw new Error('No detecta');
+t('shouldUseEspectroLite retorna false (Three.js deprecado)', () => {
+  const start = game.indexOf('function shouldUseEspectroLite');
+  const end = game.indexOf('function', start + 1);
+  const bridge = game.slice(start, end);
+  if (!bridge.includes('return false')) throw new Error('No retorna false');
 });
 
-t('shouldUseEspectroLite detecta specter_core', () => {
-  if (!game.includes("e.enemyTypeId === 'specter_core'")) throw new Error('No detecta');
+t('ESPECTRO_LITE_ACTIVE default false (Three.js deprecado)', () => {
+  if (!game.includes('NV.ESPECTRO_LITE_ACTIVE = false')) throw new Error('No es false');
 });
 
-t('ESPECTRO_LITE_ACTIVE default true', () => {
-  if (!game.includes('NV.ESPECTRO_LITE_ACTIVE = true')) throw new Error('No es true');
+t('toggleEspectroLite existe', () => {
+  if (!game.includes('NV.toggleEspectroLite')) throw new Error('No existe');
 });
 
-t('toggleSpecter existe', () => {
-  if (!game.includes('NV.toggleSpecter')) throw new Error('No existe');
-});
-
-t('flag desactivado excluye espectros del pool y limpia existentes', () => {
+t('flag false filtra espectros del pool y limpia existentes', () => {
   if (!engine.includes("st.ENEMY_TYPES.filter((t) => t.shape !== 'specter')")) throw new Error('spawn no filtra espectros');
   if (!game.includes("enemies = enemies.filter((e) => e.shape !== 'specter')")) throw new Error('toggle no retira espectros');
 });
 
-t('usa #specter-overlay', () => {
+t('usa #specter-overlay (canvas WebGL deprecado pero presente)', () => {
   if (!game.includes("getElementById('specter-overlay')")) throw new Error('No usa');
 });
 
@@ -71,19 +68,13 @@ t('enemies.js NO tiene debug markers', () => {
   if (en.includes('Marcadores de debug temporales')) throw new Error('Tiene debug');
 });
 
-t('usa parámetros exactos del preview aprobado', () => {
-  for (const expected of ['const SPECTER_FORM = 0.35', 'const SPECTER_SCALE = 0.4', 'const SPECTER_VARIANT = [1, 0, 0]']) {
-    if (!game.includes(expected)) throw new Error('Falta ' + expected);
-  }
+t('espectral renderer mapeo specter_lite -> Model 1 (Crowned Amoeba)', () => {
+  if (!spectral.includes('specter_lite: 1')) throw new Error('No mapea a Model 1');
 });
 
-t('preview copiado coincide exactamente con el aprobado (si aún existe)', () => {
-  if (preview === null) return; // archivado: la copia aprobada es tests/prueba_espectro_lite.html
-  if (preview !== approvedPreview) throw new Error('El preview difiere');
-});
-
-t('index carga Three.js y publica THREE_READY', () => {
-  if (!html.includes("import * as THREE from 'three'") || !html.includes('NV.THREE_READY')) throw new Error('Carga explícita ausente');
+t('espectral renderer define renderSpecterLite2D distintivo', () => {
+  if (!spectral.includes('function renderSpecterLite2D')) throw new Error('Función ausente');
+  if (!spectral.includes('SPECTER_LITE_SCALE')) throw new Error('No usa escala propia');
 });
 
 console.log('\nRESULT: pass=' + pass + ' fail=' + fail);

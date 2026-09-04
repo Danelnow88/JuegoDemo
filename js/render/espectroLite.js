@@ -388,6 +388,16 @@
     const r = e.radius || 10;
 
     try {
+      // El contexto ya viene trasladado a la posición del enemigo por drawEnemy.
+      // Reusamos el render espectral Canvas2D (estética enemy-visual-lab) para
+      // que los espectros legacy (shape 'specter') hereden la misma identidad
+      // visual que el resto de espectrales. Se dibuja en el origen local y se
+      // mantiene el seguimiento de ojos hacia el jugador.
+      if (typeof NV.drawSpectralEnemy2D === 'function') {
+        const local = Object.assign({}, e, { x: 0, y: 0 });
+        const look = player ? { x: player.x - (e.x || 0), y: player.y - (e.y || 0) } : null;
+        if (NV.drawSpectralEnemy2D(ctx, local, frame, look, null)) return;
+      }
       _drawSpecter2DImpl(ctx, e, frame, player, r);
     } catch (_) {
       // Fallback Canvas2D mínimo, sin marcadores de diagnóstico.

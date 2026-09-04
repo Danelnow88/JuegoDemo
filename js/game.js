@@ -32,10 +32,14 @@
   const W = GW, H = GH;
 
   // === PUENTE ESPECTRO LITE WEBGL ===
-  // Activo por defecto; conserva fallback Canvas2D si Three.js/WebGL no está disponible.
-  // NV.SPECTER_ENABLED: flag maestro (default: true)
+  // Totalmente deprecado: Three.js legacy se desactiva por completo. Todos los
+  // espectros (incl. specter_lite / specter_core) usan el renderer Canvas2D líquido.
   NV.SPECTER_ENABLED = true;
-  NV.ESPECTRO_LITE_ACTIVE = true;
+  NV.ESPECTRO_LITE_ACTIVE = false;
+  // === MODO ESPECTRAL ENEMIES 2D ===
+  // Render alternativo Canvas2D para enemigos (no specters). Default: true (remaster).
+  // NV.toggleSpectralEnemyMode(false) revierte al render geométrico original.
+  NV.SPECTRAL_ENEMY_MODE = true;
   const ESPECTRO_THREE_CDN = 'https://unpkg.com/three@0.160.0/build/three.module.js';
   const espectroEntries = new Map();
   // Identidad visual aprobada en previews/espectro-lite-single-preview.html.
@@ -72,9 +76,10 @@
   function playerBulletCount() { let n = 0; for (const b of bullets) if (!b.isEnemy) n++; return n; }
   function enemyBulletCount() { let n = 0; for (const b of bullets) if (b.isEnemy) n++; return n; }
 
-  function shouldUseEspectroLite(e) {
-    return !!(NV.SPECTER_ENABLED !== false && NV.ESPECTRO_LITE_ACTIVE && e && !e.dead && !e.isElite
-      && (e.enemyTypeId === 'specter_lite' || e.enemyTypeId === 'specter_core'));
+  // Three.js legacy FULLY DEPRECATED. Todos los espectros ahora renderizan
+  // por completo con el Canvas 2D líquido del Visual Lab. Siempre retorna false.
+  function shouldUseEspectroLite() {
+    return false;
   }
 
   function isEnemyRenderedByLite(e) {
@@ -236,6 +241,13 @@
       NV.ESPECTRO_LITE_ACTIVE = true;
     }
     return NV.SPECTER_ENABLED;
+  };
+
+  // Toggle para el render espectral de enemigos (Canvas2D). No afecta specters (WebGL).
+  // Default: off. Al activarse, drawEnemy usa drawSpectralEnemy2D para cada enemigo.
+  NV.toggleSpectralEnemyMode = function (enabled) {
+    NV.SPECTRAL_ENEMY_MODE = !!enabled;
+    return NV.SPECTRAL_ENEMY_MODE;
   };
 
   // Ayuda de prueba compatible con el parámetro ?forceSpecter=...
@@ -1555,7 +1567,8 @@
     score += cb.bonusScore;
     if (cb.gemBonus) shards += cb.gemBonus;
     if (cb.count >= 3) sfx.combo(cb.count);
-    if (cb.count >= 3) addFloatText(e.x, e.y - 25, 'COMBO x' + cb.count + (cb.milestone ? ' ◆+1' : ''), '#7cf8ff');
+    // Sin texto flotante de combo sobre los enemigos: el contador ya vive en el
+    // HUD (esquina superior izquierda) con su barra de caducidad.
   }
 
   function updateEnemies(dt) {
@@ -1832,23 +1845,50 @@
       });
     }
 
-    // Barra de progreso de oleada
+    // Barra de progreso de oleada — con contador de enemigos vivos y élites
     if (showHUD && state === 'playing' && !boss) {
             const maxWaveTimer = NV.waveDuration(wave, waveEvent);
       const progress = Math.max(0, Math.min(1, 1 - (waveTimer / maxWaveTimer)));
       const barW = 200, barH = 6;
       const barX = (W - barW) / 2, barY = 10;
+
+      // --- Contar enemigos vivos por categoría (Pilar 3 HUD) ---
+      let alive = 0, elites = 0;
+      for (let i = 0; i < enemies.length; i++) {
+        const en = enemies[i];
+        if (en.dead) continue;
+        alive++;
+        if (en.isElite || en.shape === 'specter' || en.enemyTypeId === 'specter_lite') elites++;
+      }
+
+      // --- Fondo de la barra ---
       ctx.fillStyle = 'rgba(255,255,255,0.1)';
       ctx.fillRect(barX, barY, barW, barH);
-      ctx.fillStyle = '#7cf8ff';
+
+      // --- Barra de progreso con degradado (Pilar 3: progreso oleada) ---
+      const grad = ctx.createLinearGradient(barX, 0, barX + barW, 0);
+      grad.addColorStop(0, '#4a90d9');    // azul inicio
+      grad.addColorStop(0.5, '#b534e6');  // púrpura centro
+      grad.addColorStop(1, '#e94850');    // rojo final
+      ctx.fillStyle = grad;
       ctx.fillRect(barX, barY, barW * progress, barH);
+
+      // --- Borde de la barra ---
       ctx.strokeStyle = 'rgba(124,248,255,0.3)';
       ctx.lineWidth = 1;
       ctx.strokeRect(barX, barY, barW, barH);
+
+      // --- Texto de la oleada (izquierda) y contador de enemigos (derecha) ---
       ctx.fillStyle = '#7cf8ff';
       ctx.font = 'bold 10px system-ui';
       ctx.textAlign = 'center';
       ctx.fillText('OLEADA ' + wave, W / 2, barY + 16);
+      // Contador de enemigos vivos + élites
+      const countText = 'ENEMIGOS: ' + alive + ' (' + elites + ')';
+      ctx.fillStyle = '#9bb0ff';
+      ctx.font = 'bold 9px system-ui';
+      ctx.textAlign = 'right';
+      ctx.fillText(countText, barX + barW + 8, barY + 10);
     }
 
     if (specialVFX) drawSpecialVFX(specialVFX);
@@ -1990,16 +2030,17 @@
     }
 
     for (const p of particles) {
-      ctx.globalAlpha = Math.max(0, p.life / 0.5);
+      ctx.globalAlpha = Math.max(0, p.life / (p.fade || 0.5));
       ctx.fillStyle = p.color;
-      ctx.fillRect(p.x - 2, p.y - 2, 4, 4);
+      const psz = p.size || 4;
+      ctx.fillRect(p.x - psz / 2, p.y - psz / 2, psz, psz);
     }
     ctx.globalAlpha = 1;
 
     for (const ft of floatTexts) {
       ctx.globalAlpha = Math.max(0, ft.life / 0.8);
       ctx.fillStyle = ft.color;
-      ctx.font = 'bold 14px system-ui';
+      ctx.font = 'bold ' + (ft.size || 14) + 'px system-ui';
       ctx.textAlign = 'center';
       ctx.fillText(ft.text, ft.x, ft.y);
     }
@@ -2107,7 +2148,9 @@
 
 
   function drawWeaponHUD() {
-    NV.drawWeaponHUD(ctx, W, H, CHARACTERS, RARITY_COLORS, player, currentWeapon, currentWeaponLevel, inventory, NV.groupConsumables(consumableItems), consumSel, showHUD);
+    // Resolvedor de nivel por arma: cada slot muestra SU nivel (badge + tinte).
+    const weaponLevelFor = (id) => weaponLevels[id] || 1;
+    NV.drawWeaponHUD(ctx, W, H, CHARACTERS, RARITY_COLORS, player, currentWeapon, currentWeaponLevel, inventory, NV.groupConsumables(consumableItems), consumSel, showHUD, weaponLevelFor);
   }
 
 
@@ -2122,12 +2165,21 @@
     // Solo ocultar Canvas2D cuando el mesh WebGL de ESTE enemigo ya existe.
     // Durante carga, fallo o flag apagado, el render original sigue intacto.
     if ((NV.SPECTER_ENABLED === false && e.shape === 'specter') || isEnemyRenderedByLite(e)) return;
+    // Modo espectral: delega a drawSpectralEnemy2D (retorna false para specters, que ya se excluyeron).
+    if (NV.SPECTRAL_ENEMY_MODE && typeof NV.drawSpectralEnemy2D === 'function') {
+      NV.drawSpectralEnemy2D(ctx, e, frame, player, NV.rhythm);
+      return;
+    }
     NV.drawEnemy(ctx, e, frame, player, NV.rhythm);
   }
 
 
 
   function drawBoss() {
+    if (NV.SPECTRAL_ENEMY_MODE && typeof NV.drawSpectralBoss2D === 'function') {
+      NV.drawSpectralBoss2D(ctx, boss, frame, player, NV.rhythm);
+      return;
+    }
     NV.drawBoss(ctx, boss, frame);
   }
 

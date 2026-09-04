@@ -1,0 +1,1055 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Enemy Visual Lab — Haunted Ghost</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    html,body {
+      margin:0; height:100%;
+      font-family:system-ui,-apple-system,Segoe UI,sans-serif;
+      color:#e9f7ff; background:#07080d; overflow:hidden;
+    }
+    body { display:grid; grid-template-rows:auto 1fr; }
+    .tools {
+      display:flex; flex-wrap:wrap; gap:8px; align-items:center;
+      padding:8px 12px; background:rgba(0,0,0,.72);
+      border-bottom:1px solid #262a37; font-size:13px; z-index:10;
+    }
+    .tools fieldset {
+      border:1px solid #41495f; border-radius:7px;
+      padding:6px 10px; margin:0;
+    }
+    .tools legend { color:#a9b9ff; font-size:11px; padding:0 5px; }
+    .tools button {
+      background:#171b28; color:#dce7ff; border:1px solid #505c79;
+      border-radius:5px; padding:4px 9px; cursor:pointer; font-size:12px;
+    }
+    .tools button.active { background:#70202a; border-color:#ff455a; color:white; }
+    .tools input[type=range] { width:120px; accent-color:#ff314b; }
+    .stat {
+      background:#10131c; color:#f2ccd2; padding:2px 7px;
+      border-radius:4px; font-family:ui-monospace,SFMono-Regular,Consolas,monospace;
+    }
+    .stage {
+      position:relative; width:100%; height:100%;
+      background:
+        radial-gradient(circle at 50% 48%, rgba(72,0,10,.18), transparent 35%),
+        linear-gradient(#090a0f,#030306);
+      overflow:hidden;
+    }
+    canvas { position:absolute; inset:0; width:100%; height:100%; display:block; }
+    .note {
+      position:fixed; right:10px; bottom:8px;
+      font-size:11px; color:#9ba4bd; pointer-events:none;
+    }
+  </style>
+</head>
+<body>
+  <div class="tools">
+    <fieldset>
+      <legend>MODE</legend>
+      <button data-mode="focus" class="active">Focus</button>
+      <button data-mode="swarm">Swarm</button>
+      <button data-mode="sheet">Pose sheet</button>
+    </fieldset>
+
+    <fieldset>
+      <legend>POSE</legend>
+      <button data-pose="0" class="active">RB1</button>
+      <button data-pose="1">RB2</button>
+      <button data-pose="2">RB3</button>
+      <button data-pose="3">RB4</button>
+      <button data-pose="4">RB5</button>
+      <button data-pose="5">RB6</button>
+    </fieldset>
+
+    <fieldset>
+      <legend>ANIMATION</legend>
+      <button id="anim" class="active">ON</button>
+      <button id="eyes" class="active">Eyes track</button>
+      <button id="glow" class="active">Red glow</button>
+    </fieldset>
+
+    <fieldset>
+      <legend>SCALE</legend>
+      <input id="scale" type="range" min="0.45" max="1.80" step="0.01" value="1">
+      <span class="stat" id="scaleVal">1.00</span>
+    </fieldset>
+
+    <fieldset>
+      <legend>RAGE</legend>
+      <input id="rage" type="range" min="0" max="1" step="0.01" value="0.75">
+      <span class="stat" id="rageVal">0.75</span>
+    </fieldset>
+
+    <span class="stat" id="fps">FPS --</span>
+    <span class="stat" id="count">Entities: 1</span>
+  </div>
+
+  <div class="stage">
+    <canvas id="game" width="1100" height="680"></canvas>
+  </div>
+
+  <div class="note">PoC visual aislado — 6 raid bosses espectrales: siluetas mutadas, coronas, mantos, sigilos y colas jerárquicas.</div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+
+  const S = {
+    mode: 'focus',
+    pose: 0,
+    anim: true,
+    eyeTrack: true,
+    glow: true,
+    scale: 1,
+    rage: .75,
+    mouse: {x:550,y:340},
+    t: 0,
+    entities: []
+  };
+
+  const POSES = [
+    // Raid boss set: seis mutaciones fuertes del mismo linaje espectral.
+    { body:[1.10,1.02], tilt:-.09, head:1.12, mouth:1, eye:1.02, eyeStyle:6,  tailLen:1.20, tailDir:-1, tailAmp:.70, eyeAng:.04, eyeSep:25, eyeY:-34, mouthY:7, elite:true, sigil:0, aura:1.24, shoulder:1.00, waist:.84, root:.62, crown:0, mantle:0, halo:0, tailMode:0 },
+    { body:[1.06,1.10], tilt:.08,  head:1.06, mouth:2, eye:.98, eyeStyle:7,  tailLen:1.28, tailDir: 1, tailAmp:.64, eyeAng:.04, eyeSep:24, eyeY:-33, mouthY:8, elite:true, sigil:1, aura:1.18, shoulder:1.18, waist:.82, root:.58, crown:1, mantle:1, halo:1, tailMode:1 },
+    { body:[1.14,.98], tilt:.04,  head:1.10, mouth:0, eye:1.06, eyeStyle:8,  tailLen:1.18, tailDir: 1, tailAmp:.78, eyeAng:.03, eyeSep:26, eyeY:-35, mouthY:8, elite:true, sigil:2, aura:1.26, shoulder:1.04, waist:.76, root:.52, crown:2, mantle:2, halo:2, tailMode:2 },
+    { body:[1.08,1.12], tilt:-.15, head:1.08, mouth:3, eye:1.00, eyeStyle:9,  tailLen:1.24, tailDir:-1, tailAmp:.68, eyeAng:.05, eyeSep:24, eyeY:-33, mouthY:9, elite:true, sigil:3, aura:1.22, shoulder:1.20, waist:.88, root:.64, crown:3, mantle:3, halo:3, tailMode:3 },
+    { body:[1.02,1.08], tilt:.14,  head:1.04, mouth:1, eye:.96, eyeStyle:10, tailLen:1.30, tailDir: 1, tailAmp:.74, eyeAng:.04, eyeSep:24, eyeY:-32, mouthY:7, elite:true, sigil:4, aura:1.20, shoulder:.96, waist:.72, root:.48, crown:4, mantle:4, halo:4, tailMode:4 },
+    { body:[1.18,1.00], tilt:-.04, head:1.14, mouth:2, eye:1.08, eyeStyle:11, tailLen:1.26, tailDir:-1, tailAmp:.82, eyeAng:.04, eyeSep:27, eyeY:-35, mouthY:8, elite:true, sigil:5, aura:1.30, shoulder:1.26, waist:.90, root:.66, crown:5, mantle:5, halo:5, tailMode:5 }
+  ];
+
+  function resize() {
+    const r = canvas.getBoundingClientRect();
+    const dpr = Math.min(devicePixelRatio || 1, 2);
+    canvas.width = Math.max(1, Math.round(r.width*dpr));
+    canvas.height = Math.max(1, Math.round(r.height*dpr));
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+  addEventListener('resize', resize); resize();
+
+  function path(points) {
+    ctx.beginPath();
+    for (const cmd of points) {
+      if (cmd[0]==='M') ctx.moveTo(cmd[1],cmd[2]);
+      else if (cmd[0]==='L') ctx.lineTo(cmd[1],cmd[2]);
+      else if (cmd[0]==='C') ctx.bezierCurveTo(cmd[1],cmd[2],cmd[3],cmd[4],cmd[5],cmd[6]);
+      else if (cmd[0]==='Q') ctx.quadraticCurveTo(cmd[1],cmd[2],cmd[3],cmd[4]);
+      else if (cmd[0]==='Z') ctx.closePath();
+    }
+  }
+
+  function blobShadow(x,y,r,a=.18) {
+    const g = ctx.createRadialGradient(x,y,0,x,y,r);
+    g.addColorStop(0,`rgba(255,0,32,${a})`);
+    g.addColorStop(1,'rgba(255,0,32,0)');
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
+  }
+
+  function drawEye(cx, cy, side, rage, lookX, lookY, eyeScale, extraAngle=0, eyeStyle=0) {
+    const lx = Math.max(-1.6, Math.min(1.6, lookX*0.006));
+    const ly = Math.max(-1.2, Math.min(1.2, lookY*0.005));
+
+    ctx.save();
+    ctx.translate(cx + lx, cy + ly);
+    ctx.rotate(side*(0.055 + rage*.028) + extraAngle*.18);
+
+    if (S.glow) blobShadow(0,0,30*eyeScale,.29);
+
+    ctx.save();
+    ctx.shadowColor='rgba(255,0,28,.85)';
+    ctx.shadowBlur=10*eyeScale;
+    ctx.fillStyle='#ff1024';
+    ctx.strokeStyle='#ff1024';
+    ctx.lineJoin='miter';
+    ctx.lineCap='round';
+
+    const sx=10.5*eyeScale;
+    const sy=18.5*eyeScale;
+
+    ctx.beginPath();
+
+    switch (eyeStyle % 12) {
+      case 0:
+        ctx.moveTo(0,-sy);
+        ctx.lineTo( sx*.23,-sy*.30);
+        ctx.lineTo( sx,0);
+        ctx.lineTo( sx*.23, sy*.30);
+        ctx.lineTo(0,sy);
+        ctx.lineTo(-sx*.23, sy*.30);
+        ctx.lineTo(-sx,0);
+        ctx.lineTo(-sx*.23,-sy*.30);
+        break;
+      case 1:
+        ctx.moveTo(0,-sy*1.08);
+        ctx.lineTo( sx*.32,-sy*.18);
+        ctx.lineTo( sx*.82, sy*.02);
+        ctx.lineTo( sx*.30, sy*.18);
+        ctx.lineTo(0, sy*1.02);
+        ctx.lineTo(-sx*.18, sy*.22);
+        ctx.lineTo(-sx*.72,0);
+        ctx.lineTo(-sx*.20,-sy*.22);
+        break;
+      case 2:
+        ctx.moveTo(0,-sy*.92);
+        ctx.lineTo( sx*.88,-sy*.10);
+        ctx.lineTo( sx*.30,0);
+        ctx.lineTo( sx*.92, sy*.18);
+        ctx.lineTo(0, sy*.92);
+        ctx.lineTo(-sx*.88, sy*.15);
+        ctx.lineTo(-sx*.30,0);
+        ctx.lineTo(-sx*.88,-sy*.12);
+        break;
+      case 3:
+        ctx.moveTo(-sx*.10,-sy);
+        ctx.lineTo( sx*.20,-sy*.28);
+        ctx.lineTo( sx*1.05,-sy*.08);
+        ctx.lineTo( sx*.32, sy*.22);
+        ctx.lineTo( sx*.10, sy);
+        ctx.lineTo(-sx*.18, sy*.26);
+        ctx.lineTo(-sx*.92, sy*.04);
+        ctx.lineTo(-sx*.28,-sy*.20);
+        break;
+      case 4:
+        ctx.moveTo(0,-sy);
+        ctx.lineTo( sx*.22,-sy*.26);
+        ctx.lineTo( sx*.92,-sy*.04);
+        ctx.lineTo( sx*.38, sy*.10);
+        ctx.lineTo( sx*.68, sy*.42);
+        ctx.lineTo(0, sy*.98);
+        ctx.lineTo(-sx*.18, sy*.28);
+        ctx.lineTo(-sx*.92,0);
+        ctx.lineTo(-sx*.24,-sy*.22);
+        break;
+      case 5:
+        ctx.moveTo(0,-sy);
+        ctx.lineTo( sx*.72,-sy*.22);
+        ctx.lineTo( sx*.22,0);
+        ctx.lineTo( sx*.78, sy*.18);
+        ctx.lineTo(0, sy);
+        ctx.lineTo(-sx*.78, sy*.18);
+        ctx.lineTo(-sx*.22,0);
+        ctx.lineTo(-sx*.72,-sy*.22);
+        break;
+
+      // Elites — versiones mutadas/recargadas del mismo idioma visual.
+      case 6:
+        // Crown shard
+        ctx.moveTo(0,-sy*1.18);
+        ctx.lineTo( sx*.18,-sy*.54);
+        ctx.lineTo( sx*.58,-sy*.22);
+        ctx.lineTo( sx,0);
+        ctx.lineTo( sx*.26, sy*.28);
+        ctx.lineTo(0, sy*1.02);
+        ctx.lineTo(-sx*.26, sy*.28);
+        ctx.lineTo(-sx,0);
+        ctx.lineTo(-sx*.58,-sy*.22);
+        ctx.lineTo(-sx*.18,-sy*.54);
+        break;
+      case 7:
+        // Twin barb lance
+        ctx.moveTo(0,-sy*1.12);
+        ctx.lineTo( sx*.36,-sy*.38);
+        ctx.lineTo( sx*.92,-sy*.08);
+        ctx.lineTo( sx*.34, sy*.04);
+        ctx.lineTo( sx*.74, sy*.30);
+        ctx.lineTo(0, sy*.98);
+        ctx.lineTo(-sx*.74, sy*.30);
+        ctx.lineTo(-sx*.34, sy*.04);
+        ctx.lineTo(-sx*.92,-sy*.08);
+        ctx.lineTo(-sx*.36,-sy*.38);
+        break;
+      case 8:
+        // Tyrant diamond
+        ctx.moveTo(0,-sy);
+        ctx.lineTo( sx*.50,-sy*.50);
+        ctx.lineTo( sx*1.06,-sy*.06);
+        ctx.lineTo( sx*.48, 0);
+        ctx.lineTo( sx*.96, sy*.30);
+        ctx.lineTo(0, sy);
+        ctx.lineTo(-sx*.96, sy*.30);
+        ctx.lineTo(-sx*.48,0);
+        ctx.lineTo(-sx*1.06,-sy*.06);
+        ctx.lineTo(-sx*.50,-sy*.50);
+        break;
+      case 9:
+        // Abyss fork
+        ctx.moveTo(0,-sy*1.14);
+        ctx.lineTo( sx*.18,-sy*.52);
+        ctx.lineTo( sx*.84,-sy*.18);
+        ctx.lineTo( sx*.28, sy*.02);
+        ctx.lineTo( sx*.46, sy*.40);
+        ctx.lineTo(0, sy*.80);
+        ctx.lineTo(-sx*.46, sy*.40);
+        ctx.lineTo(-sx*.28, sy*.02);
+        ctx.lineTo(-sx*.84,-sy*.18);
+        ctx.lineTo(-sx*.18,-sy*.52);
+        break;
+      case 10:
+        // Rift hourglass
+        ctx.moveTo(0,-sy*1.06);
+        ctx.lineTo( sx*.84,-sy*.24);
+        ctx.lineTo( sx*.30,-sy*.02);
+        ctx.lineTo( sx*.62, sy*.22);
+        ctx.lineTo(0, sy*1.02);
+        ctx.lineTo(-sx*.62, sy*.22);
+        ctx.lineTo(-sx*.30,-sy*.02);
+        ctx.lineTo(-sx*.84,-sy*.24);
+        break;
+      case 11:
+        // Warlord star
+        ctx.moveTo(0,-sy*1.16);
+        ctx.lineTo( sx*.30,-sy*.44);
+        ctx.lineTo( sx*.98,-sy*.12);
+        ctx.lineTo( sx*.40, sy*.16);
+        ctx.lineTo( sx*.16, sy);
+        ctx.lineTo(0, sy*.70);
+        ctx.lineTo(-sx*.16, sy);
+        ctx.lineTo(-sx*.40, sy*.16);
+        ctx.lineTo(-sx*.98,-sy*.12);
+        ctx.lineTo(-sx*.30,-sy*.44);
+        break;
+    }
+
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+
+    ctx.fillStyle='rgba(0,0,0,.82)';
+    ctx.beginPath();
+    switch (eyeStyle % 12) {
+      case 0: ctx.moveTo(0,-sy*.40); ctx.lineTo(sx*.14,0); ctx.lineTo(0,sy*.40); ctx.lineTo(-sx*.14,0); break;
+      case 1: ctx.moveTo(0,-sy*.52); ctx.lineTo(sx*.10,0); ctx.lineTo(0,sy*.50); ctx.lineTo(-sx*.10,0); break;
+      case 2: ctx.moveTo(0,-sy*.32); ctx.lineTo(sx*.22,0); ctx.lineTo(0,sy*.32); ctx.lineTo(-sx*.22,0); break;
+      case 3: ctx.moveTo(-sx*.04,-sy*.38); ctx.lineTo(sx*.18,0); ctx.lineTo(sx*.03,sy*.40); ctx.lineTo(-sx*.16,0); break;
+      case 4: ctx.moveTo(0,-sy*.42); ctx.lineTo(sx*.12,-sy*.02); ctx.lineTo(-sx*.03,sy*.43); ctx.lineTo(-sx*.14,0); break;
+      case 5: ctx.moveTo(0,-sy*.38); ctx.lineTo(sx*.20,0); ctx.lineTo(0,sy*.38); ctx.lineTo(-sx*.20,0); break;
+      case 6: ctx.moveTo(0,-sy*.52); ctx.lineTo(sx*.10,-sy*.08); ctx.lineTo(sx*.05,sy*.42); ctx.lineTo(-sx*.05,sy*.42); ctx.lineTo(-sx*.10,-sy*.08); break;
+      case 7: ctx.moveTo(0,-sy*.44); ctx.lineTo(sx*.18,-sy*.02); ctx.lineTo(0,sy*.50); ctx.lineTo(-sx*.18,-sy*.02); break;
+      case 8: ctx.moveTo(0,-sy*.34); ctx.lineTo(sx*.26,0); ctx.lineTo(0,sy*.34); ctx.lineTo(-sx*.26,0); break;
+      case 9: ctx.moveTo(0,-sy*.46); ctx.lineTo(sx*.12,.5); ctx.lineTo(0,sy*.28); ctx.lineTo(-sx*.12,.5); break;
+      case 10: ctx.moveTo(0,-sy*.36); ctx.lineTo(sx*.18,-sy*.02); ctx.lineTo(0,sy*.40); ctx.lineTo(-sx*.18,-sy*.02); break;
+      case 11: ctx.moveTo(0,-sy*.50); ctx.lineTo(sx*.11,-sy*.10); ctx.lineTo(sx*.03,sy*.46); ctx.lineTo(-sx*.03,sy*.46); ctx.lineTo(-sx*.11,-sy*.10); break;
+    }
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle='rgba(255,135,145,.78)';
+    ctx.beginPath();
+    ctx.arc(0,0,1.25*eyeScale,0,Math.PI*2);
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  function drawMouth(type, y, rage) {
+    ctx.save();
+    ctx.translate(0,y);
+
+    if (S.glow) blobShadow(0,2,36,.20);
+
+    if (type===2 || type===3) {
+      // Boca de grito más macabra, menos "óvalo perfecto".
+      const w = type===3 ? 17 : 14;
+      const h = type===3 ? 24 : 20;
+      ctx.fillStyle='#ff111c';
+      ctx.beginPath();
+      ctx.moveTo(0,-h);
+      ctx.bezierCurveTo(w*.95,-h*.82, w*1.05,h*.15,  w*.20,h);
+      ctx.bezierCurveTo(w*.06,h*1.04, -w*.08,h*1.04, -w*.24,h);
+      ctx.bezierCurveTo(-w*1.06,h*.10, -w*.94,-h*.82, 0,-h);
+      ctx.closePath();
+      ctx.fill();
+
+      // Recorte interior sutil para dar más profundidad.
+      ctx.fillStyle='rgba(120,0,8,.38)';
+      ctx.beginPath();
+      ctx.moveTo(0,-h*.56);
+      ctx.bezierCurveTo(w*.42,-h*.42, w*.50,h*.04,  w*.12,h*.52);
+      ctx.bezierCurveTo(0,h*.60, -w*.14,h*.58, -w*.20,h*.52);
+      ctx.bezierCurveTo(-w*.52,h*.04, -w*.44,-h*.42, 0,-h*.56);
+      ctx.closePath();
+      ctx.fill();
+
+      return ctx.restore();
+    }
+
+    // Boca dentada más filosa y macabra, manteniendo el estilo cartoon.
+    ctx.fillStyle='#ff111c';
+    ctx.beginPath();
+    ctx.moveTo(-30,-8);
+    ctx.lineTo(-22,2);
+    ctx.lineTo(-15,-6);
+    ctx.lineTo(-7,6);
+    ctx.lineTo(1,-4);
+    ctx.lineTo(9,7);
+    ctx.lineTo(17,-4);
+    ctx.lineTo(24,4);
+    ctx.lineTo(31,-8);
+    ctx.lineTo(28,10);
+    ctx.lineTo(20,3);
+    ctx.lineTo(12,14);
+    ctx.lineTo(3,5);
+    ctx.lineTo(-6,15);
+    ctx.lineTo(-14,4);
+    ctx.lineTo(-23,13);
+    ctx.closePath();
+    ctx.fill();
+
+    if (type===1) {
+      // segunda hilera / gesto aún más cruel
+      ctx.globalAlpha=.94;
+      ctx.beginPath();
+      ctx.moveTo(-20,-12); ctx.lineTo(-12,-2); ctx.lineTo(-4,-13);
+      ctx.lineTo(3,-2); ctx.lineTo(11,-12); ctx.lineTo(18,-2);
+      ctx.lineTo(24,-13); ctx.lineTo(23,-1); ctx.lineTo(15,6);
+      ctx.lineTo(8,-3); ctx.lineTo(0,7); ctx.lineTo(-8,-3);
+      ctx.lineTo(-16,6); ctx.closePath(); ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  // Cola integrada al cuerpo.
+  // La animación usa una onda viajera continua y muchas muestras para que el
+  // movimiento se vea vivo incluso en monitores de alta frecuencia.
+  // La raíz permanece estable; desde un poco debajo de mitad del torso,
+  // la amplitud aumenta progresivamente hacia la punta.
+  function buildTailRibbon(startX, startY, p, t, seed) {
+    const dir = p.tailDir || 1;
+    const amp = 31 * (p.tailAmp || .5);
+    const len = 122 * (p.tailLen || 1);
+
+    const centers = [];
+    const left = [];
+    const right = [];
+
+    // Más resolución geométrica = curva más limpia durante el movimiento.
+    const samples = 88;
+
+    const smoothstep = x => {
+      x = Math.max(0, Math.min(1, x));
+      return x*x*(3-2*x);
+    };
+
+    // Base S estática + onda viajera superpuesta.
+    for (let i=0; i<=samples; i++) {
+      const u = i/samples;
+
+      // Taper de activación: prácticamente inmóvil al nacer del torso.
+      // El movimiento empieza suave y toma fuerza hacia el último 70%.
+      const motion = smoothstep((u - .10) / .90);
+
+      // Curva base S muy suave.
+      const baseS =
+        dir * amp * (
+          .33*Math.sin(u*Math.PI*1.18) -
+          .23*Math.sin(u*Math.PI*2.05)
+        );
+
+      // Onda principal viajera: sensación de serpenteo continuo.
+      const waveA = Math.sin(t*5.4 - u*8.2 + seed);
+
+      // Segunda onda más corta para evitar movimiento mecánico/repetitivo.
+      const waveB = Math.sin(t*8.6 - u*13.4 + seed*1.37);
+
+      // Tercera micro-onda casi imperceptible para "vida" en la punta.
+      const waveC = Math.sin(t*12.2 - u*18.0 + seed*.73);
+
+      const liveWave =
+        motion * (
+          waveA * (3.0 + 6.5*u) +
+          waveB * (1.0 + 2.4*u) +
+          waveC * (0.25 + 0.9*u)
+        );
+
+      const x = startX + baseS + liveWave;
+      const y = startY + len*u;
+
+      centers.push([x,y]);
+    }
+
+    // Construir la cinta alrededor de la curva central.
+    for (let i=0; i<=samples; i++) {
+      const u = i/samples;
+      const prev = centers[Math.max(0,i-1)];
+      const next = centers[Math.min(samples,i+1)];
+
+      const dx = next[0]-prev[0];
+      const dy = next[1]-prev[1];
+      const mag = Math.hypot(dx,dy) || 1;
+      const nx = -dy/mag;
+      const ny = dx/mag;
+
+      // El cuerpo se va afinando de forma progresiva hasta una única punta.
+      const taper = smoothstep(u);
+      const width = 27*(1-taper) + .48*taper;
+
+      const x = centers[i][0];
+      const y = centers[i][1];
+
+      left.push([x + nx*width, y + ny*width]);
+      right.push([x - nx*width, y - ny*width]);
+    }
+
+    return {left,right,centers,elite:!!p.elite};
+  }
+
+  // Resplandor rojo alrededor de la cola.
+  // Se dibuja detrás de la silueta negra, así que solo queda visible como aura.
+  function drawTailGlow(tail,t,seed) {
+    if (!S.glow || !tail.centers || tail.centers.length < 2) return;
+
+    const pts = tail.centers;
+    const eliteBoost = tail && tail.elite ? 1.28 : 1;
+    const pulse = (.78 + Math.sin(t*3.4 + seed)*.12) * eliteBoost;
+
+    ctx.save();
+    ctx.globalCompositeOperation='lighter';
+    ctx.lineCap='round';
+    ctx.lineJoin='round';
+
+    const trace = () => {
+      ctx.beginPath();
+      ctx.moveTo(pts[0][0],pts[0][1]);
+      for(let i=1;i<pts.length;i++) ctx.lineTo(pts[i][0],pts[i][1]);
+    };
+
+    // Halo exterior.
+    ctx.strokeStyle=`rgba(255,18,35,${.055*pulse})`;
+    ctx.lineWidth=28;
+    ctx.shadowColor='rgba(255,0,28,.42)';
+    ctx.shadowBlur=22;
+    trace();
+    ctx.stroke();
+
+    // Halo medio.
+    ctx.strokeStyle=`rgba(255,24,42,${.10*pulse})`;
+    ctx.lineWidth=13;
+    ctx.shadowColor='rgba(255,0,25,.52)';
+    ctx.shadowBlur=12;
+    trace();
+    ctx.stroke();
+
+    // Línea energética extremadamente sutil en el centro.
+    ctx.strokeStyle=`rgba(255,45,55,${.12*pulse})`;
+    ctx.lineWidth=2.2;
+    ctx.shadowColor='rgba(255,15,30,.65)';
+    ctx.shadowBlur=7;
+    trace();
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  function drawEliteAura(p,t,seed) {
+    if (!p.elite || !S.glow) return;
+    const amp = p.aura || 1.2;
+    ctx.save();
+    ctx.globalCompositeOperation='lighter';
+    blobShadow(0,-28,64*amp,.08);
+    blobShadow(0,10,88*amp,.06);
+    ctx.restore();
+  }
+
+  function drawEliteSigil(kind,t,seed) {
+    if (kind == null || kind < 0) return;
+
+    const pulse = .78 + Math.sin(t*4.2 + seed)*.18;
+    ctx.save();
+    ctx.globalCompositeOperation='lighter';
+    ctx.strokeStyle=`rgba(255,18,36,${.52*pulse})`;
+    ctx.fillStyle=`rgba(255,18,36,${.36*pulse})`;
+    ctx.lineWidth=2.2;
+    ctx.lineCap='round';
+    ctx.lineJoin='round';
+    ctx.shadowColor='rgba(255,0,24,.45)';
+    ctx.shadowBlur=10;
+
+    switch (kind % 6) {
+      case 0: // vertical sternum star
+        ctx.beginPath();
+        ctx.moveTo(0,12); ctx.lineTo(0,34);
+        ctx.moveTo(-8,22); ctx.lineTo(0,12); ctx.lineTo(8,22);
+        ctx.moveTo(-6,28); ctx.lineTo(0,34); ctx.lineTo(6,28);
+        ctx.stroke();
+        break;
+      case 1: // three hanging slits
+        for (const x of [-8,0,8]) {
+          ctx.beginPath();
+          ctx.moveTo(x,14); ctx.quadraticCurveTo(x+2,24,x-1,35); ctx.stroke();
+        }
+        break;
+      case 2: // broken diamond core
+        ctx.beginPath();
+        ctx.moveTo(0,12); ctx.lineTo(10,22); ctx.lineTo(0,35); ctx.lineTo(-10,22); ctx.closePath();
+        ctx.fill();
+        ctx.clearRect(-1,20,2,4);
+        break;
+      case 3: // double chevron
+        ctx.beginPath();
+        ctx.moveTo(-10,18); ctx.lineTo(0,26); ctx.lineTo(10,18);
+        ctx.moveTo(-8,30); ctx.lineTo(0,38); ctx.lineTo(8,30);
+        ctx.stroke();
+        break;
+      case 4: // rift spear
+        ctx.beginPath();
+        ctx.moveTo(0,10); ctx.lineTo(7,20); ctx.lineTo(3,20); ctx.lineTo(9,32);
+        ctx.lineTo(0,41); ctx.lineTo(-9,32); ctx.lineTo(-3,20); ctx.lineTo(-7,20);
+        ctx.closePath(); ctx.fill();
+        break;
+      case 5: // trident rune
+        ctx.beginPath();
+        ctx.moveTo(0,12); ctx.lineTo(0,38);
+        ctx.moveTo(-8,20); ctx.lineTo(-2,28);
+        ctx.moveTo(8,20); ctx.lineTo(2,28);
+        ctx.moveTo(0,12); ctx.lineTo(-6,18);
+        ctx.moveTo(0,12); ctx.lineTo(6,18);
+        ctx.stroke();
+        break;
+    }
+
+    ctx.restore();
+  }
+
+
+  // Variaciones reales de raid boss:
+  // - halos distintos
+  // - coronas/crestas espectrales
+  // - mantos traseros distintos
+  // - colas con configuraciones distintas
+  function drawBossHalo(kind,t,seed) {
+    if (!S.glow) return;
+    const pulse = .78 + Math.sin(t*4.0 + seed)*.18;
+
+    ctx.save();
+    ctx.translate(0,-28);
+    ctx.globalCompositeOperation='lighter';
+    ctx.strokeStyle=`rgba(255,22,40,${.44*pulse})`;
+    ctx.lineWidth=2.2;
+    ctx.lineCap='round';
+    ctx.lineJoin='round';
+    ctx.shadowColor='rgba(255,0,24,.42)';
+    ctx.shadowBlur=10;
+
+    switch (kind % 6) {
+      case 0: // corona radial
+        for (let i=0;i<5;i++) {
+          const a = -1.15 + i*0.57;
+          ctx.beginPath();
+          ctx.moveTo(Math.cos(a)*18, Math.sin(a)*18);
+          ctx.lineTo(Math.cos(a)*31, Math.sin(a)*31 - 4);
+          ctx.stroke();
+        }
+        break;
+      case 1: // doble arco ritual
+        ctx.beginPath(); ctx.arc(0,0,28,Math.PI*1.08,Math.PI*1.92); ctx.stroke();
+        ctx.beginPath(); ctx.arc(0,2,39,Math.PI*1.15,Math.PI*1.85); ctx.stroke();
+        break;
+      case 2: // diamante flotante quebrado
+        ctx.beginPath();
+        ctx.moveTo(0,-32); ctx.lineTo(12,-18); ctx.lineTo(0,-4); ctx.lineTo(-12,-18); ctx.closePath();
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(-3,-18); ctx.lineTo(3,-18); ctx.stroke();
+        break;
+      case 3: // slash halo
+        for (const x of [-18,-6,6,18]) {
+          ctx.beginPath();
+          ctx.moveTo(x-3,-22); ctx.lineTo(x+5,-6); ctx.stroke();
+        }
+        break;
+      case 4: // triple eye-ring
+        ctx.beginPath(); ctx.arc(0,-18,14,0,Math.PI*2); ctx.stroke();
+        ctx.beginPath(); ctx.arc(-18,-14,8,0,Math.PI*2); ctx.stroke();
+        ctx.beginPath(); ctx.arc(18,-14,8,0,Math.PI*2); ctx.stroke();
+        break;
+      case 5: // imperial arch
+        ctx.beginPath();
+        ctx.moveTo(-30,-8); ctx.quadraticCurveTo(0,-42,30,-8); ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(-20,-14); ctx.lineTo(0,-28); ctx.lineTo(20,-14); ctx.stroke();
+        break;
+    }
+
+    ctx.restore();
+  }
+
+  function drawBossCrown(kind,p,t,seed) {
+    const q = S.anim ? Math.sin(t*1.1 + seed)*1.4 : 0;
+    ctx.save();
+    ctx.fillStyle = '#020203';
+
+    switch (kind % 6) {
+      case 0: // tres picos cortos
+        ctx.beginPath();
+        ctx.moveTo(-28,-54);
+        ctx.lineTo(-18,-82-q);
+        ctx.lineTo(-8,-58);
+        ctx.lineTo(0,-88-q*1.2);
+        ctx.lineTo(10,-58);
+        ctx.lineTo(22,-80-q);
+        ctx.lineTo(30,-50);
+        ctx.quadraticCurveTo(0,-38,-28,-54);
+        ctx.closePath();
+        ctx.fill();
+        break;
+
+      case 1: // mitra/capucha alta
+        ctx.beginPath();
+        ctx.moveTo(-24,-54);
+        ctx.quadraticCurveTo(-22,-90,-4,-96-q);
+        ctx.quadraticCurveTo(11,-90,23,-56);
+        ctx.lineTo(10,-54);
+        ctx.quadraticCurveTo(2,-72,-6,-54);
+        ctx.closePath();
+        ctx.fill();
+        break;
+
+      case 2: // cresta asimétrica rota
+        ctx.beginPath();
+        ctx.moveTo(-32,-48);
+        ctx.lineTo(-18,-84-q);
+        ctx.lineTo(-5,-58);
+        ctx.lineTo(6,-76-q*.6);
+        ctx.lineTo(20,-52);
+        ctx.quadraticCurveTo(4,-42,-32,-48);
+        ctx.closePath();
+        ctx.fill();
+        break;
+
+      case 3: // collar-cuchilla ancho
+        ctx.beginPath();
+        ctx.moveTo(-48,-10);
+        ctx.lineTo(-30,-34);
+        ctx.lineTo(-8,-26);
+        ctx.lineTo(0,-44-q*.5);
+        ctx.lineTo(8,-26);
+        ctx.lineTo(30,-34);
+        ctx.lineTo(48,-10);
+        ctx.lineTo(26,-6);
+        ctx.lineTo(0,-2);
+        ctx.lineTo(-26,-6);
+        ctx.closePath();
+        ctx.fill();
+        break;
+
+      case 4: // velos laterales altos
+        ctx.beginPath();
+        ctx.moveTo(-30,-52);
+        ctx.quadraticCurveTo(-46,-70-q,-40,-22);
+        ctx.quadraticCurveTo(-23,-30,-18,-50);
+        ctx.closePath();
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(30,-52);
+        ctx.quadraticCurveTo(46,-70-q,40,-22);
+        ctx.quadraticCurveTo(23,-30,18,-50);
+        ctx.closePath();
+        ctx.fill();
+        break;
+
+      case 5: // corona regia gruesa
+        ctx.beginPath();
+        ctx.moveTo(-34,-42);
+        ctx.lineTo(-22,-76-q);
+        ctx.lineTo(-6,-52);
+        ctx.lineTo(0,-86-q);
+        ctx.lineTo(8,-52);
+        ctx.lineTo(26,-76-q);
+        ctx.lineTo(36,-40);
+        ctx.quadraticCurveTo(0,-28,-34,-42);
+        ctx.closePath();
+        ctx.fill();
+        break;
+    }
+
+    ctx.restore();
+  }
+
+  function drawBossMantle(kind,p,t,seed) {
+    const q = S.anim ? Math.sin(t*.9 + seed)*2.2 : 0;
+    ctx.save();
+    ctx.fillStyle = '#020203';
+
+    switch (kind % 6) {
+      case 0: // manto discreto
+        ctx.beginPath();
+        ctx.moveTo(-44,10); ctx.quadraticCurveTo(-60,28,-50,52); ctx.quadraticCurveTo(-34,44,-28,20); ctx.closePath(); ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(44,10); ctx.quadraticCurveTo(60,28,50,52); ctx.quadraticCurveTo(34,44,28,20); ctx.closePath(); ctx.fill();
+        break;
+
+      case 1: // hombreras obispales amplias
+        ctx.beginPath();
+        ctx.moveTo(-54,2); ctx.quadraticCurveTo(-84,20,-78,58+q); ctx.quadraticCurveTo(-54,52,-34,24); ctx.closePath(); ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(54,2); ctx.quadraticCurveTo(84,20,78,58-q); ctx.quadraticCurveTo(54,52,34,24); ctx.closePath(); ctx.fill();
+        break;
+
+      case 2: // velos rasgados laterales
+        ctx.beginPath();
+        ctx.moveTo(-38,20); ctx.lineTo(-60,44); ctx.lineTo(-46,48); ctx.lineTo(-63,70+q); ctx.lineTo(-34,58); ctx.closePath(); ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(38,20); ctx.lineTo(60,44); ctx.lineTo(46,48); ctx.lineTo(63,70-q); ctx.lineTo(34,58); ctx.closePath(); ctx.fill();
+        break;
+
+      case 3: // manto severo y pesado
+        ctx.beginPath();
+        ctx.moveTo(-50,6); ctx.quadraticCurveTo(-74,20,-66,74); ctx.quadraticCurveTo(-46,66,-30,28); ctx.closePath(); ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(50,6); ctx.quadraticCurveTo(74,20,66,74); ctx.quadraticCurveTo(46,66,30,28); ctx.closePath(); ctx.fill();
+        break;
+
+      case 4: // cintas altas finas
+        ctx.beginPath();
+        ctx.moveTo(-34,18); ctx.quadraticCurveTo(-52,42,-46,84+q); ctx.quadraticCurveTo(-28,60,-24,26); ctx.closePath(); ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(34,18); ctx.quadraticCurveTo(52,42,46,84-q); ctx.quadraticCurveTo(28,60,24,26); ctx.closePath(); ctx.fill();
+        break;
+
+      case 5: // manto doble regio
+        ctx.beginPath();
+        ctx.moveTo(-62,6); ctx.quadraticCurveTo(-90,24,-78,66); ctx.quadraticCurveTo(-52,54,-40,24); ctx.closePath(); ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(-44,8); ctx.quadraticCurveTo(-62,30,-56,52); ctx.quadraticCurveTo(-40,44,-28,22); ctx.closePath(); ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(62,6); ctx.quadraticCurveTo(90,24,78,66); ctx.quadraticCurveTo(52,54,40,24); ctx.closePath(); ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(44,8); ctx.quadraticCurveTo(62,30,56,52); ctx.quadraticCurveTo(40,44,28,22); ctx.closePath(); ctx.fill();
+        break;
+    }
+
+    ctx.restore();
+  }
+
+  function getBossTailSpecs(p) {
+    switch (p.tailMode % 6) {
+      case 0: return [{x:0,  y:74, dir:p.tailDir, len:1.00, amp:1.00}]; // clásico largo
+      case 1: return [ // cola doble desigual
+        {x:-7, y:72, dir:-1, len:.90, amp:.76},
+        {x: 8, y:74, dir: 1, len:1.04, amp:.94}
+      ];
+      case 2: return [ // tridente espectral
+        {x:-10,y:72, dir:-1, len:.86, amp:.68},
+        {x:  0,y:75, dir:p.tailDir, len:1.04, amp:.92},
+        {x: 10,y:72, dir: 1, len:.90, amp:.72}
+      ];
+      case 3: return [ // una cola pesada y otra corta lateral
+        {x: 0, y:74, dir:p.tailDir, len:1.08, amp:1.00},
+        {x:-8, y:79, dir:-1, len:.72, amp:.56}
+      ];
+      case 4: return [ // tres cintas delgadas
+        {x:-12,y:74, dir:-1, len:1.04, amp:.70},
+        {x:  0,y:72, dir:p.tailDir, len:.92, amp:.64},
+        {x: 12,y:74, dir: 1, len:1.12, amp:.76}
+      ];
+      case 5: return [ // cola central ancha + dos apoyos regios
+        {x:-9, y:78, dir:-1, len:.78, amp:.54},
+        {x: 0, y:73, dir:p.tailDir, len:1.12, amp:1.10},
+        {x: 9, y:78, dir: 1, len:.82, amp:.58}
+      ];
+    }
+    return [{x:0,y:74,dir:p.tailDir,len:1,amp:1}];
+  }
+
+  function drawGhost(x,y,baseScale,poseIndex,t,seed=0) {
+    const p = POSES[poseIndex % POSES.length];
+    const bob   = S.anim ? (Math.sin(t*1.55 + seed)*6.0 + Math.sin(t*3.10 + seed*.4)*1.4) : 0;
+    const sway  = S.anim ? (Math.sin(t*.92 + seed*.7)*.028 + Math.sin(t*2.1 + seed)*.008) : 0;
+    const pulse = S.anim ? 1 + Math.sin(t*2.2 + seed)*.010 : 1;
+    const sc = baseScale * S.scale * pulse;
+
+    ctx.save();
+    ctx.translate(x, y + bob);
+    ctx.rotate(p.tilt + sway);
+    ctx.scale(sc, sc);
+
+    if (S.glow) blobShadow(0,10,92,.06);
+    drawEliteAura(p,t,seed);
+    drawBossHalo(p.halo,t,seed);
+
+    ctx.fillStyle = '#020203';
+    ctx.strokeStyle = '#050507';
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+
+    // Partes traseras que hacen que cada boss tenga una silueta distinta.
+    drawBossCrown(p.crown,p,t,seed);
+    drawBossMantle(p.mantle,p,t,seed);
+
+    // Colas: algunas son únicas, otras dobles o triples.
+    const tailSpecs = getBossTailSpecs(p);
+    const tails = [];
+    for (let i=0;i<tailSpecs.length;i++) {
+      const s = tailSpecs[i];
+      const tp = Object.assign({}, p, {
+        tailLen: p.tailLen * s.len,
+        tailAmp: p.tailAmp * s.amp,
+        tailDir: s.dir
+      });
+      const tail = buildTailRibbon(s.x, s.y * p.body[1], tp, t, seed + i*.63);
+      tails.push(tail);
+      drawTailGlow(tail, t, seed + i*.63);
+    }
+
+    const bw = p.body[0];
+    const bh = p.body[1];
+    const head = p.head;
+    const shoulder = p.shoulder || 1.0;
+    const waist = p.waist || .82;
+    const root = p.root || .60;
+
+    // Masa principal del boss: misma familia, pero más jerárquica.
+    ctx.beginPath();
+    ctx.moveTo(-18*head, -74);
+
+    // Cabeza/cúpula.
+    ctx.bezierCurveTo(-48*head,-73, -60*head,-51, -56*head,-21);
+    ctx.bezierCurveTo(-54*bw,-2, -49*bw,16, -43*shoulder,31);
+
+    // Lado izquierdo hacia una cintura más marcada.
+    ctx.bezierCurveTo(-39*shoulder,43, -31*waist,58, -15*root,79*bh);
+
+    // Base del torso: angosta, para que la mutación siga leyendo "espectro".
+    ctx.quadraticCurveTo(-6,86*bh, 0,87*bh);
+    ctx.quadraticCurveTo(6,86*bh, 15*root,79*bh);
+
+    // Lado derecho.
+    ctx.bezierCurveTo(31*waist,58, 39*shoulder,43, 43*shoulder,31);
+    ctx.bezierCurveTo(49*bw,16, 54*bw,-2, 56*head,-21);
+
+    // Cierre superior.
+    ctx.bezierCurveTo(60*head,-51, 48*head,-73, 18*head,-74);
+    ctx.bezierCurveTo(7,-76, -7,-76, -18*head,-74);
+    ctx.closePath();
+    ctx.fill();
+
+    // Sigilo de elite en el pecho.
+    drawEliteSigil(p.sigil,t,seed);
+
+    // Sombras y pliegues internos: ayudan a separar mejor cada boss.
+    ctx.save();
+    ctx.globalAlpha=.11;
+    const shade = ctx.createLinearGradient(-36,-8,36,92);
+    shade.addColorStop(0,'rgba(255,255,255,.22)');
+    shade.addColorStop(.42,'rgba(255,255,255,.05)');
+    shade.addColorStop(1,'rgba(255,255,255,0)');
+    ctx.strokeStyle=shade;
+    ctx.lineWidth=1.35;
+
+    ctx.beginPath();
+    ctx.moveTo(-30,-18);
+    ctx.bezierCurveTo(-26,18,-18,46,-8,75);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(28,-18);
+    ctx.bezierCurveTo(24,18,18,44,10,73);
+    ctx.stroke();
+    ctx.restore();
+
+    // Cara.
+    const lookX = S.eyeTrack ? (S.mouse.x - x) : 0;
+    const lookY = S.eyeTrack ? (S.mouse.y - y) : 0;
+    drawEye(-(p.eyeSep||24), p.eyeY||-30, -1, S.rage, lookX, lookY, p.eye, -(p.eyeAng||0), p.eyeStyle||0);
+    drawEye( +(p.eyeSep||24), p.eyeY||-30,  1, S.rage, lookX, lookY, p.eye, +(p.eyeAng||0), p.eyeStyle||0);
+    drawMouth(p.mouth, p.mouthY||6, S.rage);
+
+    ctx.restore();
+  }
+
+  function drawSheet(w,h,t) {
+    const pts=[
+      [w*.18,h*.28,.86,0],[w*.50,h*.24,.82,1],[w*.82,h*.29,.90,2],
+      [w*.18,h*.72,.88,3],[w*.50,h*.70,.92,4],[w*.82,h*.72,.96,5]
+    ];
+    pts.forEach((a,i)=>drawGhost(a[0],a[1],a[2],a[3],t,i*.9));
+    document.getElementById('count').textContent='Entities: 6';
+  }
+
+  function drawSwarm(w,h,t) {
+    const pts=[
+      [.10,.24,.34,0],[.25,.42,.40,1],[.43,.20,.30,2],
+      [.58,.44,.46,3],[.77,.26,.38,4],[.89,.48,.42,5],
+      [.20,.76,.42,2],[.43,.73,.34,0],[.65,.80,.46,5],[.83,.72,.38,1]
+    ];
+    pts.forEach((a,i)=>drawGhost(w*a[0],h*a[1],a[2],a[3],t,i*1.73));
+    document.getElementById('count').textContent='Entities: '+pts.length;
+  }
+
+  function render(now) {
+    const r=canvas.getBoundingClientRect();
+    const w=r.width,h=r.height;
+    ctx.clearRect(0,0,w,h);
+    S.t = S.anim ? now/1000 : S.t;
+
+    // viñeta
+    const vg=ctx.createRadialGradient(w/2,h/2,60,w/2,h/2,Math.max(w,h)*.75);
+    vg.addColorStop(0,'rgba(255,255,255,0)');
+    vg.addColorStop(1,'rgba(0,0,0,.5)');
+    ctx.fillStyle=vg; ctx.fillRect(0,0,w,h);
+
+    if(S.mode==='sheet') drawSheet(w,h,S.t);
+    else if(S.mode==='swarm') drawSwarm(w,h,S.t);
+    else {
+      drawGhost(w/2,h/2-5,1.18,S.pose,S.t,.2);
+      document.getElementById('count').textContent='Entities: 1';
+    }
+
+    requestAnimationFrame(render);
+  }
+
+  canvas.addEventListener('pointermove',e=>{
+    const r=canvas.getBoundingClientRect();
+    S.mouse.x=e.clientX-r.left; S.mouse.y=e.clientY-r.top;
+  });
+
+  document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{
+    S.mode=b.dataset.mode;
+    document.querySelectorAll('[data-mode]').forEach(x=>x.classList.toggle('active',x===b));
+  });
+
+  document.querySelectorAll('[data-pose]').forEach(b=>b.onclick=()=>{
+    S.pose=+b.dataset.pose;
+    S.mode='focus';
+    document.querySelectorAll('[data-mode]').forEach(x=>x.classList.toggle('active',x.dataset.mode==='focus'));
+    document.querySelectorAll('[data-pose]').forEach(x=>x.classList.toggle('active',x===b));
+  });
+
+  document.getElementById('anim').onclick=e=>{
+    S.anim=!S.anim; e.currentTarget.classList.toggle('active',S.anim);
+    e.currentTarget.textContent=S.anim?'ON':'PAUSE';
+  };
+  document.getElementById('eyes').onclick=e=>{
+    S.eyeTrack=!S.eyeTrack; e.currentTarget.classList.toggle('active',S.eyeTrack);
+  };
+  document.getElementById('glow').onclick=e=>{
+    S.glow=!S.glow; e.currentTarget.classList.toggle('active',S.glow);
+  };
+
+  document.getElementById('scale').oninput=e=>{
+    S.scale=+e.target.value;
+    document.getElementById('scaleVal').textContent=S.scale.toFixed(2);
+  };
+  document.getElementById('rage').oninput=e=>{
+    S.rage=+e.target.value;
+    document.getElementById('rageVal').textContent=S.rage.toFixed(2);
+  };
+
+  let last=performance.now(),frames=0,fps=0;
+  setInterval(()=>{
+    const now=performance.now(),dt=now-last;
+    fps=Math.round(frames*1000/dt); frames=0; last=now;
+    document.getElementById('fps').textContent='FPS '+fps;
+  },500);
+  (function countLoop(){frames++; requestAnimationFrame(countLoop)})();
+
+  requestAnimationFrame(render);
+})();
+</script>
+</body>
+</html>

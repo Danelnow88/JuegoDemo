@@ -181,7 +181,8 @@ t('spawn: kamikaze aparece desde oleada 10 y los demas tipos mantienen su umbral
   function poolAt(wave) { return NV.ENEMY_TYPES.filter((ty) => (ty.minWave || 1) <= wave).map((t) => t.id); }
   const w5 = poolAt(5), w9 = poolAt(9), w10 = poolAt(10);
   if (w5.includes('kamikaze')) throw new Error('kamikaze antes de tiempo (w5)');
-  if (w5.join(',') !== 'drone,runner,tank') throw new Error('w5=' + w5.join(','));
+  // Pool esperado: los 3 clásicos + los 3 espectros nuevos tempranos (waves 3-5).
+  if (w5.join(',') !== 'drone,runner,tank,specter_grunt,specter_archer,specter_guard') throw new Error('w5=' + w5.join(','));
   if (!w9.includes('swarmlet') || w9.includes('kamikaze')) throw new Error('w9=' + w9.join(','));
   if (!w10.includes('kamikaze')) throw new Error('kamikaze no entra en w10');
   // Spawn headless con oleada >=10: deben salir kamikazes entre los generados.

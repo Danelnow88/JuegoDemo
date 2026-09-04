@@ -67,13 +67,14 @@ t('módulo expone APIs encapsuladas de sincronización y visibilidad', () => {
     if (!src.includes(name)) throw new Error('API ausente: ' + name);
   }
 });
-t('puente WebGL queda activo para los dos tipos de espectro', () => {
+t('Three.js legacy está DEPRECADO (puente WebGL inactivo; todo usa Canvas2D líquido)', () => {
   const game = fs.readFileSync('js/game.js', 'utf8');
   if (!game.includes('NV.SPECTER_ENABLED = true')) throw new Error('toggle maestro no inicia activo');
-  if (!game.includes('NV.ESPECTRO_LITE_ACTIVE = true')) throw new Error('WebGL no inicia activo');
-  if (!game.includes("e.enemyTypeId === 'specter_lite'") || !game.includes("e.enemyTypeId === 'specter_core'")) throw new Error('selector no usa espectros');
-  if (!game.includes('!e.isElite') || !game.includes('!e.dead')) throw new Error('filtros elite/dead ausentes');
+    if (!game.includes('NV.ESPECTRO_LITE_ACTIVE = false')) throw new Error('WebGL no inicia inactivo');
   if (!game.includes('import(ESPECTRO_THREE_CDN)')) throw new Error('Three no carga dinámicamente');
+  const start = game.indexOf('function shouldUseEspectroLite');
+  const end = game.indexOf('function', start + 1);
+  if (start < 0 || end < 0 || !game.slice(start, end).includes('return false')) throw new Error('shouldUseEspectroLite no retorna false');
 });
 
 t('puente conserva fallback Canvas2D y mapea coordenadas lógicas', () => {

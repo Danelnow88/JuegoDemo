@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enemy Visual Lab - Liquid Hand-Drawn Edition</title>
+    <style>
+        :root {
+            --bg-color: #0a0a0c;
+            --panel-bg: rgba(18, 18, 24, 0.85);
+            --accent-red: #ff2a4b;
+            --accent-glow: rgba(255, 42, 75, 0.4);
+            --text-color: #e2e8f0;
+            --border-color: #2d3748;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+        }
+
+        #canvas-container {
+            flex: 1;
+            height: 100%;
+            position: relative;
+            background: radial-gradient(circle at center, #161622 0%, #08080c 100%);
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        #ui-panel {
+            width: 340px;
+            height: 100%;
+            background: var(--panel-bg);
+            backdrop-filter: blur(10px);
+            border-left: 1px solid var(--border-color);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            box-shadow: -5px 0 25px rgba(0,0,0,0.5);
+            z-index: 10;
+            overflow-y: auto;
+        }
+
+        h1 {
+            font-size: 1.2rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--accent-red);
+            text-shadow: 0 0 10px var(--accent-glow);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        label {
+            font-size: 0.85rem;
+            color: #a0aec0;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        select, button {
+            background: #1a1d24;
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        select:hover, button:hover {
+            border-color: var(--accent-red);
+            box-shadow: 0 0 8px var(--accent-glow);
+        }
+
+        button.active {
+            background: var(--accent-red);
+            color: #fff;
+            font-weight: bold;
+            box-shadow: 0 0 12px var(--accent-glow);
+        }
+
+        .btn-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .status-box {
+            margin-top: auto;
+            padding: 10px;
+            background: rgba(0,0,0,0.4);
+            border-radius: 4px;
+            border-left: 3px solid #48bb78;
+            font-size: 0.8rem;
+            color: #9ae6b4;
+        }
+
+        .desc-box {
+            font-size: 0.8rem;
+            line-height: 1.4;
+            color: #cbd5e0;
+            background: rgba(0,0,0,0.2);
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="canvas-container">
+        <canvas id="mainCanvas"></canvas>
+    </div>
+
+    <div id="ui-panel">
+        <h1>Visual Lab v2.1</h1>
+        
+        <div class="control-group">
+            <label for="enemySelect">Modelo de Enemigo (6 Variants)</label>
+            <select id="enemySelect">
+                <option value="0">RB1 - Liquid Proto-Node</option>
+                <option value="1">RB2 - Crowned Amoeba</option>
+                <option value="2">RB3 - Cloaked Viscera (Adjusted)</option>
+                <option value="3">RB4 - Halo Spectrum</option>
+                <option value="4">RB5 - Sigil Core</option>
+                <option value="5">RB6 - Hydra Tendril Entity</option>
+            </select>
+        </div>
+
+        <div class="desc-box" id="enemyDesc">
+            Cargando descripción...
+        </div>
+
+        <div class="control-group">
+            <label>Modo de Visualización</label>
+            <div class="btn-grid">
+                <button id="btnSingle" class="active">Single View</button>
+                <button id="btnPose">Pose Sheet</button>
+            </div>
+            <button id="btnSwarm">Swarm Mode (6 Active)</button>
+        </div>
+
+        <div class="control-group">
+            <label>Acciones</label>
+            <button id="btnDownload">Descargar enemy-visual-lab.html</button>
+        </div>
+
+        <div class="status-box" id="statusBox">
+            Validación JS: OK | Ojos con seguimiento dinámico activados
+        </div>
+    </div>
+
+    <script>
+        // --- MOTOR Y CONFIGURACIÓN GLOBAL ---
+        const canvas = document.getElementById('mainCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        let width, height;
+        let time = 0;
+        let currentMode = 'single'; // 'single', 'pose', 'swarm'
+        let selectedEnemyIndex = 0;
+
+        // Posición objetivo del personaje/jugador (Sigue al mouse o al centro si no hay movimiento)
+        let targetPos = { x: 0, y: 0 };
+
+        window.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            targetPos.x = e.clientX - rect.left;
+            targetPos.y = e.clientY - rect.top;
+        });
+
+        // --- DESCRIPCIONES DE LOS MODELOS (LIQUID & HAND-DRAWN) ---
+        const enemyDescriptions = [
+            "RB1 - Proto-Nodo Líquido: Silueta compacta de trazo orgánico agitado con un ojo vigilante fijado en ti.",
+            "RB2 - Ameba Coronada: Cresta de fluido hiperactivo y par de ojos desalineados que siguen cada uno de tus movimientos.",
+            "RB3 - Viscera Manto Reajustado: Manto fluido rediseñado, más orgánico y estilizado, con ojo central penetrante.",
+            "RB4 - Halo Espectral: Anillo exterior de contorno hiper-rápido con un ojo brillante en medio del halo.",
+            "RB5 - Núcleo Sigilo: Glifo central pulsante con un ojo rúnico encendique mira fijamente la amenaza.",
+            "RB6 - Entidad Hidra: Múltiples tentáculos fluidos y miradas compuestas que rastrean al personaje activamente."
+        ];
+
+        // --- RESIZE CANVAS ---
+        function resize() {
+            width = canvas.width = document.getElementById('canvas-container').clientWidth;
+            height = canvas.height = document.getElementById('canvas-container').clientHeight;
+            if (targetPos.x === 0 && targetPos.y === 0) {
+                targetPos.x = width / 2;
+                targetPos.y = height / 2;
+            }
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // --- MOTOR DE OJOS CON SEGUIMIENTO DINÁMICO (LOOK-AT EYES) ---
+        function drawEyes(eyeX, eyeY, targetX, targetY, count = 1, eyeScale = 1) {
+            ctx.save();
+            ctx.translate(eyeX, eyeY);
+
+            // Vector hacia el personaje
+            let dx = targetX - eyeX;
+            let dy = targetY - eyeY;
+            let angle = Math.atan2(dy, dx);
+            let dist = Math.min(6 * eyeScale, Math.hypot(dx, dy) * 0.05);
+
+            let offsetX = Math.cos(angle) * dist;
+            let offsetY = Math.sin(angle) * dist;
+
+            let eyeSpacing = 16 * eyeScale;
+
+            for (let i = 0; i < count; i++) {
+                let posX = (count === 1) ? 0 : (i === 0 ? -eyeSpacing / 2 : eyeSpacing / 2);
+                let posY = (count === 3 && i === 2) ? -eyeSpacing * 0.7 : 0; // Configuración para 3 ojos
+
+                // Parpadeo e hiperactividad
+                let jitter = (Math.random() - 0.5) * 1.5;
+                let eyeRadius = (8 * eyeScale) + Math.sin(time * 15 + i) * 1;
+
+                // Esclera (Fondo de ojo)
+                ctx.beginPath();
+                ctx.arc(posX + jitter, posY + jitter, eyeRadius, 0, Math.PI * 2);
+                ctx.fillStyle = '#ffffff';
+                ctx.shadowColor = '#ff2a4b';
+                ctx.shadowBlur = 10;
+                ctx.fill();
+
+                // Pupila Líquida
+                ctx.beginPath();
+                ctx.arc(posX + offsetX + jitter, posY + offsetY + jitter, eyeRadius * 0.45, 0, Math.PI * 2);
+                ctx.fillStyle = '#ff2a4b';
+                ctx.fill();
+
+                // Brillo de pupila
+                ctx.beginPath();
+                ctx.arc(posX + offsetX - 1.5 + jitter, posY + offsetY - 1.5 + jitter, eyeRadius * 0.15, 0, Math.PI * 2);
+                ctx.fillStyle = '#ffffff';
+                ctx.fill();
+            }
+
+            ctx.restore();
+        }
+
+        // --- MOTOR DE DIBUJO ESTILO LÍQUIDO A MANO (HAND-DRAWN LIQUID ENGINE) ---
+        function drawHandDrawnLiquidBlob(cx, cy, radius, pointsCount, noiseAmp, speedMult, seed, colorGlow) {
+            ctx.save();
+            ctx.translate(cx, cy);
+
+            ctx.beginPath();
+            for (let i = 0; i <= pointsCount; i++) {
+                let angle = (i / pointsCount) * Math.PI * 2;
+                
+                let n1 = Math.sin(angle * 4 + time * 12 * speedMult + seed);
+                let n2 = Math.cos(angle * 7 - time * 18 * speedMult + seed * 2);
+                let jitter = (Math.random() - 0.5) * 2;
+                
+                let r = radius + (n1 + n2 * 0.5) * noiseAmp + jitter;
+                
+                let x = Math.cos(angle) * r;
+                let y = Math.sin(angle) * r;
+
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.closePath();
+
+            ctx.fillStyle = '#08080e';
+            ctx.fill();
+
+            ctx.lineWidth = 2.5 + Math.sin(time * 20 + seed) * 1;
+            ctx.strokeStyle = '#ff2a4b';
+            ctx.shadowColor = colorGlow || '#ff2a4b';
+            ctx.shadowBlur = 12;
+            ctx.stroke();
+
+            // Tinta secundaria suelta
+            ctx.beginPath();
+            for (let i = 0; i <= pointsCount / 2; i++) {
+                let angle = (i / (pointsCount / 2)) * Math.PI * 2 + time * 2;
+                let r = (radius * 0.6) + Math.sin(angle * 3 + time * 15) * (noiseAmp * 0.5);
+                let x = Math.cos(angle) * r;
+                let y = Math.sin(angle) * r;
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
+        // --- GOTAS Y ELEMENTOS FLOTANTES LÍQUIDOS ---
+        function drawLiquidParticles(cx, cy, count, radiusSpread, seed) {
+            ctx.save();
+            for (let i = 0; i < count; i++) {
+                let pAngle = (i / count) * Math.PI * 2 + time * 3 + seed;
+                let dist = radiusSpread + Math.sin(time * 10 + i + seed) * 15;
+                let px = cx + Math.cos(pAngle) * dist;
+                let py = cy + Math.sin(pAngle) * dist + Math.cos(time * 15 + i) * 5;
+                let pSize = 3 + Math.sin(time * 25 + i) * 2;
+
+                ctx.beginPath();
+                ctx.arc(px, py, Math.max(1, pSize), 0, Math.PI * 2);
+                ctx.fillStyle = '#ff2a4b';
+                ctx.shadowColor = '#ff2a4b';
+                ctx.shadowBlur = 8;
+                ctx.fill();
+            }
+            ctx.restore();
+        }
+
+        // --- DIBUJO DE LOS 6 ENEMY MODELS ---
+        function drawEnemyModel(index, cx, cy, scale = 1) {
+            ctx.save();
+            ctx.scale(scale, scale);
+            let adjustedCx = cx / scale;
+            let adjustedCy = cy / scale;
+            let adjustedTargetX = targetPos.x / scale;
+            let adjustedTargetY = targetPos.y / scale;
+
+            switch(index) {
+                case 0: // RB1 - Proto-Nodo Líquido
+                    drawHandDrawnLiquidBlob(adjustedCx, adjustedCy, 35, 12, 8, 1.2, 10);
+                    drawLiquidParticles(adjustedCx, adjustedCy, 4, 45, 10);
+                    drawEyes(adjustedCx, adjustedCy, adjustedTargetX, adjustedTargetY, 1, 1);
+                    break;
+
+                case 1: // RB2 - Ameba Coronada
+                    drawHandDrawnLiquidBlob(adjustedCx, adjustedCy - 30, 18, 8, 10, 1.8, 20);
+                    drawHandDrawnLiquidBlob(adjustedCx, adjustedCy + 5, 40, 14, 10, 1.0, 25);
+                    drawLiquidParticles(adjustedCx, adjustedCy, 6, 52, 20);
+                    drawEyes(adjustedCx, adjustedCy - 5, adjustedTargetX, adjustedTargetY, 2, 0.9);
+                    break;
+
+                case 2: // RB3 - Viscera Manto (REAJUSTADO: Más integrado, fluido y agresivo)
+                    // Manto estilizado tipo alas líquidas posteriores
+                    drawHandDrawnLiquidBlob(adjustedCx - 25, adjustedCy + 15, 28, 10, 12, 1.6, 30);
+                    drawHandDrawnLiquidBlob(adjustedCx + 25, adjustedCy + 15, 28, 10, 12, 1.6, 32);
+                    // Cuerpo central más definido
+                    drawHandDrawnLiquidBlob(adjustedCx, adjustedCy - 5, 38, 14, 8, 1.2, 35);
+                    drawLiquidParticles(adjustedCx, adjustedCy, 6, 58, 30);
+                    drawEyes(adjustedCx, adjustedCy - 8, adjustedTargetX, adjustedTargetY, 1, 1.2);
+                    break;
+
+                case 3: // RB4 - Halo Espectral
+                    ctx.beginPath();
+                    ctx.arc(adjustedCx, adjustedCy, 55 + Math.sin(time * 20) * 4, 0, Math.PI * 2);
+                    ctx.strokeStyle = 'rgba(255, 42, 75, 0.8)';
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([6, 6]);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                    
+                    drawHandDrawnLiquidBlob(adjustedCx, adjustedCy, 38, 16, 9, 1.3, 40);
+                    drawLiquidParticles(adjustedCx, adjustedCy, 8, 65, 40);
+                    drawEyes(adjustedCx, adjustedCy, adjustedTargetX, adjustedTargetY, 1, 1.1);
+                    break;
+
+                case 4: // RB5 - Núcleo Sigilo
+                    drawHandDrawnLiquidBlob(adjustedCx, adjustedCy, 42, 14, 11, 1.2, 50);
+                    ctx.save();
+                    ctx.translate(adjustedCx, adjustedCy);
+                    ctx.rotate(time * 5);
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+                    ctx.lineWidth = 1.5;
+                    ctx.strokeRect(-12, -12, 24, 24);
+                    ctx.restore();
+                    drawLiquidParticles(adjustedCx, adjustedCy, 7, 55, 50);
+                    drawEyes(adjustedCx, adjustedCy, adjustedTargetX, adjustedTargetY, 2, 0.8);
+                    break;
+
+                case 5: // RB6 - Entidad Hidra
+                    drawHandDrawnLiquidBlob(adjustedCx - 30, adjustedCy + 35, 15, 8, 12, 1.6, 60);
+                    drawHandDrawnLiquidBlob(adjustedCx, adjustedCy + 45, 18, 8, 14, 1.8, 65);
+                    drawHandDrawnLiquidBlob(adjustedCx + 30, adjustedCy + 35, 15, 8, 12, 1.6, 70);
+                    
+                    drawHandDrawnLiquidBlob(adjustedCx, adjustedCy - 10, 45, 18, 12, 1.1, 75);
+                    drawLiquidParticles(adjustedCx, adjustedCy, 10, 70, 60);
+                    drawEyes(adjustedCx, adjustedCy - 12, adjustedTargetX, adjustedTargetY, 3, 0.85);
+                    break;
+            }
+
+            ctx.restore();
+        }
+
+        // --- MODOS DE RENDERIZADO ---
+        function renderSingle() {
+            let cx = width / 2;
+            let cy = height / 2;
+            drawEnemyModel(selectedEnemyIndex, cx, cy, 1.8);
+        }
+
+        function renderPoseSheet() {
+            let cols = 3;
+            let rows = 2;
+            let cellWidth = width / cols;
+            let cellHeight = height / rows;
+
+            for (let i = 0; i < 6; i++) {
+                let col = i % cols;
+                let row = Math.floor(i / cols);
+                let cx = col * cellWidth + cellWidth / 2;
+                let cy = row * cellHeight + cellHeight / 2;
+
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(col * cellWidth + 10, row * cellHeight + 10, cellWidth - 20, cellHeight - 20);
+
+                ctx.fillStyle = 'rgba(255,255,255,0.4)';
+                ctx.font = '10px monospace';
+                ctx.fillText(`MODEL_RB${i + 1}`, col * cellWidth + 20, row * cellHeight + 30);
+
+                drawEnemyModel(i, cx, cy, 0.9);
+            }
+        }
+
+        function renderSwarm() {
+            for (let i = 0; i < 6; i++) {
+                let angle = (i / 6) * Math.PI * 2 + time * 0.8;
+                let radius = Math.min(width, height) * 0.28;
+                let cx = width / 2 + Math.cos(angle) * radius;
+                let cy = height / 2 + Math.sin(angle) * radius;
+
+                drawEnemyModel(i, cx, cy, 0.8);
+            }
+        }
+
+        // --- BUCLE PRINCIPAL DE ANIMACIÓN ---
+        function loop() {
+            time += 0.03;
+
+            ctx.clearRect(0, 0, width, height);
+
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.02)';
+            ctx.lineWidth = 1;
+            let gridSize = 40;
+            for (let x = 0; x < width; x += gridSize) {
+                ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, height); ctx.stroke();
+            }
+            for (let y = 0; y < height; y += gridSize) {
+                ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke();
+            }
+
+            if (currentMode === 'single') renderSingle();
+            else if (currentMode === 'pose') renderPoseSheet();
+            else if (currentMode === 'swarm') renderSwarm();
+
+            requestAnimationFrame(loop);
+        }
+
+        // --- INTERACCIÓN Y EVENTOS DE UI ---
+        const enemySelect = document.getElementById('enemySelect');
+        const enemyDesc = document.getElementById('enemyDesc');
+        const btnSingle = document.getElementById('btnSingle');
+        const btnPose = document.getElementById('btnPose');
+        const btnSwarm = document.getElementById('btnSwarm');
+        const btnDownload = document.getElementById('btnDownload');
+
+        function updateDescription() {
+            enemyDesc.textContent = enemyDescriptions[selectedEnemyIndex];
+        }
+
+        enemySelect.addEventListener('change', (e) => {
+            selectedEnemyIndex = parseInt(e.target.value);
+            updateDescription();
+            if (currentMode !== 'single') {
+                setActiveMode('single');
+            }
+        });
+
+        function setActiveMode(mode) {
+            currentMode = mode;
+            btnSingle.classList.remove('active');
+            btnPose.classList.remove('active');
+            btnSwarm.classList.remove('active');
+
+            if (mode === 'single') btnSingle.classList.add('active');
+            if (mode === 'pose') btnPose.classList.add('active');
+            if (mode === 'swarm') btnSwarm.classList.add('active');
+        }
+
+        btnSingle.addEventListener('click', () => setActiveMode('single'));
+        btnPose.addEventListener('click', () => setActiveMode('pose'));
+        btnSwarm.addEventListener('click', () => setActiveMode('swarm'));
+
+        btnDownload.addEventListener('click', () => {
+            const htmlContent = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
+            const blob = new Blob([htmlContent], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'enemy-visual-lab.html';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        });
+
+        // INIT
+        updateDescription();
+        loop();
+    </script>
+</body>
+</html>

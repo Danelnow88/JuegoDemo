@@ -88,7 +88,10 @@
       if (bullets.length >= state.MAX_BULLETS) break;
       const angle = baseAngle + (i - (actualCount - 1) / 2) * spread;
       const crit = Math.random() < (0.1 + player.luck * 0.002 + (player.permCrit || 0) * NV.BALANCE.CRIT_PERM_CHANCE);
-      const baseDmg = (weapon.damage + state.permDamageBonus * 2 + state.currentWeaponLevel()) * NV.waveWeaponMult(state.wave); // daño aditivo: base + meta + nivel de arma, escalado por oleada (B2)
+      // Bono por nivel con soft-cap (balance.js): lineal hasta Nv50 y +0.5/nivel
+      // después; el tope duro WEAPON_MAX_LEVEL=100 marca el pico de poder.
+      const lvlBonus = NV.weaponLevelDamageBonus(state.currentWeaponLevel());
+      const baseDmg = (weapon.damage + state.permDamageBonus * 2 + lvlBonus) * NV.waveWeaponMult(state.wave); // daño aditivo: base + meta + bono de nivel, escalado por oleada (B2)
       // Fusión de repetidas: multiplicador extra (puro, cap en game.js).
       const finalDmg = NV.weaponFusionDamage(baseDmg, state.currentWeaponFusion, state.fusionStep);
       const impact = NV.weaponImpactProfile(weapon);

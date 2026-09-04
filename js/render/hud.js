@@ -94,6 +94,23 @@
     }
     return yTop + h / 2 + 1;
   }
+  // ---- Niveles de arma en el HUD: badge + tinte de borde por tier ----
+  // Común/Base (1-9) → sin tinte · Rara (10-29) cian · Épica (30-59) violeta ·
+  // Legendaria (60-99) dorada · MAX Nv100 → rojo intenso con glow pulsante.
+  var WEAPON_LEVEL_TIERS = [
+    { min: 100, color: '#ff2a4b', max: true },
+    { min: 60, color: '#ffd700' },
+    { min: 30, color: '#b388ff' },
+    { min: 10, color: '#7cf8ff' },
+  ];
+  function weaponLevelTier(level) {
+    if (!level || level < 10) return null;
+    for (var i = 0; i < WEAPON_LEVEL_TIERS.length; i++) {
+      if (level >= WEAPON_LEVEL_TIERS[i].min) return WEAPON_LEVEL_TIERS[i];
+    }
+    return null;
+  }
+  NV.weaponLevelTier = weaponLevelTier;
   function drawSlotRow(ctx, gx, gy, entries, selIdx, equippedIdx, eqColor, cw, ch, gap, key) {
     var RAD = 5;
     var now = nowMs();
@@ -137,12 +154,17 @@
       ctx.fillStyle = grad || (e ? 'rgba(' + cnum + ',0.10)' : 'rgba(255,255,255,0.03)');
       roundedFill(ctx, x, y, cw, ch, RAD);
       ctx.globalAlpha = 1;
+      var wTier = e && e.level ? weaponLevelTier(e.level) : null;
       ctx.lineWidth = (selected || equipped) ? 2 : 1;
       ctx.strokeStyle = selected || equipped
         ? (equipped && eqColor ? eqColor : '#7cf8ff')
-        : (e ? 'rgba(' + cnum + ',' + (0.28 + glow * 0.35).toFixed(2) + ')' : 'rgba(255,255,255,0.08)');
-      ctx.shadowColor = selected || equipped ? (equipped && eqColor ? eqColor : '#7cf8ff') : '#7cf8ff';
+        : (e ? (wTier ? wTier.color : 'rgba(' + cnum + ',' + (0.28 + glow * 0.35).toFixed(2) + ')') : 'rgba(255,255,255,0.08)');
+      ctx.shadowColor = selected || equipped ? (equipped && eqColor ? eqColor : '#7cf8ff') : (wTier ? wTier.color : '#7cf8ff');
       ctx.shadowBlur = selected || equipped ? 6 + 12 * (usedGlow * pulseA + glow * 0.4) * 2 : 3 + usedGlow * 6;
+      if (wTier && wTier.max) {
+        // Tier MAX (Nv100): glow pulsante adicional sobre el borde del slot.
+        ctx.shadowBlur += 6 + 5 * Math.abs(Math.sin(now / 240));
+      }
       roundedStroke(ctx, x, y, cw, ch, RAD);
       ctx.shadowBlur = 0;
       if (e && typeof ctx.roundRect === 'function') {
@@ -163,7 +185,20 @@
           ctx.fillText(e.icon || '', x + cw / 2, y + ch / 2 + 4);
           ctx.shadowBlur = 0;
         }
-        if (e.badge !== undefined && e.badge !== '') {
+        if (e.level) {
+          // Nivel del arma en la esquina del slot: píldora oscura + número con
+          // el color del tier (legible sobre cualquier icono de arma).
+          var ltier = weaponLevelTier(e.level);
+          var ltxt = e.level >= 100 ? 'MAX' : '' + e.level;
+          ctx.font = 'bold 7px system-ui';
+          var lw = (typeof ctx.measureText === 'function' ? ctx.measureText(ltxt).width : ltxt.length * 4) + 4;
+          var lx = x + cw - lw - 1, ly = y + ch - 9;
+          ctx.fillStyle = 'rgba(0,0,0,0.78)';
+          roundedFill(ctx, lx, ly, lw, 8, 3);
+          ctx.fillStyle = ltier ? ltier.color : '#ffffff';
+          ctx.textAlign = 'center';
+          ctx.fillText(ltxt, lx + lw / 2, ly + 6.5);
+        } else if (e.badge !== undefined && e.badge !== '') {
           ctx.font = 'bold 8px system-ui';
           ctx.textAlign = 'right';
           ctx.fillStyle = '#fff';
@@ -194,8 +229,9 @@
   }
 
 
-  NV.drawWeaponHUD = function (ctx, W, H, CHARACTERS, RARITY_COLORS, player, currentWeapon, currentWeaponLevel, inventory, consumGroups, consumSel, showHUD) {
+  NV.drawWeaponHUD = function (ctx, W, H, CHARACTERS, RARITY_COLORS, player, currentWeapon, currentWeaponLevel, inventory, consumGroups, consumSel, showHUD, weaponLevelFor) {
     if (!showHUD) return;
+    var lvlFor = weaponLevelFor || function () { return 1; };
     var char = CHARACTERS[player.character];
     var weapon = currentWeapon;
     var iconColor = RARITY_COLORS[weapon.rarity];
@@ -205,8 +241,8 @@
     var by = 10;
     ctx.textAlign = 'left';
     var pistol = NV.starterWeapon ? NV.starterWeapon() : NV.WEAPONS[0];
-    var wEntries = [{ weapon: pistol, color: RARITY_COLORS[pistol.rarity], glow: GLOW_BY_RARITY[pistol.rarity] || 0.3, fuse: 0 }].concat(
-      inventory.slice(0, 5).map(function (wItem) { return { weapon: wItem, color: RARITY_COLORS[wItem.rarity], glow: GLOW_BY_RARITY[wItem.rarity] || 0.3, fuse: wItem.fuseLevel || 0 }; })
+    var wEntries = [{ weapon: pistol, color: RARITY_COLORS[pistol.rarity], glow: GLOW_BY_RARITY[pistol.rarity] || 0.3, fuse: 0, level: lvlFor(pistol.id) }].concat(
+      inventory.slice(0, 5).map(function (wItem) { return { weapon: wItem, color: RARITY_COLORS[wItem.rarity], glow: GLOW_BY_RARITY[wItem.rarity] || 0.3, fuse: wItem.fuseLevel || 0, level: lvlFor(wItem.id) }; })
     );
     var equippedIdx = weapon === pistol ? 0 : inventory.indexOf(weapon) + 1;
     if (equippedIdx < 0 || equippedIdx > 5) equippedIdx = -1;
@@ -340,7 +376,7 @@ NV.drawCombo = function (ctx, W, H, combo) {
       `Velocidad: ${Math.round(player.speed)}  |  Suerte: ${player.luck}`,
       `Agilidad: ${player.agility.toFixed(2)}x (maniobralidad)`,
       `Arma: ${weapon.name} (${weapon.rarity}) | Nv ${currentWeaponLevel()}` + (weaponVisualTier() > 0 ? ` | Tier ${weaponVisualTier()} (${BULLET_TIER_COLORS[weaponVisualTier()]})` : ''),
-      `DaÃ±o: ${weapon.damage + permUpgrades.damage * 2 + currentWeaponLevel()}`,
+      `DaÃ±o: ${weapon.damage + permUpgrades.damage * 2 + (NV.weaponLevelDamageBonus ? NV.weaponLevelDamageBonus(currentWeaponLevel()) : currentWeaponLevel())}`,
       `Inventario: ${inventory.length}/${INVENTORY_SLOTS}  |  Consumibles: ${consumableItems.length}`,
     ];
     lines.forEach((line, i) => ctx.fillText(line, panelX + 10, panelY + 45 + i * 18));

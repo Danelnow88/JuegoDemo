@@ -20,9 +20,20 @@
     const dealt = Math.max(1, b.damage - (e.resist || 0));
     e.hp -= dealt;
     if (e.isElite) e.stun = 0.25;
-    if (b.crit) addFloatText(e.x, e.y - e.radius - 6, '★CRIT', '#ff0');
+    // Número de daño con código de color por intensidad (sin textos "CRITICAL!"):
+    // normal blanco · sustancial cian · crítico rojo intenso con fuente mayor.
+    const dfs = hitFloatStyle(dealt, !!b.crit);
+    addFloatText(e.x, e.y - e.radius - 6, String(dealt), dfs.color, dfs.size);
     if (e.hp <= 0) killEnemy(e);
     applyKnockback(e, b.x, b.y, 60);
+  }
+
+  // Estilo del número de daño. Delegado en balance.js (NV.damageFloatStyle)
+  // cuando está cargado; fallback mínimo para sandboxes que cargan bullets.js
+  // aislado (p. ej. tests/boss_death_fix).
+  function hitFloatStyle(dealt, crit) {
+    if (NV.damageFloatStyle) return NV.damageFloatStyle(dealt, crit);
+    return { color: crit ? '#FF2A4B' : '#FFFFFF', size: crit ? 17 : 13 };
   }
 
   function findBounceTarget(from, enemies, b) {
@@ -98,7 +109,8 @@
               if (st.sfx && st.sfx.playerHit && player.hp > 0) st.sfx.playerHit();
               if (b.stunChance && Math.random() < b.stunChance) { player.stun = 0.6; addFloatText(player.x, player.y - 30, 'STUN', '#ff0'); }
               shake = Math.max(shake, hit.crit ? 0.3 : 0.1);
-              addFloatText(player.x, player.y - 20, '-' + damage + (hit.crit ? ' ★CRIT' : ''), hit.crit ? '#ff0' : '#ff5f9b');
+              const pfs = hitFloatStyle(damage, !!hit.crit);
+              addFloatText(player.x, player.y - 20, '-' + damage, pfs.color, pfs.size);
               if (player.hp <= 0) { over = true; break; }
             }
           }

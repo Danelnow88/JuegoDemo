@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Roster espectral — Todos los enemigos</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body {
+      min-height: 100vh;
+      margin: 0;
+      padding: 24px 16px 60px;
+      font-family: system-ui, sans-serif;
+      color: #dffcff;
+      background: #01030d;
+    }
+    header, footer { max-width: 1200px; margin-left: auto; margin-right: auto; }
+    h1 { margin: 0; color: #7dffd0; font-size: 20px; letter-spacing: .1em; text-transform: uppercase; }
+    .sub { margin: 6px 0 0; color: #708496; font-size: 12px; }
+    .sub code { color: #9be8ff; }
+    #roster {
+      display: block; width: 100%; max-width: 1200px; height: auto;
+      margin: 18px auto 0; border: 1px solid rgba(255,255,255,.06);
+    }
+    footer { margin-top: 14px; color: #42566b; font-size: 11px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Roster espectral — vista de catálogo</h1>
+    <p class="sub">Dibujado en vivo con <code>NV.drawSpectralEnemy2D</code> / <code>NV.drawSpectralBoss2D</code>.
+      En el juego el modo está activo por defecto (<code>NV.SPECTRAL_ENEMY_MODE = true</code>).</p>
+  </header>
+  <canvas id="roster" width="1200" height="2200"></canvas>
+  <footer>Los ojos miran al centro de su cella. Los espectros &laquo;Lútiles / Núcleo&raquo; usan WebGL
+    (Three.js) y tienen su propio preview: <code>previews/espectro-lite-single-preview.html</code>.</footer>
+
+  <!-- Bootstrap: los módulos del juego esperan window.NV ya creado (igual que
+       previews/espectro-lite-single-preview.html). Sin esto, gameData.js y
+       spectralEnemies2D.js crashean con "Cannot set properties of undefined". -->
+  <script>window.NV = window.NV || {};</script>
+  <script src="../js/data/gameData.js"></script>
+  <script src="../js/render/spectralEnemies2D.js"></script>
+  <script>
+  // ===== ROSTER ESPECTRAL =====
+  (function () {
+    'use strict';
+    const NV = window.NV;
+    // Guard: si los módulos no cargaron (ruta rota, file:// bloqueado, etc.),
+    // mostrar un mensaje legible en la página en lugar de un canvas vacío.
+    if (!NV || !NV.ENEMY_TYPES || typeof NV.drawSpectralEnemy2D !== 'function' || typeof NV.drawSpectralBoss2D !== 'function') {
+      document.body.insertAdjacentHTML('beforeend',
+        '<p style="color:#ff6b8a;font-family:system-ui;max-width:1200px;margin:12px auto">' +
+        'Error: no se cargaron los módulos (window.NV incompleto). Abrí este archivo desde la carpeta ' +
+        '<code>previews/</code> del proyecto para que las rutas <code>../js/...</code> funcionen. ' +
+        'Si tu navegador bloquea scripts en file://, serví el proyecto con un servidor local ' +
+        '(por ejemplo: <code>npx serve</code> o la extensión Live Server de VS Code).</p>');
+      return;
+    }
+    const canvas = document.getElementById('roster');
+    const ctx = canvas.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+// Fallback de cuerpo (perfil base) por forma para élites.
+    const shapeBase = { hex: 'tank', triangle: 'runner', rock: 'tank', diamond: 'shielder', circle: 'wisp', atom: 'wisp', dot: 'swarmlet' };
+
+    // --- Construir roster desde los datos reales (gameData.js) ---
+    function buildRoster() {
+      const rows = [];
+      for (const t of NV.ENEMY_TYPES) {
+        if (!t.id) continue;
+        const extra = [];
+        if (t.shield) extra.push('ESCUDO');
+        if (t.resist) extra.push('RESIST ' + t.resist);
+        if (t.stunChance) extra.push('STUN ' + Math.round(t.stunChance * 100) + '%');
+        if (t.behavior === 'ranged') extra.push('RANGED');
+        if (t.behavior === 'kami') extra.push('EXPLOSIVO');
+        rows.push({
+          kind: 'basic', label: t.name, sub: t.id,
+          enemyTypeId: t.id, isElite: false, visualId: null, bossName: null,
+          radius: t.radius, color: t.color, shape: t.shape,
+          hp: t.hp, dmg: t.damage, minWave: t.minWave, weight: t.weight,
+          extra: extra.join(' • '), isWebGL: t.shape === 'specter'
+        });
+      }
+      for (const t of NV.ELITE_TYPES) {
+        const extra = [];
+        if (t.spectralElite) extra.push('ESPECTRAL');
+        if (t.resist) extra.push('RESIST ' + t.resist);
+        if (t.stunChance) extra.push('STUN ' + Math.round(t.stunChance * 100) + '%');
+        if (t.behavior === 'ranged') extra.push('RANGED');
+        rows.push({
+          kind: 'elite', label: t.name, sub: t.id || ('visual ' + (t.visualId || '-')),
+          enemyTypeId: shapeBase[t.shape] || 'drone', isElite: true, visualId: t.visualId || null, bossName: null,
+          radius: t.radius, color: t.color, shape: t.shape,
+          hp: t.hp, dmg: t.damage, minWave: t.minWave, weight: t.weight,
+          extra: extra.join(' • '), isWebGL: false
+        });
+      }
+      for (const b of NV.BOSS_TYPES) {
+        rows.push({
+          kind: 'boss', label: b.name,
+          sub: 'PATRON ' + (b.pattern || '?').toUpperCase() + ' / ' + (b.attack || '?').toUpperCase(),
+          enemyTypeId: null, isElite: false, visualId: null, bossName: b.name,
+          radius: b.radius, color: b.color, shape: b.shape,
+          hp: b.hp, dmg: null, minWave: null, weight: null,
+          extra: 'STUN ' + Math.round((b.stunChance || 0) * 100) + '%', isWebGL: false
+        });
+      }
+      return rows;
+    }
+
+    const SECTION_TITLES = {
+      basic: 'ENEMIGOS BÁSICOS',
+      elite: 'ÉLITES',
+      boss: 'BOSSES (perfil Fase 4, intacto)'
+    };
+
+    const COLW = 230, COLH = 216, PAD = 26, HEAD = 64, GAP = 64, COLS = 5;
+
+    function makeEnemy(r, cx, cy) {
+      return {
+        x: cx, y: cy, radius: r.radius, color: r.color, shape: r.shape,
+        enemyTypeId: r.enemyTypeId, dead: false, isElite: r.isElite,
+        visualId: r.visualId, shieldCd: 0, atkFlash: 0, slowUntil: 0, mine: false, armed: false
+      };
+    }
+
+    let rows = [], sections = [], totalH = 0;
+
+    function layout() {
+      rows = buildRoster();
+      sections = [];
+      let y = PAD;
+      for (const kind of ['basic', 'elite', 'boss']) {
+        const list = rows.filter(function (r) { return r.kind === kind; });
+        if (!list.length) continue;
+        const startY = y;
+        y += HEAD;
+        const rowsN = Math.ceil(list.length / COLS);
+        let idx = 0;
+        for (let row = 0; row < rowsN; row++) {
+          for (let col = 0; col < COLS; col++) {
+            const cell = list[idx++];
+            if (!cell) break;
+            cell.cx = PAD + col * COLW + COLW / 2;
+            cell.cy = y + COLH / 2;
+          }
+          y += COLH;
+        }
+        sections.push({ kind: kind, startY: startY, endY: y, title: SECTION_TITLES[kind], count: list.length });
+        y += GAP;
+      }
+      totalH = y + PAD;
+      canvas.width = PAD * 2 + COLS * COLW;
+      canvas.height = totalH;
+    }
+
+    // ====== PARTE 3 ======
+// --- Dibujo de una celda del roster ---
+    function drawCell(r, frame) {
+      const cx = r.cx, cy = r.cy;
+      ctx.fillStyle = 'rgba(18,28,60,0.22)';
+      ctx.fillRect(cx - COLW / 2 + 4, cy - COLH / 2 + 4, COLW - 8, COLH - 8);
+      ctx.strokeStyle = r.isElite ? 'rgba(255,215,0,0.35)' : (r.kind === 'boss' ? 'rgba(255,80,155,0.3)' : 'rgba(120,180,255,0.10)');
+      ctx.lineWidth = 1;
+      ctx.strokeRect(cx - COLW / 2 + 4, cy - COLH / 2 + 4, COLW - 8, COLH - 8);
+
+      if (r.isWebGL) {
+        ctx.fillStyle = '#41566b';
+        ctx.font = 'bold 11px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText('Requiere WebGL', cx, cy - 6);
+        ctx.font = '9px system-ui';
+        ctx.fillStyle = '#5a6f82';
+        ctx.fillText('usá previews/espectro-lite-single-preview.html', cx, cy + 8);
+      } else if (r.kind === 'boss') {
+        const boss = {
+          x: cx, y: cy, radius: r.radius, color: r.color, name: r.bossName,
+          shape: r.shape, dead: false, hitFlash: 0, phase2: false,
+          hp: r.hp, maxHp: r.hp
+        };
+        NV.drawSpectralBoss2D(ctx, boss, frame, { x: cx, y: cy }, null);
+      } else {
+        NV.drawSpectralEnemy2D(ctx, makeEnemy(r, cx, cy), frame, { x: cx, y: cy }, null);
+      }
+
+      ctx.textAlign = 'center';
+      ctx.fillStyle = r.isElite ? '#ffd700' : (r.kind === 'boss' ? '#ff5098' : '#e8f0ff');
+      ctx.font = 'bold 12px system-ui';
+      ctx.fillText(r.label, cx, cy + 34);
+      ctx.font = '9px system-ui';
+      ctx.fillStyle = '#7a8da3';
+      ctx.fillText(r.sub || '', cx, cy + 48);
+      const stats = [];
+      if (r.hp != null) stats.push('HP ' + r.hp);
+      if (r.dmg != null) stats.push('DAÑO ' + r.dmg);
+      if (r.minWave != null) stats.push('W' + r.minWave);
+      if (r.weight != null) stats.push('PESO ' + r.weight);
+      ctx.fillStyle = r.isElite ? '#e6c85a' : (r.kind === 'boss' ? '#ff78a8' : '#9be8ff');
+      ctx.fillText(stats.join('  •  '), cx, cy + 62);
+      if (r.extra) {
+        ctx.fillStyle = '#5f728a';
+        ctx.fillText(r.extra, cx, cy + 76);
+      }
+    }
+
+    function drawSections() {
+      for (const sec of sections) {
+        ctx.fillStyle = sec.kind === 'basic' ? '#7dd3fc' : (sec.kind === 'elite' ? '#ffd700' : '#ff78a8');
+        ctx.font = 'bold 16px system-ui';
+        ctx.textAlign = 'left';
+        ctx.fillText(sec.title + '  (' + sec.count + ')', PAD, sec.startY + 26);
+        ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(PAD, sec.startY + 36);
+        ctx.lineTo(canvas.width / dpr - PAD, sec.startY + 36);
+        ctx.stroke();
+      }
+    }
+
+    let frameCount = 0;
+    function animate() {
+      ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+      drawSections();
+      for (const r of rows) if (r.cx) drawCell(r, frameCount);
+      frameCount++;
+      requestAnimationFrame(animate);
+    }
+
+    layout();
+    const logicalW = PAD * 2 + COLS * COLW, logicalH = totalH;
+    canvas.width = logicalW * dpr;
+    canvas.height = logicalH * dpr;
+    canvas.style.width = logicalW + 'px';
+    canvas.style.height = logicalH + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    animate();
+  })();
+  </script>
+</body>
+</html>

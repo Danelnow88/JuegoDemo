@@ -43,6 +43,7 @@
     WEAPON_KILLS_PER_LEVEL: 6,         // ~6 puntos de progreso por nivel
     WEAPON_PROGRESS_SCALE: 0.06,       // +6% de progreso por derribo, por oleada
     WEAPON_PROGRESS_CAP: 3,            // máx ~3 puntos de progreso por derribo
+    WEAPON_MAX_LEVEL: 100,             // tope duro de nivel de arma (pico de poder)
 
     // Duración de oleada normal (segundos, cuenta regresiva): 25 - wave*0.4, piso 15.
     // ÚNICA fuente de verdad: nextWave y la barra de progreso leen de acá.
@@ -87,6 +88,28 @@
   NV.waveWeaponMult = function (wave) {
     const w = Math.max(1, wave || 1);
     return 1 + (w - 1) * 0.05;
+  };
+
+  // ===== Bono de daño por nivel de arma (curva con soft-cap) =====
+  // Lineal hasta el nivel 50 (idéntico al comportamiento actual: +1 daño/nivel)
+  // y +0.5 daño por nivel a partir de ahí. El tope duro WEAPON_MAX_LEVEL=100
+  // marca el pico de poder sin romper la curva de dificultad media.
+  // Consumidores: engine/weapons.js (daño de bala) y render/hud.js (stats TAB).
+  NV.weaponLevelDamageBonus = function (level) {
+    const L = Math.max(1, level || 1);
+    if (L <= 50) return L;
+    return 50 + (L - 50) * 0.5;
+  };
+
+  // ---- Números de daño con código de color por intensidad (sin "CRITICAL!") ----
+  // Normal → blanco · Golpe sustancial → cian · Crítico → rojo intenso + fuente mayor.
+  // Definido aquí (data/) para que engine/bullets.js y engine/enemies.js puedan
+  // usarlo incluso en sandboxes mínimos que cargan balance.js sin fx.js.
+  NV.DAMAGE_FLOAT_COLORS = { normal: '#FFFFFF', heavy: '#00E5FF', crit: '#FF2A4B' };
+  NV.damageFloatStyle = function (dealt, crit) {
+    if (crit) return { color: NV.DAMAGE_FLOAT_COLORS.crit, size: 17 };
+    if ((dealt || 0) >= 20) return { color: NV.DAMAGE_FLOAT_COLORS.heavy, size: 15 };
+    return { color: NV.DAMAGE_FLOAT_COLORS.normal, size: 13 };
   };
 
   Object.freeze(NV.BALANCE);

@@ -26,6 +26,21 @@ JuegoDemo/
 ├── .gitignore           # Exclusiones locales/temporales.
 ├── css/
 │   └── styles.css       # Estilo visual: neon, HUD, menú, tarjetas, tienda, inventario, ofertas.
+├── docs/
+│   ├── AUDITORIA_VISUAL_ESPECTRAL.md  # Auditoría técnica de enemigos espectrales.
+│   ├── content-architecture.md        # Arquitectura de contenido (tienda, consumibles).
+│   └── META_TECH_DEBT.md              # Deuda técnica y mejoras meta.
+├── previews/
+│   ├── enemy-visual-lab.html          # Lab visual aislado (prototipos, no oficial).
+│   ├── consumable-icons-preview.html  # Preview de iconos de consumibles.
+│   ├── weapon-icons-preview.html      # Preview de iconos de armas.
+│   ├── meta-skill-icons-preview.html  # Preview de iconos de mejoras.
+│   ├── spectral-roster-preview.html   # Preview del roster espectral.
+│   └── _archive/                      # Respaldos de versiones anteriores del Lab.
+├── tools/
+│   ├── diagnostics/                   # Scripts manuales de diagnóstico.
+│   ├── _lint_lab.js                   # Verifica sintaxis del script del Visual Lab.
+│   └── _run_lab_checks.bat            # Ejecuta checks del Lab en Windows.
 └── js/
     ├── core/
     │   ├── state.js     # Namespace global window.NV (se carga primero).
@@ -39,12 +54,15 @@ JuegoDemo/
     ├── render/
     │   ├── canvas.js          # Canvas/contexto base + starfield.
     │   ├── projectiles.js     # Dibujo de proyectiles y VFX especial.
-    │   ├── enemies.js         # Dibujo de enemigos.
+    │   ├── enemies.js         # Dibujo de enemigos (fallback geométrico).
     │   ├── bosses.js          # Dibujo de jefes.
     │   ├── player.js          # Dibujo del jugador y auras.
     │   ├── weaponIcons.js     # Iconos canvas de armas.
     │   ├── consumableIcons.js # Iconos canvas de consumibles.
     │   ├── metaSkillIcons.js  # Iconos canvas de mejoras/habilidades.
+    │   ├── metaReadability.js # Mejoras de legibilidad meta/HUD.
+    │   ├── spectralEnemies2D.js # Renderer espectral Canvas2D (enemigos + élites).
+    │   ├── espectroLite.js    # Renderer WebGL opcional (specter_lite/core).
     │   └── hud.js             # HUD en canvas.
     ├── ui/
     │   └── dom.js       # Referencias DOM centralizadas en NV.dom.
@@ -59,24 +77,21 @@ JuegoDemo/
     │   ├── boss.js      # IA, ataques y estado de jefes.
     │   ├── bullets.js   # Proyectiles y colisiones.
     │   ├── weapons.js   # Disparo, targeting, fusión y knockback.
-    │   └── special.js   # Habilidades especiales de personajes.
+    │   ├── special.js   # Habilidades especiales de personajes.
+    │   ├── consumables.js # Lógica de consumibles en partida.
+    │   └── metaDiagnostics.js # Diagnóstico de mejoras meta.
     └── game.js          # Orquestador: init/update/loop, menú, tienda, oleadas, input y guardado.
 
 tests/
 ├── run_all.js           # Runner de la suite completa (`npm test`).
-└── *.js                 # Tests de regresión headless ejecutables con Node.
-
-tools/
-└── diagnostics/         # Scripts manuales de diagnóstico, fuera de la suite automática.
-
-previews/                # Páginas HTML de confirmación visual/manual de iconos y widget.
+└── *.js                 # Tests de regresión headless ejecutables con Node.       # Páginas HTML de confirmación visual/manual de iconos y widget.
 ```
 
 - **Sin build, sin bundler y sin dependencias runtime.** El juego se ejecuta abriendo `index.html` en el navegador. Node se usa solo para tests/diagnósticos.
-- **Orden de carga crítico:** `core/state.js` → `core/utils.js` → `data/*` → `audio/synth.js` → `ui/dom.js` → `render/*` → `engine/*` → `game.js`. No reordenar scripts sin correr la suite completa y revisar dependencias `NV.*`.
+- **Orden de carga crítico:** `core/state.js` → `core/utils.js` → `data/*` → `audio/synth.js` → `ui/dom.js` → `render/spectralEnemies2D.js` → `render/enemies.js` → `render/bosses.js` → resto de `render/*` → `engine/*` → `game.js`. No reordenar scripts sin correr la suite completa y revisar dependencias `NV.*`. **Importante:** `spectralEnemies2D.js` debe cargarse antes que `enemies.js`.
 - `game.js` está en una **IIFE** con `'use strict'` (todo scoped, no contamina el global), mientras los módulos comparten API mediante `window.NV`.
 - El estado del juego y del canvas es totalmente **procedural** (se dibuja en cada frame con `requestAnimationFrame`).
-- **Tests:** correr `npm test` desde la raíz. El runner ejecuta los tests de regresión en `tests/*.js`; los diagnósticos manuales de audio/ritmo viven en `tools/diagnostics/` y no forman parte de la suite automática.
+- **Tests:** correr `npm test` desde la raíz. El runner ejecuta los tests de regresión en `tests/*.js` (≈80 archivos); los diagnósticos manuales de audio/ritmo viven en `tools/diagnostics/` y no forman parte de la suite automática. Tests espectrales: `tests/spectral_enemies_render.js` (57 tests), `tests/spectral_enemies_integration.js` (9 tests), `tests/spectral_enemy_spawn.js`, `tests/spectral_roster_preview.js`.
 
 ---
 
@@ -166,9 +181,9 @@ Definidas en `const WEAPONS` con rareza `common / uncommon / rare / epic / legen
 
 ---
 
-##  Enemigos básicos (7 tipos)
+##  Enemigos básicos (7 tipos legacy)
 
-Definidos en `const ENEMY_TYPES`.
+Definidos en `const ENEMY_TYPES`. Son los enemigos originales con render geométrico fallback.
 
 | ID | Nombre | HP | Vel. | Daño | Shape | Behavior |
 |----|--------|----|------|------|-------|----------|
@@ -182,20 +197,66 @@ Definidos en `const ENEMY_TYPES`.
 
 ---
 
-##  Élites (8 tipos)
+##  Enemigos espectrales Canvas2D (6 tipos, wave 3-5)
 
-Definidos en `const ELITE_TYPES`. Aparecen aleatoriamente durante las oleadas, tienen más HP, score y xp, y se aturden brevemente al recibir daño (`e.stun = 0.25` en `updateBullets`).
+Definidos en `const ENEMY_TYPES` con `shape !== 'specter'`. Aparecen temprano (wave 3-5) y usan el **renderer espectral Canvas2D** (`js/render/spectralEnemies2D.js`) cuando `SPECTRAL_ENEMY_MODE` está activo. Tienen **6 variantes de fantasma negro** con ojos-runa rojos y cola viva (visual aprobado en `previews/enemy-visual-lab.html`).
 
-| Nombre | HP | Vel. | Daño | Shape |
-|--------|----|------|------|-------|
-| ÉLITE | 90 | 90 | 20 | hex |
-| RÁPIDO | 40 | 190 | 15 | triangle |
-| TANQUE | 160 | 35 | 25 | rock |
-| ASESINO | 55 | 165 | 30 | diamond |
-| FANTASMA | 65 | 145 | 25 | circle |
-| CAOS | 105 | 130 | 22 | atom |
-| GOLIATH | 210 | 25 | 35 | rock |
-| VELOCITY | 40 | 220 | 18 | dot |
+| ID | Nombre | HP | Vel. | Daño | Wave | Weight | Visual |
+|----|--------|----|------|------|------|--------|--------|
+| `specter_grunt` | ESPECTRO PEÓN | 20 | 85 | 10 | 3 | 0.15 | Pose 0 (rune star) |
+| `specter_archer` | ESPECTRO ARQUERO | 18 | 60 | 9 | 3 | 0.12 | Pose 1 (spear eye) |
+| `specter_guard` | ESPECTRO GUARDIA | 55 | 45 | 12 | 5 | 0.10 | Pose 2 (broken diamond) |
+| `specter_elite_swift` | ESPECTRO VELOZ | 70 | 210 | 22 | 12 | 0.04 | Pose 3 (crooked star) |
+| `specter_elite_wrath` | ESPECTRO IRA | 130 | 95 | 30 | 14 | 0.03 | Pose 4 (forked eye) |
+| `specter_elite_void` | ESPECTRO VACÍO | 95 | 70 | 24 | 16 | 0.03 | Pose 5 (hourglass blade) |
+
+**Render:** `drawLabSpecterEnemy()` en `spectralEnemies2D.js`. Cada variante tiene ojos, boca, cola y aura distintos.
+
+---
+
+##  Espectros legacy WebGL (2 tipos, wave 16+)
+
+Definidos en `const ENEMY_TYPES` con `shape: 'specter'`. Usan el **renderer WebGL opcional** (`js/render/espectroLite.js`) si está activo, o fallback Canvas2D (`drawSpecter2D`).
+
+| ID | Nombre | HP | Vel. | Daño | Wave | Variant |
+|----|--------|----|------|------|------|---------|
+| `specter_lite` | ESPECTRO LÚTIL | 18 | 100 | 8 | 16 | lite |
+| `specter_core` | ESPECTRO NÚCLEO | 28 | 55 | 12 | 20 | core |
+
+**Nota:** Estos son los espectros originales WebGL. No confundir con los 6 espectrales Canvas2D nuevos.
+
+---
+
+##  Élites base (8 tipos)
+
+Definidos en `const ELITE_TYPES`. Aparecen aleatoriamente durante las oleadas (cada 2 oleadas desde la 3), tienen más HP, score y xp, y se aturden brevemente al recibir daño (`e.stun = 0.25` en `updateBullets`). Cuando `SPECTRAL_ENEMY_MODE` está activo, usan el **visual de raid boss espectral** (silueta negra, coronas, mantos, sigilos, halos y colas jerárquicas).
+
+| Nombre | HP | Vel. | Daño | Shape | visualId | Visual raid boss |
+|--------|----|------|------|-------|----------|------------------|
+| ÉLITE | 90 | 90 | 20 | hex | elite_base | Corona 3 picos, halo arco, manto discreto, sigilo estrella |
+| RÁPIDO | 40 | 190 | 15 | triangle | elite_velocity | Corona mitra, halo doble anillo, hombreras obispales, sigilo 3 ranuras |
+| TANQUE | 160 | 35 | 25 | rock | elite_bulwark | Corona cresta asimétrica, halo diamante, velos rasgados, sigilo diamante roto |
+| ASESINO | 55 | 165 | 30 | diamond | elite_predator | Corona collar-cuchilla, halo slash, manto severo, sigilo doble chevron |
+| FANTASMA | 65 | 145 | 25 | circle | elite_phantom | Corona velos laterales, halo triple eye-ring, cintas altas, sigilo lanza |
+| CAOS | 105 | 130 | 22 | atom | elite_chaos | Corona regia gruesa, halo arco imperial, manto doble regio, sigilo tridente |
+| GOLIATH | 210 | 25 | 35 | rock | elite_titan | Corona mitra alta, halo triple eye-ring, manto severo, sigilo estrella |
+| VELOCITY | 40 | 220 | 18 | dot | elite_swift | Corona cresta, halo arco imperial, hombreras obispales, sigilo 3 ranuras |
+
+**Render:** `drawEliteBossEnemy()` en `spectralEnemies2D.js`. Cada élite tiene **pose única** con variaciones de cuerpo (`body`, `head`, `shoulder`, `waist`, `root`), ojos (estilos 6-11), boca, aura, halo, corona, manto y cola (1-4 colas según `tailMode`).
+
+---
+
+##  Élites espectrales (3 tipos, raros)
+
+Definidos en `const ELITE_TYPES` con `spectralElite: true`. Se seleccionan ponderado SOLO desde su `minWave`. El resto de élites mantiene su ciclo original intacto.
+
+| ID | Nombre | HP | Vel. | Daño | Wave | Weight | visualId |
+|----|--------|----|------|------|------|--------|----------|
+| `specter_elite_swift` | ESPECTRO VELOZ | 70 | 210 | 22 | 12 | 0.04 | elite_specter_swift |
+| `specter_elite_wrath` | ESPECTRO IRA | 130 | 95 | 30 | 14 | 0.03 | elite_specter_wrath |
+| `specter_elite_void` | ESPECTRO VACÍO | 95 | 70 | 24 | 16 | 0.03 | elite_specter_void |
+
+**Render:** Usan el sistema de efectos élite (`drawEliteEffects`) con halos, coronas, núcleos vacíos y efectos de fase.
 
 ---
 
@@ -215,6 +276,71 @@ Definidos en `const BOSS_TYPES`. Aparecen cada 5 oleadas. Cada jefe tiene patró
 | FANTASMA | 280 | 45 | phase | orbs | circle |
 | MUTANTE | 380 | 32 | split | split | hex |
 | APOCALIPSIS | 800 | 22 | rage | rage | rock |
+
+---
+
+##  Sistema de render espectral
+
+El juego tiene **3 sistemas de render** para enemigos, activados por flags:
+
+### 1. Render original (fallback geométrico)
+- **Archivo:** `js/render/enemies.js` → `NV.drawEnemy()`
+- **Uso:** Enemigos básicos (7 legacy) cuando `SPECTRAL_ENEMY_MODE` está desactivado.
+- **Estilo:** Formas geométricas (circle, triangle, hex, diamond, atom, rock, dot) con ojos que siguen al jugador.
+
+### 2. Render espectral Canvas2D
+- **Archivo:** `js/render/spectralEnemies2D.js` → `NV.drawSpectralEnemy2D()`
+- **Activo:** Cuando `NV.SPECTRAL_ENEMY_MODE === true` (default: `true`).
+- **Toggle:** `NV.toggleSpectralEnemyMode(enabled)` en `js/game.js`.
+- **Aplica a:**
+  - **6 espectrales Canvas2D** → `drawLabSpecterEnemy()` (fantasmas negros con ojos runa 0-5).
+  - **8 élites base** → `drawEliteBossEnemy()` (raid bosses con coronas/mantos/sigilos/halos, ojos 6-11).
+  - **3 élites espectrales** → `drawEliteEffects()` (halos, coronas, núcleos vacíos).
+  - **10 jefes** → `drawSpectralBoss2D()` (auras masivas, spikes grandes).
+- **NO aplica a:** `shape === 'specter'` (espectros legacy WebGL).
+
+### 3. Render WebGL opcional
+- **Archivo:** `js/render/espectroLite.js` → `NV.EspectroLite`
+- **Activo:** Cuando `NV.ESPECTRO_LITE_ACTIVE === true` (default: `false`, inerte).
+- **Aplica a:** `specter_lite` y `specter_core` (wave 16+).
+- **Fallback:** Si WebGL falla, usan `drawSpecter2D` (Canvas2D).
+
+### Flujo de decisión en `drawEnemy()` (js/game.js):
+```
+if (SPECTER_ENABLED === false && shape === 'specter') → ocultar
+if (isEnemyRenderedByLite(e)) → ocultar (WebGL lo renderiza)
+if (SPECTRAL_ENEMY_MODE && drawSpectralEnemy2D) → drawSpectralEnemy2D(ctx, e, frame, player, rhythm)
+else → drawEnemy(ctx, e, frame, player, rhythm)  # fallback original
+```
+
+### Flags importantes:
+| Flag | Default | Descripción |
+|------|---------|-------------|
+| `NV.SPECTRAL_ENEMY_MODE` | `true` | Activa render espectral Canvas2D para enemigos/élites/jefes. |
+| `NV.SPECTER_ENABLED` | `true` | Oculta espectros legacy WebGL si `false`. |
+| `NV.ESPECTRO_LITE_ACTIVE` | `false` | Activa renderer WebGL (inerte por defecto). |
+
+---
+
+##  Enemy Visual Lab (debug only)
+
+**Archivo:** `previews/enemy-visual-lab.html`
+
+Sandbox visual aislado para prototipar enemigos espectrales **sin tocar gameplay, oleadas, balance ni el renderer oficial**. Se juega abriendo el archivo en el navegador (no requiere servidor).
+
+### Características:
+- Carga `js/render/espectroLite.js` oficial y Three.js vía CDN/import-map.
+- Compara Specter WebGL vs Canvas2D fallback.
+- Controles: renderer, focus/swarm, spawn 1/5/10/30/60, movement, AI sim, speed, animation pause, scale, beat auto/manual, particles, eyes, hit flash, atk flash, slow, env color, fondo neon/dark.
+- Panel VISUAL DEBUG / MÉTRICAS REALES con scale, speed, beat, renderer, particles, eyes, movement, entity count, FPS, dt, y `renderer.info` de Three.js.
+
+### Uso:
+1. Pegar código visual en `previews/enemy-visual-lab.html`.
+2. Probar casos visuales y pasar observaciones.
+3. Una vez aprobado, integrar en `js/render/spectralEnemies2D.js`.
+
+### Nota importante:
+El Lab es **PoC visual/test artístico**, no gameplay oficial. Los cambios en el Lab no afectan al juego hasta que se integran en el renderer real.
 
 ---
 
@@ -340,6 +466,15 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 ---
 
 ##  Timeline / versionado
+
+### v60 — Enemigos espectrales Canvas2D + Visual Lab
+- **6 enemigos espectrales Canvas2D nuevos** (wave 3-5): `specter_grunt`, `specter_archer`, `specter_guard` + 3 élites espectrales (`specter_elite_swift/wrath/void`). Definidos en `ENEMY_TYPES`/`ELITE_TYPES` con `shape !== 'specter'` (no WebGL). (`js/data/gameData.js`)
+- **Renderer espectral Canvas2D** (`js/render/spectralEnemies2D.js`): `drawSpectralEnemy2D()` con 3 ramas: 6 espectrales → `drawLabSpecterEnemy()` (fantasmas negros, ojos runa 0-5), 8 élites base → `drawEliteBossEnemy()` (raid bosses, coronas/mantos/sigilos/halos, ojos 6-11), resto → fallback original.
+- **Visual de raid bosses para élites**: 8 poses únicas (`ELITE_BOSS_POSES`) con variaciones de cuerpo (`body`, `head`, `shoulder`, `waist`, `root`), ojos (estilos 6-11), bocas, auras, halos, coronas, mantos y colas (1-4 colas según `tailMode`). Funciones: `drawEliteAura()`, `drawEliteSigil()`, `drawBossHalo()`, `drawBossCrown()`, `drawBossMantle()`, `getBossTailSpecs()`.
+- **Enemy Visual Lab** (`previews/enemy-visual-lab.html`): sandbox aislado para prototipar visuales sin tocar gameplay. Controles completos + panel DEBUG. Los cambios en el Lab no afectan al juego hasta integrarse en el renderer real.
+- **Tests**: `tests/spectral_enemies_render.js` (57 tests), `tests/spectral_enemies_integration.js` (9 tests). Todos verdes.
+- **Flags**: `NV.SPECTRAL_ENEMY_MODE` (default: `true`), `NV.SPECTER_ENABLED` (default: `true`), `NV.ESPECTRO_LITE_ACTIVE` (default: `false`).
+- **No tocó**: `hp`, `speed`, `radius`, `damage`, `behavior`, spawn, oleadas, pesos, `gameData.js` (datos), `engine/enemies.js`. Solo visual.
 
 ### v59 — Bloque 1: AGC + umbrales robustos (anti-aplanado deathcore)
 - **Diagnóstico**: con master muy comprimido (deathcore, blast beats) la energía cruda quedaba 5x por encima de otros estilos y clavaba el render al tope; las medias móviles EMA de los umbrales se contaminaban con los propios golpes detectados y colapsaban el contraste de transientes (sd/media ~0.63).

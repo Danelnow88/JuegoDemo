@@ -148,6 +148,13 @@
     { id: 'wisp', name: 'ESPÍRITU', hp: 12, speed: 160, radius: 6, color: '#4ade80', shape: 'dot', score: 6, xp: 6, behavior: 'erratic', knockbackRes: 0.2, damage: 6, minWave: 15 },
     { id: 'kamikaze', name: 'KAMIKAZE', hp: 20, speed: 125, radius: 10, color: '#ff5f3d', shape: 'triangle', score: 22, xp: 22, behavior: 'kami', knockbackRes: 0.2, damage: 14, minWave: 10 },
 
+    // === ESPECTROS NUEVOS (estética espectral Canvas2D, sin WebGL) ===
+    // Aparecen temprano (wave 3-5). shape NO es 'specter': conservan el render
+    // geométrico de fallback cuando SPECTRAL_ENEMY_MODE está apagado.
+    { id: 'specter_grunt', name: 'ESPECTRO PEÓN', hp: 20, speed: 85, radius: 10, color: '#d8f6ff', shape: 'circle', score: 12, xp: 12, behavior: 'chase', knockbackRes: 0.1, damage: 10, minWave: 3, weight: 0.15 },
+    { id: 'specter_archer', name: 'ESPECTRO ARQUERO', hp: 18, speed: 60, radius: 12, color: '#ffb24a', shape: 'triangle', score: 18, xp: 18, behavior: 'ranged', knockbackRes: 0.2, damage: 9, minWave: 3, weight: 0.12 },
+    { id: 'specter_guard', name: 'ESPECTRO GUARDIA', hp: 55, speed: 45, radius: 18, color: '#67f8c8', shape: 'hex', score: 28, xp: 32, behavior: 'shield', knockbackRes: 0.7, damage: 12, minWave: 5, weight: 0.10, shield: true, resist: 2 },
+
     // === ESPECTROS (oleadas altas) ===
     // Formas espectrales: visual WebGL aprobado, con fallback Canvas2D si WebGL falla.
     // El peso (weight) controla la frecuencia relativa de aparición respecto al resto de tipos.
@@ -156,15 +163,24 @@
   ];
 
   // === ÉLITES (8 tipos) ===
+  // visualId: identidad para el renderer espectral (spectralEnemies2D.js).
+  // Si no está presente, cae a 'elite_base' (dorado genérico).
   NV.ELITE_TYPES = [
-    { name: 'ÉLITE', hp: 90, speed: 90, radius: 20, color: '#ff0', shape: 'hex', score: 50, xp: 50, behavior: 'chase', damage: 20 },
-    { name: 'RÁPIDO', hp: 40, speed: 190, radius: 14, color: '#0ff', shape: 'triangle', score: 30, xp: 30, behavior: 'erratic', damage: 15 },
-    { name: 'TANQUE', hp: 160, speed: 35, radius: 30, color: '#f80', shape: 'rock', score: 60, xp: 60, behavior: 'chase', damage: 25, resist: 3 },
-    { name: 'ASESINO', hp: 55, speed: 165, radius: 12, color: '#f0f', shape: 'diamond', score: 40, xp: 40, behavior: 'chase', damage: 30 },
-    { name: 'FANTASMA', hp: 65, speed: 145, radius: 16, color: '#e0ffff', shape: 'circle', score: 45, xp: 45, behavior: 'erratic', damage: 25 },
-    { name: 'CAOS', hp: 105, speed: 130, radius: 22, color: '#ff4500', shape: 'atom', score: 55, xp: 55, behavior: 'erratic', damage: 22 },
-    { name: 'GOLIATH', hp: 210, speed: 25, radius: 36, color: '#ff1493', shape: 'rock', score: 100, xp: 100, behavior: 'chase', damage: 35, stunChance: 0.15, resist: 3 },
-    { name: 'VELOCITY', hp: 40, speed: 220, radius: 10, color: '#00ff88', shape: 'dot', score: 35, xp: 35, behavior: 'chase', damage: 18 },
+    { name: 'ÉLITE', hp: 90, speed: 90, radius: 20, color: '#ff0', shape: 'hex', score: 50, xp: 50, behavior: 'chase', damage: 20, visualId: 'elite_base' },
+    { name: 'RÁPIDO', hp: 40, speed: 190, radius: 14, color: '#0ff', shape: 'triangle', score: 30, xp: 30, behavior: 'erratic', damage: 15, visualId: 'elite_velocity' },
+    { name: 'TANQUE', hp: 160, speed: 35, radius: 30, color: '#f80', shape: 'rock', score: 60, xp: 60, behavior: 'chase', damage: 25, resist: 3, visualId: 'elite_bulwark' },
+    { name: 'ASESINO', hp: 55, speed: 165, radius: 12, color: '#f0f', shape: 'diamond', score: 40, xp: 40, behavior: 'chase', damage: 30, visualId: 'elite_predator' },
+    { name: 'FANTASMA', hp: 65, speed: 145, radius: 16, color: '#e0ffff', shape: 'circle', score: 45, xp: 45, behavior: 'erratic', damage: 25, visualId: 'elite_phantom' },
+    { name: 'CAOS', hp: 105, speed: 130, radius: 22, color: '#ff4500', shape: 'atom', score: 55, xp: 55, behavior: 'erratic', damage: 22, visualId: 'elite_chaos' },
+    { name: 'GOLIATH', hp: 210, speed: 25, radius: 36, color: '#ff1493', shape: 'rock', score: 100, xp: 100, behavior: 'chase', damage: 35, stunChance: 0.15, resist: 3, visualId: 'elite_titan' },
+    { name: 'VELOCITY', hp: 40, speed: 220, radius: 10, color: '#00ff88', shape: 'dot', score: 35, xp: 35, behavior: 'chase', damage: 18, visualId: 'elite_swift' },
+
+    // === ÉLITES ESPECTRALES (minWave + weight, raros) ===
+    // spectralElite: spawnElite los selecciona ponderado SOLO desde su minWave.
+    // El resto de élites mantiene su ciclo original intacto (sin tocar mecánicas).
+    { id: 'specter_elite_swift', name: 'ESPECTRO VELOZ', hp: 70, speed: 210, radius: 12, color: '#55f6ff', shape: 'diamond', score: 70, xp: 70, behavior: 'chase', damage: 22, minWave: 12, weight: 0.04, visualId: 'elite_specter_swift', spectralElite: true },
+    { id: 'specter_elite_wrath', name: 'ESPECTRO IRA', hp: 130, speed: 95, radius: 22, color: '#ff3ccf', shape: 'hex', score: 90, xp: 90, behavior: 'chase', damage: 30, minWave: 14, weight: 0.03, visualId: 'elite_specter_wrath', spectralElite: true, knockbackRes: 0.5 },
+    { id: 'specter_elite_void', name: 'ESPECTRO VACÍO', hp: 95, speed: 70, radius: 18, color: '#9b4dff', shape: 'circle', score: 95, xp: 95, behavior: 'ranged', damage: 24, minWave: 16, weight: 0.03, visualId: 'elite_specter_void', spectralElite: true, knockbackRes: 0.4, stunChance: 0.1 },
   ];
 
   // === BOSSES (10 tipos) ===

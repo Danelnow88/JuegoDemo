@@ -53,11 +53,20 @@
     const y = 80 + Math.random() * (st.H - 200);
     const hpScale = NV.enemyHpScale(st.wave); // B1: curva única en balance.js
     const dmgScale = Math.min(60, Math.round(st.wave * 1.5)); // el daño enemigo también escala
+    // Down-scale líquido (Visual Lab): si el tipo tiene modelo asignado, el
+    // radio de hitbox se adapta al factor del modelo (labModelHitboxFactor =
+    // factorVisual / 0.8 previo) para que la detección coincida con la silueta
+    // dibujada a su nuevo tamaño. Sin renderer cargado (sandboxes): radio datos.
+    let hitboxRadius = type.radius;
+    if (type.id && NV.LAB_SPECTER_IDS && NV.labModelHitboxFactor) {
+      const mi = NV.LAB_SPECTER_IDS[type.id];
+      if (mi !== undefined) hitboxRadius = type.radius * NV.labModelHitboxFactor(mi);
+    }
     st.enemies.push({
       x: side, y: y,
       hp: Math.round(type.hp * hpScale), maxHp: Math.round(type.hp * hpScale),
       speed: type.speed + Math.min(40, st.wave * 2.5),
-      radius: type.radius, color: type.color, shape: type.shape,
+      radius: hitboxRadius, color: type.color, shape: type.shape,
       enemyTypeId: type.id,
       score: type.score * (1 + st.wave * 0.1), xp: type.xp * (1 + st.wave * 0.1),
       dead: false, behavior: type.behavior,
@@ -103,11 +112,20 @@
       const side = Math.random() < 0.5 ? 0 : st.W;
       const y = 80 + Math.random() * (st.H - 200);
       const eliteDmg = elite.damage + Math.min(80, Math.round(st.wave * 2));
+      // Down-scale líquido: la élite adapta su hitbox al factor del modelo que
+      // la dibuja (id para las espectrales, visualId para las base). El ratio
+      // uniforme del modelo 5 preserva la jerarquía relativa entre élites.
+      let hitboxRadius = elite.radius;
+      const eliteKey = elite.id || elite.visualId;
+      if (eliteKey && NV.LAB_SPECTER_IDS && NV.labModelHitboxFactor) {
+        const mi = NV.LAB_SPECTER_IDS[eliteKey];
+        if (mi !== undefined) hitboxRadius = elite.radius * NV.labModelHitboxFactor(mi);
+      }
       const pushed = {
         x: side, y: y,
         hp: Math.round(elite.hp + st.wave * st.wave * 1.5), maxHp: Math.round(elite.hp + st.wave * st.wave * 1.5),
         speed: elite.speed + st.wave,
-        radius: elite.radius, color: elite.color, shape: elite.shape,
+        radius: hitboxRadius, color: elite.color, shape: elite.shape,
         score: elite.score, xp: elite.xp, dead: false,
         behavior: elite.behavior, angle: Math.random() * Math.PI * 2,
         erraticTimer: 0, isElite: true, eliteDamage: eliteDmg,
@@ -126,6 +144,12 @@
   };
 
   // ---- Derribo (muta player/weaponLevels/weaponKills por ref; devuelve nuevo score) ----
+  // Estilo del número de daño. Delegado en balance.js (NV.damageFloatStyle)
+  // cuando está cargado; fallback mínimo para sandboxes aislados.
+  function hitFloatStyle(dealt, crit) {
+    if (NV.damageFloatStyle) return NV.damageFloatStyle(dealt, crit);
+    return { color: crit ? '#FF2A4B' : '#FFFFFF', size: crit ? 17 : 13 };
+  }
   NV.killEnemy = function (st) {
     const e = st.e;
     e.dead = true;
@@ -146,9 +170,10 @@
     const wid = st.currentWeapon.id;
     const curLevel = st.weaponLevels[wid] || 1;
     st.weaponKills[wid] = (st.weaponKills[wid] || 0) + st.weaponKillProgress();
-    if (st.weaponKills[wid] >= st.WEAPON_KILLS_PER_LEVEL * curLevel) {
+    // Tope duro de nivel de arma (WEAPON_MAX_LEVEL): Nv100 = pico de poder.
+    // Sin texto flotante de subida: el nivel se lee en el HUD (badge del slot).
+    if (curLevel < (NV.BALANCE.WEAPON_MAX_LEVEL || 100) && st.weaponKills[wid] >= st.WEAPON_KILLS_PER_LEVEL * curLevel) {
       st.weaponLevels[wid] = curLevel + 1;
-      st.addFloatText(st.player.x, st.player.y - 40, st.currentWeapon.name + ' → Nv ' + (curLevel + 1), '#ffd700');
       (st.sfx.fuse || st.sfx.levelup)(curLevel + 1);
     }
     st.spawnExplosion(e.x, e.y, 8, e.color, 0.3);
@@ -459,7 +484,8 @@
           if (st.onKill) st.onKill(e);
           if (e.stunChance && Math.random() < e.stunChance) { st.player.stun = 0.6; addFloatText(st.player.x, st.player.y - 30, 'STUN', '#ff0'); }
           shake = Math.max(shake, hit.crit ? 0.3 : 0.15);
-          addFloatText(st.player.x, st.player.y - 20, '-' + damage + (hit.crit ? ' ★CRIT' : ''), hit.crit ? '#ff0' : (e.isElite ? '#ff0' : '#ff5f9b'));
+          const cfs = hitFloatStyle(damage, !!hit.crit);
+          addFloatText(st.player.x, st.player.y - 20, '-' + damage, cfs.color, cfs.size);
           if (st.player.hp <= 0) { gameOver = true; return { enemies: enemies.filter((x) => !x.dead), shake, gameOver }; }
         }
       }

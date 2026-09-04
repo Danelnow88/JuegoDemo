@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Espectro Sombrío - Remasterizado WebGL</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #0a0a0a; /* Fondo oscuro tipo niebla */
+            color: white;
+            font-family: sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        #info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border-radius: 8px;
+            pointer-events: none;
+            z-index: 100;
+        }
+    </style>
+    <!-- Importamos Three.js desde CDN -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+<body>
+
+    <div id="info">
+        <h2>Estética: Tinta Negra + Lava Naranja + Ojos Rojos</h2>
+        <p>Movimiento orgánico (Shader de vértices) y fuego interno (Shader de fragmentos).</p>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+        import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+        import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+
+        // 1. ESCENA, CÁMARA Y RENDERIZADOR
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x0a0a0a, 0.05); // Niebla para ocultar bordes
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.z = 5;
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // 2. SHADER PARA EL "ESPECTRO DE TINTA" (Arquetipo 1 y 2 combinados)
+        const vertexShader = `
+            uniform float uTime;
+            varying vec2 vUv;
+            
+            void main() {
+                vUv = uv;
+                vec3 pos = position;
+                
+                // Movimiento ondulante de "tinta líquida" y "humo"
+                float waveX = sin(pos.y * 5.0 + uTime * 2.0) * 0.1;
+                float waveY = cos(pos.x * 8.0 + uTime * 1.5) * 0.1;
+                
+                // Distorsión en los bordes para que no sea una geometría simple
+                pos.x += waveX;
+                pos.y += waveY;
+                
+                // Hacer que la parte de abajo se "derrita" hacia afuera
+                if (pos.y < -0.8) {
+                    pos.x += sin(uTime * 3.0 + pos.y * 10.0) * 0.3;
+                    pos.y -= cos(uTime * 2.0) * 0.1;
+                }
+
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+            }
+        `;
+
+        const fragmentShader = `
+            uniform float uTime;
+            varying vec2 vUv;
+            
+            void main() {
+                // Color base: Negro azabache profundo
+                vec3 colorTinta = vec3(0.02, 0.02, 0.02);
+                // Color de lava/fuego interior: Naranja intenso
+                vec3 colorLava = vec3(1.0, 0.4, 0.0);
+                // Color de los bordes superiores: Gris oscuro sutil para dar volumen
+                vec3 colorBorde = vec3(0.1, 0.1, 0.1);
+
+                // Mezcla de colores según la altura (vUv.y)
+                // Zona inferior: Lava
+                if (vUv.y < 0.3) {
+                    // Parpadeo de fuego usando ruido matemático
+                    float fuego = sin(vUv.x * 20.0 + uTime * 8.0) * 0.5 + 0.5;
+                    fuego = max(fuego, sin(vUv.x * 40.0 - uTime * 12.0) * 0.5 + 0.5);
+                    
+                    // Transición suave entre negro y lava
+                    colorTinta = mix(colorTinta, colorLava, fuego * 0.8);
+                } 
+                // Zona media/superior: Tinta con leves reflejos
+                else {
+                    float brillo = sin(vUv.y * 5.0 + uTime) * 0.05;
+                    colorTinta = mix(colorTinta, colorBorde, brillo);
+                }
+
+                // Ojos: Círculos rojos brillantes (calculados por coordenadas UV)
+                // Ojo izquierdo (aprox x=0.35, y=0.65)
+                float distOjoIzq = distance(vUv, vec2(0.35, 0.65));
+                // Ojo derecho (aprox x=0.65, y=0.65)
+                float distOjoDer = distance(vUv, vec2(0.65, 0.65));
+                
+                // Radio del ojo
+                float radio = 0.05;
+                
+                if (distOjoIzq < radio || distOjoDer < radio) {
+                    // Color rojo brillante puro
+                    colorTinta = vec3(1.0, 0.0, 0.0);
+                }
+
+                gl_FragColor = vec4(colorTinta, 1.0);
+            }
+        `;
+
+        // 3. CREACIÓN DE LOS ENEMIGOS (Geometría personalizada e irregular)
+        function crearEspectro(posX, scale) {
+            // Usamos un cono con muchos segmentos para que el shader pueda deformarlo
+            const geometry = new THREE.ConeGeometry(1, 2.5, 32, 20, true); 
+            const material = new THREE.ShaderMaterial({
+                vertexShader: vertexShader,
+                fragmentShader: fragmentShader,
+                uniforms: {
+                    uTime: { value: 0 }
+                },
+                side: THREE.DoubleSide,
+                transparent: true
+            });
+
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.position.x = posX;
+            mesh.scale.set(scale, scale, scale);
+            scene.add(mesh);
+            return mesh;
+        }
+
+        // Creamos 2 enemigos con diferentes alturas y posiciones
+        const espectro1 = crearEspectro(-1.8, 1.0);
+        const espectro2 = crearEspectro(1.8, 0.8);
+
+        // 4. POST-PROCESADO: BLOOM (El brillo de los ojos y la lava)
+        const composer = new EffectComposer(renderer);
+        composer.addPass(new RenderPass(scene, camera));
+        
+        const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
+        bloomPass.threshold = 0.1;
+        bloomPass.strength = 1.2;
+        bloomPass.radius = 0.5;
+        composer.addPass(bloomPass);
+
+        // 5. ANIMACIÓN
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const delta = clock.getDelta();
+            const elapsedTime = clock.getElapsedTime();
+
+            // Actualizar el tiempo en los shaders
+            espectro1.material.uniforms.uTime.value = elapsedTime;
+            espectro2.material.uniforms.uTime.value = elapsedTime * 1.2; // El segundo se mueve diferente
+
+            // Movimiento de flotación
+            espectro1.position.y = Math.sin(elapsedTime * 1.5) * 0.2;
+            espectro2.position.y = Math.cos(elapsedTime * 1.2) * 0.2;
+
+            // Giro suave (Rotación)
+            espectro1.rotation.y = Math.sin(elapsedTime * 0.5) * 0.3;
+            espectro2.rotation.y = Math.cos(elapsedTime * 0.5) * 0.3;
+
+            // Renderizar con el efecto Bloom
+            composer.render();
+        }
+
+        // Ajustar tamaño de ventana
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            composer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Iniciar
+        animate();
+    </script>
+</body>
+</html>

@@ -16,7 +16,7 @@ for (const file of testFiles) {
   const relativePath = path.join('tests', file);
   console.log('\n=== ' + relativePath + ' ===');
 
-  const result = spawnSync(process.execPath, [relativePath], {
+const result = spawnSync(process.execPath, [relativePath], {
     cwd: rootDir,
     stdio: 'inherit',
   });
@@ -24,6 +24,9 @@ for (const file of testFiles) {
   if (result.status !== 0) {
     failed++;
     console.log('FAILED ' + relativePath + ' (exit ' + result.status + ')');
+  } else if (result.error) {
+    failed++;
+    console.log('ERRORED ' + relativePath + ' -> ' + result.error.message);
   }
 }
 
