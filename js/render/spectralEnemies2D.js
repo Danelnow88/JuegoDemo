@@ -471,19 +471,28 @@
   // --- Estilo líquido "hand-drawn" (de enemy-visual-lab) para specter_grunt ---
   // Ahora prioriza fidelidad visual al lab; rendimiento se optimiza después.
   function liquidJitter(seed, i, frame) {
-    const v = Math.sin((seed * 12.9898) + (i * 78.233) + (frame * 0.37)) * 43758.5453;
+    // Emula el Math.random() por-frame del lab: jitter sucio, rápido y no interpolado.
+    // El frame entra fuerte a propósito para que el contorno hierva como en enemy-visual-lab.html.
+    const v = Math.sin((seed * 12.9898) + (i * 78.233) + (frame * 19.191)) * 43758.5453;
     return v - Math.floor(v) - 0.5; // -0.5..0.5
   }
   function drawLiquidBlob(ctx, cx, cy, radius, points, noiseAmp, speedMult, seed, frame, withGlow) {
-    const t = frame * 0.016;
+    // enemy-visual-lab.html avanza con time += 0.03 por frame. Antes usábamos
+    // 0.016 y la criatura se veía correcta de forma/tamaño, pero sin la agitación
+    // fuerte del contorno exterior.
+    const t = frame * 0.03;
     ctx.save();
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.shadowBlur = 0;
+    if (ctx.setLineDash) ctx.setLineDash([]);
     ctx.translate(cx, cy);
     ctx.beginPath();
     for (let i = 0; i <= points; i++) {
       const angle = (i / points) * Math.PI * 2;
       const n1 = Math.sin(angle * 4 + t * 12 * speedMult + seed);
       const n2 = Math.cos(angle * 7 - t * 18 * speedMult + seed * 2);
-      const jt = liquidJitter(seed, i, frame) * 1.5;
+      const jt = liquidJitter(seed, i, frame) * 2;
       const r = radius + (n1 + n2 * 0.5) * noiseAmp + jt;
       const x = Math.cos(angle) * r;
       const y = Math.sin(angle) * r;
@@ -493,12 +502,24 @@
     ctx.closePath();
     ctx.fillStyle = '#08080e';
     ctx.fill();
+    if (withGlow) {
+      // Pasada externa extra: no cambia la silueta base, pero recupera la
+      // animación/energía roja que en el lab destaca alrededor del enemigo.
+      ctx.save();
+      ctx.globalAlpha = 0.55 + Math.sin(t * 24 + seed) * 0.12;
+      ctx.strokeStyle = 'rgba(255, 42, 75, 0.72)';
+      ctx.lineWidth = 5.2 + Math.sin(t * 31 + seed) * 1.2;
+      ctx.shadowColor = '#ff2a4b';
+      ctx.shadowBlur = 20 + Math.sin(t * 17 + seed) * 5;
+      ctx.stroke();
+      ctx.restore();
+    }
     ctx.lineWidth = 2.5 + Math.sin(t * 20 + seed) * 1;
     ctx.strokeStyle = '#ff2a4b';
     if (withGlow) { ctx.shadowColor = '#ff2a4b'; ctx.shadowBlur = 12; }
     ctx.stroke();
     ctx.shadowBlur = 0;
-    // Tinta interior sutil (blanco, sin glow para rendimiento).
+    // Tinta interior como el lab, más visible sobre el fondo real del juego.
     ctx.beginPath();
     for (let i = 0; i <= points / 2; i++) {
       const angle = (i / (points / 2)) * Math.PI * 2 + t * 2;
@@ -508,13 +529,16 @@
       if (i === 0) ctx.moveTo(x, y);
       else ctx.lineTo(x, y);
     }
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.72)';
     ctx.lineWidth = 1;
     ctx.stroke();
     ctx.restore();
   }
   function drawLiquidParticles(ctx, cx, cy, count, radiusSpread, seed, frame, withGlow) {
-    const t = frame * 0.016;
+    const t = frame * 0.03;
+    ctx.save();
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
     ctx.fillStyle = '#ff2a4b';
     for (let i = 0; i < count; i++) {
       const pAngle = (i / count) * Math.PI * 2 + t * 3 + seed;
@@ -528,12 +552,13 @@
       ctx.arc(px, py, Math.max(1, pSize), 0, Math.PI * 2);
       ctx.fill();
     }
-    ctx.shadowBlur = 0;
-    ctx.globalAlpha = 1;
+    ctx.restore();
   }
   function drawLiquidEye(ctx, cx, cy, lookX, lookY, seed, frame, eyeScale) {
-    const t = frame * 0.016;
+    const t = frame * 0.03;
     ctx.save();
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
     ctx.translate(cx, cy);
     const dx = lookX - cx;
     const dy = lookY - cy;
@@ -541,8 +566,8 @@
     const dist = Math.min(6 * eyeScale, Math.hypot(dx, dy) * 0.05);
     const offsetX = Math.cos(angle) * dist;
     const offsetY = Math.sin(angle) * dist;
-    const jt = liquidJitter(seed, 1, frame) * 1.0;
-    const eyeRadius = (8 * eyeScale) + Math.sin(t * 15) * 0.7;
+    const jt = liquidJitter(seed, 1, frame) * 1.5;
+    const eyeRadius = (8 * eyeScale) + Math.sin(t * 15) * 1;
     // Esclera.
     ctx.beginPath();
     ctx.arc(jt, jt, eyeRadius, 0, Math.PI * 2);
