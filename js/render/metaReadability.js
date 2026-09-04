@@ -86,158 +86,287 @@
     return { info, comparisons, count: grid.size };
   };
 
-  NV.drawEnemyDensity = function (ctx, e, density) {
-    density = density || NV.metaDensityInfo.get(e);
-    if (!density || density.intensity < 0.16) return false;
-    const a = Math.min(0.22, 0.035 + density.intensity * 0.14);
-    ctx.save();
-    ctx.globalAlpha = a;
-    ctx.strokeStyle = density.overlap > 0.8 ? '#ff8a4c' : '#caa7ff';
-    ctx.lineWidth = 1 + density.intensity * 1.2;
-    ctx.shadowColor = ctx.strokeStyle;
-    ctx.shadowBlur = 2 + density.intensity * 5;
-    ctx.beginPath();
-    ctx.arc(2 + density.intensity * 2, 1, e.radius + 3 + density.intensity * 3, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.restore();
-    return true;
-  };
+  // (ver NV.drawDensityFog) — el contorno por-enemigo fue reemplazado por neblina.
 
-  NV.drawContactReadability = function (ctx, e, player, debug) {
+  NV.drawContactReadability = function (ctx, e, player, debug, env) {
     if (!player || !e || e.dead) return false;
+    if (!NV.META_VIS_OPTIONS.contact) return false;
+    const e2 = metaEnv(env);
     const contactRadius = e.radius + 20; // espejo visual exacto; no participa en colisión
     const d = Math.hypot(e.x - player.x, e.y - player.y);
     const imminent = d < contactRadius + 18;
     if (!debug && !imminent && !(e.atkFlash > 0)) return false;
     const closeness = Math.max(0, Math.min(1, 1 - (d - contactRadius) / 18));
     ctx.save();
-    ctx.globalAlpha = debug ? 0.32 : Math.min(0.16, 0.035 + closeness * 0.1 + (e.atkFlash > 0 ? 0.04 : 0));
-    ctx.strokeStyle = e.atkFlash > 0 ? '#ff4054' : '#ffcf76';
-    ctx.lineWidth = debug ? 1.25 : 0.8 + closeness * 0.7;
-    if (debug) ctx.setLineDash([4, 5]);
-    ctx.beginPath();
-    ctx.arc(e.x, e.y, contactRadius, 0, Math.PI * 2);
-    ctx.stroke();
-    if (debug) ctx.setLineDash([]);
-    ctx.restore();
-    return true;
-  };
-
-  NV.drawDamageFeedback = function (ctx, player, feedback) {
-    if (!feedback || feedback.life <= 0) return false;
-    const t = Math.max(0, Math.min(1, feedback.life / 0.55));
-    const dx = player.x - feedback.sourceX, dy = player.y - feedback.sourceY;
-    const len = Math.max(1, Math.hypot(dx, dy));
-    ctx.save();
-    ctx.globalAlpha = 0.12 + t * 0.28;
-    ctx.strokeStyle = feedback.critical ? '#fff0a0' : '#ff4054';
-    ctx.lineWidth = feedback.critical ? 3 : 2;
-    ctx.beginPath();
-    ctx.moveTo(player.x - dx / len * 10, player.y - dy / len * 10);
-    ctx.lineTo(player.x - dx / len * 30, player.y - dy / len * 30);
-    ctx.stroke();
-    ctx.globalAlpha = t * 0.22;
-    ctx.beginPath();
-    ctx.arc(player.x, player.y, 24 + (1 - t) * 14, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.restore();
-    return true;
-  };
-
-  NV.drawInvulnerabilityFeedback = function (ctx, player, phase) {
-    if (!phase || phase.life <= 0) return false;
-    const t = Math.max(0, Math.min(1, phase.life / phase.duration));
-    ctx.save();
-    ctx.globalAlpha = phase.kind === 'end' ? t * 0.1 : t * 0.14;
-    ctx.strokeStyle = phase.kind === 'end' ? '#7cf8ff' : '#ffffff';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.arc(player.x, player.y, 28 + (1 - t) * 8, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.restore();
-    return true;
-  };
-
-  NV.drawMomentumReadability = function (ctx, player, state) {
-    if (!state) return false;
-    const vx = player.moveVx || 0, vy = player.moveVy || 0;
-    const speed = Math.hypot(vx, vy);
-    if (speed < 35) return false;
-    const nx = vx / speed, ny = vy / speed;
-    const length = Math.min(42, 8 + speed * 0.075);
-    ctx.save();
-    ctx.lineCap = 'round';
-    ctx.globalAlpha = state.shift ? 0.2 : 0.1;
-    ctx.strokeStyle = state.shift ? '#7cf8ff' : '#9bb6c8';
-    ctx.lineWidth = state.shift ? 2 : 1.2;
-    ctx.beginPath();
-    ctx.moveTo(player.x - nx * 8, player.y - ny * 8);
-    ctx.lineTo(player.x - nx * length, player.y - ny * length);
-    ctx.stroke();
-    if (state.previousSpeed > 35) {
-      const px = state.previousVx / state.previousSpeed, py = state.previousVy / state.previousSpeed;
-      const turn = 1 - Math.max(-1, Math.min(1, nx * px + ny * py));
-      if (turn > 0.08) {
-        ctx.globalAlpha = Math.min(0.12, turn * 0.1);
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(player.x - px * 7, player.y - py * 7);
-        ctx.lineTo(player.x - px * Math.min(30, state.previousSpeed * 0.055), player.y - py * Math.min(30, state.previousSpeed * 0.055));
-        ctx.stroke();
+    if (debug) {
+      // Modo técnico: anillo blanco punteado, sin duda de debug.
+      ctx.globalAlpha = 0.34 * e2.gain;
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 5]);
+      ctx.beginPath();
+      ctx.arc(e.x, e.y, contactRadius, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    } else {
+      // Anillo de advertencia con borde aserrado giratorio.
+      const danger = e.atkFlash > 0 || closeness > 0.62;
+      const teeth = 10;
+      const wobble = 0.75 + (danger ? 0.35 : 0.1) * Math.sin(e2.t * (danger ? 9 : 5) * Math.PI * 2);
+      ctx.globalAlpha = Math.min(0.6, (danger ? 0.34 : 0.08) + closeness * 0.2) * e2.gain;
+      ctx.strokeStyle = danger ? NV.META_VIS_PALETTE.danger : NV.META_VIS_PALETTE.dangerSoft;
+      ctx.lineWidth = danger ? 2.5 : 1.4;
+      ctx.beginPath();
+      for (let i = 0; i <= teeth; i++) {
+        const a = e2.t * (danger ? 1.6 : 0.5) + (i / teeth) * Math.PI * 2;
+        const rr = contactRadius * (1 + 0.045 * Math.sin(a * (danger ? 14 : 9) + e2.t * 3));
+        const x = e.x + Math.cos(a) * rr * wobble, y = e.y + Math.sin(a) * rr * wobble;
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
       }
+      ctx.closePath(); ctx.stroke();
     }
     ctx.restore();
     return true;
   };
 
-  NV.drawAutofireTarget = function (ctx, target, frame) {
-    if (!target || target.dead) return false;
-    const r = (target.radius || 10) + 5;
-    const pulse = 0.08 + (Math.sin((frame || 0) * 0.12) * 0.5 + 0.5) * 0.05;
+  NV.drawDamageFeedback = function (ctx, player, feedback, env) {
+    if (!feedback || feedback.life <= 0) return false;
+    if (!NV.META_VIS_OPTIONS.damage) return false;
+    const e2 = metaEnv(env);
+    const t = Math.max(0, Math.min(1, feedback.life / 0.55));
+    const dx = player.x - feedback.sourceX, dy = player.y - feedback.sourceY;
+    const len = Math.max(1, Math.hypot(dx, dy));
+    const nx = dx / len, ny = dy / len;
     ctx.save();
-    ctx.globalAlpha = pulse;
-    ctx.strokeStyle = '#7cf8ff';
-    ctx.lineWidth = 1;
-    for (let i = 0; i < 4; i++) {
-      const a = i * Math.PI / 2;
+    const zig = (feedback.critical ? 8 : 4) ;
+    ctx.globalAlpha = Math.min(0.85, (0.3 + t * 0.42) * e2.gain);
+    ctx.strokeStyle = feedback.critical ? NV.META_VIS_PALETTE.warnAmber : NV.META_VIS_PALETTE.danger;
+    ctx.lineWidth = (feedback.critical ? 3 : 2.2) * (0.5 + t * 0.5);
+    ctx.lineCap = 'round';
+    const seg = 7;
+    ctx.beginPath();
+    for (let i = 0; i <= seg; i++) {
+      const p = i / seg;
+      const px = feedback.sourceX + nx * (8 + (Math.max(8, len * 0.72) - 8) * p);
+      const py = feedback.sourceY + ny * (8 + (Math.max(8, len * 0.72) - 8) * p);
+      const perp = (i === 0 || i === seg) ? 0 : Math.sin(p * Math.PI) * (Math.sin(e2.t * 55 + p * 12 + (feedback.critical ? 3.1 : 1.3)) * zig);
+      const xx = px - ny * perp, yy = py + nx * perp;
+      if (i === 0) ctx.moveTo(xx, yy); else ctx.lineTo(xx, yy);
+    }
+    ctx.stroke();
+    if (len < 90) {
+      ctx.fillStyle = feedback.critical ? '#fff6c8' : '#ffb0a8';
+      ctx.globalAlpha = Math.min(0.9, t);
+      ctx.beginPath(); ctx.arc(player.x - nx * 12, player.y - ny * 12, 3 + (feedback.critical ? 5 : 3), 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.globalAlpha = t * 0.28 * e2.gain;
+    ctx.strokeStyle = feedback.critical ? NV.META_VIS_PALETTE.warn : NV.META_VIS_PALETTE.dangerSoft;
+    ctx.lineWidth = 1.4;
+    ctx.beginPath(); ctx.arc(player.x, player.y, 22 + (1 - t) * 22, 0, Math.PI * 2); ctx.stroke();
+    if (feedback.flash > 0) {
+      ctx.globalAlpha = Math.min(0.5, feedback.flash * 8) * e2.gain;
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath(); ctx.arc(player.x, player.y, 12 + feedback.flash * 30, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+    return true;
+  };
+
+  NV.drawInvulnerabilityFeedback = function (ctx, player, phase, env) {
+    if (!phase || phase.life <= 0) return false;
+    if (!NV.META_VIS_OPTIONS.invulnerability) return false;
+    const e2 = metaEnv(env);
+    const t = Math.max(0, Math.min(1, phase.life / phase.duration));
+    ctx.save();
+    if (phase.kind === 'end') {
+      // Escudo que se fragmenta en anillos rotos dispersos.
+      const frag = Math.max(0.05, t);
+      ctx.globalAlpha = Math.min(0.6, frag * 0.9) * e2.gain;
+      ctx.strokeStyle = NV.META_VIS_PALETTE.infoCold;
+      ctx.lineWidth = 1.4;
+      for (let i = 0; i < 4; i++) {
+        const a = e2.t * 6 + i * Math.PI / 2;
+        const rr = 30 + (1 - frag) * 26;
+        ctx.beginPath();
+        ctx.arc(player.x + Math.cos(a) * 8 * (1 - frag), player.y + Math.sin(a) * 8 * (1 - frag), rr * 0.5, a, a + 0.8);
+        ctx.stroke();
+      }
+    } else {
+      // Escudo hexagonal giratorio alrededor del jugador.
+      ctx.globalAlpha = (0.2 + t * 0.25) * e2.gain;
+      ctx.strokeStyle = NV.META_VIS_PALETTE.info;
+      ctx.lineWidth = 2;
+      const radius = 30;
+      const rot = e2.t * 1.2;
       ctx.beginPath();
-      ctx.moveTo(target.x + Math.cos(a) * r, target.y + Math.sin(a) * r);
-      ctx.lineTo(target.x + Math.cos(a) * (r + 4), target.y + Math.sin(a) * (r + 4));
+      for (let i = 0; i <= 6; i++) {
+        const a = rot + (i / 6) * Math.PI * 2;
+        const x = player.x + Math.cos(a) * radius, y = player.y + Math.sin(a) * radius;
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
       ctx.stroke();
     }
     ctx.restore();
     return true;
   };
 
-  NV.drawEnemyIntent = function (ctx, e, player) {
-    if (!e || e.dead || !player) return false;
+  NV.drawMomentumReadability = function (ctx, player, state, env) {
+    if (!state || !NV.META_VIS_OPTIONS.momentum) return false;
+    const e2 = metaEnv(env);
+    const vx = player.moveVx || 0, vy = player.moveVy || 0;
+    const speed = Math.hypot(vx, vy);
+    if (speed < 35) return false;
+    const nx = vx / speed, ny = vy / speed;
+    const length = Math.min(46, 10 + speed * 0.085);
+    ctx.save();
+    ctx.lineCap = 'round';
+    const color = state.shift ? NV.META_VIS_PALETTE.warnAmber : NV.META_VIS_PALETTE.infoCold;
+    const base = state.shift ? 0.26 : 0.13;
+    // Cometa: cola segmentada que se atenúa con la distancia.
+    for (let i = 0; i < 3; i++) {
+      const p0 = i / 3, p1 = (i + 1) / 3;
+      ctx.globalAlpha = (base * (1 - p0)) * e2.gain;
+      ctx.strokeStyle = color;
+      ctx.lineWidth = (state.shift ? 2.4 : 1.5) * (1 - p0 * 0.6);
+      ctx.beginPath();
+      ctx.moveTo(player.x - nx * (7 + length * p0), player.y - ny * (7 + length * p0));
+      ctx.lineTo(player.x - nx * (7 + length * p1), player.y - ny * (7 + length * p1));
+      ctx.stroke();
+    }
+    // Líneas de fuerza ("viento") opuestas al movimiento.
+    for (let i = 0; i < 3; i++) {
+      const spread = (i - 1) * 0.3;
+      const wx = -nx + ny * spread, wy = -ny - nx * spread;
+      const l2 = Math.max(0.001, Math.hypot(wx, wy));
+      const windLen = Math.min(20, length);
+      ctx.globalAlpha = 0.08 * e2.gain;
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(player.x - nx * 5, player.y - ny * 5);
+      ctx.lineTo(player.x - nx * 5 + (wx / l2) * windLen, player.y - ny * 5 + (wy / l2) * windLen);
+      ctx.stroke();
+    }
+    ctx.restore();
+    return true;
+  };
+
+  NV.drawAutofireTarget = function (ctx, target, frame, player, inRange, debug, env) {
+    if (!NV.META_VIS_OPTIONS.autofire) return false;
+    const e2 = metaEnv(env);
+    ctx.save();
+    if (!target || target.dead) {
+      // "Buscando": círculo punteado alrededor del jugador.
+      if (player) {
+        ctx.globalAlpha = 0.14 * e2.gain;
+        ctx.strokeStyle = NV.META_VIS_PALETTE.info;
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath(); ctx.arc(player.x, player.y, 34, 0, Math.PI * 2); ctx.stroke();
+        ctx.setLineDash([]);
+      }
+      ctx.restore();
+      return false;
+    }
+    const r = (target.radius || 10) + 8;
+    const safe = inRange !== false;
+    // Retículo minimalista estático (aro + cruz), sin rotación ni pulso.
+    // Base limpia para futuras reglas de autoapuntado / meta de uso.
+    ctx.globalAlpha = (safe ? 0.35 : 0.22) * e2.gain;
+    ctx.strokeStyle = safe ? NV.META_VIS_PALETTE.safe : NV.META_VIS_PALETTE.danger;
+    ctx.lineWidth = 1;
+    ctx.lineCap = 'round';
+    // Aro fino alrededor del objetivo.
+    ctx.beginPath();
+    ctx.arc(target.x, target.y, r, 0, Math.PI * 2);
+    ctx.stroke();
+    // Cuatro ticks de cruz cardinales (mínimos, dejan hueco central).
+    const tick = Math.max(3, r * 0.4);
+    for (let i = 0; i < 4; i++) {
+      const a = (i / 4) * Math.PI * 2;
+      const c = Math.cos(a), s = Math.sin(a);
+      ctx.beginPath();
+      ctx.moveTo(target.x + c * (r + 2), target.y + s * (r + 2));
+      ctx.lineTo(target.x + c * (r + 2 + tick), target.y + s * (r + 2 + tick));
+      ctx.stroke();
+    }
+    // Línea de mira desde el jugador (solo debug).
+    if (debug && player) {
+      ctx.globalAlpha = 0.1 * e2.gain;
+      ctx.strokeStyle = NV.META_VIS_PALETTE.info;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([6, 6]);
+      ctx.beginPath(); ctx.moveTo(player.x, player.y); ctx.lineTo(target.x, target.y); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    ctx.restore();
+    return true;
+  };
+
+  NV.drawEnemyIntent = function (ctx, e, player, env) {
+    if (!e || e.dead || !player || !NV.META_VIS_OPTIONS.intent) return false;
+    const e2 = metaEnv(env);
     let drawn = false;
     ctx.save();
     if (e.behavior === 'erratic' && (e.erraticTimer || 0) < 0.16) {
-      const a = e.angle || 0, r = e.radius + 5;
-      ctx.globalAlpha = 0.12;
-      ctx.strokeStyle = '#caa7ff';
-      ctx.lineWidth = 1;
+      // Flecha curva indicando trayectoria actual + rango de incertidumbre.
+      const a = e.angle || 0, r = e.radius + 6;
+      const curve = 0.7;
+      ctx.globalAlpha = 0.4 * e2.gain;
+      ctx.strokeStyle = NV.META_VIS_PALETTE.warn;
+      ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.moveTo(e.x + Math.cos(a) * r, e.y + Math.sin(a) * r);
-      ctx.lineTo(e.x + Math.cos(a) * (r + 5), e.y + Math.sin(a) * (r + 5));
-      ctx.stroke(); drawn = true;
+      const p0x = e.x + Math.cos(a) * r, p0y = e.y + Math.sin(a) * r;
+      const p1x = e.x + Math.cos(a) * (r + 12) + Math.cos(a + Math.PI / 2) * curve;
+      const p1y = e.y + Math.sin(a) * (r + 12) + Math.sin(a + Math.PI / 2) * curve;
+      const p2x = e.x + Math.cos(a) * (r + 14) + Math.cos(a + Math.PI / 2) * curve;
+      const p2y = e.y + Math.sin(a) * (r + 14) + Math.sin(a + Math.PI / 2) * curve;
+      ctx.moveTo(p0x, p0y); ctx.quadraticCurveTo(p1x, p1y, p2x, p2y); ctx.stroke();
+      drawn = true;
     }
     if (e.behavior === 'ranged') {
       const d = Math.hypot(player.x - e.x, player.y - e.y);
       if (d <= 170) {
         const a = Math.atan2(player.y - e.y, player.x - e.x);
-        ctx.globalAlpha = 0.09;
-        ctx.strokeStyle = '#6dc4c0'; ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.arc(e.x, e.y, e.radius + 5, a - 0.8, a + 0.8); ctx.stroke(); drawn = true;
+        // Semicírculo de "estacionamiento" con líneas radiales.
+        ctx.globalAlpha = 0.14 * e2.gain;
+        ctx.strokeStyle = NV.META_VIS_PALETTE.info;
+        ctx.lineWidth = 1.2;
+        ctx.beginPath(); ctx.arc(e.x, e.y, e.radius + 8, a - Math.PI / 2, a + Math.PI / 2); ctx.stroke();
+        for (let i = -2; i <= 2; i++) {
+          const aa = a + i * Math.PI / 8;
+          ctx.beginPath();
+          ctx.moveTo(e.x + Math.cos(aa) * (e.radius + 5), e.y + Math.sin(aa) * (e.radius + 5));
+          ctx.lineTo(e.x + Math.cos(aa) * (e.radius + 9), e.y + Math.sin(aa) * (e.radius + 9));
+          ctx.stroke();
+        }
+        drawn = true;
       }
     }
     if (e.behavior === 'shield') {
       const a = Math.atan2(player.y - e.y, player.x - e.x);
-      ctx.globalAlpha = e.shieldCd > 0 ? 0.07 : 0.16;
-      ctx.strokeStyle = e.shieldCd > 0 ? '#807090' : '#caa7ff';
-      ctx.lineWidth = e.shieldCd > 0 ? 1 : 2;
-      ctx.beginPath(); ctx.arc(e.x, e.y, e.radius + 6, a - Math.PI / 2, a + Math.PI / 2); ctx.stroke(); drawn = true;
+      // Escudo semiesférico con borde y progreso de recarga.
+      const charging = e.shieldCd > 0;
+      ctx.globalAlpha = charging ? 0.12 : 0.22 * e2.gain;
+      ctx.strokeStyle = charging ? NV.META_VIS_PALETTE.info + '66' : NV.META_VIS_PALETTE.info;
+      ctx.lineWidth = charging ? 1.2 : 2;
+      ctx.beginPath(); ctx.arc(e.x, e.y, e.radius + 7, a - Math.PI / 2, a + Math.PI / 2); ctx.stroke();
+      ctx.globalAlpha = charging ? 0.1 : 0.16 * e2.gain;
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(e.x, e.y, e.radius + 3, a - Math.PI / 2, a + Math.PI / 2); ctx.stroke();
+      if (charging) {
+        // Arco de progreso: segundos restantes sobre cooldown total.
+        const cooldown = NV.BALANCE && NV.BALANCE.SHIELD_COOLDOWN ? NV.BALANCE.SHIELD_COOLDOWN : 0.9;
+        const frac = Math.max(0, Math.min(1, 1 - (e.shieldCd || 0) / cooldown));
+        ctx.globalAlpha = 0.35 * e2.gain;
+        ctx.strokeStyle = NV.META_VIS_PALETTE.infoCold;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(e.x, e.y, e.radius + 9, a - Math.PI / 2, a - Math.PI / 2 + frac * Math.PI);
+        ctx.stroke();
+      }
+      drawn = true;
     }
     ctx.restore();
     return drawn;
