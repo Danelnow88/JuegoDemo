@@ -414,36 +414,61 @@
     }
     ctx.restore();
   }
+  // Perf-02: smoothstep hoisted (antes se recreaba por llamada) + pool de
+  // buffers reutilizables. buildLabTail corre por cola por frame por enemigo:
+  // con 80 enemigos llegaba a ~miles de sub-arrays asignados por frame (presión
+  // de GC / micro-hitching). El pool rota slots pre-asignados al máximo de
+  // muestras; los consumidores leen solo índices [0..samples] de forma
+  // síncrona (glow y contorno del MISMO frame), así que la reutilización es
+  // segura. Muestras reducidas 40->24 (no élites) y 88->48 (élites): a la
+  // escala de render (radius/54) la diferencia de silueta es imperceptible.
+  const TAIL_MAX_SAMPLES = 48;
+  const TAIL_POOL = [];
+  for (let i = 0; i < 4; i++) {
+    const centers = [], left = [], right = [];
+    for (let j = 0; j <= TAIL_MAX_SAMPLES; j++) { centers.push([0, 0]); left.push([0, 0]); right.push([0, 0]); }
+    TAIL_POOL.push({ centers, left, right, elite: false, count: 0 });
+  }
+  let tailPoolIdx = 0;
+  function tailSmoothstep(x) { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); }
   function buildLabTail(startX, startY, p, t, seed) {
-    const left = [], right = [], centers = [];
+    const slot = TAIL_POOL[tailPoolIdx++ % TAIL_POOL.length];
+    const centers = slot.centers, left = slot.left, right = slot.right;
     const len = 118 * (p.tailLen || 1);
     const dir = p.tailDir || 1;
     const amp = 17 * (p.tailAmp || .5);
-    const samples = p.elite ? 88 : 40;
-    const smoothstep = function (x) { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); };
+    const samples = p.elite ? 48 : 24;
+    // count lógico: los consumidores iteran [0..count) en vez de array.length
+    // (los buffers del pool NUNCA se re-dimensionan: truncar+extender crea
+    // agujeros undefined y crashea el draw).
+    slot.count = samples + 1;
     for (let i = 0; i <= samples; i++) {
       const u = i / samples;
-      const motion = smoothstep((u - .10) / .90);
+      const motion = tailSmoothstep((u - .10) / .90);
       const baseS = dir * amp * (.33 * Math.sin(u * Math.PI * 1.18) - .23 * Math.sin(u * Math.PI * 2.05));
       const liveWave = motion * (
         Math.sin(t * 5.4 - u * 8.2 + seed) * (3.0 + 6.5 * u) +
         Math.sin(t * 8.6 - u * 13.4 + seed * 1.37) * (1.0 + 2.4 * u) +
         Math.sin(t * 12.2 - u * 18.0 + seed * .73) * (0.25 + 0.9 * u)
       );
-      centers.push([startX + baseS + liveWave, startY + len * u]);
+      const c = centers[i];
+      c[0] = startX + baseS + liveWave;
+      c[1] = startY + len * u;
     }
     for (let i = 0; i <= samples; i++) {
       const u = i / samples;
-      const prev = centers[Math.max(0, i - 1)], next = centers[Math.min(samples, i + 1)];
+      const prev = centers[i > 0 ? i - 1 : 0], next = centers[i < samples ? i + 1 : samples];
       const dx = next[0] - prev[0], dy = next[1] - prev[1];
       const mag = Math.hypot(dx, dy) || 1;
       const nx = -dy / mag, ny = dx / mag;
-      const taper = smoothstep(u);
+      const taper = tailSmoothstep(u);
       const width = 27 * (1 - taper) + .48 * taper;
-      left.push([centers[i][0] + nx * width, centers[i][1] + ny * width]);
-      right.push([centers[i][0] - nx * width, centers[i][1] - ny * width]);
+      const c = centers[i], lv = left[i], rv = right[i];
+      lv[0] = c[0] + nx * width; lv[1] = c[1] + ny * width;
+      rv[0] = c[0] - nx * width; rv[1] = c[1] - ny * width;
     }
-    return { left, right, centers, elite: !!p.elite };
+    slot.elite = !!p.elite;
+    return slot;
   }
   function drawLabTailGlow(ctx, tail, t, seed) {
     // Perf-01: glow de cola en UNA sola pasada aditiva (antes: 3 trazos con
@@ -451,15 +476,16 @@
     // tools/diagnostics/enemy_anim_profiler.js). Se conserva el halo ancho
     // difuso con blur moderado; el detalle fino del contorno lo aporta el
     // cuerpo negro que se dibuja justo después encima.
-    if (!tail.centers || tail.centers.length < 2) return;
+    if (!tail.centers || tail.count < 2) return;
     const pts = tail.centers;
+    const nPts = tail.count;
     const pulse = .78 + Math.sin(t * 3.4 + seed) * .12;
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     ctx.beginPath();
     ctx.moveTo(pts[0][0], pts[0][1]);
-    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+    for (let i = 1; i < nPts; i++) ctx.lineTo(pts[i][0], pts[i][1]);
     ctx.strokeStyle = 'rgba(255,24,42,' + (.15 * pulse) + ')';
     ctx.lineWidth = 14;
     ctx.shadowColor = 'rgba(255,0,26,.55)';
@@ -745,7 +771,8 @@
     const tail = buildLabTail(0, 70 * bh, p, t, seed);
     drawLabTailGlow(ctx, tail, t, seed);
     const L = tail.left, R = tail.right;
-    const tipL = L[L.length - 1], tipR = R[R.length - 1];
+    const nPts = tail.count;
+    const tipL = L[nPts - 1], tipR = R[nPts - 1];
     const tipX = (tipL[0] + tipR[0]) / 2;
     const tipY = (tipL[1] + tipR[1]) / 2;
     ctx.fillStyle = '#020203';
@@ -756,9 +783,9 @@
     ctx.bezierCurveTo(-44 * bw, -70, -55 * bw, -49, -54 * bw, -23);
     ctx.bezierCurveTo(-53 * bw, -4, -47 * bw, 15, -41 * bw, 30);
     ctx.bezierCurveTo(-37 * bw, 43, -31 * bw, 56, L[0][0], L[0][1]);
-    for (let i = 1; i < L.length; i++) ctx.lineTo(L[i][0], L[i][1]);
+    for (let i = 1; i < nPts; i++) ctx.lineTo(L[i][0], L[i][1]);
     ctx.lineTo(tipX, tipY);
-    for (let i = R.length - 2; i >= 0; i--) ctx.lineTo(R[i][0], R[i][1]);
+    for (let i = nPts - 2; i >= 0; i--) ctx.lineTo(R[i][0], R[i][1]);
     ctx.bezierCurveTo(31 * bw, 56, 37 * bw, 43, 41 * bw, 30);
     ctx.bezierCurveTo(47 * bw, 15, 53 * bw, -4, 54 * bw, -23);
     ctx.bezierCurveTo(55 * bw, -49, 44 * bw, -70, 17 * head, -72);
