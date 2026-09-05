@@ -1,0 +1,733 @@
+
+=== tests\ambient_fx.js ===
+  ok  drawStarfield existe y dibuja sin crash
+  ok  determinista: misma entrada => mismas posiciones
+  ok  parallax: capas se desplazan a distinta velocidad
+  ok  game.js dibuja el starfield con la posición del jugador
+  ok  starfield reacciona distinto a graves vs agudos sin crear partículas nuevas
+RESULT ambient_fx: pass=5 fail=0
+
+=== tests\audio_adaptive_wave.js ===
+  ok  sfx.combo actualiza musicState.combo para capas musicales
+  ok  victory genérica y de hito tienen firmas distintas
+  ok  game.js conecta combo, countdown solo sin boss y sfx.victory con milestone
+  ok  updateMusic usa comboLayer como capa adaptativa
+RESULT audio_adaptive_wave: pass=4 fail=0
+
+=== tests\audio_combat_sfx.js ===
+  ok  sfx.enemyDeath y sfx.playerHit existen y no crashean
+  ok  enemyDeath usa firmas distintas para normal/elite/boss
+  ok  playerHit es no fatal: distinto de sfx.damage y con ducking más suave
+  ok  enemies.js conecta muerte normal/elite y daño no fatal a SFX nuevos
+  ok  bullets.js conecta proyectiles enemigos a playerHit solo si no es fatal
+  ok  boss.js conecta muerte de jefe a enemyDeath("boss")
+  ok  game.js maneja heartbeat crítico con timer y reset al recuperarse
+RESULT audio_combat_sfx: pass=7 fail=0
+
+=== tests\audio_menu_fatigue.js ===
+  ok  updateMusic tiene fase menu/shop con capas propias
+  ok  loop de game.js actualiza música también en menu/shop
+  ok  playWeaponSound atenúa SMG repetida por heat anti-fatiga
+  ok  railgun también usa rapidFireVolume
+RESULT audio_menu_fatigue: pass=4 fail=0
+
+=== tests\audio_mixer.js ===
+  ok  mixer no existe hasta initAudio() (perezoso / headless-safe)
+  ok  initAudio() crea el mixer con todos los canales esperados + exports
+  ok  duck() no crashea si no hay mixer (headless)
+  ok  duck() programa atenuacion sobre el gain del canal objetivo
+  ok  playToneEx con detune fijo ajusta la frecuencia exactamente
+  ok  playToneEx sin detune explicito cae al comportamiento anti-fatiga aleatorio de playTone
+  ok  exporta mixerChannels con los 5 canales numericos
+  ok  sfx incluye hooks de audio adaptativo (combo, heartbeat, countdown, bossEnter, victory)
+  ok  sfx.combo/heartbeat/countdown/bossEnter/victory no crashean al invocarse
+  ok  playWeaponSound(weapon) con un solo arg no lanza (backwards compatible)
+  ok  playWeaponSound(weapon, opts) respeta fusion/crit sin crash
+  ok  playWeaponSound cubre las 10 armas conocidas sin crash
+  ok  playWeaponSound usa tabla declarativa con fallback seguro
+  ok  musicState expone combo (number) y phase default "normal"
+RESULT audio_mixer: pass=14 fail=0
+
+=== tests\audio_spatial_mix.js ===
+  ok  panForX mapea izquierda/centro/derecha a -1/0/1
+  ok  enemyDeath y playWeaponSound aplican StereoPanner con x/worldWidth
+  ok  setChannelVolume ajusta masterVolume y gain de mixer
+  ok  módulos conectan posiciones a muertes y disparos
+RESULT audio_spatial_mix: pass=4 fail=0
+
+=== tests\audio_ui_shop.js ===
+  ok  sfx UI/shop/consumo/fusión existen y no crashean
+  ok  game.js conecta consume/shopBuy/shopSell/fuse/wheelSelect
+  ok  pickups.js permite callback objeto para usar sfx.fuse en fusiones
+  ok  enemies.js usa playerLevelUp para nivel de jugador y fuse para nivel de arma
+RESULT audio_ui_shop: pass=4 fail=0
+
+=== tests\audio_wave_events.js ===
+  ok  sfx.waveEvent existe y no crashea para los 4 eventos Tanda C
+  ok  los 4 eventos tienen firmas de frecuencia distintas
+  ok  game.js dispara sfx.waveEvent(waveEvent) al mostrar evento no-boss
+RESULT audio_wave_events: pass=3 fail=0
+
+=== tests\boss_ai.js ===
+  ok  HP: durabilidad global x1.8 y escalado cuadratico presente en game.js
+  ok  IA predictiva: predictAim adelanta el punto de mira con jugador en movimiento
+  ok  spawnBossProj aplica stun por disparo (heavy 0.25 / bomb 0.3 / beam 0.35)
+  ok  IA adaptativa: summoner invoca salvo arena llena; remata si jugador herido y cerca; presiona a distancia
+  ok  updateBoss integra la IA: re-selecciona ataque al entrar en fase 2 y periodicamente
+RESULT boss_ai: pass=5 fail=0
+
+=== tests\boss_audio.js ===
+  ok  sfx.bossPhaseShift existe y no crashea
+  ok  sfx.bossEnter y sfx.bossPhaseShift duckean la musica (llaman a duck)
+  ok  updateMusic cambia musicState.phase a "boss" cuando hay jefe, sin exception
+  ok  updateMusic vuelve a "normal" al morir el jefe (getBoss null), sin corte abrupto/exception
+  ok  updateMusic corre 200 steps intercalando boss/normal sin crash (transición repetida, anti-glitch)
+  ok  capas de musica de jefe son distintas de las normales (chordRoots/bass/lead/drums)
+  ok  boss.js invoca sfx.bossPhaseShift al entrar en fase 2
+  ok  game.js invoca sfx.bossEnter al crear el jefe en nextWave
+  ok  startGame resetea musicState.phase a "normal" (sin residuo de partida anterior)
+RESULT boss_audio: pass=9 fail=0
+
+=== tests\boss_chest.js ===
+  ok  updateBossChests existe
+  ok  al tocar el cofre suelta entre 1 y 3 pickups (aquí: 2 shards)
+  ok  cofre lejos no se abre
+  ok  cofre cercano a veces suelta arma (tipo >= 0.55)
+  ok  cofre expira tras TTL (lejos, pasa tiempo)
+  ok  game.js conecta: updateBossChests + spawnBossChest + render
+  ok  boss.js invoca spawnBossChest al morir
+RESULT boss_chest: pass=7 fail=0
+
+=== tests\boss_death_fix.js ===
+  ok  módulo reporta gameOver cuando el proyectil enemigo baja hp a <=0
+  ok  regresión exacta del bug: wrapper debe LLAMAR gameOver() (boti no revive)
+RESULT boss_death_fix: pass=2 fail=0
+
+=== tests\boss_rage.js ===
+  ok  golpe fuerte (<2.5% no) => >=2.5% dispara globo
+  ok  cooldown: el segundo golpe fuerte inmediato no repite; tras updateBoss vuelve
+  ok  boss muerto o nulo: sin crash, devuelve false
+  ok  bullets.js invoca bossHitReaction al golpear
+RESULT boss_rage: pass=4 fail=0
+
+=== tests\bullet_polish.js ===
+  ok  bulletSizeGrowth: crece con nivel y fusión
+  ok  tope de crecimiento (nunca más de 40%)
+  ok  shoot estampa growth según nivel y fusion del estado
+  ok  arma sin fusion mantiene el color de tier original
+  ok  render usa b.growth en game.js
+RESULT bullet_polish: pass=5 fail=0
+
+=== tests\char_descriptions.js ===
+  ok  CSS define las 4 clases de resalte
+  ok  index.html: las 4 tarjetas usan los resaltes y ya no muestran "(CD x)" crudo
+  ok  index.html: las 4 tarjetas usan canvas de habilidad sin emoji legacy
+  ok  textos reflejan el balance actual
+  ok  CHARACTERS incluye metadata de card equivalente al HTML actual
+  ok  index.html deja contenedor y game.js renderiza cards dinámicas antes de iconos/bindings
+RESULT char_descriptions: pass=6 fail=0
+
+=== tests\char_skills.js ===
+  ok  BOTI: cooldown notoriamente mayor (>= 12s)
+  ok  BOTI: regeneración usa passiveId y conserva tick cada 300 frames con límite de HP
+  ok  pasivas declarativas preservan daño recibido y esquiva de Nova/Rook/Swarm
+  ok  Lluvia Estelar: daño a jefe reducido por METEOR_BOSS_DMG_MULT
+  ok  Lluvia Estelar: dano contra enemigos comunes intacto (40)
+RESULT char_skills: pass=5 fail=0
+
+=== tests\consum_hud.js ===
+  ok  groupConsumables: agrupa por tipo con conteo y orden de aparición
+  ok  consumeByType: quita el PRIMER ítem del tipo elegido, no el primero de la cola
+  ok  tope acumulado de consumibles por tipo: addConsumable bloquea al llegar a 10
+  ok  tope de slots por tipo: bloquea 7mo tipo pero permite stackear tipo existente
+  ok  cycleIndex: cicla selección en ambos sentidos sin salirse
+  ok  HUD dibuja filas horizontales (drawSlotRow) y expone rects para el click
+  ok  game.js conecta Q (ciclar), F (usar seleccionado) y click en slot
+RESULT consum_hud: pass=7 fail=0
+
+=== tests\consumable_icons_canvas.js ===
+  ok  expone drawConsumableIcon + 7 ids aprobados
+  ok  cada icono renderiza strokes/fills en canvas sin Path2D
+  ok  consumableIconToDataURL usa canvas y devuelve data url
+RESULT consumable_icons_canvas: pass=3 fail=0
+
+=== tests\consumable_icons_integration.js ===
+  ok  tienda renderiza consumibles con canvas aprobado 64/48
+  ok  HUD usa drawConsumableIcon y no g.icon
+  ok  consumibles comprados se guardan por type/name sin icon legacy
+  ok  datos runtime de NV.CONSUMABLES no conservan campo icon
+  ok  no quedan emojis viejos de los 7 consumibles en runtime
+  ok  preview de confirmación muestra tamaños reales HUD/base/tienda
+  ok  README documenta helper y previews de consumibles
+RESULT consumable_icons_integration: pass=7 fail=0
+
+=== tests\consumables.js ===
+  ok  CONSUMABLES centraliza los 7 consumibles reales en orden/precio actual
+  ok  voidBomb: baja 25% HP máx a todos y al jefe, nunca a 0
+  ok  voidBomb con enemigo muy débil no lo deja en 0 (piso 1)
+  ok  freezeEnemies: marca slowUntil en vivos (no en muertos)
+  ok  magnetCollect: marca shards y armas para atracción visible y cuenta
+  ok  updatePickups mueve shards imantados hacia el jugador antes de recogerlos
+  ok  killEnemy aplica RECOMPENSA: doble score + shard extra
+  ok  applyConsumable preserva efectos y feedback de los 7 consumibles
+  ok  Bomba: explosión + onda expansiva (feedback visual) y daño a todos enemigos + jefe
+  ok  Escudo: timer dedicado player.shield + flash azul + aura render
+  ok  Imán: handler dispara onda visual y marca pickups para pull animado
+  ok  Recompensa: handler dispara onda dorada y comunica activación
+  ok  Overdrive: handler dispara onda/flash y render tiene aura violeta persistente
+  ok  game.js decrementa player.shield
+  ok  render/player.js dibuja aura azul del escudo (char.size + 18)
+  ok  game.js conecta los 4 consumibles nuevos y la tienda usa NV.consumableList
+RESULT consumables: pass=16 fail=0
+
+=== tests\drone_targeting.js ===
+  ok  dron dispara a enemigo a ~250px (antes imposible: solo órbita 55)
+  ok  ignora enemigo fuera de 300px (dispara a su ángulo, sin línea de puntería)
+  ok  puede targetear al jefe si es lo más cercano
+  ok  elige el enemigo más cercano al jugador entre varios
+RESULT drone_targeting: pass=4 fail=0
+
+=== tests\economy.js ===
+  ok  jefe muerto paga 50 + wave*5 (wave 10 => 100)
+  ok  pickup con value suma ese valor (+3 élite)
+  ok  topes de tienda definidos: hp 8 / armor 5 / luck 7
+RESULT economy: pass=3 fail=0
+
+=== tests\enemy_eyes.js ===
+  ok  drawEnemy acepta player y drawEnemyEyes existe
+  ok  sin player no dibuja ojos (compatibilidad)
+  ok  las pupilas se orientan hacia el jugador (4 arcos por par de ojos)
+  ok  temblor rítmico de enemigos es 100% visual: no muta posición/hitbox/datos
+  ok  distribución de bandas ~ 15/35/30/20 sobre población variada
+  ok  participación escalonada: percusión suave => pocos enemigos, intensa => casi todos
+  ok  selectividad por banda: señal solo-agudos mueve a los agudos, no a los graves
+  ok  jitter inactivo sin rhythm habilitado o con música casi silenciosa
+  ok  drawEnemy con atkFlash dibuja gesto de ataque (lunge + anillo) sin mutar datos
+  ok  drawEnemy con slowUntil > 0 dibuja halo azul de congelación sin mutar datos
+  ok  drawEnemy con slowUntil = 0 NO dibuja halo azul (solo activo cuando está ralentizado)
+  ok  game.js dibuja a los atacantes (atkFlash) en segunda pasada (z-order)
+  ok  game.js pasa rhythm solo al render de enemigo y colisiones siguen usando e.x/e.y
+RESULT enemy_eyes: pass=13 fail=0
+
+=== tests\espectro_lite.js ===
+  ok  carga inerte: flag false, sin instancia ni recursos
+  ok  flag false bloquea init y update sin necesitar DOM/Three
+  ok  API pública updateEspectroLite acepta time y beat sin rAF propio
+  ok  geometría mínima visible y brillo aditivo sin post-procesado
+  ok  shader lite contiene tinta, lava y ojos frontales
+  ok  animación visual queda lenta y legible sin cambiar movimiento del gameplay
+  ok  escala miniatura permanece entre 0.2 y 0.4
+  ok  módulo expone APIs encapsuladas de sincronización y visibilidad
+  ok  Three.js legacy está DEPRECADO (puente WebGL inactivo; todo usa Canvas2D líquido)
+  ok  puente conserva fallback Canvas2D y mapea coordenadas lógicas
+  ok  puente oculta WebGL fuera de playing/pausa y no avanza uTime
+  ok  cortafuegos visual valida API y nunca propaga errores al loop
+  ok  spawn normal conserva id de tipo para selección visual
+  ok  index solo carga la definición antes de game.js
+RESULT espectro_lite: pass=14 fail=0
+
+=== tests\external_audio_capture.js ===
+  ok  startDisplayCapture pide getDisplayMedia con audio+video y queda listening
+  ok  fallback mic usa getUserMedia(audio:true)
+  ok  unsupported cuando falta getDisplayMedia
+  ok  permiso denegado no rechaza y deja state denied
+  ok  sin pista de audio limpia stream y reporta no-audio-track
+  ok  re-entrada no abre segundo diálogo de permiso
+  ok  stop libera recursos y conserva preferencia enabled/source
+  ok  evento ended marca streamEnded y detiene captura
+RESULT external_audio_capture: pass=8 fail=0
+
+=== tests\hud_layout.js ===
+  ok  HUD sin consumibles: no crash + consumSlotRects vacio
+  ok  HUD con consumibles: 2 rects alineados en Y
+  ok  HUD de consumibles usa iconos canvas aprobados a tamaño real 18px
+  ok  Slot 0 muestra la pistola inicial como icono canvas aprobado
+  ok  Combo aparece en esquina superior izquierda (x<=50, y<=25)
+  ok  cycleIndex bidireccional Q/E
+  ok  Orden vertical: armas header -> consumibles hint -> skill name
+  ok  Estilo vidrio neon: no depende de roundRect (fallback a rect)
+  ok  Glow escalado por rareza (legendary > common en intensity)
+  ok  Micro-animaciones (selPulse, fillFlash, fuseFlash, readyPulse)
+  ok  Render con nombre largo "Cañon de Riel Nv9" no rompe y usa truncado
+  ok  Skill: slot 22x22 + anillo de cooldown + nombre truncado (no contenedor ancho viejo)
+  ok  Cabecera de arma: 16px + truncado + textAlign del color por rareza
+  ok  Fade de cabecera al cambiar de arma (weaponFadeAt)
+RESULT hud_v2: pass=14 fail=0
+
+=== tests\icon_remaster_closure.js ===
+  ok  barrido global: cero emojis legacy de los 3 sets remasterizados
+  ok  datos runtime principales no conservan icon/emoji legacy de remasterización
+RESULT icon_remaster_closure: pass=2 fail=0
+
+=== tests\kamikaze.js ===
+  ok  tipo KAMIKAZE definido en ENEMY_TYPES con behavior kami
+  ok  killEnemy de un kamikaze cercano detona y daña en área
+  ok  kamikaze lejano al morir explota pero NO golpea al jugador
+  ok  updateEnemies: a <130px se arma con mecha y al agotarse llama onKill
+  ok  updateEnemies: lejos del jugador NO se arma
+  ok  updateEnemies: daño de contacto tiene cooldown por enemigo aunque el jugador quede quieto
+  ok  updateEnemies: separa varios chase apilados y evita cascada inmediata de golpes
+  ok  contacto letal: el atacante muere al dañar, pasa por onKill (explosión + score) y no hay cascada
+  ok  atkFlash decae con el tiempo en enemigos vivos (no atacantes)
+  ok  esquiva tambien activa gesto corto de ataque (atkFlash) en el que intento golpear
+[SPAWN] wave=12 type=specter_archer
+[SPAWN] wave=12 type=specter_archer
+[SPAWN] wave=12 type=specter_grunt
+[SPAWN] wave=12 type=specter_grunt
+[SPAWN] wave=12 type=specter_grunt
+[SPAWN] wave=12 type=specter_grunt
+[SPAWN] wave=12 type=specter_grunt
+[SPAWN] wave=12 type=specter_archer
+[SPAWN] wave=12 type=specter_guard
+[SPAWN] wave=12 type=specter_grunt
+[SPAWN] wave=12 type=specter_grunt
+  ok  spawn: kamikaze aparece desde oleada 10 y los demas tipos mantienen su umbral
+RESULT kamikaze: pass=11 fail=0
+
+=== tests\kill_combo.js ===
+  ok  kills encadenados suben el contador y devuelven milestone
+  ok  ventana de 2s: el combo expira si no hay kills
+  ok  milestones cada 5 kills (x5, x10)
+  ok  bonus de score escala y el milestone paga +1 shard
+RESULT kill_combo: pass=4 fail=0
+
+=== tests\lab_model_hitbox.js ===
+[SPAWN] wave=25 type=specter_lite
+  FAIL specter_lite (RB1, 0.70): hitbox 12 -> 10.5 -> radius=11.25
+[SPAWN] wave=25 type=specter_grunt
+  ok  specter_grunt (RB2, 0.75): hitbox 10 -> 9.375
+[SPAWN] wave=25 type=specter_core
+  ok  specter_core (RB3, 0.80): hitbox 16 -> 16
+[SPAWN] wave=25 type=specter_archer
+  ok  specter_archer (RB4, 0.80): hitbox 12 -> 12
+[SPAWN] wave=25 type=specter_guard
+  ok  specter_guard (RB5, 0.82): hitbox 18 -> 18.45
+  ok  spawnElite adapta la hitbox de las élites base (modelo 5, ×1.0625)
+[SPAWN] wave=25 type=specter_grunt
+  ok  sin renderer cargado: radio de datos intacto (fallback seguro)
+
+RESULT lab_model_hitbox: pass=6 fail=1
+FAILED tests\lab_model_hitbox.js (exit 1)
+
+=== tests\meta_density.js ===
+  ok  campo distingue masa comprimida de enemigos aislados
+  ok  spatial grid evita comparación cuadrática en 80 dispersos
+  ok  cálculo no muta objetos de gameplay
+  ok  neblina: gradiente radial solo en núcleos densos, con tope
+  ok  contacto se muestra solo cerca/ataque o completo en debug
+  ok  feedback de daño separa impacto e invulnerabilidad
+  ok  momentum usa velocidad real y no teclas de dirección
+  ok  target autofire usa rombo rotante y círculo de búsqueda
+  ok  intención usa solo estado existente de erratic/ranged/shield
+  ok  paleta, opciones y toggles por efecto existen
+  ok  game.js dibuja neblina en capa previa bajo entidades
+RESULT meta_density: pass=11 fail=0
+
+=== tests\meta_skill_icons_canvas.js ===
+  ok  expone drawMetaSkillIcon + 13 ids aprobados
+  ok  cada icono renderiza strokes/fills en canvas sin Path2D
+  ok  metaSkillIconToDataURL usa canvas y devuelve data url
+RESULT meta_skill_icons_canvas: pass=3 fail=0
+
+=== tests\meta_skill_icons_integration.js ===
+  ok  tienda permanente renderiza mejoras con canvas aprobado 64/48
+  ok  PERM_UPGRADES conserva 9 claves sin campo icon legacy
+  ok  HUD de habilidad usa drawMetaSkillIcon a 18px dentro del slot 22
+  ok  CHARACTERS conserva special/skillName sin skillIcon legacy
+  ok  menú inicial renderiza 4 canvas de habilidades de personaje
+  ok  tienda de partida usa metaIcon canvas para mejoras temporales
+RESULT meta_skill_icons_integration: pass=6 fail=0
+
+=== tests\meta_visual.js ===
+  ok  diagnóstico está apagado por defecto y no registra
+  ok  diagnóstico opt-in conserva snapshot y buffer acotado
+  ok  game conecta target y daño sin cambiar fórmulas
+  ok  cada impacto registra contexto espacial completo y fuente de proyectil
+  ok  deuda técnica congelada y baseline documentados
+RESULT meta_visual: pass=5 fail=0
+
+=== tests\meta_widget_integration.js ===
+  ok  index.html contiene el widget rhythm-widget
+  ok  widget tiene ícono SVG music-note (sin emoji) y 2 botones
+  ok  dom.js expone rwAddMusicBtn / rwStopBtn / rwIcon
+  ok  css: ícono usa currentColor para tinte por hue y ghost fino 1.2/0.38
+  ok  game.js: updateRhythmWidgetIcon aplica pulso/skew suavizados, color y glow
+  ok  ícono SVG a 20px y SIN transition en transform (filtra el pulso)
+  ok  la celda .rw-icon queda fija y el transform reactivo va al SVG interno
+  ok  game.js resetea estado interno del suavizado cuando no hay captura
+  ok  game.js wiring usa API real: externalAudio.startDisplayCapture / stop
+  ok  game.js setupRhythmUI bindea click en rwAddMusicBtn / rwStopBtn
+  ok  css posiciona el widget absoluto sin left fijo al centro
+  ok  game.js calcula posicion dinámica entre logo y stats (no left fijo)
+  ok  wiring de clicks usa API real NV.externalAudio.startDisplayCapture / stop
+RESULT meta_widget_integration: pass=13 fail=0
+
+=== tests\nova_aura.js ===
+  ok  balance define PHASE_AURA_DPS=40 / RADIUS=70 / BOSS_MULT=0.3
+  ok  simulación del bloque de aura: 40dps radio 70, jefe recibe 12dps
+  ok  render de la zona usa el radio de balance (no hardcodeado)
+RESULT nova_aura: pass=3 fail=0
+
+=== tests\nova_detonation.js ===
+  ok  detona el 50% del DoT acumulado y limpia phaseAcc
+  ok  jefe: acc*0.5*0.3 (DoT de aura sin mult ya se aplicó en vivo)
+  ok  VFX diferenciado: doble shockwave espectral + estallido + flash
+  ok  balance define PHASE_DETONATION_MULT=0.5
+RESULT nova_detonation: pass=4 fail=0
+
+=== tests\perm_upgrades.js ===
+  ok  PERM_UPGRADES tiene 9 entradas con las 4 nuevas
+  ok  crítico permanente sumado a la chance base (weapons.js)
+  ok  esquiva permanente aplica en computePlayerHit (random determinista)
+  ok  codicia suma al roll de drop (killEnemy, random determinista)
+  ok  regeneración constante + bloque en game.js
+  ok  defaults de permUpgrades se derivan de PERM_UPGRADES y normalizan guardados antiguos
+RESULT perm_upgrades: pass=6 fail=0
+
+=== tests\rhythm_analysis_render.js ===
+  ok  rhythmAnalyze publica bandas normalizadas y beat ante graves fuertes
+  ok  drawRhythmLayer cambia paleta por banda dominante y tempo mueve el centro
+  ok  rhythmTick lee AnalyserNode y actualiza energy
+  ok  hue usa espectro completo: spread >= 150 entre perfiles de banda dominante
+  ok  forceHue fija el color exactamente (verificacion de colores puros)
+  ok  AGC: energia normalizada conserva respiracion con master comprimido (deathcore)
+  ok  umbrales robustos: transientes conservan contraste bajo densidad extrema
+  ok  caracter: density/punch/accent publicados y alpha respira sin saturar en deathcore
+  ok  end-to-end: frame FFT -> analisis -> render (alpha/hue) -> jitter por banda, cadena viva
+  ok  ganancia por densidad: estilo espaciado conserva golpe pleno, blast lo atenúa
+  ok  drawRhythmLayer no dibuja si está apagado o sin listening
+  ok  drawRhythmLayer dibuja solo fondo sutil con alfa acotado
+  ok  game.js usa fondo galaxia mas oscuro para contraste sin aclarar combate
+  ok  game.js integra drawRhythmLayer después del starfield y antes de gameplay/HUD
+  ok  game.js llama rhythmTick en el loop y la UI persiste preferencia
+  ok  index/dom/css exponen controles de música externa
+RESULT rhythm_analysis_render: pass=16 fail=0
+
+=== tests\rhythm_onset.js ===
+  ok  sostenido con energía alta no dispara onset/kick/snare fuerte
+  ok  transiente grave puntual dispara kick mucho más que sostenido
+  ok  transiente medio/agudo dispara snare sin parecer kick
+  ok  pulsos regulares estiman tempo aproximado
+  ok  blast beats: onsetRate alto y refractario evita multi-disparo por golpe
+  ok  shake reactivo solo aparece en onset fuerte y queda acotado
+  ok  shake no se dispara con energía sostenida ni onset viejo
+  ok  game.js reutiliza shake existente con Math.max y sin sistema paralelo
+RESULT rhythm_onset: pass=8 fail=0
+
+=== tests\rhythm_real_audio_fix.js ===
+  ok  analyser real usa fftSize=512, smoothingTimeConstant=0.35 y rango dB resolutivo
+  [ANTES fft256/bin0-excluido/smoothing0.8] maxBeat=0.302 pulsosIcono=1/12 maxBass=0.662 escalaIcono=1.237
+  [AHORA fft512/bin0-incluido/smoothing0.35] maxBeat=0.307 pulsosIcono=11/12 maxBass=0.632 escalaIcono=1.243
+  ok  NÚMEROS: con espectro realista la config nueva detecta los 12 kicks con pulso pleno
+  [beat envelope] peaks=11/12 maxBeat=0.328 minBetween=0.000 valleys=242
+  ok  beat de audio real oscila: sube en kicks y baja entre golpes (no queda pegado)
+  ok  rhythmAnalyze incluye el bin 0 en bass/kick (fundamental del bombo)
+RESULT rhythm_real_audio_fix: pass=4 fail=0
+
+=== tests\rook_shockwave.js ===
+  ok  fx.js expone spawnShockwave/updateShockwaves (sistema reutilizable)
+  ok  shockwave: nace con life 1, se expande y muere (~0.45s)
+  ok  ROOK: activar Muralla aturde (stun>=1s) y empuja enemigos en <=120px
+  ok  reflejo de Muralla sube a 30 (+50%)
+RESULT rook_shockwave: pass=4 fail=0
+
+=== tests\shop_meta.js ===
+  ok  ?fresh=1: saltea loadMeta y congela guardado
+  ok  saveMeta respeta metaFrozen
+  ok  NV.resetMeta borra localStorage
+  ok  tope de consumibles: cap 3 por visita, reset en showShop
+  ok  tope acumulado por tipo: cap 10 y tienda deshabilitada con indicador visual
+RESULT shop_meta: pass=5 fail=0
+
+=== tests\shop_visual_remaster.js ===
+  ok  cabecera técnica: terminal de reabastecimiento, shards y oleada dinámica
+  ok  layout: 3 paneles con identidades y docks dentro de ARMERÍA/PROTOCOLOS
+  ok  protocolos renderiza 6 slots desde NV.groupConsumables sin tocar límites
+  ok  tarjetas: layouts por tipo, rareza visual, hover scanline y disabled diagonal
+  ok  fondo de tienda con profundidad: grid isométrico, partículas y línea de estado
+  ok  micro feedback de compra existe sin cambiar reglas de compra
+RESULT shop_visual_remaster: pass=6 fail=0
+
+=== tests\space_special.js ===
+[INIT] Iniciando...
+[CLICK] JUGAR
+[START] Iniciando partida...
+[WAVE] Oleada 1
+[START] Partida iniciada correctamente
+boti   -> ok
+[INIT] Iniciando...
+[CLICK] JUGAR
+[START] Iniciando partida...
+[WAVE] Oleada 1
+[START] Partida iniciada correctamente
+nova   -> ok
+[INIT] Iniciando...
+[CLICK] JUGAR
+[START] Iniciando partida...
+[WAVE] Oleada 1
+[START] Partida iniciada correctamente
+rook   -> ok
+[INIT] Iniciando...
+[CLICK] JUGAR
+[START] Iniciando partida...
+[WAVE] Oleada 1
+[START] Partida iniciada correctamente
+swarm  -> ok
+
+=== tests\specter_integration.js ===
+  ok  specter_lite registrado en ENEMY_TYPES
+  ok  specter_core registrado en ENEMY_TYPES
+  ok  weightedRandom existe y funciona sin weight (uniforme)
+  ok  weightedRandom respeta weights
+[SPAWN] wave=1 type=specter_lite
+  ok  spawnEnemy forceTypeId spawn specter_lite sin importar wave/minWave
+  ok  spawnEnemy normal no spawnea specters en wave bajo
+[SPAWN] wave=1 type=specter_lite
+  ok  SPECTER_ENABLED=false bloquea incluso forceTypeId y true lo rehabilita
+  ok  pools por oleada desbloquean lite en 16 y core en 20
+  ok  drawSpecter2D existe y es funcion
+  ok  drawEnemy delega a drawSpecter2D para specters
+  ok  index.html carga espectroLite.js
+RESULT specter_integration: pass=11 fail=0
+
+=== tests\specter_threejs_integration.js ===
+  ok  NV.SPECTER_ENABLED existe
+  ok  shouldUseEspectroLite retorna false (Three.js deprecado)
+  ok  ESPECTRO_LITE_ACTIVE default false (Three.js deprecado)
+  ok  toggleEspectroLite existe
+  ok  flag false filtra espectros del pool y limpia existentes
+  ok  usa #specter-overlay (canvas WebGL deprecado pero presente)
+  ok  HTML tiene #specter-overlay
+  ok  CSS tiene .espectro-lite-canvas
+  ok  CSS pointer-events none
+  ok  espectroLite.js tiene EspectroLite class
+  ok  game.js decide si omite el fallback Canvas2D
+  ok  enemies.js NO tiene debug markers
+  ok  espectral renderer mapeo specter_lite -> Model 1 (Crowned Amoeba)
+  ok  espectral renderer define renderSpecterLite2D distintivo
+
+RESULT: pass=14 fail=0
+
+=== tests\spectral_enemies_integration.js ===
+spectral_enemies_integration:
+  ok  NV.SPECTRAL_ENEMY_MODE existe y es true por defecto
+  ok  NV.toggleSpectralEnemyMode es función
+  ok  toggleSpectralEnemyMode alterna SPECTRAL_ENEMY_MODE
+  ok  drawEnemy contiene rama para SPECTRAL_ENEMY_MODE
+  ok  drawEnemy mantiene fallback a NV.drawEnemy original
+  ok  el fallback geométrico original se mantiene disponible
+  ok  ELITE_TYPES.visualId coinciden con SPECTRAL_ELITE_PROFILES
+  ok  gameData contiene los 6 enemigos espectrales nuevos
+  ok  spectralEnemies2D tiene perfiles para los 6 espectrales nuevos
+RESULT spectral_enemies_integration: pass=9 fail=0
+
+=== tests\spectral_enemies_render.js ===
+  ok  NV.drawSpectralEnemy2D es función
+  ok  NV.drawSpectralBoss2D es función
+  ok  NV.SPECTRAL_ENEMY_PROFILES expone 12 perfiles
+  ok  NV.SPECTRAL_ENEMY_PROFILES expone 12 perfiles base
+  ok  render drone sin crash
+  ok  render runner sin crash
+  ok  render tank sin crash
+  ok  render shielder sin crash
+  ok  render swarmlet sin crash
+  ok  render spitter sin crash
+  ok  render wisp sin crash
+  ok  render kamikaze sin crash
+  ok  render boss_minion sin crash
+  ok  render specter_grunt sin crash
+  ok  render specter_archer sin crash
+  ok  render specter_guard sin crash
+  ok  render specter_lite sin crash
+  ok  render specter_core sin crash
+  ok  drawSpectralEnemy2D NO muta datos del enemigo
+  ok  visual raid boss de los 8 elites NO muta datos
+  ok  visual Lab de los 6 espectrales NO muta datos
+  ok  specter shape ahora renderiza con la estética del Visual Lab
+  ok  specter_lite y specter_core mapean a los modelos del lab sin mutar datos
+  ok  down-scale por modelo: factores aprobados y radio visual del roster
+  ok  factor de hitbox por modelo = factor visual / 0.8 previo
+  ok  customScale escala el radio visual del modelo
+  ok  render con slowUntil activo
+  ok  render con mine activo
+  ok  render con armed activo (kamikaze)
+  ok  render élite base (isElite sin visualId)
+  ok  render élite con visualId específico
+  ok  render élite visualId=elite_base sin crash
+  ok  render élite visualId=elite_velocity sin crash
+  ok  render élite visualId=elite_bulwark sin crash
+  ok  render élite visualId=elite_predator sin crash
+  ok  render élite visualId=elite_phantom sin crash
+  ok  render élite visualId=elite_chaos sin crash
+  ok  render élite visualId=elite_titan sin crash
+  ok  render élite visualId=elite_swift sin crash
+  ok  render élite visualId=elite_specter_swift sin crash
+  ok  render élite visualId=elite_specter_wrath sin crash
+  ok  render élite visualId=elite_specter_void sin crash
+  ok  NV.SPECTRAL_ELITE_PROFILES expone 11 perfiles
+  ok  cada perfil élite tiene haloColor y haloWidth
+  ok  resolveProfile usa visualId del enemigo
+  ok  élite sin visualId cae a elite_base
+  ok  élite con visualId inválido cae a elite_base
+  ok  render boss JEFE espectral sin crash
+  ok  render boss TITÁN espectral sin crash
+  ok  render boss SEÑOR DEL VACÍO espectral sin crash
+  ok  render boss GUARDIÁN espectral sin crash
+  ok  render boss DESTRUCTOR espectral sin crash
+  ok  render boss NÉMESIS espectral sin crash
+  ok  render boss COLOSO espectral sin crash
+  ok  render boss FANTASMA espectral sin crash
+  ok  render boss MUTANTE espectral sin crash
+  ok  render boss APOCALIPSIS espectral sin crash
+  ok  render boss con hitFlash activo
+  ok  render boss en FASE 2
+  ok  boss muerto devuelve false
+  ok  NV.SPECTRAL_BOSS_PROFILES expone 10 perfiles
+  ok  render shielder con escudo en cooldown
+  ok  index.html carga spectralEnemies2D.js antes que enemies.js
+
+RESULT spectral_enemies_render: pass=63 fail=0
+
+=== tests\spectral_enemy_spawn.js ===
+spectral_enemy_spawn:
+  ok  specter_grunt registrado en ENEMY_TYPES
+  ok  specter_archer registrado en ENEMY_TYPES
+  ok  specter_guard registrado en ENEMY_TYPES
+  ok  specter_elite_swift registrado en ELITE_TYPES
+  ok  specter_elite_wrath registrado en ELITE_TYPES
+  ok  specter_elite_void registrado en ELITE_TYPES
+  ok  specter_lite y specter_core NO cambian
+  ok  wave 2 NO puede spawnear espectros nuevos
+[SPAWN] wave=3 type=specter_grunt
+  ok  wave 3 spawnea specter_grunt (random bajo -> primer peso)
+[SPAWN] wave=5 type=specter_guard
+  ok  wave 5 spawnea specter_guard (random alto -> último peso)
+  ok  wave 11 NO spawnea élites espectrales (minWave 12+)
+[SPAWN] wave=13 type=specter_elite_swift
+[SPAWN] wave=13 type=specter_elite_swift
+  ok  wave 13 spawnea élite espectral swift (peso bajo + random bajo)
+[SPAWN] wave=13 type=specter_elite_swift
+[SPAWN] wave=13 type=specter_elite_swift
+  ok  élite espectral lleva enemyTypeId y visualId
+  ok  el ciclo de élites base sigue intacto (wave 3 da élites no-espectrales)
+  ok  spawnEnemy loguea [SPAWN] para espectros
+  ok  spawnElite loguea [SPAWN] para élites espectrales
+
+RESULT spectral_enemy_spawn: pass=16 fail=0
+
+=== tests\spectral_roster_preview.js ===
+spectral_roster_preview:
+  ok  preview carga gameData.js y spectralEnemies2D.js
+  ok  script inline contiene buildRoster, drawCell y animate
+  ok  no hay typos de colores/funciones
+  ok  preview inicializa window.NV antes de cargar los módulos (bootstrap)
+  ok  script inline tiene guard con mensaje visible si los módulos no cargan
+  ok  script inline tiene sintaxis válida
+  ok  buildRoster deriva 13 básicos + 11 élites + 10 bosses desde datos reales
+  ok  preview se ejecuta headless: dibuja todo el roster sin errores
+
+RESULT spectral_roster_preview: pass=8 fail=0
+
+RESULT spectral_roster_preview: pass=8 fail=0
+
+=== tests\wave_balance.js ===
+  ok  oleadas 1-10 mantienen la curva original (onboarding intacto)
+  ok  continua en w=10 (sin salto)
+  ok  pendiente 0.22 reduce HP en oleada alta
+  ok  spawnEnemy consume la curva unica (sin formula duplicada)
+  ok  wave invalida cae a 1 de forma segura
+  ok  B2: w=1 no altera el daño inicial (partida igual a siempre)
+  ok  B2: +5% lineal por oleada completada
+  ok  B2: wave invalida cae a 1 de forma segura
+  ok  B2: shoot escala el daño del arma (unico consumidor)
+RESULT wave_balance: pass=9 fail=0
+
+=== tests\wave_duration.js ===
+  ok  fórmula original fiel: max(15, 25 - wave*0.4)
+  ok  piso en 15s para oleadas altas
+  ok  sin fórmula inline duplicada en game.js (barra y nextWave usan NV.waveDuration)
+  ok  nextWave y barra leen de la MISMA función (la barra no se desincroniza)
+  ok  evento extiende duración y respeta cap 90s
+  ok  sin evento: duración base sin cambios
+  ok  waveSpawnFactor compensa oleadas largas (mismo total de spawns)
+RESULT wave_duration: pass=7 fail=0
+RESULT wave_duration: pass=7 fail=0
+
+=== tests\wave_events.js ===
+  ok  WAVE_EVENTS define los 4
+  ok  spawnElite: 2 normal, 3 con elites
+  ok  spawnEnemy marca minas solo con mines
+  ok  game.js conecta selección %3, pickWaveEvent, banner, niebla
+RESULT wave_events: pass=4 fail=0
+
+=== tests\weapon_fusion.js ===
+  ok  weaponFusionDamage: fus 0 = base, fus 3 = base*1.6
+  ok  shoot aplica el multiplicador de fusión sobre base+nivel
+  ok  sin fusión no cambia el daño (regresión)
+  ok  drops de arma poseída se fusiona y no ocupa slot
+  ok  arma NO poseída sigue guardándose (sin regresión)
+  ok  constantes de fusión en balance.js
+RESULT weapon_fusion: pass=6 fail=0
+
+=== tests\weapon_icons_canvas.js ===
+  ok  expone drawWeaponIcon y los 10 IDs aprobados
+  ok  cada arma dibuja primitivas canvas con save/restore y sin texto/emoji
+  ok  colores identitarios coinciden con el preview aprobado
+  ok  index carga weaponIcons antes del HUD/game
+RESULT weapon_icons_canvas: pass=4 fail=0
+
+=== tests\weapon_icons_integration.js ===
+  ok  tienda reemplaza pixel-art viejo por drawWeaponCanvas + drawWeaponIcon
+  ok  inventario DOM usa canvas por slot, no weapon.icon textual
+  ok  pickups de armas en mundo usan drawWeaponIcon y conservan etiqueta textual
+  ok  CSS reserva tamaño real legible para canvas del inventario
+  ok  datos de armas no conservan emojis/iconos legacy
+RESULT weapon_icons_integration: pass=5 fail=0
+
+=== tests\weapon_pickup.js ===
+  ok  inventario CON lugar: guarda y no toca la equipada
+  ok  inventario LLENO: no equipa, no consume el drop, avisa
+  ok  aviso INVENTARIO LLENO con anti-spam mientras se pisa
+  ok  al liberar espacio vuelve a recogerse normalmente
+RESULT weapon_pickup: pass=4 fail=0
+
+=== tests\weapon_pierce.js ===
+  ok  shoot asigna impacto directo o perfil de rol sin tocar daño/cadencia
+  ok  datos rebalanceados: pierce/cadencia por rol sin tocar daño base
+  ok  default pierce 1: armas rápidas/sin pierce no atraviesan múltiples enemigos
+  ok  rifle penetra exactamente hasta 2 enemigos
+  ok  arco rebota hasta 3 enemigos cercanos además del impacto inicial
+  ok  plasma explota en área al primer impacto
+  ok  pierce explícito impacta hasta su límite y luego muere
+  ok  boss consume la bala y recibe el mismo daño aunque el arma tenga pierce alto
+RESULT weapon_pierce: pass=8 fail=0
+
+=== tests\weapon_range.js ===
+  ok  TODAS las armas tienen range definido y positivo
+  ok  helpers de armas: lookup, starter y validación WEAPONS↔BULLET_DEFS
+  ok  Orden relativo coherente: railgun > sniper > bow > rifle > smg > shotgun > flamethrower
+  ok  shoot NO dispara fuera de rango (devuelve false, sin balas ni sonido)
+  ok  shoot SÍ dispara dentro de su rango (balas creadas, sonido reproducido)
+RESULT weapon_range: pass=5 fail=0
+
+=== tests\weapon_sell.js ===
+  ok  weaponSellValue: valor correcto por rareza
+  ok  venta siempre < compra (25): sin farmeo de economía
+  ok  rareza desconocida/arma nula: fallback seguro
+  ok  game.js vende: usa NV.weaponSellValue, suma shards y saca del inventario
+  ok  constantes de venta en balance.js
+RESULT weapon_sell: pass=5 fail=0
+
+=== tests\weapon_wheel.js ===
+  ok  rueda abajo (dir +1): avanza en orden y es circular (última -> primera)
+  ok  rueda arriba (dir -1): retrocede circular (primera -> última)
+  ok  devuelve la MISMA instancia del arma (no copia): conserva nivel/rareza
+  ok  arma fuera de lista / lista vacía: sin crash
+  ok  game.js conecta el listener de wheel
+  ok  arma fusionada (no referenciada en inventario) cicla de forma estable
+  ok  arma fusionada + wheel up retrocede circular sin salto inesperado
+  ok  lista de un solo elemento (solo pistola): ciclo es no-op estable
+  ok  game.js normaliza currentWeapon con fallback a pistola (fix wheel bug)
+RESULT weapon_wheel: pass=9 fail=0
+
+RESULT run_all: total=62 failed=1

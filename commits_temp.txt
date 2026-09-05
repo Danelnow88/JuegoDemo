@@ -1,0 +1,20 @@
+5f3c116 Update index.html with Enemy Visual Lab Engine
+6371b06 espectrales RB1-RB6: estilo liquido hand-drawn para los 6 enemigos
+58a3d4d specter_grunt: animacion liquida fiel al visual lab
+ae57964 specter_grunt: usar tamano exacto del visual lab
+e48450a enemy fusion y specter_grunt liquido gigante
+10e5827 specter_grunt: escalar cuerpo liquido a tamano de basicos
+3c0465a specter_grunt: estilo liquido hand-drawn (de enemy-visual-lab)
+6e78ccc Retículo minimalista para el autoapuntado (reemplaza diamante)
+64549df Cleanup-01: remove static per-enemy glow outline
+6b7d75f Perf-02: tail sampling 40/88->24/48 with pooled reusable buffers
+faf4de3 Perf-01: tail glow in a single additive pass (was 3 shadowed strokes)
+d11978c Baseline: pending spectralEnemies2D remaster working state
+7b3b4e3 Add headless enemy animation cost profiler (diagnostics)
+dec1c73 Fix two pre-existing test harness failures
+5334090 Integrate approved Specter Lite WebGL overlay
+3868c01 META-VIS-02b density fog with unified palette
+cbd0939 META-VIS-01b complete damage context diagnostics
+5251c0d META-VIS-07 clarify existing enemy intent
+32d28ef META-VIS-06 reveal autofire target subtly
+d398779 META-VIS-05 visualize real shift momentum
