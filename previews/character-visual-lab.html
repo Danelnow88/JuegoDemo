@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Personajes Visual Lab - Prototipado General</title>
+    <style>
+        :root {
+            --bg-color: #040508;
+            --panel-bg: rgba(10, 12, 18, 0.90);
+            --accent-gold: #ffb700;
+            --accent-glow: rgba(255, 183, 0, 0.4);
+            --text-color: #f1f5f9;
+            --border-color: #1e293b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+        }
+
+        #canvas-container {
+            flex: 1;
+            height: 100%;
+            position: relative;
+            background: radial-gradient(circle at center, #0f1426 0%, #020305 100%);
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        #ui-panel {
+            width: 350px;
+            height: 100%;
+            background: var(--panel-bg);
+            backdrop-filter: blur(14px);
+            border-left: 1px solid var(--border-color);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            box-shadow: -5px 0 25px rgba(0,0,0,0.8);
+            z-index: 10;
+            overflow-y: auto;
+        }
+
+        h1 {
+            font-size: 1.1rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--accent-gold);
+            text-shadow: 0 0 10px var(--accent-glow);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        label {
+            font-size: 0.8rem;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        select, button {
+            background: #0f172a;
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        select:hover, button:hover {
+            border-color: var(--accent-gold);
+            box-shadow: 0 0 8px var(--accent-glow);
+        }
+
+        button.active {
+            background: var(--accent-gold);
+            color: #000;
+            font-weight: bold;
+            box-shadow: 0 0 14px var(--accent-glow);
+        }
+
+        .btn-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .status-box {
+            margin-top: auto;
+            padding: 10px;
+            background: rgba(0,0,0,0.5);
+            border-radius: 4px;
+            border-left: 3px solid var(--accent-gold);
+            font-size: 0.8rem;
+            color: #fef08a;
+        }
+
+        .desc-box {
+            font-size: 0.8rem;
+            line-height: 1.4;
+            color: #cbd5e0;
+            background: rgba(255,255,255,0.03);
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="canvas-container">
+        <canvas id="mainCanvas"></canvas>
+    </div>
+
+    <div id="ui-panel">
+        <h1>Personajes Lab v4.0</h1>
+        
+        <div class="control-group">
+            <label for="charSelect">Héroe Planetario (Tinta Viva)</label>
+            <select id="charSelect">
+                <option value="0">NEPTUNO - Tormenta de Tinta Cian</option>
+                <option value="1">MARTE - Magma Chorreante Activo</option>
+                <option value="2">JÚPITER - Maelstrom Rúnico de Vetas</option>
+                <option value="3">SATURNO - Núcleo de Oro Líquido</option>
+            </select>
+        </div>
+
+        <div class="desc-box" id="charDesc">
+            Cargando descripción...
+        </div>
+
+        <div class="control-group">
+            <label>Modo de Visualización</label>
+            <div class="btn-grid">
+                <button id="btnSingle" class="active">Single View</button>
+                <button id="btnGrid">Grid View</button>
+            </div>
+            <button id="btnOrbit">Orbit Mode (4 Active)</button>
+        </div>
+
+        <div class="control-group">
+            <label>Acciones</label>
+            <button id="btnDownload">Descargar character-visual-lab.html</button>
+        </div>
+
+        <div class="status-box" id="statusBox">
+            Liquid Ink Engine: Trazado Vacio y Patrones Dinámicos 60FPS
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('mainCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        let width, height;
+        let time = 0;
+        let currentMode = 'single';
+        let selectedCharIndex = 0;
+
+        let targetPos = { x: 0, y: 0 };
+
+        window.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            targetPos.x = e.clientX - rect.left;
+            targetPos.y = e.clientY - rect.top;
+        });
+
+        const charDescriptions = [
+            "NEPTUNO: Tinta cian abisal en deformación continua. Vetas de plasma azul se dibujan en la superficie y se esfuman en los bordes como corriente marina.",
+            "MARTE: Esfera volcánica con física de derretimiento. Chorros viscosos de magma rojo caen y se vuelven a fundir con el núcleo incandescente.",
+            "JÚPITER: Masa fluida gigante de tinta púrpura y dorada. Patrones en espiral emergen del centro y se disuelven en un ojo vigilante.",
+            "SATURNO: Núcleo de oro chorreante rodeado por anillos de trazado vivo que se dibujan en arco y se desvanecen con efecto estela."
+        ];
+
+        function resize() {
+            width = canvas.width = document.getElementById('canvas-container').clientWidth;
+            height = canvas.height = document.getElementById('canvas-container').clientHeight;
+            if (targetPos.x === 0 && targetPos.y === 0) {
+                targetPos.x = width / 2;
+                targetPos.y = height / 2;
+            }
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        function drawLiquidInkBlob(cx, cy, radius, points, noise, speed, fillColor, strokeColor, glowColor, seed = 0) {
+            ctx.save();
+            ctx.translate(cx, cy);
+
+            ctx.beginPath();
+            for (let i = 0; i <= points; i++) {
+                let angle = (i / points) * Math.PI * 2;
+                let n1 = Math.sin(angle * 4 + time * 8 * speed + seed);
+                let n2 = Math.cos(angle * 3 - time * 10 * speed + seed * 2);
+                let jitter = (Math.random() - 0.5) * 2.5;
+                
+                let r = radius + (n1 + n2) * noise + jitter;
+                let x = Math.cos(angle) * r;
+                let y = Math.sin(angle) * r;
+
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.closePath();
+
+            ctx.fillStyle = fillColor;
+            ctx.shadowColor = glowColor;
+            ctx.shadowBlur = 18;
+            ctx.fill();
+
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = strokeColor;
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
+        function drawFlowingPatterns(cx, cy, radius, color, count = 4, seed = 0) {
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+
+            for (let i = 0; i < count; i++) {
+                let progress = ((time * 0.8 + (i / count)) % 1);
+                let alpha = Math.sin(progress * Math.PI);
+                let currentR = radius * (0.2 + progress * 0.75);
+
+                ctx.globalAlpha = alpha;
+                ctx.beginPath();
+                ctx.ellipse(
+                    Math.cos(time + i + seed) * 6,
+                    Math.sin(time * 1.2 + i) * 6,
+                    currentR,
+                    currentR * 0.45,
+                    time + i,
+                    0,
+                    Math.PI * 2
+                );
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+
+        function drawDripsAndMelts(cx, cy, radius, color, glowColor, seed = 0) {
+            ctx.save();
+            for (let i = 0; i < 6; i++) {
+                let pAngle = (i / 6) * Math.PI * 2 + time * 1.5 + seed;
+                let dripY = Math.sin(time * 4 + i) * 15;
+                let px = cx + Math.cos(pAngle) * (radius + 8);
+                let py = cy + Math.sin(pAngle) * (radius + 8) + dripY;
+                let pSize = 3 + Math.sin(time * 8 + i) * 2;
+
+                if (pSize > 0) {
+                    ctx.beginPath();
+                    ctx.arc(px, py, pSize, 0, Math.PI * 2);
+                    ctx.fillStyle = color;
+                    ctx.shadowColor = glowColor;
+                    ctx.shadowBlur = 8;
+                    ctx.fill();
+                }
+            }
+            ctx.restore();
+        }
+
+        function drawLiquidEye(cx, cy, targetX, targetY, scale = 1, pupilColor = '#00f0ff') {
+            ctx.save();
+            ctx.translate(cx, cy);
+
+            let dx = targetX - cx;
+            let dy = targetY - cy;
+            let angle = Math.atan2(dy, dx);
+            let dist = Math.min(8 * scale, Math.hypot(dx, dy) * 0.04);
+
+            let ox = Math.cos(angle) * dist;
+            let oy = Math.sin(angle) * dist;
+
+            let eyeR = 11 * scale + Math.sin(time * 10) * 1;
+
+            ctx.beginPath();
+            ctx.arc(0, 0, eyeR, 0, Math.PI * 2);
+            ctx.fillStyle = '#ffffff';
+            ctx.shadowColor = pupilColor;
+            ctx.shadowBlur = 12;
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.arc(ox, oy, eyeR * 0.5, 0, Math.PI * 2);
+            ctx.fillStyle = pupilColor;
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.arc(ox - 2, oy - 2, eyeR * 0.2, 0, Math.PI * 2);
+            ctx.fillStyle = '#ffffff';
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        function drawPlanetHero(index, cx, cy, scale = 1) {
+            ctx.save();
+            ctx.scale(scale, scale);
+            let adjCx = cx / scale;
+            let adjCy = cy / scale;
+
+            switch(index) {
+                case 0:
+                    drawDripsAndMelts(adjCx, adjCy, 42, '#00f0ff', '#00f0ff', 1);
+                    drawLiquidInkBlob(adjCx, adjCy + 8, 34, 12, 7, 1.2, '#021536', '#0066ff', '#0066ff', 1);
+                    drawLiquidInkBlob(adjCx, adjCy, 44, 16, 10, 1.0, '#042b5c', '#00f0ff', '#00f0ff', 2);
+                    drawFlowingPatterns(adjCx, adjCy, 40, '#70f3ff', 5, 1);
+                    drawLiquidEye(adjCx, adjCy - 4, targetPos.x / scale, targetPos.y / scale, 1.1, '#00f0ff');
+                    break;
+
+                case 1:
+                    drawDripsAndMelts(adjCx, adjCy, 45, '#ff3300', '#ff6600', 2);
+                    drawLiquidInkBlob(adjCx - 12, adjCy - 8, 24, 10, 8, 1.6, '#4a0800', '#ff9900', '#ff9900', 3);
+                    drawLiquidInkBlob(adjCx, adjCy, 46, 14, 12, 1.1, '#2b0500', '#ff3300', '#ff3300', 4);
+                    drawFlowingPatterns(adjCx, adjCy, 42, '#ffaa00', 4, 2);
+                    drawLiquidEye(adjCx, adjCy - 6, targetPos.x / scale, targetPos.y / scale, 1.0, '#ffcc00');
+                    break;
+
+                case 2:
+                    drawDripsAndMelts(adjCx, adjCy, 50, '#eab308', '#a855f7', 3);
+                    drawLiquidInkBlob(adjCx, adjCy, 50, 18, 11, 0.9, '#1e0a2a', '#a855f7', '#a855f7', 5);
+                    drawFlowingPatterns(adjCx, adjCy, 48, '#fef08a', 6, 3);
+                    drawLiquidEye(adjCx + 8, adjCy + 6, targetPos.x / scale, targetPos.y / scale, 1.3, '#ff2a4b');
+                    break;
+
+                case 3:
+                    drawDripsAndMelts(adjCx, adjCy, 40, '#ffee77', '#ffee77', 4);
+                    drawLiquidInkBlob(adjCx, adjCy, 38, 12, 7, 1.0, '#241c02', '#ffee77', '#ffee77', 6);
+                    drawFlowingPatterns(adjCx, adjCy, 36, '#ffffff', 3, 4);
+
+                    ctx.save();
+                    ctx.translate(adjCx, adjCy);
+                    ctx.rotate(0.35 + Math.sin(time * 2) * 0.06);
+
+                    for (let a = 0; a < 2; a++) {
+                        let ringProgress = ((time * 0.6 + a * 0.5) % 1);
+                        let ringAlpha = Math.sin(ringProgress * Math.PI);
+                        ctx.globalAlpha = ringAlpha;
+
+                        ctx.beginPath();
+                        ctx.ellipse(0, 0, 65 + ringProgress * 25, 20 + ringProgress * 8, 0, 0, Math.PI * 2);
+                        ctx.strokeStyle = a === 0 ? '#ffee77' : '#ffffff';
+                        ctx.lineWidth = 3 - ringProgress * 1.5;
+                        ctx.shadowColor = '#ffee77';
+                        ctx.shadowBlur = 12;
+                        ctx.stroke();
+                    }
+                    ctx.restore();
+
+                    drawLiquidEye(adjCx, adjCy - 2, targetPos.x / scale, targetPos.y / scale, 0.95, '#ffee77');
+                    break;
+            }
+
+            ctx.restore();
+        }
+
+        function renderSingle() {
+            let cx = width / 2;
+            let cy = height / 2;
+            drawPlanetHero(selectedCharIndex, cx, cy, 1.8);
+        }
+
+        function renderGrid() {
+            let cols = 2;
+            let rows = 2;
+            let cellWidth = width / cols;
+            let cellHeight = height / rows;
+
+            for (let i = 0; i < 4; i++) {
+                let col = i % cols;
+                let row = Math.floor(i / cols);
+                let cx = col * cellWidth + cellWidth / 2;
+                let cy = row * cellHeight + cellHeight / 2;
+
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(col * cellWidth + 15, row * cellHeight + 15, cellWidth - 30, cellHeight - 30);
+
+                ctx.fillStyle = 'rgba(255, 183, 0, 0.8)';
+                ctx.font = '11px monospace';
+                ctx.fillText(`HERO_PLANET_0${i + 1}`, col * cellWidth + 25, row * cellHeight + 35);
+
+                drawPlanetHero(i, cx, cy, 1.0);
+            }
+        }
+
+        function renderOrbit() {
+            for (let i = 0; i < 4; i++) {
+                let angle = (i / 4) * Math.PI * 2 + time * 0.6;
+                let radius = Math.min(width, height) * 0.28;
+                let cx = width / 2 + Math.cos(angle) * radius;
+                let cy = height / 2 + Math.sin(angle) * radius;
+
+                drawPlanetHero(i, cx, cy, 0.9);
+            }
+        }
+
+        function loop() {
+            time += 0.025;
+
+            ctx.clearRect(0, 0, width, height);
+
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.025)';
+            ctx.lineWidth = 1;
+            let gridSize = 50;
+            for (let x = 0; x < width; x += gridSize) {
+                ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, height); ctx.stroke();
+            }
+            for (let y = 0; y < height; y += gridSize) {
+                ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke();
+            }
+
+            if (currentMode === 'single') renderSingle();
+            else if (currentMode === 'grid') renderGrid();
+            else if (currentMode === 'orbit') renderOrbit();
+
+            requestAnimationFrame(loop);
+        }
+
+        const charSelect = document.getElementById('charSelect');
+        const charDesc = document.getElementById('charDesc');
+        const btnSingle = document.getElementById('btnSingle');
+        const btnGrid = document.getElementById('btnGrid');
+        const btnOrbit = document.getElementById('btnOrbit');
+        const btnDownload = document.getElementById('btnDownload');
+
+        function updateDescription() {
+            charDesc.textContent = charDescriptions[selectedCharIndex];
+        }
+
+        charSelect.addEventListener('change', (e) => {
+            selectedCharIndex = parseInt(e.target.value);
+            updateDescription();
+            if (currentMode !== 'single') setActiveMode('single');
+        });
+
+        function setActiveMode(mode) {
+            currentMode = mode;
+            btnSingle.classList.remove('active');
+            btnGrid.classList.remove('active');
+            btnOrbit.classList.remove('active');
+
+            if (mode === 'single') btnSingle.classList.add('active');
+            if (mode === 'grid') btnGrid.classList.add('active');
+            if (mode === 'orbit') btnOrbit.classList.add('active');
+        }
+
+        btnSingle.addEventListener('click', () => setActiveMode('single'));
+        btnGrid.addEventListener('click', () => setActiveMode('grid'));
+        btnOrbit.addEventListener('click', () => setActiveMode('orbit'));
+
+        btnDownload.addEventListener('click', () => {
+            const htmlContent = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
+            const blob = new Blob([htmlContent], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'character-visual-lab.html';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        });
+
+        updateDescription();
+        loop();
+    </script>
+</body>
+</html>

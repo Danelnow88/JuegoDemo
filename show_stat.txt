@@ -1,0 +1,8 @@
+084a011 checkpoint before adding character lab
+ commits_temp.txt               |  20 ++
+ js/engine/weather.js           | 153 +++++++++
+ js/ui/characterThoughts.js     |  91 +++++
+ previews/enemy-visual-lab.html | 447 ++++++++++++-------------
+ test_out.txt                   | 733 +++++++++++++++++++++++++++++++++++++++++
+ {                              |   0
+ 6 files changed, 1210 insertions(+), 234 deletions(-)

@@ -1,0 +1,12 @@
+commit 084a011c194ab4b81449388245782825542d1cb0
+Author: Danel <partywiththedevil88@gmail.com>
+Date:   Sat Sep 5 02:44:22 2026 -0300
+
+    checkpoint before adding character lab
+
+A	commits_temp.txt
+A	js/engine/weather.js
+A	js/ui/characterThoughts.js
+M	previews/enemy-visual-lab.html
+A	test_out.txt
+A	{

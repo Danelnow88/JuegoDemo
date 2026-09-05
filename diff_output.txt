@@ -1,0 +1,177 @@
+diff --git a/js/render/player.js b/js/render/player.js
+index a8c8c9f..ec989c2 100644
+--- a/js/render/player.js
++++ b/js/render/player.js
+@@ -3,6 +3,66 @@
+ (() => {
+   'use strict';
+   const NV = window.NV;
++  // NEW: Visual utility functions for advanced rendering effects
++  function NV_drawLiquidInkBlob(ctx, cx, cy, radius, points, noise, speed, fillColor, strokeColor, glowColor, seed, t) {
++    ctx.save();
++    ctx.translate(cx, cy);
++    ctx.beginPath();
++    for (let i = 0; i <= points; i++) {
++      let angle = (i / points) * Math.PI * 2;
++      let n1 = Math.sin(angle * 4 + t * 8 * speed + seed);
++      let n2 = Math.cos(angle * 3 - t * 10 * speed + seed * 2);
++      let jitter = (Math.random() - 0.5) * 2.5;
++      let r = radius + (n1 + n2) * noise + jitter;
++      let x = Math.cos(angle) * r;
++      let y = Math.sin(angle) * r;
++      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
++    }
++    ctx.closePath();
++    ctx.fillStyle = fillColor;
++    ctx.shadowColor = glowColor;
++    ctx.shadowBlur = 18;
++    ctx.fill();
++    ctx.lineWidth = 3;
++    ctx.strokeStyle = strokeColor;
++    ctx.stroke();
++    ctx.restore();
++  }
++  function NV_drawFlowingPatterns(ctx, cx, cy, radius, color, count, seed, t) {
++    ctx.save();
++    ctx.translate(cx, cy);
++    ctx.strokeStyle = color;
++    ctx.lineWidth = 2;
++    for (let i = 0; i < count; i++) {
++      let progress = ((t * 0.8 + (i / count)) % 1);
++      let alpha = Math.sin(progress * Math.PI);
++      let currentR = radius * (0.2 + progress * 0.75);
++      ctx.globalAlpha = alpha;
++      ctx.beginPath();
++      ctx.ellipse(Math.cos(t + i + seed) * 6, Math.sin(t * 1.2 + i) * 6, currentR, currentR * 0.45, t + i, 0, Math.PI * 2);
++      ctx.stroke();
++    }
++    ctx.restore();
++  }
++  function NV_drawDripsAndMelts(ctx, cx, cy, radius, color, glowColor, seed, t) {
++    ctx.save();
++    for (let i = 0; i < 6; i++) {
++      let pAngle = (i / 6) * Math.PI * 2 + t * 1.5 + seed;
++      let dripY = Math.sin(t * 4 + i) * 15;
++      let px = cx + Math.cos(pAngle) * (radius + 8);
++      let py = cy + Math.sin(pAngle) * (radius + 8) + dripY;
++      let pSize = 3 + Math.sin(t * 8 + i) * 2;
++      if (pSize > 0) {
++        ctx.beginPath();
++        ctx.arc(px, py, pSize, 0, Math.PI * 2);
++        ctx.fillStyle = color;
++        ctx.shadowColor = glowColor;
++        ctx.shadowBlur = 8;
++        ctx.fill();
++      }
++    }
++    ctx.restore();
++  }
+ 
+   NV.drawPlayer = function (ctx, player, CHARACTERS, frame) {
+     const char = CHARACTERS[player.character];
+@@ -120,56 +180,59 @@
+     const cid = char.id || player.character;
+ 
+     if (cid === 'boti') {
+-      // Hexágono
+-      ctx.fillStyle = char.bodyColor;
+-      ctx.beginPath();
+-      for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2; ctx.lineTo(Math.cos(a) * size, Math.sin(a) * size); }
+-      ctx.closePath(); ctx.fill();
+-      ctx.fillStyle = char.color;
+-      ctx.beginPath();
+-      for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2; ctx.lineTo(Math.cos(a) * (size * 0.6), Math.sin(a) * (size * 0.6)); }
+-      ctx.closePath(); ctx.fill();
++      const t = frame * 0.025;
++      NV_drawDripsAndMelts(ctx, 0, 0, size * 0.9, '#00f0ff', '#00f0ff', 1, t);
++      NV_drawLiquidInkBlob(ctx, 0, 4, size * 0.7, 12, 3.5, 1.2, '#021536', '#0066ff', '#0066ff', 1, t);
++      NV_drawLiquidInkBlob(ctx, 0, 0, size * 0.95, 16, 5, 1.0, '#042b5c', '#00f0ff', '#00f0ff', 2, t);
++      NV_drawFlowingPatterns(ctx, 0, 0, size * 0.86, '#70f3ff', 5, 1, t);
+     } else if (cid === 'nova') {
+-      // Diamante/rombo
+-      ctx.fillStyle = char.bodyColor;
+-      ctx.beginPath();
+-      ctx.moveTo(0, -size * 1.2);
+-      ctx.lineTo(size * 0.8, 0);
+-      ctx.lineTo(0, size * 1.2);
+-      ctx.lineTo(-size * 0.8, 0);
+-      ctx.closePath(); ctx.fill();
+-      ctx.fillStyle = char.color;
+-      ctx.beginPath();
+-      ctx.moveTo(0, -size * 0.7);
+-      ctx.lineTo(size * 0.45, 0);
+-      ctx.lineTo(0, size * 0.7);
+-      ctx.lineTo(-size * 0.45, 0);
+-      ctx.closePath(); ctx.fill();
++      // NOVA (MARS) – adapted from visual prototype
++      const t = frame * 0.025;
++      NV_drawDripsAndMelts(ctx, 0, 0, size * (45 / 46), '#ff3300', '#ff6600', 2, t);
++      NV_drawLiquidInkBlob(ctx, size * (-12 / 46), size * (-8 / 46), size * (24 / 46), 10, size * (8 / 46), 1.6, '#4a0800', '#ff9900', '#ff9900', 3, t);
++      NV_drawLiquidInkBlob(ctx, 0, 0, size, 14, size * (12 / 46), 1.1, '#2b0500', '#ff3300', '#ff3300', 4, t);
++      NV_drawFlowingPatterns(ctx, 0, 0, size * (42 / 46), '#ffaa00', 4, 2, t);
+     } else if (cid === 'rook') {
+-      // Escudo hexagonal grueso
+-      ctx.fillStyle = char.bodyColor;
+-      ctx.beginPath();
+-      for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2 + Math.PI / 6; ctx.lineTo(Math.cos(a) * size * 1.1, Math.sin(a) * size * 1.1); }
+-      ctx.closePath(); ctx.fill();
+-      ctx.strokeStyle = char.color;
+-      ctx.lineWidth = 4;
+-      ctx.beginPath();
+-      for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2 + Math.PI / 6; ctx.lineTo(Math.cos(a) * size * 0.7, Math.sin(a) * size * 0.7); }
+-      ctx.closePath(); ctx.stroke();
+-      ctx.fillStyle = char.color;
+-      ctx.beginPath(); ctx.arc(0, 0, size * 0.3, 0, Math.PI * 2); ctx.fill();
++      // ROOK (JUPITER) – adapted from visual prototype
++      const t = frame * 0.025;
++      NV_drawDripsAndMelts(ctx, 0, 0, size, '#eab308', '#a855f7', 3, t);
++      NV_drawLiquidInkBlob(ctx, 0, 0, size, 18, size * (11 / 50), 0.9, '#1e0a2a', '#a855f7', '#a855f7', 5, t);
++      NV_drawFlowingPatterns(ctx, 0, 0, size * (48 / 50), '#fef08a', 6, 3, t);
+     } else if (cid === 'swarm') {
+-      // Círculo con anillos orbitales
+-      ctx.fillStyle = char.bodyColor;
+-      ctx.beginPath(); ctx.arc(0, 0, size, 0, Math.PI * 2); ctx.fill();
+-      ctx.strokeStyle = char.color;
+-      ctx.lineWidth = 2;
+-      for (let i = 0; i < 3; i++) {
+-        const a = (i / 3) * Math.PI * 2 + frame * 0.05;
+-        ctx.beginPath(); ctx.ellipse(0, 0, size * 1.3, size * 0.4, a, 0, Math.PI * 2); ctx.stroke();
++      // SWARM (SATURN) – adapted from visual prototype
++      const t = frame * 0.025;
++      NV_drawDripsAndMelts(ctx, 0, 0, size * (40 / 38), '#ffee77', '#ffee77', 4, t);
++      NV_drawLiquidInkBlob(ctx, 0, 0, size, 12, size * (7 / 38), 1.0, '#241c02', '#ffee77', '#ffee77', 6, t);
++      NV_drawFlowingPatterns(ctx, 0, 0, size * (36 / 38), '#ffffff', 3, 4, t);
++
++      // Animated rings for SATURN
++      ctx.save();
++      ctx.rotate(0.35 + Math.sin(t * 2) * 0.06);
++
++      for (let a = 0; a < 2; a++) {
++        const ringProgress = ((t * 0.6 + a * 0.5) % 1);
++        const ringAlpha = Math.sin(ringProgress * Math.PI);
++
++        ctx.globalAlpha = ringAlpha;
++        ctx.beginPath();
++        ctx.ellipse(
++          0,
++          0,
++          size * ((65 + ringProgress * 25) / 38),
++          size * ((20 + ringProgress * 8) / 38),
++          0,
++          0,
++          Math.PI * 2
++        );
++
++        ctx.strokeStyle = a === 0 ? '#ffee77' : '#ffffff';
++        ctx.lineWidth = 3 - ringProgress * 1.5;
++        ctx.shadowColor = '#ffee77';
++        ctx.shadowBlur = 12;
++        ctx.stroke();
+       }
+-      ctx.fillStyle = char.color;
+-      ctx.beginPath(); ctx.arc(0, 0, size * 0.5, 0, Math.PI * 2); ctx.fill();
++
++      ctx.restore();
+     }
+ 
+     // Ojos
