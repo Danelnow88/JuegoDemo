@@ -765,11 +765,253 @@ canvas {
   outline-offset: 2px;
 }
 
-.rw-btn:disabled {
-  opacity: 0.35;
-  cursor: wait;
-  transform: none;
+/* =========================================================
+   CAPA DE COMPATIBILIDAD MÓVIL (solo se activa en touch/móvil)
+   ---------------------------------------------------------
+   Todo está gateado por:
+     - la clase .nv-mobile en <html> (agregada por capabilities.js);
+     - media queries de CAPACIDAD: `(pointer: coarse)`.
+   En escritorio (puntero fino, sin .nv-mobile) NADA de esto aplica:
+   el layout, el canvas, el HUD y el gameplay quedan idénticos.
+   ========================================================= */
+
+/* --- Safe areas (expuestas también a JS vía variables) --- */
+:root {
+  --nv-safe-top: env(safe-area-inset-top, 0px);
+  --nv-safe-right: env(safe-area-inset-right, 0px);
+  --nv-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --nv-safe-left: env(safe-area-inset-left, 0px);
 }
+
+/* --- El documento se comporta como una app: sin scroll, sin selección --- */
+.nv-mobile body {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  width: 100dvw;
+  max-width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  overscroll-behavior: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.nv-mobile .shell {
+  align-items: center;
+  gap: 6px;
+  padding:
+    calc(env(safe-area-inset-top, 0px) + 4px)
+    calc(env(safe-area-inset-right, 0px) + 6px)
+    calc(env(safe-area-inset-bottom, 0px) + 4px)
+    calc(env(safe-area-inset-left, 0px) + 6px);
+}
+
+.nv-mobile .hud {
+  flex-wrap: wrap;
+  min-height: 0;
+  padding: 4px 6px;
+  gap: 4px;
+  max-width: 100%;
+}
+
+.nv-mobile .game-box {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-width: 100%;
+  /* En portrait (o ventanas muy estrechas) evita que la caja se desborde:
+     la altura queda limitada por el ancho disponible según el aspecto 900:520.
+     En landscape nunca ata de forma perceptible (la caja ya es más angosta). */
+  max-height: calc((100vw - 16px) * 520 / 900);
+  max-height: calc((100dvw - 16px) * 520 / 900);
+}
+
+/* En portrait la columna centrada se ve mejor (el overlay de rotación la tapa). */
+.nv-mobile.nv-portrait .shell {
+  justify-content: center;
+}
+
+/* El área de juego no debe disparar gestos del navegador (scroll/zoom/refresh). */
+.nv-mobile .game-box canvas {
+  touch-action: none;
+}
+/* Botones del header: sin doble-tap-zoom. */
+.nv-mobile .hud-btn,
+.nv-mobile .sound {
+  touch-action: manipulation;
+}
+
+/* La tienda, que es un overlay interno, debe quedar POR ENCIMA de los controles
+   táctiles (que son absolutos al viewport) mientras esté abierta.
+   Solo aplica en móvil: en escritorio no hay nada que tapar. */
+.nv-mobile .shop-screen {
+  z-index: 8;
+}
+
+/* --- Overlay de rotación (landscape obligatorio) --- */
+.rotate-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  background: #050714;
+  color: #7cf8ff;
+  text-align: center;
+  padding: 24px;
+}
+.rotate-overlay p {
+  font-size: clamp(16px, 4.5vmin, 24px);
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-shadow: 0 0 18px rgba(124, 248, 255, 0.5);
+}
+.rotate-overlay .rotate-hint {
+  color: #8e93ad;
+  font-size: clamp(12px, 3vmin, 16px);
+}
+.rotate-ico {
+  width: min(30vmin, 120px);
+  height: min(30vmin, 120px);
+  animation: rotate-ico-pulse 1.6s ease-in-out infinite;
+}
+@keyframes rotate-ico-pulse {
+  0%, 100% { transform: rotate(0deg); }
+  45% { transform: rotate(90deg); }
+  55% { transform: rotate(90deg); }
+}
+
+/* Mostrar: 1) cuando un puntero grueso está en vertical (CSS puro);
+   2) como refuerzo, cuando JS marcó .nv-mobile + .nv-portrait. */
+@media (pointer: coarse) {
+  .rotate-overlay { display: flex; }
+}
+.nv-mobile.nv-portrait .rotate-overlay { display: flex; }
+
+@media (pointer: coarse) and (orientation: landscape) {
+  .rotate-overlay { display: none !important; }
+}
+.nv-mobile.nv-landscape .rotate-overlay { display: none !important; }
+
+/* --- Controles táctiles (ocultos por defecto; solo .nv-mobile) --- */
+.mobile-hud { display: none; }
+.nv-mobile .mobile-hud { display: block; }
+
+/* Zona de joystick: área de captura grande, anclada al viewport (no al mundo). */
+.joystick-zone {
+  position: fixed;
+  left: calc(env(safe-area-inset-left, 0px) + 10px);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);
+  width: min(48vmin, 250px);
+  height: min(48vmin, 250px);
+  z-index: 6;
+  touch-action: none;
+}
+.joystick-base {
+  position: absolute;
+  left: 30px;
+  bottom: 30px;
+  width: 112px;
+  height: 112px;
+  border-radius: 50%;
+  border: 2px solid rgba(124, 248, 255, 0.55);
+  background: radial-gradient(circle, rgba(124, 248, 255, 0.16), rgba(124, 248, 255, 0.03) 60%);
+  box-shadow: 0 0 22px rgba(124, 248, 255, 0.25), inset 0 0 18px rgba(124, 248, 255, 0.12);
+  opacity: 0.35;
+  transition: opacity 0.15s ease;
+  pointer-events: none;
+}
+.joystick-zone.active .joystick-base {
+  opacity: 1;
+  border-color: rgba(124, 248, 255, 0.85);
+  box-shadow: 0 0 30px rgba(124, 248, 255, 0.4), inset 0 0 22px rgba(124, 248, 255, 0.2);
+}
+.joystick-thumb {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 52px;
+  height: 52px;
+  margin: -26px 0 0 -26px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #eaffff, #7cf8ff 55%, #1c7f9e);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 0 18px rgba(124, 248, 255, 0.8);
+  pointer-events: none;
+}
+
+/* Botones de acción (ESPECIAL / SHIFT / USAR): columna inferior derecha. */
+.mobile-actions {
+  position: fixed;
+  right: calc(env(safe-area-inset-right, 0px) + 10px);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+  z-index: 6;
+}
+.touch-btn {
+  border: 1px solid rgba(124, 248, 255, 0.5);
+  border-radius: 14px;
+  font-family: inherit;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: #eaffff;
+  background: linear-gradient(160deg, rgba(124, 248, 255, 0.22), rgba(202, 167, 255, 0.12));
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35), inset 0 1px rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(3px);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  text-shadow: 0 0 8px rgba(124, 248, 255, 0.45);
+  transition: transform 0.08s ease, opacity 0.08s ease;
+}
+.touch-btn:active { transform: scale(0.94); opacity: 0.9; }
+.touch-special {
+  width: clamp(88px, 24vmin, 132px);
+  height: clamp(44px, 12vmin, 60px);
+  font-size: clamp(13px, 3.4vmin, 17px);
+}
+.touch-slide {
+  width: clamp(72px, 18vmin, 104px);
+  height: clamp(38px, 10vmin, 48px);
+  font-size: clamp(12px, 3vmin, 15px);
+}
+.touch-use {
+  width: clamp(64px, 16vmin, 92px);
+  height: clamp(34px, 9vmin, 44px);
+  font-size: clamp(11px, 2.8vmin, 14px);
+  background: linear-gradient(160deg, rgba(255, 209, 102, 0.22), rgba(255, 138, 0, 0.12));
+  border-color: rgba(255, 209, 102, 0.55);
+}
+
+/* Botón FULLSCREEN dentro del header (visible solo en móvil, siempre accesible). */
+.touch-fullscreen {
+  display: none;
+}
+.nv-mobile .touch-fullscreen {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  padding: 0 8px;
+  font-size: 15px;
+}
+
+/* Ajustes de HUD móvil: no dejar que el header se desborde en paisajes bajos. */
+.nv-mobile .stats { font-size: 10px; gap: 4px; }
+.nv-mobile .hp-bar { width: 88px; }
+.nv-mobile .logo { font-size: 13px; }
+.nv-mobile .shell .controls { display: none !important; }
 
 
 

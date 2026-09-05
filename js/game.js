@@ -13,6 +13,11 @@
   function resizeCanvas() {
     const rect = canvas.getBoundingClientRect();
     const dw = Math.round(rect.width), dh = Math.round(rect.height);
+    // DPR efectivo centralizado: en escritorio SIEMPRE 1 (comportamiento original);
+    // en móvil upscale hasta el cap del viewport (nítido sin resolver absurdo).
+    const dpr = (NV.viewport && typeof NV.viewport.getEffectiveDpr === 'function')
+      ? NV.viewport.getEffectiveDpr() : 1;
+    const bdW = Math.round(dw * dpr), bdH = Math.round(dh * dpr);
     if (specterCanvas) {
       specterCanvas.style.left = canvas.offsetLeft + 'px';
       specterCanvas.style.top = canvas.offsetTop + 'px';
@@ -21,8 +26,8 @@
       specterCanvas.style.width = rect.width + 'px';
       specterCanvas.style.height = rect.height + 'px';
     }
-    if (canvas.width !== dw || canvas.height !== dh) {
-      canvas.width = dw; canvas.height = dh;
+    if (canvas.width !== bdW || canvas.height !== bdH) {
+      canvas.width = bdW; canvas.height = bdH;
       scaleX = canvas.width / GW; scaleY = canvas.height / GH;
       if (specterCanvas && NV.espectroLite && typeof NV.espectroLite.resize === 'function') {
         NV.espectroLite.resize(dw, dh);
@@ -299,6 +304,21 @@
   let moveLeft = false, moveRight = false, moveUp = false, moveDown = false;
   let slideHeld = false, specialPressed = false, showStats = false, showHUD = true, paused = false;
 
+  // === PUENTE INPUT (táctil → el MISMO sistema lógico) ===
+  // La capa móvil (mobileControls.js) escribe en ESTOS mismos canales booleanos que
+  // ya usa el teclado: nada de duplicar física ni lógica. En escritorio este puente
+  // queda inactivo (mobileControls no se activa si no hay detección móvil).
+  NV.input = NV.input || {};
+  NV.input.setMoveLeft = (v) => { moveLeft = !!v; };
+  NV.input.setMoveRight = (v) => { moveRight = !!v; };
+  NV.input.setMoveUp = (v) => { moveUp = !!v; };
+  NV.input.setMoveDown = (v) => { moveDown = !!v; };
+  NV.input.setSlide = (v) => { slideHeld = !!v; };
+  NV.input.setSpecial = (v) => { specialPressed = !!v; };
+  NV.input.useSelected = () => {
+    if (state === 'playing' && !paused) useConsumable();
+  };
+
   // === PERSONAJES ===
   const CHARACTERS = NV.CHARACTERS;
 
@@ -448,8 +468,16 @@
     // Click sobre un slot de consumible (HUD): lo selecciona como activo.
     canvas.addEventListener('click', (e) => {
       if (state !== 'playing' || paused || !NV.consumSlotRects) return;
-      const rect = canvas.getBoundingClientRect();
-      const mx = (e.clientX - rect.left) / scaleX, my = (e.clientY - rect.top) / scaleY;
+      // Conversión centralizada screen→game: escritorio usa la misma fórmula
+      // legacy; móvil aplica escala uniforme + letterbox/pillarbox + DPR.
+      let mx, my;
+      if (NV.screenToGame) {
+        const pt = NV.screenToGame(e.clientX, e.clientY);
+        mx = pt.x; my = pt.y;
+      } else {
+        const rect = canvas.getBoundingClientRect();
+        mx = (e.clientX - rect.left) / scaleX; my = (e.clientY - rect.top) / scaleY;
+      }
       for (let i = 0; i < NV.consumSlotRects.length; i++) {
         const r = NV.consumSlotRects[i];
         if (mx >= r.x && mx <= r.x + r.w && my >= r.y && my <= r.y + r.h) {

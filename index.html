@@ -2,9 +2,11 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Neon Void</title>
     <link rel="stylesheet" href="css/styles.css" />
+    <!-- Capa móvil: detección por capacidad (se carga primero; solo etiqueta <html>). -->
+    <script src="js/core/capabilities.js"></script>
     <script type="importmap">
     {
       "imports": {
@@ -45,6 +47,7 @@
           <button id="charBtn" class="hud-btn" type="button" title="Estadísticas (TAB)"><svg class="stat-svg" viewBox="0 0 16 16" focusable="false" aria-hidden="true"><path d="M3 13V8h2v5H3Zm4 0V4h2v9H7Zm4 0V2h2v11h-2Z" /></svg></button>
           <button id="hudToggle" class="hud-btn active" type="button" title="Mostrar/ocultar HUD">HUD</button>
           <button id="sound" class="sound" type="button" title="Activar o silenciar sonido">♫ ON</button>
+          <button id="fullscreenBtn" class="hud-btn touch-fullscreen" type="button" title="Jugar en pantalla completa">⛶</button>
         </div>
       </header>
 
@@ -126,10 +129,35 @@
           <button id="specialBtn" class="special" type="button">ESPECIAL</button>
         <button id="right" class="move" type="button">→</button>
       </nav>
+
+      <!-- ===== CAPA MÓVIL: controles táctiles y overlay de orientación ===== -->
+      <!-- Solo se muestran con la clase .nv-mobile (capabilities.js). En escritorio
+           quedan ocultos sin tocar el layout ni el gameplay. -->
+      <div id="mobileHud" class="mobile-hud">
+        <div id="joystickZone" class="joystick-zone" aria-label="Zona de joystick">
+          <div id="joystickBase" class="joystick-base"><div id="joystickThumb" class="joystick-thumb"></div></div>
+        </div>
+        <div id="mobileActions" class="mobile-actions" aria-label="Controles táctiles">
+          <button id="touchUseBtn" class="touch-btn touch-use" type="button">USAR</button>
+          <button id="touchSlideBtn" class="touch-btn touch-slide" type="button">SHIFT</button>
+          <button id="touchSpecialBtn" class="touch-btn touch-special" type="button">ESPECIAL</button>
+        </div>
+      </div>
+
+      <div id="rotateOverlay" class="rotate-overlay" role="alert" aria-live="assertive">
+        <svg class="rotate-ico" viewBox="0 0 64 64" focusable="false" aria-hidden="true">
+          <rect class="r-phone" x="22" y="6" width="20" height="52" rx="4" fill="none" stroke="currentColor" stroke-width="3" />
+          <circle class="r-dot" cx="32" cy="52" r="2" fill="currentColor" />
+          <path class="r-arrow" d="M14 14 L4 24 M4 24 H14 M4 24 V14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        <p>GIRÁ TU DISPOSITIVO</p>
+        <span class="rotate-hint">El juego se juega en horizontal</span>
+      </div>
     </main>
 
     <script src="js/core/state.js"></script>
     <script src="js/core/utils.js"></script>
+    <script src="js/core/viewport.js"></script>
     <script src="js/data/gameData.js"></script>
     <script src="js/data/balance.js"></script>
     <script src="js/data/consumables.js"></script>
@@ -162,5 +190,7 @@
     <script src="js/engine/weapons.js"></script>
     <script src="js/engine/special.js"></script>
     <script src="js/game.js"></script>
+    <!-- Último: necesita NV.input (expuesto por game.js) y NV.viewport. -->
+    <script src="js/ui/mobileControls.js"></script>
   </body>
 </html>

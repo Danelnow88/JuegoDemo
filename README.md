@@ -40,10 +40,14 @@ JuegoDemo/
 ├── tools/
 │   ├── diagnostics/                   # Scripts manuales de diagnóstico.
 │   ├── _lint_lab.js                   # Verifica sintaxis del script del Visual Lab.
-│   └── _run_lab_checks.bat            # Ejecuta checks del Lab en Windows.
+│   ├── _run_lab_checks.bat            # Ejecuta checks del Lab en Windows.
+│   ├── serve.js                       # Servidor estático DEV (probar en el teléfono: `node tools/serve.js`).
+│   └── verify_viewports.js            # Verificación headless de viewports móviles/desktop (Edge).
 └── js/
     ├── core/
     │   ├── state.js     # Namespace global window.NV (se carga primero).
+    │   ├── capabilities.js # Detección por capacidad (móvil/touch) + clases en <html>. Se carga en <head>.
+    │   ├── viewport.js  # Gestor central de viewport: escala uniforme, DPR, fullscreen, screenToGame.
     │   └── utils.js     # Utilidades puras/compartidas.
     ├── data/
     │   ├── gameData.js  # Datos puros: personajes, armas, élites, jefes, mejoras.
@@ -65,7 +69,8 @@ JuegoDemo/
     │   ├── espectroLite.js    # Renderer WebGL opcional (specter_lite/core).
     │   └── hud.js             # HUD en canvas.
     ├── ui/
-    │   └── dom.js       # Referencias DOM centralizadas en NV.dom.
+    │   ├── dom.js       # Referencias DOM centralizadas en NV.dom.
+    │   └── mobileControls.js # Capa móvil: joystick virtual + botones táctiles (solo se activa en móvil).
     ├── engine/
     │   ├── rhythm.js    # Captura/análisis de música externa y estado rítmico.
     │   ├── fx.js        # Partículas, textos flotantes, shockwaves y estelas.
@@ -995,7 +1000,7 @@ El **README describe fielmente el juego jugable** (motor, 4 personajes, 10 armas
 
 | Tema | Estado real |
 |------|-------------|
-| Controles táctiles móviles | **Sin implementar (decisión)**: el juego es web, no mobile. Botones ocultos y sin listeners. |
+| Controles táctiles móviles | **Implementados** (v67) como capa de adaptación: joystick virtual + botones táctiles que escriben en los mismos canales de input del teclado; solo se activan con detección por capacidad (`.nv-mobile`). El `.controls` legacy sigue oculto. |
 | Tienda de mejoras permanentes (`metaShards`) | **Implementada** (v7): pantalla `#permShop` en el menú; `PERM_UPGRADES` (daño, velocidad, vida, suerte) con coste creciente. |
 | Consumibles | **Implementado** (v7): se compran y guardan en `consumableItems`; se usan con la tecla `F` en partida. |
 | Nivel de armas | **Implementado** (v7): cada arma sube de nivel por derribos (6 por nivel) y se conserva al cambiar (`weaponLevels`). |
@@ -1042,7 +1047,7 @@ El **README describe fielmente el juego jugable** (motor, 4 personajes, 10 armas
 
 ## ⏳ Funcionalidades pendientes / a revisar (prioridad sugerida)
 
-1. **(No implementado, por decisión)** Controles táctiles móviles (`.controls`): el juego es web, no mobile. Para retomarlo: darles listeners (`left`/`right`/`specialBtn`) y quitar `display:none`.
+1. **(Implementado en v67)** Controles táctiles móviles: capa de adaptación `js/ui/mobileControls.js` + `js/core/capabilities.js` + `js/core/viewport.js`. El `.controls` legacy sigue `display:none` (no reutilizado).
 2. **Balance y testing** del nuevo sistema de armas por nivel, consumibles (F) y tienda de mejoras permanentes.
 3. **Ideas a futuro**: más enemigos/jefes, guardado de mejores puntajes, dificultad selectable.
 (El resto de los puntos originales —mejoras permanentes, consumibles, nivel de armas, escudo `shielder` y limpieza de código— se resolvieron en v7.)
@@ -1117,7 +1122,7 @@ Comportamientos reales verificados al leer el código completo (`js/game.js`, ~2
 ### Bugs reales confirmados (sin corregir, registrados aquí)
 1. **NOVA — "+20% daño" NO aplicado**: solo existe `takeDmgMult: 1.2` (recibe +20%); no hay multiplicador de daño saliente en `shoot()`/`baseDmg`. Faltaría, p. ej., `const dmgSource = player.character === 'nova' ? 1.2 : 1;` en `shoot()`.
 2. **`ESC` no pausa**: solo hay listener para `KeyP`.
-3. **Controles táctiles móviles** (`.controls`): `display:none` y sin listeners — **intencional** (juego web, no mobile).
+3. **Controles táctiles móviles** (`.controls`): `display:none` y sin listeners — **intencional** (la capa móvil de v67 usa sus propios elementos `#mobileHud`, no este nav).
 
 ### Integraciones frágiles (no mover sin entender)
 - El bloque fin de oleada ↔ `transition` ↔ `showShop()` debe evaluarse **antes** del countdown (bug v4).
@@ -1137,6 +1142,19 @@ Comportamientos reales verificados al leer el código completo (`js/game.js`, ~2
 - **Diagnóstico jitter**: activo 40%% del tiempo pero amp media 0.83px a ~5.5Hz -> shimmer subpixel invisible. Fix: amp hasta 4.5px (base por energía sostenida + golpes), osc ~3Hz. Expuesto como NV.rhythm.jitterAmp/jitterActive; sigue siendo 100%% visual (no muta e.x/e.y/hitbox).
 - **Diagnóstico hue**: mezclas realistas de 5 géneros caían en hue 143-201 (todo verde/cian) por colapso de la mezcla lineal; el blend screen sobre #01030d NO sesga (verificado matemáticamente por canal dominante). Fix: hue por banda dominante (argmax) con anclas 205/55/320, transición parcial a la secundaria y deriva lenta (~1 ciclo/24s). Después: bass=203, mids=90, highs=300.
 - **Prueba forzada**: NV.rhythm.forceHue fija hue puro (0/60/120/180/240/300) verificado por test.
+
+### v67 — Capa de compatibilidad móvil (misma URL, mismo juego, cero duplicación)
+- **Principio**: NO hay segunda versión del juego. La adaptación móvil es una capa de PRESENTACIÓN + ENTRADA sobre el mismo mundo lógico `900×520`; física, colisiones, IA, oleadas, jefes, timings y dificultad quedan intactos. En escritorio la capa está inerte (detección negativa ⇒ ningún cambio de comportamiento).
+- **`js/core/capabilities.js`** (nuevo, se carga en `<head>` ANTES que todo): detección por CAPACIDAD — no User-Agent: `(pointer: coarse)`, `(pointer: fine)`, `navigator.maxTouchPoints`, `ontouchstart`. Un laptop táctil (puntero fino primario) NO se clasifica como móvil. Taguea `<html>` con `.nv-mobile`/`.nv-touch-only`/`.nv-portrait`/`.nv-landscape`, expone `NV.capabilities` y en móvil convierte el meta viewport en app-like (`user-scalable=no`, `viewport-fit=cover`). Flag de prueba `?mobile=1` fuerza el modo móvil (emulación/DevTools).
+- **`js/core/viewport.js`** (nuevo, `NV.viewport` + `NV.screenToGame`): gestor centralizado SIN gameplay — escala uniforme `min(cssW/900, cssH/520)` con offsets de letterbox/pillarbox, DPR efectivo (escritorio SIEMPRE 1; móvil `min(devicePixelRatio, 2)`), fullscreen + `screen.orientation.lock('landscape')` con fallback silencioso, safe areas (leídas de `--nv-safe-*`), conversión `screenToGame`/`gameToScreen` (escritorio conserva la fórmula legacy exacta; móvil aplica escala uniforme + offsets) y listeners de `resize`/`orientationchange`/`visualViewport`/`fullscreenchange`.
+- **`js/ui/mobileControls.js`** (nuevo, `NV.mobileControls`): joystick virtual anclado al viewport (multitouch, dead zone, magnitud limitada, `pointerdown/move/up/cancel` con fallback touch) y botones **ESPECIAL** (Espacio), **SHIFT** (deslizar) y **USAR** (F). NO duplica movimiento: escribe en los mismos canales lógicos vía `NV.input` (ver abajo). `vectorToInput` es pura y testeada. En escritorio el módulo es inerte.
+- **`js/game.js`** (3 toques quirúrgicos): (1) `resizeCanvas()` usa `NV.viewport.getEffectiveDpr()` para el backing store — escritorio dpr=1 ⇒ idéntico a antes; móvil nítido con cap; (2) el click de slots de consumibles usa `NV.screenToGame` (misma fórmula legacy en desktop); (3) puente `NV.input` (`setMoveLeft/Right/Up/Down`, `setSlide`, `setSpecial`, `useSelected`) sobre las variables de input ya existentes.
+- **`index.html`**: meta `viewport-fit=cover`; `capabilities.js` en `<head>`; `viewport.js` tras `core/utils.js`; `mobileControls.js` al final (necesita `NV.input`); DOM nuevo: `#mobileHud` (joystick + acciones), `#rotateOverlay` (aviso "GIRÁ TU DISPOSITIVO") y `#fullscreenBtn` en el header. Nada del escritorio se movió ni redesignó.
+- **`css/styles.css`**: bloque final "CAPA DE COMPATIBILIDAD MÓVIL" gateado por `.nv-mobile` y `@media (pointer: coarse)`: body app-like (`100dvh`, sin scroll/overscroll/selección), shell centrado con safe-areas (`env(safe-area-inset-*)`), HUD flexible, `touch-action` solo donde corresponde (canvas, joystick, botones), overlay de rotación (visible en `coarse + portrait`, oculto en landscape) y `max-height` del game-box según aspecto para que en portrait nunca desborde. En escritorio (`pointer: fine`) ninguna regla aplica.
+- **Orden de carga nuevo**: `capabilities.js` (head) → `state.js` → `utils.js` → `viewport.js` → resto → `game.js` → `mobileControls.js`. Los tests headless (`space_special.js`) cargan todos los módulos con stubs y siguen pasando 4/4.
+- **Herramientas**: `tools/serve.js` (servidor estático DEV para probar desde el teléfono en LAN: `node tools/serve.js`) y `tools/verify_viewports.js` (verificación headless Edge de viewports: 640×360, 720×360, 740×360, 780×360, 844×390, 852×393, 915×412, 932×430 + portrait + desktop; comprueba clases, aspecto, desborde, init y errores JS).
+- **Test nuevo**: `tests/mobile_compat.js` (16 tests: detección, escala uniforme, `screenToGame` móvil/escritorio, cap de DPR, mapeo del joystick, wiring HTML/JS/CSS).
+- **Verificación**: `npm test` 63/63 archivos (2 fallos PREEXISTENTES de `kamikaze`/`lab_model_hitbox`, sin relación con esta capa); `node tools/verify_viewports.js` all ok; desktop verificado sin cambios (`nv-landscape`, sin `nv-mobile`, canvas con el sizing legacy).
 
 ### Bloque 2 - Onset profesional (peak-picking causal + refractario + onsetRate + plegado de octava)
 - Peak-picking causal (max local sobre 3 frames previos): un golpe = un evento, sin multi-disparo. La ventana simétrica ±3 del textbook pierde golpes a densidad blast (>8.5 ev/s).
