@@ -47,7 +47,7 @@ t('módulos conectan posiciones a muertes y disparos', () => {
   const boss = fs.readFileSync('js/engine/boss.js', 'utf8');
   const weapons = fs.readFileSync('js/engine/weapons.js', 'utf8');
   const game = fs.readFileSync('js/game.js', 'utf8');
-  for (const pat of ['worldWidth: st.W', 'worldWidth: st.W', 'state.audioPosition', 'audioPosition: { x: player.x, worldWidth: W }']) {
+  for (const pat of ['worldWidth: st.W', 'worldWidth: st.W', 'state.audioPosition', 'audioPosition: { x: player.x, worldWidth: arenaW() }']) {
     if (!(enemies + boss + weapons + game).includes(pat)) throw new Error('falta ' + pat);
   }
 });

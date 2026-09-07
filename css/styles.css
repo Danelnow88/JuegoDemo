@@ -1,11 +1,11 @@
-﻿* { box-sizing: border-box; margin: 0; padding: 0; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
 body {
   background: #050714;
   color: #fff;
   font-family: system-ui, sans-serif;
   overflow: hidden;
   height: 100vh;
-  width: 100vw;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
 }
@@ -121,7 +121,7 @@ canvas {
 .tip { color: #666; font-size: 12px; margin-top: 16px; }
 .primary {
   background: linear-gradient(135deg, #7cf8ff, #caa7ff);
-  color: #050714;
+  color: #ffffff;
   border: none;
   padding: 12px 32px;
   font-size: 18px;
@@ -182,7 +182,7 @@ canvas {
   isolation: isolate;
 }
 .shop-screen.hidden { display: none !important; }
-/* Entrada de la tienda: fade + leve zoom del conjunto, título con caída y
+/* Entrada de la tienda: fade + leve zoom del conjunto, t�tulo con ca�da y
    asentamiento de tracking, secciones en cascada y barrido de luz superior.
    Las animaciones se reinician solas al pasar de display:none a visible. */
 @keyframes shop-in {
@@ -269,7 +269,7 @@ canvas {
 }
 .shop-grid {
   display: grid;
-  /* layout histórico: grid-template-columns: minmax(150px, .8fr) minmax(310px, 1.45fr) minmax(230px, 1fr) */
+  /* layout hist�rico: grid-template-columns: minmax(150px, .8fr) minmax(310px, 1.45fr) minmax(230px, 1fr) */
   grid-template-columns: repeat(3, minmax(220px, 326px));
   justify-content: space-between;
   align-items: start;
@@ -498,7 +498,7 @@ canvas {
 .loadout-slot .slot-index { position: absolute; left: 3px; top: 1px; color: #7cf8ff; font-size: 7px; opacity: .7; }
 .loadout-slot.empty, .inv-slot.empty { border-style: dashed; color: rgba(124,248,255,.38); }
 .loadout-slot.empty::before, .inv-slot.empty::before { content: '+'; font-size: 15px; line-height: 1; }
-/* Slot de mejora en nivel máximo: bloqueo rojo con franja diagonal (mismo lenguaje que .offer.disabled). */
+/* Slot de mejora en nivel m�ximo: bloqueo rojo con franja diagonal (mismo lenguaje que .offer.disabled). */
 .loadout-slot.blocked {
   border-color: rgba(255,95,155,.72);
   background: linear-gradient(145deg, rgba(255,95,155,.16), rgba(255,95,155,.04)), rgba(1,4,15,.78);
@@ -666,8 +666,8 @@ canvas {
 .char-tag { font-size: 11px; color: #caa7ff; margin-bottom: 6px; }
 .char-desc { font-size: 11px; color: #aaa; line-height: 1.3; }
 .char-skill-icon { width: 18px; height: 18px; vertical-align: -4px; margin: 0 2px; }
-/* Resaltes semánticos de descripciones de personajes (misma paleta del juego):
-   rosa=ofensivo · dorado=defensa/utilidad · cian=control · gris itálica=limitación */
+/* Resaltes sem�nticos de descripciones de personajes (misma paleta del juego):
+   rosa=ofensivo � dorado=defensa/utilidad � cian=control � gris it�lica=limitaci�n */
 .dmg-highlight { color: #ff5f9b; font-weight: bold; }
 .def-highlight { color: #ffcf76; font-weight: bold; }
 .cc-highlight { color: #7cf8ff; font-weight: bold; }
@@ -678,8 +678,8 @@ canvas {
 .go-stat span:first-child { display: block; font-size: 12px; color: #888; }
 .go-stat span:last-child { display: block; font-size: 24px; color: #ff5f9b; font-weight: bold; }
 
-/* ===== Widget de control de música externa (absoluto: no empuja el flex del header) ===== */
-/* La posición exacta (left/top) la fija JS en setupRhythmUI -> positionRhythmWidget(),
+/* ===== Widget de control de m�sica externa (absoluto: no empuja el flex del header) ===== */
+/* La posici�n exacta (left/top) la fija JS en setupRhythmUI -> positionRhythmWidget(),
    calculando el hueco real entre .logo y .stats. Estos son solo defaults. */
 .rhythm-widget {
   position: absolute;
@@ -724,8 +724,8 @@ canvas {
   /* Sin CSS transition en transform: el suavizado de escala/skew vive en JS con
      attack/release temporal, para no filtrar ni entrecortar el pulso por frame. */
 }
-/* Música SVG (music-note). Usa currentColor para que el hue dinámico de
-   NV.rhythm tiña el ícono completo por la propiedad color que setea JS. */
+/* M�sica SVG (music-note). Usa currentColor para que el hue din�mico de
+   NV.rhythm ti�a el �cono completo por la propiedad color que setea JS. */
 .rw-icon svg.mn { display: block; width: 20px; height: 20px; transform-origin: 50% 50%; will-change: transform; }
 .rw-icon .mn-base { fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
 .rw-icon .mn-dot { fill: currentColor; stroke: none; }
@@ -766,16 +766,16 @@ canvas {
 }
 
 /* =========================================================
-   CAPA DE COMPATIBILIDAD MÓVIL (solo se activa en touch/móvil)
+   CAPA DE COMPATIBILIDAD M�VIL (solo se activa en touch/m�vil)
    ---------------------------------------------------------
-   Todo está gateado por:
+   Todo est� gateado por:
      - la clase .nv-mobile en <html> (agregada por capabilities.js);
      - media queries de CAPACIDAD: `(pointer: coarse)`.
    En escritorio (puntero fino, sin .nv-mobile) NADA de esto aplica:
-   el layout, el canvas, el HUD y el gameplay quedan idénticos.
+   el layout, el canvas, el HUD y el gameplay quedan id�nticos.
    ========================================================= */
 
-/* --- Safe areas (expuestas también a JS vía variables) --- */
+/* --- Safe areas (expuestas tambi�n a JS v�a variables) --- */
 :root {
   --nv-safe-top: env(safe-area-inset-top, 0px);
   --nv-safe-right: env(safe-area-inset-right, 0px);
@@ -783,7 +783,7 @@ canvas {
   --nv-safe-left: env(safe-area-inset-left, 0px);
 }
 
-/* --- El documento se comporta como una app: sin scroll, sin selección --- */
+/* --- El documento se comporta como una app: sin scroll, sin selecci�n --- */
 .nv-mobile body {
   position: fixed;
   inset: 0;
@@ -824,18 +824,18 @@ canvas {
   min-height: 0;
   max-width: 100%;
   /* En portrait (o ventanas muy estrechas) evita que la caja se desborde:
-     la altura queda limitada por el ancho disponible según el aspecto 900:520.
-     En landscape nunca ata de forma perceptible (la caja ya es más angosta). */
+     la altura queda limitada por el ancho disponible seg�n el aspecto 900:520.
+     En landscape nunca ata de forma perceptible (la caja ya es m�s angosta). */
   max-height: calc((100vw - 16px) * 520 / 900);
   max-height: calc((100dvw - 16px) * 520 / 900);
 }
 
-/* En portrait la columna centrada se ve mejor (el overlay de rotación la tapa). */
+/* En portrait la columna centrada se ve mejor (el overlay de rotaci�n la tapa). */
 .nv-mobile.nv-portrait .shell {
   justify-content: center;
 }
 
-/* El área de juego no debe disparar gestos del navegador (scroll/zoom/refresh). */
+/* El �rea de juego no debe disparar gestos del navegador (scroll/zoom/refresh). */
 .nv-mobile .game-box canvas {
   touch-action: none;
 }
@@ -846,13 +846,13 @@ canvas {
 }
 
 /* La tienda, que es un overlay interno, debe quedar POR ENCIMA de los controles
-   táctiles (que son absolutos al viewport) mientras esté abierta.
-   Solo aplica en móvil: en escritorio no hay nada que tapar. */
+   t�ctiles (que son absolutos al viewport) mientras est� abierta.
+   Solo aplica en m�vil: en escritorio no hay nada que tapar. */
 .nv-mobile .shop-screen {
   z-index: 8;
 }
 
-/* --- Overlay de rotación (landscape obligatorio) --- */
+/* --- Overlay de rotaci�n (landscape obligatorio) --- */
 .rotate-overlay {
   display: none;
   position: fixed;
@@ -888,23 +888,46 @@ canvas {
   55% { transform: rotate(90deg); }
 }
 
-/* Mostrar: 1) cuando un puntero grueso está en vertical (CSS puro);
-   2) como refuerzo, cuando JS marcó .nv-mobile + .nv-portrait. */
+/* Mostrar: 1) cuando un puntero grueso est� en vertical (CSS puro);
+   2) como refuerzo, cuando JS marc� .nv-mobile + .nv-portrait. */
 @media (pointer: coarse) {
   .rotate-overlay { display: flex; }
 }
 .nv-mobile.nv-portrait .rotate-overlay { display: flex; }
-
+/* REFUERZO: .nv-landscape siempre oculta el overlay. El media query
+   (orientation: landscape) puede no dispararse en algunos navegadores/
+   DevTools, dejando el overlay flotando encima del juego y bloqueando
+   todos los toques. La clase .nv-landscape (aplicada/sync por
+   capabilities.js) tiene prioridad. */
 @media (pointer: coarse) and (orientation: landscape) {
   .rotate-overlay { display: none !important; }
 }
 .nv-mobile.nv-landscape .rotate-overlay { display: none !important; }
+/*
+ *  Aseguramos que el overlay de rotaci�n nunca se muestre en modo landscape.
+ *  Algunos dispositivos, como el Samsung Galaxy S20 FE, pueden fallar al
+ *  disparar la media query '(orientation: landscape)' dentro de la regla
+ *  anterior (la cual depende de 'pointer: coarse').  Esta regla
+ *  adicional obliga a ocultar el overlay en todas las orientaciones
+ *  horizontales, independientemente del tipo de puntero detectado.
+ */
+@media (orientation: landscape) {
+  .rotate-overlay { display: none !important; }
+}
+.nv-mobile.nv-landscape .rotate-overlay { display: none !important; }
 
-/* --- Controles táctiles (ocultos por defecto; solo .nv-mobile) --- */
+/* ===== MOBILE UI STATE VISIBILITY ===== */
+/* Gameplay-only controls are hidden during menu/selection */
 .mobile-hud { display: none; }
 .nv-mobile .mobile-hud { display: block; }
 
-/* Zona de joystick: área de captura grande, anclada al viewport (no al mundo). */
+/* Hide gameplay controls during menu/selection states */
+.nv-mobile[data-game-state="menu"] .mobile-hud,
+.nv-mobile[data-game-state="shop"] .mobile-hud,
+.nv-mobile[data-game-state="gameover"] .mobile-hud,
+.nv-mobile[data-game-state="paused"] .mobile-hud { display: none; }
+
+/* Zona de joystick: �rea de captura grande, anclada al viewport (no al mundo). */
 .joystick-zone {
   position: fixed;
   left: calc(env(safe-area-inset-left, 0px) + 10px);
@@ -947,7 +970,7 @@ canvas {
   pointer-events: none;
 }
 
-/* Botones de acción (ESPECIAL / SHIFT / USAR): columna inferior derecha. */
+/* Botones de acci�n (ESPECIAL / SHIFT / USAR): columna inferior derecha. */
 .mobile-actions {
   position: fixed;
   right: calc(env(safe-area-inset-right, 0px) + 10px);
@@ -994,7 +1017,7 @@ canvas {
   border-color: rgba(255, 209, 102, 0.55);
 }
 
-/* Botón FULLSCREEN dentro del header (visible solo en móvil, siempre accesible). */
+/* Bot�n FULLSCREEN dentro del header (visible solo en m�vil, siempre accesible). */
 .touch-fullscreen {
   display: none;
 }
@@ -1007,11 +1030,820 @@ canvas {
   font-size: 15px;
 }
 
-/* Ajustes de HUD móvil: no dejar que el header se desborde en paisajes bajos. */
+/* Ajustes de HUD m�vil: no dejar que el header se desborde en paisajes bajos. */
 .nv-mobile .stats { font-size: 10px; gap: 4px; }
 .nv-mobile .hp-bar { width: 88px; }
 .nv-mobile .logo { font-size: 13px; }
 .nv-mobile .shell .controls { display: none !important; }
 
+/* ===== COMPRESI�N RESPONSIVA PARA PAISAJES CORTOS (m�vil) ===== */
+/* En paisajes bajos (ej. ~360-430px de alto), el men� de selecci�n debe
+   comprimirse para que #startBtn siempre sea visible y alcanzable. */
+@media (pointer: coarse) and (orientation: landscape) and (max-height: 500px) {
+  .nv-mobile .shell { padding: 4px; gap: 3px; }
+  .nv-mobile .hud { min-height: 30px; padding: 2px 6px; }
+  .nv-mobile .overlay { padding: 12px; gap: 6px; overflow-y: auto; justify-content: flex-start; }
+  .nv-mobile .overlay h1 { font-size: clamp(18px, 4vmin, 28px); margin-bottom: 4px; }
+  .nv-mobile .overlay .subtitle { font-size: clamp(10px, 2vmin, 13px); margin-bottom: 4px; }
+  .nv-mobile .char-grid { gap: 6px; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); margin: 8px 0; }
+  .nv-mobile .char-card { min-height: 70px; padding: 6px; }
+  .nv-mobile .char-card .char-name { font-size: 10px; }
+  .nv-mobile .char-preview { width: 36px; height: 36px; }
+  .nv-mobile #startBtn { padding: 6px 14px; font-size: 13px; }
+  .nv-mobile #permBtn { padding: 5px 10px; font-size: 11px; }
+}
 
+/* Para paisajes muy cortos (<380px), comprimir a�n m�s */
+@media (pointer: coarse) and (orientation: landscape) and (max-height: 380px) {
+  .nv-mobile .shell { padding: 2px; gap: 2px; }
+  .nv-mobile .hud { min-height: 24px; padding: 1px 4px; }
+  .nv-mobile .overlay { padding: 8px; gap: 4px; overflow-y: auto; justify-content: flex-start; }
+  .nv-mobile .overlay h1 { font-size: clamp(14px, 3vmin, 20px); margin-bottom: 2px; }
+  .nv-mobile .overlay .subtitle { font-size: clamp(9px, 1.8vmin, 11px); margin-bottom: 2px; }
+  .nv-mobile .char-grid { gap: 4px; grid-template-columns: repeat(auto-fit, minmax(70px, 1fr)); margin: 6px 0; }
+  .nv-mobile .char-card { min-height: 50px; padding: 4px; }
+  .nv-mobile .char-preview { width: 28px; height: 28px; }
+  .nv-mobile #startBtn { padding: 5px 10px; font-size: 11px; }
+}
+
+
+/* ===== MOBILE LANDSCAPE: GAMEPLAY + SHOP LAYOUT ===== */
+@media (pointer: coarse) and (orientation: landscape) and (max-height: 500px) {
+
+  /* El header deja de consumir una fila grande y queda integrado al juego. */
+  .nv-mobile.nv-landscape .shell {
+    position: relative;
+    display: block;
+    padding: 2px;
+  }
+
+  .nv-mobile.nv-landscape .hud {
+    position: absolute;
+    top: calc(env(safe-area-inset-top, 0px) + 3px);
+    left: calc(env(safe-area-inset-left, 0px) + 4px);
+    right: calc(env(safe-area-inset-right, 0px) + 4px);
+    z-index: 20;
+    min-height: 30px;
+    height: 34px;
+    padding: 2px 5px;
+    gap: 3px;
+    flex-wrap: nowrap;
+    border-radius: 8px;
+    /* sin backdrop-filter: bug de composicion movil pintaba el blur ENCIMA del HUD */
+    background: rgba(6, 9, 24, 0.95);
+  }
+
+  .nv-mobile.nv-landscape .logo {
+    font-size: 10px;
+  }
+
+  .nv-mobile.nv-landscape .logo span {
+    font-size: 14px;
+  }
+
+  .nv-mobile.nv-landscape .stats {
+    gap: 2px;
+    font-size: 8px;
+  }
+
+  .nv-mobile.nv-landscape .stat {
+    height: 25px;
+    min-width: 0;
+    padding: 2px 4px;
+    gap: 2px;
+  }
+
+  .nv-mobile.nv-landscape .stat-icon {
+    width: 17px;
+    height: 17px;
+    font-size: 10px;
+  }
+
+  .nv-mobile.nv-landscape .hp-bar {
+    width: 74px;
+    height: 16px;
+  }
+
+  .nv-mobile.nv-landscape .special-cooldown {
+    width: 23px;
+    height: 23px;
+  }
+
+  .nv-mobile.nv-landscape .hud-btn,
+  .nv-mobile.nv-landscape .sound {
+    width: 26px;
+    height: 26px;
+  }
+
+  .nv-mobile.nv-landscape .game-box {
+    width: min(100%, calc(100dvh * 900 / 520));
+    height: min(100%, calc(100dvw * 520 / 900));
+    max-width: 100%;
+    max-height: 100%;
+    aspect-ratio: 900 / 520;
+    margin: 0 auto;
+    border-radius: 8px;
+  }
+
+  /* Stage 3 dynamic: ?dynamicView=1 + mobile landscape.
+     Full-bleed physical stage; gameplay arena follows JS view metrics. */
+  .nv-mobile.nv-landscape.nv-dynamic-view .game-box {
+    width: 100%;
+    height: 100%;
+    max-width: 100%;
+    max-height: 100%;
+    aspect-ratio: auto;
+    margin: 0;
+  }
+
+  /* MENU/LOBBY DOM: usar viewport físico completo, no el aspect de gameplay. */
+  .nv-mobile.nv-landscape[data-game-state="menu"] .hud,
+  .nv-mobile.nv-landscape[data-game-state="shop"] .hud,
+  .nv-mobile.nv-landscape[data-game-state="paused"] .mobile-hud,
+  .nv-mobile.nv-landscape[data-game-state="gameover"] .hud,
+  .nv-mobile.nv-landscape[data-game-state="gameover"] .mobile-hud { display: none !important; }
+
+  .nv-mobile.nv-landscape[data-game-state="menu"] .game-box,
+  .nv-mobile.nv-landscape[data-game-state="shop"] .game-box {
+    width: 100%;
+    height: 100%;
+    max-width: 100%;
+    max-height: 100%;
+    aspect-ratio: auto;
+    margin: 0;
+    border-radius: 8px;
+  }
+
+  .nv-mobile.nv-landscape[data-game-state="menu"] #startScreen {
+    padding: max(6px, env(safe-area-inset-top, 0px)) max(10px, env(safe-area-inset-right, 0px)) max(6px, env(safe-area-inset-bottom, 0px)) max(10px, env(safe-area-inset-left, 0px));
+    gap: 6px;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  .nv-mobile.nv-landscape[data-game-state="menu"] #startScreen h1 {
+    font-size: clamp(20px, 5.2vmin, 34px);
+    margin-bottom: 0;
+    line-height: 1;
+  }
+
+  .nv-mobile.nv-landscape[data-game-state="menu"] #startScreen .subtitle {
+    font-size: clamp(10px, 2.35vmin, 14px);
+    margin-bottom: 2px;
+  }
+
+  .nv-mobile.nv-landscape[data-game-state="menu"] .char-grid {
+    width: 100%;
+    max-width: none;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: clamp(6px, 1.4vw, 12px);
+    margin: 4px 0;
+  }
+
+  .nv-mobile.nv-landscape[data-game-state="menu"] .char-card {
+    min-height: 96px;
+    padding: 7px;
+  }
+
+  .nv-mobile.nv-landscape[data-game-state="menu"] .char-preview {
+    width: clamp(34px, 9vmin, 52px);
+    height: clamp(34px, 9vmin, 52px);
+  }
+
+  .nv-mobile.nv-landscape[data-game-state="menu"] #startBtn,
+  .nv-mobile.nv-landscape[data-game-state="menu"] #permBtn {
+    flex: 0 0 auto;
+    padding: 7px 18px;
+    font-size: clamp(12px, 2.9vmin, 15px);
+  }
+
+  /* SHOP: adaptar el mismo HTML, sin versi�n mobile separada. */
+  .nv-mobile.nv-landscape .shop-screen {
+    padding: 4px 6px;
+    gap: 4px;
+    overflow: hidden;
+  }
+
+  .nv-mobile.nv-landscape .shop-terminal-head {
+    min-height: 32px;
+    padding: 3px 6px;
+  }
+
+  .nv-mobile.nv-landscape .shop-title {
+    font-size: 11px;
+  }
+
+  .nv-mobile.nv-landscape .shop-sub {
+    font-size: 8px;
+  }
+
+  .nv-mobile.nv-landscape .shard-bar {
+    min-width: 54px;
+    padding: 2px 6px;
+    font-size: 11px;
+  }
+
+  .nv-mobile.nv-landscape .shop-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 5px;
+    padding-inline: 0;
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  .nv-mobile.nv-landscape .shop-section {
+    height: auto;
+    max-height: none;
+    min-height: 0;
+    padding: 4px;
+    overflow-y: auto;
+  }
+
+  .nv-mobile.nv-landscape .shop-section-title,
+  .nv-mobile.nv-landscape .section-title {
+    font-size: 9px;
+    padding-bottom: 2px;
+    margin-bottom: 3px;
+  }
+
+  .nv-mobile.nv-landscape .protocol-loadout,
+  .nv-mobile.nv-landscape .shop-weapon-dock {
+    padding: 2px;
+    margin-bottom: 3px;
+  }
+
+  .nv-mobile.nv-landscape .loadout-slot,
+  .nv-mobile.nv-landscape .inv-slot {
+    height: 30px;
+  }
+
+  .nv-mobile.nv-landscape .offers {
+    gap: 3px;
+  }
+
+  .nv-mobile.nv-landscape .offer {
+    padding: 2px 3px;
+  }
+
+  .nv-mobile.nv-landscape .offer-upgrade,
+  .nv-mobile.nv-landscape .offer-weapon,
+  .nv-mobile.nv-landscape .offer-consumable {
+    min-height: 62px;
+    height: auto;
+  }
+
+  .nv-mobile.nv-landscape .offer-icon {
+    width: 20px;
+    height: 20px;
+    margin-bottom: 1px;
+  }
+
+  .nv-mobile.nv-landscape .offer-name {
+    font-size: 8px;
+  }
+
+  .nv-mobile.nv-landscape .offer-desc {
+    font-size: 7px;
+    margin-bottom: 1px;
+  }
+
+  .nv-mobile.nv-landscape .offer-price {
+    font-size: 8px;
+  }
+
+  .nv-mobile.nv-landscape .shop-deploy {
+    position: static;
+    align-self: flex-end;
+    min-width: 170px;
+    padding: 5px 12px;
+    font-size: 11px;
+    margin-top: 2px;
+  }
+}
+/* ===== SEGUNDA PASADA MOBILE: header simplificado, joystick compacto, indicadores, shop sin nested scroll ===== */
+
+/* Ocultar controles secundarios del header en m�vil (solo visualmente). Desktop intacto. */
+.nv-mobile .hud-btn:not(.touch-options):not(.touch-fullscreen),
+.nv-mobile #charBtn,
+.nv-mobile #hudToggle,
+.nv-mobile #sound,
+.nv-mobile #fullscreenBtn,
+.nv-mobile .rhythm-widget {
+  visibility: hidden;
+  position: absolute;
+  pointer-events: none;
+  width: 0 !important;
+  overflow: hidden;
+}
+/* Mantener visible SOLO wave, score, shards, HP, cooldown, logo compacto y ?. */
+/* NOTA: NO tocar position ni width aqui: .hp-bar y .special-cooldown son
+   contenedores relative de fills absolutos (#hpText/#specialFill inset:0).
+   Ponerlos static estiraba los fills como capsula gris sobre todo el header. */
+.nv-mobile .hud .logo,
+.nv-mobile .touch-options,
+.nv-mobile .stat-wave,
+.nv-mobile .stat-score,
+.nv-mobile .shard,
+.nv-mobile .hp-bar,
+.nv-mobile .special-cooldown {
+  visibility: visible;
+  pointer-events: auto;
+
+}
+
+.nv-mobile .hp-bar,
+.nv-mobile .special-cooldown {
+  position: relative;
+}
+
+/* Indicador compacto entre ? ?. */
+.nv-mobile .switch-indicator {
+  min-width: 96px;
+  max-width: 150px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 10px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #dffcff;
+  background: rgba(6, 9, 24, 0.82);
+  border: 1px solid rgba(124, 248, 255, 0.35);
+  border-radius: 12px;
+  touch-action: manipulation;
+  pointer-events: auto;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Switchers (arma/consumible): anclados ABAJO-CENTRO por el bloque posterior
+   de este archivo (left:50%). El bloque previo que los anclaba a la derecha era
+   codigo muerto (sobrescrito en cascada) y fue eliminado para consolidar. */
+
+/* Joystick visual m�s compacto y discreto; la zona t�ctil (>.joystick-zone) queda grande. */
+.nv-mobile .joystick-base {
+  width: clamp(72px, 16vmin, 92px);
+  height: clamp(72px, 16vmin, 92px);
+  opacity: 0.35;
+  transition: opacity 0.12s ease;
+}
+.nv-mobile .joystick-thumb {
+  width: clamp(32px, 8vmin, 42px);
+  height: clamp(32px, 8vmin, 42px);
+  opacity: 0.4;
+  transition: opacity 0.12s ease;
+}
+.nv-mobile .joystick-zone.active .joystick-base,
+.nv-mobile .joystick-zone.active .joystick-thumb {
+  opacity: 1;
+}
+
+/* Pausa: ocultar e ignorar controles de gameplay (joystick, especial, shift, usar, switches).
+   El ? queda fuera de .mobile-hud.nv-paused (sigue visible v�a .touch-options). */
+.nv-mobile .mobile-hud.nv-paused .joystick-zone,
+.nv-mobile .mobile-hud.nv-paused .mobile-actions,
+.nv-mobile .mobile-hud.nv-paused .mobile-weapon-switch,
+.nv-mobile .mobile-hud.nv-paused .mobile-consumable-switch {
+  display: none !important;
+}
+/* Bot�n de opciones (?) solo en m�vil. */
+.touch-options { display: none; }
+.nv-mobile .touch-options { display: inline-flex; align-items: center; justify-content: center; min-width: 34px; padding: 0 8px; font-size: 15px; }
+
+/* Interruptores de ciclo (han de estar ocultos en escritorio por defecto). */
+.mobile-weapon-switch,
+.mobile-consumable-switch {
+  display: none;
+}
+/* Switchers compactos: dos chips lado a lado en el borde inferior central.
+   Tocar el chip cicla al siguiente arma/consumible (misma logica cycle*).
+   Los botones laterales quedan en el DOM pero ocultos en el modo compacto. */
+.nv-mobile .mobile-weapon-switch,
+.nv-mobile .mobile-consumable-switch {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  position: fixed;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 6px);
+  top: auto;
+  left: auto;
+  right: auto;
+  transform: none;
+  z-index: 6;
+}
+.nv-mobile .mobile-weapon-switch { right: 50%; margin-right: 5px; }
+.nv-mobile .mobile-consumable-switch { left: 50%; margin-left: 5px; }
+
+/* Chip compacto para ? ? (�rea t�ctil c�moda, apariencia discreta). */
+.nv-mobile .touch-switch {
+  width: clamp(36px, 9vmin, 44px);
+  height: clamp(34px, 8.5vmin, 42px);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(11px, 2.8vmin, 14px);
+  padding: 0;
+  background: rgba(5, 7, 20, 0.55);
+  border: 1px solid rgba(124, 248, 255, 0.28);
+  color: #cff;
+  border-radius: 10px;
+  backdrop-filter: blur(3px);
+  touch-action: manipulation;
+}
+
+/* Panel de opciones m�vil (inicia cerrado con .hidden). */
+.nv-mobile .mobile-options {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 46px);
+  right: calc(env(safe-area-inset-right, 0px) + 10px);
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  min-width: 150px;
+  /* Sin backdrop-filter (mismo bug de composicion movil que el header). */
+  background: rgba(6, 9, 24, 0.96);
+  border: 1px solid rgba(124, 248, 255, 0.3);
+  border-radius: 10px;
+}
+.nv-mobile .mobile-options.hidden { display: none; }
+.nv-mobile .opt-btn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 10px;
+  font-size: 12px;
+  color: #eaffff;
+  background: rgba(124, 248, 255, 0.08);
+  border: 1px solid rgba(124, 248, 255, 0.2);
+  border-radius: 7px;
+  touch-action: manipulation;
+}
+.nv-mobile .opt-btn:active { opacity: 0.8; }
+
+/* ===== TABS DE TIENDA mobile: una secci�n por vez (desktop conserva 3 columnas) ===== */
+.shop-tabs { display: none; }
+.nv-mobile .shop-tabs {
+  display: flex;
+  gap: 6px;
+  padding: 0 4px;
+  margin: 2px 0;
+}
+.nv-mobile .shop-tab {
+  flex: 1 1 0;
+  padding: 6px 4px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-align: center;
+  color: #9fb7c7;
+  background: rgba(5, 7, 20, 0.6);
+  border: 1px solid rgba(124, 248, 255, 0.18);
+  border-radius: 7px;
+  touch-action: manipulation;
+}
+.nv-mobile .shop-tab.active {
+  color: #dffcff;
+  background: rgba(124, 248, 255, 0.14);
+  border-color: rgba(124, 248, 255, 0.55);
+}
+/* Solo en la tienda normal (#shop), nunca en #permShop. */
+.nv-mobile #shop[data-active-tab="upgrades"] .shop-section[data-shop-tab]:not([data-shop-tab="upgrades"]),
+.nv-mobile #shop[data-active-tab="weapons"] .shop-section[data-shop-tab]:not([data-shop-tab="weapons"]),
+.nv-mobile #shop[data-active-tab="consumables"] .shop-section[data-shop-tab]:not([data-shop-tab="consumables"]) {
+  display: none;
+}
+
+/* ===== SHOP MOBILE: eliminar nested scroll, grid responsive, permShop ===== */
+@media (pointer: coarse) and (orientation: landscape) and (max-height: 500px) {
+  /* El stack de la tienda: header compacto + tabs + contenido + desplegar. */
+  .nv-mobile #shop .shop-screen {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    height: 100%;
+    padding: 0;
+    overflow: hidden;
+  }
+  .nv-mobile #shop .shop-terminal-head { flex: 0 0 auto; }
+  .nv-mobile #shop .shop-tabs { flex: 0 0 auto; }
+  /* Contenido activo: usa todo el espacio restante y es el �NICO scroll vertical. */
+  .nv-mobile #shop .shop-grid {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    display: flex;
+    align-items: flex-start;
+  }
+  .nv-mobile #shop .shop-section {
+    height: auto;
+    max-height: none !important;
+    overflow: visible;
+    display: block;
+    flex: 0 0 100%;
+    width: 100%;
+  }
+  /* Solo la secci�n activa NO se oculta. */
+  .nv-mobile #shop[data-active-tab="upgrades"] .shop-section[data-shop-tab="upgrades"],
+  .nv-mobile #shop[data-active-tab="weapons"] .shop-section[data-shop-tab="weapons"],
+  .nv-mobile #shop[data-active-tab="consumables"] .shop-section[data-shop-tab="consumables"] {
+    display: block;
+  }
+  .nv-mobile #shop .offers {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 6px;
+    overflow: visible;
+    max-height: none !important;
+  }
+  .nv-mobile #shop .offer {
+    min-height: 0;
+    height: auto;
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .nv-mobile #shop .offer .offer-name { font-size: 11px; }
+  .nv-mobile #shop .offer .offer-desc {
+    font-size: 9px;
+    line-height: 1.25;
+    white-space: normal;
+  }
+  .nv-mobile #shop .offer .offer-price { font-size: 10px; }
+  /* DESPLEGAR: sticky al final, no tapa cards, respeta safe-area. */
+  .nv-mobile #shop .shop-deploy {
+    position: static;
+    align-self: stretch;
+    flex: 0 0 auto;
+    width: 100%;
+    padding: 9px 16px;
+    font-size: 12px;
+    margin: 0;
+    border-radius: 8px;
+  }
+
+  /* PERM SHOP: adaptar a viewport, grid responsive, scroll �nico. */
+  .nv-mobile #permShop .shop-screen {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    height: 100%;
+    padding: 0;
+    overflow: hidden;
+  }
+  .nv-mobile #permShop .shop-terminal-head { flex: 0 0 auto; }
+  .nv-mobile #permShop .shop-grid {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    display: flex;
+    align-items: flex-start;
+  }
+  .nv-mobile #permShop .shop-section {
+    height: auto;
+    max-height: none !important;
+    flex: 0 0 100%;
+    width: 100%;
+  }
+  .nv-mobile #permShop .offers {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 6px;
+    overflow: visible;
+    max-height: none !important;
+  }
+  .nv-mobile #permShop .offer { min-height: 0; height: auto; padding: 6px; }
+  .nv-mobile #permShop .shop-deploy { flex: 0 0 auto; position: static; }
+
+  /* MENU / GAME OVER: usar viewport, sin header que robe espacio. */
+  .nv-mobile .overlay {
+    padding: 4px;
+    gap: 4px;
+    overflow-y: auto;
+    justify-content: flex-start;
+    height: 100%;
+  }
+  .nv-mobile .overlay h1 { font-size: clamp(16px, 4vmin, 26px); margin: 0; }
+  .nv-mobile .overlay .subtitle { font-size: clamp(10px, 2.4vmin, 13px); margin: 0 0 4px; }
+  .nv-mobile .char-grid { gap: 5px; margin: 4px 0; }
+  .nv-mobile #startBtn, .nv-mobile #permBtn { flex: 0 0 auto; }
+}
+
+/* SAFE AREAS del HUD m�vil. */
+.nv-mobile .hud {
+  padding-left: calc(env(safe-area-inset-left, 0px) + 4px);
+  padding-right: calc(env(safe-area-inset-right, 0px) + 4px);
+}
+
+/* ===== LANDING PAGE: compactar selector de personajes en landscape corto ===== */
+/* En paisaje corto (~412px), el header m�vil ya superpone el canvas.
+   Aqu� nos aseguramos de que el selector de personajes + botones quepan
+   sin necesidad de scroll de p�gina. */
+@media (pointer: coarse) and (orientation: landscape) and (max-height: 500px) {
+
+  /* Overlay del menu: llena el game-box; compacto para NO necesitar scroll
+     en el viewport de referencia; scroll solo como fallback genuino. */
+  .nv-mobile .overlay {
+    height: 100%;
+    max-height: none;
+    overflow-y: auto;
+    overflow-x: hidden;
+    justify-content: flex-start;
+    align-items: center;
+    gap: 4px;
+  }
+
+  /* Header de selecci�n: t�tulo + subt�tulo compactos. */
+  #startScreen h1 {
+    font-size: clamp(16px, 4.5vmin, 22px);
+    margin: 0;
+    line-height: 1.1;
+  }
+  #startScreen .subtitle {
+    font-size: clamp(9px, 2.2vmin, 11px);
+    margin: 2px 0 4px;
+    line-height: 1.2;
+  }
+
+  /* Grid de personajes: 4 columnas compactas. */
+  #startScreen .char-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 4px;
+    max-width: none;
+    width: 100%;
+    margin: 4px 0;
+  }
+
+  /* Cards m�s compactas manteniendo lo esencial: icono + nombre + stats. */
+  #startScreen .char-card {
+    min-height: 0;
+    padding: 4px 3px;
+    gap: 2px;
+    height: auto;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  #startScreen .char-preview {
+    width: 26px;
+    height: 26px;
+    margin-bottom: 2px;
+  }
+  #startScreen .char-name {
+    font-size: 9px;
+    margin-bottom: 1px;
+  }
+  #startScreen .char-tag { font-size: 8px; margin-bottom: 2px; }
+  #startScreen .char-stat { font-size: 8px; margin-bottom: 1px; }
+  #startScreen .char-desc {
+    font-size: 7px;
+    line-height: 1.15;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+    height: calc(1.15em * 2);
+    margin: 0;
+  }
+
+  /* Botones de acci�n del men�: compactos pero legibles. */
+  #startScreen #startBtn {
+    padding: 5px 10px;
+    font-size: clamp(11px, 2.8vmin, 13px);
+    flex: 0 0 auto;
+  }
+  #startScreen #permBtn {
+    padding: 4px 8px;
+    font-size: clamp(9px, 2.2vmin, 11px);
+    flex: 0 0 auto;
+  }
+}
+
+/* ===== GAME OVER: asegurar que no haya scroll ni overflow ===== */
+@media (pointer: coarse) and (orientation: landscape) and (max-height: 500px) {
+  #gameOver.overlay {
+    height: auto;
+    max-height: 100%;
+    overflow: visible;
+  }
+  #gameOver .go-stats { gap: 8px; }
+  #gameOver #restartBtn {
+    padding: 5px 12px;
+    font-size: clamp(11px, 2.8vmin, 13px);
+    flex: 0 0 auto;
+  }
+}
+
+/* =========================================================
+   PASADA DE PRODUCCION MOVIL - presentacion, misma logica
+   ========================================================= */
+
+/* Modo chip: los botones laterales se ocultan; el chip entero cicla. */
+.nv-mobile .mobile-weapon-switch .touch-switch,
+.nv-mobile .mobile-consumable-switch .touch-switch { display: none; }
+.nv-mobile .mobile-weapon-switch .switch-indicator::before { content: 'ARMA · '; font-size: 8px; font-weight: 900; opacity: .65; letter-spacing: .08em; }
+.nv-mobile .mobile-consumable-switch .switch-indicator::before { content: 'ITEM · '; font-size: 8px; font-weight: 900; opacity: .65; letter-spacing: .08em; }
+.nv-mobile .switch-indicator:active { filter: brightness(1.35); }
+
+/* GAMEPLAY: el mismo DOM del header se presenta como franja minima:
+   chips de datos (wave/score/shards/HP/cooldown) arriba-izquierda y
+   el boton de menu arriba-derecha. Sin caja, sin logo, sin fullscreen.
+   NO se duplica estado: son los mismos nodos que actualiza el juego. */
+@media (pointer: coarse) and (orientation: landscape) and (max-height: 500px) {
+  .nv-mobile[data-game-state="playing"] .hud {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: auto;
+    height: auto; min-height: 0;
+    padding: calc(env(safe-area-inset-top, 0px) + 2px) calc(env(safe-area-inset-right, 0px) + 8px) 2px calc(env(safe-area-inset-left, 0px) + 8px);
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    border-radius: 0;
+    justify-content: flex-start;
+    pointer-events: none;
+    z-index: 20;
+  }
+  .nv-mobile[data-game-state="playing"] .hud .stats {
+    background: rgba(6, 9, 24, 0.8);
+    border: 1px solid rgba(124, 248, 255, 0.22);
+    border-radius: 10px;
+    padding: 2px 7px;
+    pointer-events: auto;
+  }
+  .nv-mobile[data-game-state="playing"] .hud .logo,
+  .nv-mobile[data-game-state="playing"] .hud .touch-fullscreen { display: none !important; }
+  .nv-mobile[data-game-state="playing"] .hud .hud-btns { margin-left: auto; pointer-events: auto; }
+  .nv-mobile[data-game-state="playing"] .hud .touch-options { min-width: 40px; height: 32px; font-size: 17px; }
+  /* Shop y game over: el header desktop no aporta nada en movil. */
+  .nv-mobile[data-game-state="shop"] .hud,
+  .nv-mobile[data-game-state="gameover"] .hud { display: none !important; }
+}
+
+/* SHOP movil: tarjeta horizontal consistente (icono | info | precio).
+   Misma estructura visual para MEJORAS, ARMAS y CONSUMIBLES, y tambien
+   para #permShop. Compra = tocar la tarjeta (como en desktop). */
+.nv-mobile #shop .offers,
+.nv-mobile #permShop .offers {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 7px;
+  align-content: start;
+}
+.nv-mobile #shop .offer,
+.nv-mobile #permShop .offer {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  column-gap: 9px;
+  row-gap: 1px;
+  align-items: start;
+  min-height: 56px;
+  max-height: none;
+  padding: 7px 10px;
+  text-align: left;
+}
+.nv-mobile #shop .offer .offer-icon,
+.nv-mobile #permShop .offer .offer-icon { grid-column: 1; grid-row: 1 / span 4; width: 38px; height: 38px; margin: 0; align-self: center; }
+.nv-mobile #shop .offer .offer-name,
+.nv-mobile #permShop .offer .offer-name { grid-column: 2; grid-row: 1; font-size: 12px; margin: 0; }
+.nv-mobile #shop .offer .offer-desc,
+.nv-mobile #permShop .offer .offer-desc {
+  grid-column: 2; grid-row: 2; font-size: 10px; line-height: 1.25; margin: 0;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+}
+.nv-mobile #shop .offer .offer-badge,
+.nv-mobile #permShop .offer .offer-badge { grid-column: 2; grid-row: 3; font-size: 8px; margin: 0; }
+.nv-mobile #shop .offer .offer-price,
+.nv-mobile #permShop .offer .offer-price {
+  grid-column: 3; grid-row: 1 / span 4;
+  align-self: center; justify-self: end;
+  font-size: 13px; margin: 0; padding: 3px 8px;
+  background: rgba(124, 248, 255, 0.12);
+  border: 1px solid rgba(124, 248, 255, 0.3);
+  border-radius: 8px;
+  white-space: nowrap;
+}
+.nv-mobile #shop .offer.disabled .offer-price,
+.nv-mobile #permShop .offer.disabled .offer-price { background: rgba(255, 95, 155, 0.12); border-color: rgba(255, 95, 155, 0.4); }
+
+/* Menu hamburguesa: targets tactiles comodos. */
+.nv-mobile .opt-btn { min-height: 42px; font-size: 13px; }
+
+/* Header oculto tambien cuando la tienda (normal o permanente) esta abierta,
+   para estados que no publican data-game-state=shop. :has() con degradacion
+   amable: si el navegador no lo soporta, el header simplemente se ve. */
+.nv-mobile:has(#shop:not(.hidden)) .hud,
+.nv-mobile:has(#permShop:not(.hidden)) .hud { display: none !important; }
 

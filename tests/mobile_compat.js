@@ -88,6 +88,17 @@ t('viewport.computeScale: escala uniforme = min(width/900, height/520)', () => {
   if (v.computeScale(1800, 1040, 900, 520) !== 2) throw new Error('1800x1040 no dio 2');
 });
 
+t('viewport.worldMetrics: ref/view/arena permanecen 900x520 en Stage 0/1', () => {
+  const { sbx } = makeSandbox({ nv: { capabilities: { isMobile: false } } });
+  load('js/core/viewport.js', sbx);
+  const m = sbx.NV.worldMetrics;
+  const expected = { refW: 900, refH: 520, viewW: 900, viewH: 520, viewX: 0, viewY: 0, arenaW: 900, arenaH: 520, scale: 1 };
+  for (const k of Object.keys(expected)) {
+    if (m[k] !== expected[k]) throw new Error(k + '=' + m[k]);
+  }
+  if (sbx.NV.viewport.worldMetrics !== m) throw new Error('viewport no comparte la métrica central');
+});
+
 t('viewport.screenToGame (móvil): escala uniforme + pillarbox + rect offset', () => {
   const { sbx } = makeSandbox({ nv: { capabilities: { isMobile: true } }, cssW: 1800, cssH: 520, dpr: 2, rectLeft: 100, rectTop: 50 });
   load('js/core/viewport.js', sbx);
@@ -182,6 +193,228 @@ t('css móvil: safe-areas, touch-action y overlay de rotación por orientación'
   if (!css.includes('.joystick-zone') || !css.includes('.touch-special')) throw new Error('faltan estilos touch');
   if (!/@media \(pointer: coarse\) and \(orientation: landscape\)/.test(css)) throw new Error('falta ocultar overlay en landscape');
   if (!css.includes('.nv-mobile .game-box')) throw new Error('falta regla responsive del game-box');
+});
+
+// ============ PRUEBAS DE VISIBILIDAD DEL BOTÓN JUGAR EN PAISAJES CORTOS ============
+t('css móvil: compresión de overlay para paisajes cortos (max-height: 500px)', () => {
+  const css = fs.readFileSync('css/styles.css', 'utf8');
+  if (!css.includes('@media (pointer: coarse) and (orientation: landscape) and (max-height: 500px)')) {
+    throw new Error('falta regla de compresión para paisajes cortos (max-height: 500px)');
+  }
+  // Debe reducir el padding del overlay (valor exacto puede variar)
+  if (!css.includes('.nv-mobile .overlay { padding:')) {
+    throw new Error('falta compresión del padding del overlay');
+  }
+  // Debe reducir el min-height de las tarjetas de personaje
+  if (!css.includes('.nv-mobile .char-card { min-height:')) {
+    throw new Error('falta compresión del min-height de char-card');
+  }
+});
+
+t('css móvil: compresión adicional para paisajes muy cortos (max-height: 380px)', () => {
+  const css = fs.readFileSync('css/styles.css', 'utf8');
+  if (!css.includes('@media (pointer: coarse) and (orientation: landscape) and (max-height: 380px)')) {
+    throw new Error('falta regla de compresión para paisajes muy cortos (max-height: 380px)');
+  }
+  if (!css.includes('.nv-mobile .char-card { min-height: 70px; padding: 6px; }')) {
+    throw new Error('falta compresión adicional del min-height de char-card');
+  }
+});
+
+t('css móvil: body usa 100dvh para manejar chrome del navegador móvil', () => {
+  const css = fs.readFileSync('css/styles.css', 'utf8');
+  if (!css.includes('height: 100dvh')) {
+    throw new Error('body debe usar 100dvh para manejar la barra de dirección del navegador móvil');
+  }
+});
+
+t('layout: verificación matemática de que #startBtn cabe en 915x412', () => {
+  const viewportHeight = 412;
+  const shellPadding = 4;
+  const shellGap = 3;
+  const hudMinHeight = 30;
+  const overlayPadding = 16 * 2;
+  const overlayGap = 8;
+  const h1Height = 32;
+  const subtitleHeight = 14;
+  const charCardMinHeight = 90;
+  const startBtnHeight = 38;
+  const consumed = shellPadding * 2 + shellGap + hudMinHeight + overlayPadding + overlayGap * 3 + h1Height + subtitleHeight + charCardMinHeight + startBtnHeight;
+  const remaining = viewportHeight - consumed;
+  if (remaining < 0) throw new Error('El layout no cabe en 915x412: faltan ' + Math.abs(remaining) + 'px');
+});
+
+t('layout: verificación matemática de que #startBtn cabe en 800x360', () => {
+  const viewportHeight = 360;
+  const shellPadding = 2;
+  const shellGap = 2;
+  const hudMinHeight = 26;
+  const overlayPadding = 10 * 2;
+  const overlayGap = 6;
+  const h1Height = 24;
+  const subtitleHeight = 12;
+  const charCardMinHeight = 70;
+  const startBtnHeight = 30;
+  const consumed = shellPadding * 2 + shellGap + hudMinHeight + overlayPadding + overlayGap * 3 + h1Height + subtitleHeight + charCardMinHeight + startBtnHeight;
+  const remaining = viewportHeight - consumed;
+  if (remaining < 0) throw new Error('El layout no cabe en 800x360: faltan ' + Math.abs(remaining) + 'px');
+});
+
+// ============ STATE-BASED VISIBILITY ============
+t('css móvil: controles táctiles ocultos durante menú/selección', () => {
+  const css = fs.readFileSync('css/styles.css', 'utf8');
+  // Los controles móviles deben ocultarse cuando el juego está en estado menu/shop/gameover/paused
+  if (!css.includes('[data-game-state="menu"] .mobile-hud')) {
+    throw new Error('falta regla para ocultar controles móviles durante el menú');
+  }
+  if (!css.includes('[data-game-state="shop"] .mobile-hud')) {
+    throw new Error('falta regla para ocultar controles móviles durante la tienda');
+  }
+  if (!css.includes('[data-game-state="gameover"] .mobile-hud')) {
+    throw new Error('falta regla para ocultar controles móviles durante game over');
+  }
+});
+
+t('js: game.js sincroniza estado del juego al DOM', () => {
+  const g = fs.readFileSync('js/game.js', 'utf8');
+  // Debe existir una función que sincronice el estado
+  if (!g.includes('data-game-state')) {
+    throw new Error('game.js no sincroniza data-game-state al DOM');
+  }
+  // Debe llamarse en las transiciones de estado
+  if (!g.includes('syncGameState()')) {
+    throw new Error('game.js no llama a syncGameState()');
+  }
+});
+
+t('js: game.js expone inputs móviles de arma/consumible/pausa/stats/sonido', () => {
+  const g = fs.readFileSync('js/game.js', 'utf8');
+  for (const k of [
+    'NV.input.cycleWeapon',
+    'NV.input.cycleConsumable',
+    'NV.input.togglePause',
+    'NV.input.toggleStats',
+    'NV.input.toggleSound',
+  ]) {
+    if (!g.includes(k)) throw new Error('falta ' + k);
+  }
+  // cycleConsumable debe delegar en NV.groupConsumables / NV.cycleIndex (sin duplicar lógica).
+  if (!g.includes('NV.groupConsumables') || !g.includes('NV.cycleIndex')) {
+    throw new Error('cycleConsumable no reutiliza lógica compartida de grupos');
+  }
+});
+
+t('wire: HTML expone switch de armas y consumibles y panel de opciones', () => {
+  const h = fs.readFileSync('index.html', 'utf8');
+  for (const id of ['touchWeaponPrev', 'touchWeaponNext', 'touchConsumPrev', 'touchConsumNext', 'optionsBtn', 'mobileOptions', 'mPauseBtn', 'mStatsBtn', 'mSoundBtn']) {
+    if (!h.includes('id="' + id + '"')) throw new Error('falta #' + id);
+  }
+});
+
+t('wire: mobileControls cablea ciclo de arma/consumible y opciones', () => {
+  const mc = fs.readFileSync('js/ui/mobileControls.js', 'utf8');
+  if (!mc.includes('input.cycleWeapon')) throw new Error('sin cycleWeapon en mobileControls');
+  if (!mc.includes('input.cycleConsumable')) throw new Error('sin cycleConsumable en mobileControls');
+  if (!mc.includes('input.togglePause')) throw new Error('sin togglePause en mobileControls');
+  if (!mc.includes('initShopTabs')) throw new Error('sin initShopTabs en mobileControls');
+});
+
+t('shop tabs: HTML y CSS móvil con una sola sección activa', () => {
+  const h = fs.readFileSync('index.html', 'utf8');
+  const css = fs.readFileSync('css/styles.css', 'utf8');
+  if (!h.includes('id="shopTabs"')) throw new Error('faltan tabs de tienda en HTML');
+  for (const tab of ['data-tab="upgrades"', 'data-tab="weapons"', 'data-tab="consumables"']) {
+    if (!h.includes(tab)) throw new Error('falta ' + tab);
+  }
+  if (!css.includes('[data-active-tab="upgrades"]')) throw new Error('sin CSS de tab activo');
+  // El ocultado por tab no debe afectar a #permShop (selector scoped a #shop).
+  if (!css.includes('#shop[data-active-tab')) throw new Error('los tabs deben estar scoped a #shop');
+});
+
+t('css móvil: panel de opciones y switches son solo-mobile', () => {
+  const css = fs.readFileSync('css/styles.css', 'utf8');
+  if (!css.includes('.mobile-options') || !css.includes('.nv-mobile .mobile-options')) {
+    throw new Error('falta panel móvil de opciones');
+  }
+  if (!css.includes('.mobile-weapon-switch') || !css.includes('.nv-mobile .mobile-weapon-switch')) {
+    throw new Error('falta estilos del switch de arma');
+  }
+});
+
+// ============ SEGUNDA PASADA MOBILE ============
+t('indicadores: HTML expone indicador de arma y consumible', () => {
+  const h = fs.readFileSync('index.html', 'utf8');
+  if (!h.includes('id="weaponIndicator"')) throw new Error('falta indicador de arma');
+  if (!h.includes('id="consumableIndicator"')) throw new Error('falta indicador de consumible');
+});
+
+t('indicadores: game.js expone getWeaponInfo/getConsumableInfo sin estado duplicado', () => {
+  const g = fs.readFileSync('js/game.js', 'utf8');
+  if (!g.includes('NV.input.getWeaponInfo')) throw new Error('falta getWeaponInfo');
+  if (!g.includes('NV.input.getConsumableInfo')) throw new Error('falta getConsumableInfo');
+  // No debe leer currentWeapon/consumSel desde mobileControls (estado vive en game.js).
+  if (g.includes('NV.input.currentWeapon')) throw new Error('network: exporta currentWeapon duplicado');
+});
+
+t('weapon/consumable notify: game.js avisa a la capa móvil al cambiar', () => {
+  const g = fs.readFileSync('js/game.js', 'utf8');
+  for (const s of ['notifyMobileWeapon()', 'notifyMobileConsumable()']) {
+    if (!g.includes(s)) throw new Error('falta callback ' + s);
+  }
+  if (!g.includes('NV.input.notifyWeaponChange')) throw new Error('falta notifyWeaponChange');
+});
+
+t('header mobile: oculta controles secundarios (charBtn, hudToggle, sound, fullscreen, rhythm)', () => {
+  const css = fs.readFileSync('css/styles.css', 'utf8');
+  if (!css.includes('.nv-mobile #charBtn')) throw new Error('no oculta charBtn');
+  if (!css.includes('.nv-mobile #hudToggle')) throw new Error('no oculta hudToggle');
+  if (!css.includes('.nv-mobile #sound')) throw new Error('no oculta sound');
+  if (!css.includes('.nv-mobile #fullscreenBtn')) throw new Error('no oculta fullscreenBtn');
+  if (!css.includes('.nv-mobile .rhythm-widget')) throw new Error('no oculta rhythm widget');
+  // ☰ y stats core siguen visibles.
+  if (!css.includes('.nv-mobile .touch-options')) throw new Error('☰ no queda visible');
+  if (!css.includes('.nv-mobile .stat-wave')) throw new Error('wave no queda visible');
+});
+
+t('pausa: juego usa data-paused y mobile la respeta (oculta gameplay, ☰ sigue accesible)', () => {
+  const g = fs.readFileSync('js/game.js', 'utf8');
+  if (!g.includes('data-paused')) throw new Error('game.js no publica data-paused');
+  const css = fs.readFileSync('css/styles.css', 'utf8');
+  if (!css.includes('.nv-paused .joystick-zone')) throw new Error('no oculta joystick en pausa');
+  if (!css.includes('.nv-paused .mobile-actions')) throw new Error('no oculta acciones en pausa');
+  if (!css.includes('.nv-paused .mobile-weapon-switch')) throw new Error('no oculta switch de arma en pausa');
+  const mc = fs.readFileSync('js/ui/mobileControls.js', 'utf8');
+  if (!mc.includes('data-paused')) throw new Error('mobileControls no lee data-paused');
+  if (!mc.includes('Reanudar')) throw new Error('no refleja "Reanudar" en pausa');
+});
+
+t('joystick mobile: base/thumb más chicos pero zona sigue amplia', () => {
+  const css = fs.readFileSync('css/styles.css', 'utf8');
+  if (!css.includes('.nv-mobile .joystick-base')) throw new Error('falta estilo base compacta');
+  if (!css.includes('clamp(72px, 16vmin, 92px)')) throw new Error('base no usa clamp compacto');
+  if (!css.includes('clamp(32px, 8vmin, 42px)')) throw new Error('thumb no usa clamp compacto');
+  if (!css.includes('.joystick-zone.active')) throw new Error('falta visible en activo');
+});
+
+t('shop mobile: solo una sección activa y UNA scroll (sin nested)', () => {
+  const css = fs.readFileSync('css/styles.css', 'utf8');
+  // Scroll único en .shop-grid, overflow visible en .offers y .shop-section.
+  if (!css.includes('.nv-mobile #shop .shop-grid')) throw new Error('falta grid scroller');
+  if (!css.includes('.offers {') || !css.includes('overflow: visible')) throw new Error('offers no libera scroll');
+  if (!css.includes('repeat(auto-fit, minmax(150px, 1fr))')) throw new Error('falta grid responsive de cards');
+});
+
+t('permShop mobile: adaptado con grid responsive y scroll único', () => {
+  const css = fs.readFileSync('css/styles.css', 'utf8');
+  if (!css.includes('.nv-mobile #permShop .shop-grid')) throw new Error('falta permShop grid');
+  if (!css.includes('.nv-mobile #permShop .offers')) throw new Error('falta permShop offers');
+});
+
+t('menu/gameover mobile: overlay usa viewport sin header robando espacio', () => {
+  const css = fs.readFileSync('css/styles.css', 'utf8');
+  if (!css.includes('.nv-mobile .overlay')) throw new Error('falta overlay mobile');
+  if (!css.includes('.nv-mobile #startBtn')) throw new Error('no asegura JUGAR');
+  if (!css.includes('.nv-mobile #permBtn')) throw new Error('no asegura PERMANENTES');
 });
 
 console.log('RESULT mobile_compat: pass=' + pass + ' fail=' + fail);

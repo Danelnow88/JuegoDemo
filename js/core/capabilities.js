@@ -99,14 +99,27 @@
   applyClassTags();
   NV.capabilities.orientation = applyOrientation();
 
+    // Listener de orientación con refuerzo extra: en algunos navegadores/emuladores
+  // (incl. DevTools), matchMedia('(orientation: portrait)') no dispara suficientemente
+  // los cambios, dejando la clase .nv-portrait/.nv-landscape desactualizada y
+  // bloqueando la UI con el overlay de rotación. Añadimos listeners redundantes
+  // de orientationchange/resize para forzar la sincronía.
+  const orientationHandler = () => { NV.capabilities.orientation = applyOrientation(); };
   if (mm) {
     const mq = mm('(orientation: portrait)');
-    const handler = () => { NV.capabilities.orientation = applyOrientation(); };
     try {
-      if (mq && typeof mq.addEventListener === 'function') mq.addEventListener('change', handler);
-      else if (mq && typeof mq.addListener === 'function') mq.addListener(handler);
+      if (mq && typeof mq.addEventListener === 'function') mq.addEventListener('change', orientationHandler);
+      else if (mq && typeof mq.addListener === 'function') mq.addListener(orientationHandler);
     } catch (_) { /* defensivo */ }
   }
+  // Refuerzo: también en los eventos nativos de cambio de orientación/tamaño.
+  if (w && typeof w.addEventListener === 'function') {
+    try { w.addEventListener('orientationchange', orientationHandler); } catch (_) { /* defensivo */ }
+    try { w.addEventListener('resize', orientationHandler); } catch (_) { /* defensivo */ }
+  }
+  // Garantizar la orientación correcta al cargar (fuerza aplicar la clase antes
+  // de que el usuario interactúe).
+  NV.capabilities.orientation = applyOrientation();
 
   // Móvil: meta viewport app-like (evita zoom accidental durante el juego y
   // habilita env(safe-area-inset-*) vía viewport-fit). Escritorio queda intacto.

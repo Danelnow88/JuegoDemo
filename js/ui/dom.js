@@ -46,5 +46,18 @@
     permBack: document.getElementById('permBack'),
     permShards: document.getElementById('permShards'),
     permOffers: document.getElementById('permOffers'),
+    touchWeaponPrev: document.getElementById('touchWeaponPrev'),
+    touchWeaponNext: document.getElementById('touchWeaponNext'),
+    touchConsumPrev: document.getElementById('touchConsumPrev'),
+    touchConsumNext: document.getElementById('touchConsumNext'),
+    optionsBtn: document.getElementById('optionsBtn'),
+    mobileOptions: document.getElementById('mobileOptions'),
+    mPauseBtn: document.getElementById('mPauseBtn'),
+    mStatsBtn: document.getElementById('mStatsBtn'),
+    mSoundBtn: document.getElementById('mSoundBtn'),
+    mFullscreenBtn: document.getElementById('mFullscreenBtn'),
+    shopTabs: document.getElementById('shopTabs'),
+    weaponIndicator: document.getElementById('weaponIndicator'),
+    consumableIndicator: document.getElementById('consumableIndicator'),
   };
 })();

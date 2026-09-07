@@ -1,6 +1,6 @@
 // ===== VIEWPORT: gestor central de resolución / visor (SIN gameplay) =====
 // Centraliza todo lo concerniente a la presentación y entrada posicional:
-//  - dimensiones lógicas del mundo (deben coincidir con GW/GH de js/game.js);
+//  - métricas semánticas del mundo (referencia, vista runtime y arena gameplay);
 //  - escala uniforme de display y offsets de letterbox/pillarbox;
 //  - devicePixelRatio efectivo (cap en móvil; SIEMPRE 1 en escritorio);
 //  - fullscreen + orientation lock (landscape) con fallback silencioso;
@@ -17,10 +17,34 @@
   const NV = (w && w.NV) ? w.NV : {};
   if (w) w.NV = NV;
 
-  // Resolución lógica del mundo. Único punto de declaración a nivel presentación.
-  // DEBE coincidir con `const GW = 900, GH = 520;` de js/game.js.
-  const LOGICAL_W = 900;
-  const LOGICAL_H = 520;
+  // Métricas autoritativas del mundo. Stage 3 expande SOLO la arena gameplay
+  // móvil dinámica (?dynamicView=1 + mobile landscape) para igualar la vista.
+  const REFERENCE_W = 900;
+  const REFERENCE_H = 520;
+  const worldMetrics = NV.worldMetrics || {
+    refW: REFERENCE_W,
+    refH: REFERENCE_H,
+    viewW: REFERENCE_W,
+    viewH: REFERENCE_H,
+    viewX: 0,
+    viewY: 0,
+    arenaW: REFERENCE_W,
+    arenaH: REFERENCE_H,
+    scale: 1,
+  };
+  worldMetrics.refW = REFERENCE_W;
+  worldMetrics.refH = REFERENCE_H;
+  worldMetrics.viewW = Number(worldMetrics.viewW) || REFERENCE_W;
+  worldMetrics.viewH = Number(worldMetrics.viewH) || REFERENCE_H;
+  worldMetrics.viewX = Number(worldMetrics.viewX) || 0;
+  worldMetrics.viewY = Number(worldMetrics.viewY) || 0;
+  worldMetrics.arenaW = REFERENCE_W;
+  worldMetrics.arenaH = REFERENCE_H;
+  worldMetrics.scale = Number(worldMetrics.scale) || 1;
+  NV.worldMetrics = worldMetrics;
+
+  const LOGICAL_W = REFERENCE_W;
+  const LOGICAL_H = REFERENCE_H;
   // Cap de DPR en móvil: evita resolver a resoluciones físicas absurdas.
   // En escritorio el DPR efectivo es SIEMPRE 1 → comportamiento original intacto.
   const MOBILE_DPR_CAP = 2;
@@ -37,11 +61,52 @@
     const n = parseFloat(v);
     return Number.isFinite(n) ? n : 0;
   }
+  function hasDynamicFlag() {
+    try {
+      return !!(w && w.location && /(?:^|[?&])dynamicView=1(?:&|$)/.test(w.location.search || ''));
+    } catch (_) { return false; }
+  }
+  function setRootClass(name, on) {
+    const root = queryRoot();
+    if (!root || !root.classList) return;
+    if (on && typeof root.classList.add === 'function') root.classList.add(name);
+    else if (!on && typeof root.classList.remove === 'function') root.classList.remove(name);
+  }
+  function computeDynamicMetrics(stageW, stageH) {
+    const viewH = REFERENCE_H;
+    const stageAspect = stageH > 0 ? stageW / stageH : REFERENCE_W / REFERENCE_H;
+    const viewW = Math.max(REFERENCE_W, viewH * stageAspect);
+    return {
+      refW: REFERENCE_W,
+      refH: REFERENCE_H,
+      viewW,
+      viewH,
+      viewX: 0,
+      viewY: 0,
+      arenaW: viewW,
+      arenaH: REFERENCE_H,
+      scale: stageH > 0 ? stageH / viewH : 1,
+    };
+  }
+  function applyWorldMetrics(next) {
+    worldMetrics.refW = REFERENCE_W;
+    worldMetrics.refH = REFERENCE_H;
+    worldMetrics.viewW = next.viewW;
+    worldMetrics.viewH = next.viewH;
+    worldMetrics.viewX = next.viewX;
+    worldMetrics.viewY = next.viewY;
+    worldMetrics.arenaW = next.arenaW || REFERENCE_W;
+    worldMetrics.arenaH = next.arenaH || REFERENCE_H;
+    worldMetrics.scale = next.scale;
+  }
 
   const viewport = {
     logicalW: LOGICAL_W,
     logicalH: LOGICAL_H,
+    worldMetrics,
     isMobile: !!(NV.capabilities && NV.capabilities.isMobile),
+    dynamicViewFlag: hasDynamicFlag(),
+    dynamicViewActive: false,
 
     // Caja CSS del canvas (lo que el usuario VE, en píxeles CSS)
     cssW: LOGICAL_W,
@@ -64,6 +129,7 @@
       lh = Number(lh) || LOGICAL_H;
       return Math.min(cssW / lw, cssH / lh);
     },
+    computeDynamicMetrics,
 
     readFullscreen() {
       viewport.isFullscreen = !!(
@@ -87,7 +153,9 @@
       return viewport.safe;
     },
 
+
     refresh() {
+      viewport.isMobile = !!(NV.capabilities && NV.capabilities.isMobile);
       const canvas = queryCanvas();
       let cssW = LOGICAL_W, cssH = LOGICAL_H;
       if (canvas && typeof canvas.getBoundingClientRect === 'function') {
@@ -99,19 +167,44 @@
           }
         } catch (_) { /* defensivo */ }
       }
+      const orientation = (NV.capabilities && NV.capabilities.orientation)
+        || (cssH > cssW ? 'portrait' : 'landscape');
+      viewport.dynamicViewFlag = hasDynamicFlag();
+      viewport.dynamicViewActive = !!(viewport.dynamicViewFlag && viewport.isMobile && orientation === 'landscape');
+      setRootClass('nv-dynamic-view', viewport.dynamicViewActive);
+      // La clase dinámica puede cambiar la caja CSS; medir de nuevo después de aplicarla.
+      if (canvas && typeof canvas.getBoundingClientRect === 'function') {
+        try {
+          const r = canvas.getBoundingClientRect();
+          if (r && Number.isFinite(r.width) && Number.isFinite(r.height) && r.width > 0 && r.height > 0) {
+            cssW = r.width;
+            cssH = r.height;
+          }
+        } catch (_) { /* defensivo */ }
+      }
       viewport.cssW = cssW;
       viewport.cssH = cssH;
-      viewport.displayScale = viewport.computeScale(cssW, cssH, LOGICAL_W, LOGICAL_H);
-      // El espacio que la escala uniforme no llena es letterbox/pillarbox.
-      viewport.offsetX = Math.max(0, (cssW - LOGICAL_W * viewport.displayScale) / 2);
-      viewport.offsetY = Math.max(0, (cssH - LOGICAL_H * viewport.displayScale) / 2);
+      if (viewport.dynamicViewActive) {
+        applyWorldMetrics(computeDynamicMetrics(cssW, cssH));
+        viewport.logicalW = worldMetrics.viewW;
+        viewport.logicalH = worldMetrics.viewH;
+        viewport.displayScale = worldMetrics.scale;
+        viewport.offsetX = 0;
+        viewport.offsetY = 0;
+      } else {
+        applyWorldMetrics({ viewW: REFERENCE_W, viewH: REFERENCE_H, viewX: 0, viewY: 0, scale: 1 });
+        viewport.logicalW = worldMetrics.viewW;
+        viewport.logicalH = worldMetrics.viewH;
+        viewport.displayScale = viewport.computeScale(cssW, cssH, worldMetrics.viewW, worldMetrics.viewH);
+        viewport.offsetX = Math.max(0, (cssW - worldMetrics.viewW * viewport.displayScale) / 2);
+        viewport.offsetY = Math.max(0, (cssH - worldMetrics.viewH * viewport.displayScale) / 2);
+      }
       if (viewport.isMobile) {
         viewport.dpr = Math.min((w && w.devicePixelRatio) || 1, MOBILE_DPR_CAP);
       } else {
-        viewport.dpr = 1; // escritorio idéntico al comportamiento original
+        viewport.dpr = 1;// escritorio idéntico al comportamiento original
       }
-      viewport.orientation = (NV.capabilities && NV.capabilities.orientation)
-        || (cssH > cssW ? 'portrait' : 'landscape');
+      viewport.orientation = orientation;
       viewport.readSafeAreas();
       viewport.readFullscreen();
       for (let i = 0; i < listeners.length; i++) {
@@ -126,11 +219,11 @@
       return viewport.isMobile ? viewport.dpr : 1;
     },
 
-    // --- Conversión SCREEN -> MUNDO lógico del juego (reusable, exacta) ---
-    // Entra: coordenadas client (viewport CSS px). Sale: coords lógicas 900x520.
+    // --- Conversión SCREEN -> VIEW lógico del juego (reusable, exacta) ---
+    // Entra: coordenadas client (viewport CSS px). Sale: coords lógicas viewW x viewH.
     screenToGame(clientX, clientY) {
       const canvas = queryCanvas();
-      let rect = { left: 0, top: 0, width: LOGICAL_W, height: LOGICAL_H };
+      let rect = { left: 0, top: 0, width: worldMetrics.viewW, height: worldMetrics.viewH };
       if (canvas && typeof canvas.getBoundingClientRect === 'function') {
         try {
           const r = canvas.getBoundingClientRect();
@@ -139,12 +232,18 @@
       }
       const x = clientX - rect.left;
       const y = clientY - rect.top;
+      if (viewport.dynamicViewActive) {
+        return {
+          x: worldMetrics.viewX + x / viewport.displayScale,
+          y: worldMetrics.viewY + y / viewport.displayScale,
+        };
+      }
       if (!viewport.isMobile) {
         // Escritorio: EXACTAMENTE la fórmula legacy de game.js
         //   mx = (clientX - rect.left) / scaleX   con scaleX = canvas.width / GW,
         // aplicada sobre la caja CSS (aquí DPR=1 ⇒ canvas.width ≈ rect.width).
-        const sx = rect.width > 0 ? rect.width / LOGICAL_W : 1;
-        const sy = rect.height > 0 ? rect.height / LOGICAL_H : 1;
+        const sx = rect.width > 0 ? rect.width / worldMetrics.viewW : 1;
+        const sy = rect.height > 0 ? rect.height / worldMetrics.viewH : 1;
         return { x: x / sx, y: y / sy };
       }
       // Móvil: escala uniforme + offsets de letterbox/pillarbox.
@@ -165,8 +264,8 @@
         } catch (_) { /* defensivo */ }
       }
       return {
-        x: rect.left + viewport.offsetX + gx * viewport.displayScale,
-        y: rect.top + viewport.offsetY + gy * viewport.displayScale,
+        x: rect.left + viewport.offsetX + (gx - worldMetrics.viewX) * viewport.displayScale,
+        y: rect.top + viewport.offsetY + (gy - worldMetrics.viewY) * viewport.displayScale,
       };
     },
 
@@ -243,6 +342,7 @@
 
   NV.viewport = viewport;
   NV.screenToGame = (x, y) => viewport.screenToGame(x, y);
+  NV.gameToScreen = (x, y) => viewport.gameToScreen(x, y);
 
   // --- Reacción a todos los cambios de viewport ---
   const onViewportChange = () => viewport.refresh();

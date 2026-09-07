@@ -40,7 +40,7 @@ t('parallax: capas se desplazan a distinta velocidad', () => {
 
 t('game.js dibuja el starfield con la posición del jugador', () => {
   const g = fs.readFileSync('js/game.js', 'utf8');
-  if (!g.includes('NV.drawStarfield(ctx, W, H, frame, player.x, player.y, NV.rhythm)')) throw new Error('no conectado');
+  if (!g.includes('NV.drawStarfield(ctx, vw, vh, frame, player.x - vx, player.y - vy, NV.rhythm)')) throw new Error('no conectado a vista dinámica');
   if (!g.includes("spawnExplosion(player.x - (player.moveVx || 0)")) throw new Error('polvo de slide ausente');
 });
 

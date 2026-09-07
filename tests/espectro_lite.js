@@ -81,7 +81,9 @@ t('puente conserva fallback Canvas2D y mapea coordenadas lógicas', () => {
   const game = fs.readFileSync('js/game.js', 'utf8');
   if (!game.includes('function isEnemyRenderedByLite(e)')) throw new Error('guard de mesh ausente');
   if (!game.includes('isEnemyRenderedByLite(e)) return;')) throw new Error('Canvas2D no usa guard seguro');
-  if (!game.includes('x: e.x - W / 2, y: H / 2 - e.y')) throw new Error('mapeo de coordenadas ausente');
+  if (!game.includes('OrthographicCamera(viewX(), viewX() + viewW(), -viewY(), -(viewY() + viewH())')) throw new Error('cámara view rect ausente');
+  if (!game.includes('x: e.x, y: -e.y')) throw new Error('mapeo de coordenadas ausente');
+  if (!game.includes('function syncEspectroCamera()')) throw new Error('sync de cámara runtime ausente');
   if (!game.includes('if (!lite || !lite.initialized) return;')) throw new Error('fallback durante carga ausente');
 });
 

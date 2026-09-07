@@ -4,7 +4,22 @@
 (() => {
   'use strict';
 
-  const GW = 900, GH = 520;
+  const worldMetrics = NV.worldMetrics || (NV.worldMetrics = {
+    refW: 900,
+    refH: 520,
+    viewW: 900,
+    viewH: 520,
+    viewX: 0,
+    viewY: 0,
+    arenaW: 900,
+    arenaH: 520,
+    scale: 1,
+  });
+  const REF_W = worldMetrics.refW, REF_H = worldMetrics.refH;
+  const ARENA_W = worldMetrics.arenaW, ARENA_H = worldMetrics.arenaH;
+  // Aliases legacy iniciales. En Stage 3 el gameplay consulta arenaW()/arenaH()
+  // para que SOLO mobile ?dynamicView=1 use la arena dinámica autorizada.
+  const GW = REF_W, GH = REF_H;
   const canvas = NV.canvas;
   const ctx = NV.ctx;
   const specterCanvas = document.getElementById('specter-overlay');
@@ -28,13 +43,32 @@
     }
     if (canvas.width !== bdW || canvas.height !== bdH) {
       canvas.width = bdW; canvas.height = bdH;
-      scaleX = canvas.width / GW; scaleY = canvas.height / GH;
       if (specterCanvas && NV.espectroLite && typeof NV.espectroLite.resize === 'function') {
         NV.espectroLite.resize(dw, dh);
       }
     }
+    syncEspectroCamera();
+    const currentViewW = worldMetrics.viewW || REF_W;
+    const currentViewH = worldMetrics.viewH || REF_H;
+    scaleX = canvas.width / currentViewW; scaleY = canvas.height / currentViewH;
   }
-  const W = GW, H = GH;
+  const W = ARENA_W, H = ARENA_H;
+  function arenaW() { return worldMetrics.arenaW || REF_W; }
+  function arenaH() { return worldMetrics.arenaH || REF_H; }
+  function viewW() { return worldMetrics.viewW || REF_W; }
+  function viewH() { return worldMetrics.viewH || REF_H; }
+  function viewX() { return worldMetrics.viewX || 0; }
+  function viewY() { return worldMetrics.viewY || 0; }
+  function syncEspectroCamera() {
+    const lite = NV.espectroLite;
+    const camera = lite && lite.camera;
+    if (!camera) return;
+    camera.left = viewX();
+    camera.right = viewX() + viewW();
+    camera.top = -viewY();
+    camera.bottom = -(viewY() + viewH());
+    if (typeof camera.updateProjectionMatrix === 'function') camera.updateProjectionMatrix();
+  }
 
   // === PUENTE ESPECTRO LITE WEBGL ===
   // Totalmente deprecado: Three.js legacy se desactiva por completo. Todos los
@@ -62,9 +96,18 @@
   let shake = 0, hitstop = 0, flashColor = null, flashAlpha = 0, specialVFX = null;
   let deathTimer = 0, deathShake = 0;
 
+  // Sync game state to DOM for CSS-based responsive UI
+  function syncGameState() {
+    const root = document.documentElement;
+    if (root) {
+      root.setAttribute('data-game-state', state);
+      root.setAttribute('data-paused', paused ? 'true' : 'false');
+    }
+  }
+
   // === JUGADOR ===
   const player = {
-    x: W/2, y: H-100, hp: 100, maxHp: 100, speed: 200, color: '#7cf8ff',
+    x: arenaW()/2, y: arenaH()-100, hp: 100, maxHp: 100, speed: 200, color: '#7cf8ff',
     specialCd: 0, maxCd: 4, invuln: 0, character: 'boti',
     armor: 0, luck: 0, overdrive: 0, xp: 0, level: 1, xpToNext: 100,
     moveVx: 0, moveVy: 0, agility: 1,
@@ -128,7 +171,7 @@
       const rect = canvas.getBoundingClientRect();
       const webglCanvas = specterCanvas;
       if (!webglCanvas) throw new Error('Canvas #specter-overlay no encontrado');
-      const camera = new THREE.OrthographicCamera(-W / 2, W / 2, H / 2, -H / 2, 0.1, 100);
+      const camera = new THREE.OrthographicCamera(viewX(), viewX() + viewW(), -viewY(), -(viewY() + viewH()), 0.1, 100);
       camera.position.z = 10;
       const lite = NV.initEspectroLite(THREE, {
         host, canvas: webglCanvas, camera,
@@ -202,7 +245,7 @@
         let entry = espectroEntries.get(e);
         if (!entry) {
           entry = lite.createEnemy({
-            x: e.x - W / 2, y: H / 2 - e.y,
+            x: e.x, y: -e.y,
             scale: SPECTER_SCALE,
             phase: 0,
             form: SPECTER_FORM,
@@ -212,10 +255,10 @@
         }
         if (entry) {
           lite.syncEnemy(entry, {
-            x: e.x - W / 2, y: H / 2 - e.y,
+            x: e.x, y: -e.y,
             scale: SPECTER_SCALE,
-            lookX: player.x - W / 2,
-            lookY: H / 2 - player.y,
+            lookX: player.x,
+            lookY: -player.y,
           });
         }
       }
@@ -317,6 +360,43 @@
   NV.input.setSpecial = (v) => { specialPressed = !!v; };
   NV.input.useSelected = () => {
     if (state === 'playing' && !paused) useConsumable();
+  };
+  // Cambio de consumible táctil → misma lógica que Q/E (grupos + selección circular).
+  NV.input.cycleConsumable = (dir) => {
+    if (state !== 'playing' || paused) return;
+    const g = NV.groupConsumables(consumableItems);
+    if (g.length) {
+      consumSel = NV.cycleIndex(consumSel, g.length, dir > 0 ? +1 : -1);
+      try { if (sfx && typeof sfx.wheelSelect === 'function') sfx.wheelSelect(); } catch (_) { /* defensivo */ }
+      notifyMobileConsumable();
+    }
+  };
+  // API mínima para que mobileControls lea el estado actual sin duplicarlo.
+  NV.input.getWeaponInfo = () => {
+    if (!currentWeapon) return { name: '—', rarity: 'common' };
+    return { name: currentWeapon.name || '—', rarity: currentWeapon.rarity || 'common' };
+  };
+    NV.input.getConsumableInfo = () => {
+    const g = NV.groupConsumables(consumableItems);
+    if (!g.length || consumSel === undefined || consumSel < 0 || consumSel >= g.length) return null;
+    const cur = g[consumSel];
+    return { type: (cur && cur.type) || '—', name: (cur && cur.name) || (cur && cur.type) || '—', count: (cur && cur.count) || 0 };
+  };
+  // Notifica a la capa móvil cuando cambia el estado de arma/consumible.
+  function notifyMobileWeapon() { const cbs = NV.input._onWeaponChange; if (Array.isArray(cbs)) { const info = NV.input.getWeaponInfo(); try { cbs.forEach((cb) => { if (typeof cb === 'function') cb(info); }); } catch (_) { /* defensivo */ } } }
+  function notifyMobileConsumable() { const cbs = NV.input._onConsumableChange; if (Array.isArray(cbs)) { const info = NV.input.getConsumableInfo(); try { cbs.forEach((cb) => { if (typeof cb === 'function') cb(info); }); } catch (_) { /* defensivo */ } } }
+  NV.input.notifyWeaponChange = notifyMobileWeapon;
+  NV.input.notifyConsumableChange = notifyMobileConsumable;
+  NV.input._onWeaponChange = NV.input._onWeaponChange || [];
+  NV.input._onConsumableChange = NV.input._onConsumableChange || [];
+  // Panel de opciones móvil → reutiliza togglePause / showStats y el toggle de sonido.
+  NV.input.toggleStats = () => { showStats = !showStats; };
+  NV.input.toggleSound = () => {
+    NV.soundOn = !NV.soundOn;
+    if (dom && dom.sound) {
+      dom.sound.textContent = NV.soundOn ? '♫ ON' : '♫ OFF';
+      dom.sound.classList.toggle('off', !NV.soundOn);
+    }
   };
 
   // === PERSONAJES ===
@@ -421,6 +501,7 @@
 
     if (NV.rhythmRestorePref) NV.rhythmRestorePref();
     resizeCanvas();
+    syncGameState();
     NV.renderCharacterCards(dom.charGrid, CHARACTERS, player.character);
     renderMenuSkillIcons();
 
@@ -447,10 +528,122 @@
       });
     });
 
-    dom.startBtn.addEventListener('click', () => {
-      console.log('[CLICK] JUGAR');
-      initAudio();
-      startGame();
+    // --- Diagnostic listeners for #startBtn (mobile landscape test) ---
+    dom.startBtn.addEventListener('pointerdown', (e) => {
+      // Capture a snapshot of relevant DOM and event data for debugging mobile
+      const elFromPoint = document.elementFromPoint(e.clientX, e.clientY);
+      const startBtnRect = dom.startBtn.getBoundingClientRect();
+      const startBtnStyle = getComputedStyle(dom.startBtn);
+      const rotateOverlay = document.getElementById('rotateOverlay');
+      const rotateOverlayInfo = rotateOverlay
+        ? (() => {
+            const roStyle = getComputedStyle(rotateOverlay);
+            return {
+              display: roStyle.display,
+              visibility: roStyle.visibility,
+              opacity: roStyle.opacity,
+              pointerEvents: roStyle.pointerEvents,
+              zIndex: roStyle.zIndex,
+              rect: rotateOverlay.getBoundingClientRect(),
+            };
+          })()
+        : null;
+      const mobileHud = document.getElementById('mobileHud');
+      const mobileHudInfo = mobileHud
+        ? (() => {
+            const mhStyle = getComputedStyle(mobileHud);
+            return {
+              display: mhStyle.display,
+              visibility: mhStyle.visibility,
+              opacity: mhStyle.opacity,
+              pointerEvents: mhStyle.pointerEvents,
+              zIndex: mhStyle.zIndex,
+              rect: mobileHud.getBoundingClientRect(),
+            };
+          })()
+        : null;
+      const snapshot = {
+        e_target: e.target,
+        elementFromPoint: elFromPoint,
+        startBtn: {
+          rect: startBtnRect,
+          style: {
+            display: startBtnStyle.display,
+            visibility: startBtnStyle.visibility,
+            opacity: startBtnStyle.opacity,
+            pointerEvents: startBtnStyle.pointerEvents,
+            zIndex: startBtnStyle.zIndex,
+          },
+        },
+        rotateOverlay: rotateOverlayInfo,
+        mobileHud: mobileHudInfo,
+      };
+      console.log('[PLAY_DEBUG 1] pointerdown snapshot', snapshot);
+    });
+    dom.startBtn.addEventListener('pointerup', (e) => {
+      console.log('[PLAY_DEBUG 2] pointerup', document.elementFromPoint(e.clientX, e.clientY));
+    });
+    // Single click listener for full diagnostic path
+    dom.startBtn.addEventListener('click', (e) => {
+      console.log('[PLAY_DEBUG 3] click handler entered');
+      if (e && e.clientX !== undefined) {
+        console.log('[PLAY_DEBUG] elementFromPoint:', document.elementFromPoint(e.clientX, e.clientY));
+      }
+      console.log('[PLAY_DEBUG 4] before initAudio');
+      try {
+        initAudio();
+        console.log('[PLAY_DEBUG 5] after initAudio');
+      } catch (err) {
+        console.error('[PLAY_DEBUG ERROR] initAudio threw:', err);
+        throw err;
+      }
+      console.log('[PLAY_DEBUG 6] before startGame');
+      try {
+        startGame();
+        console.log('[PLAY_DEBUG 7] after startGame');
+        // Post‑start state snapshot for diagnostics
+        const postStartSnapshot = {
+          state,
+          paused,
+          wave,
+          waveTimer,
+          transition,
+          player: {
+            character: player.character,
+            hp: player.hp,
+            maxHp: player.maxHp,
+            x: player.x,
+            y: player.y,
+            speed: player.speed,
+            armor: player.armor,
+            luck: player.luck,
+            specialCd: player.specialCd,
+            invuln: player.invuln,
+            overdrive: player.overdrive,
+            stun: player.stun,
+            moveVx: player.moveVx,
+            moveVy: player.moveVy,
+            agility: player.agility,
+            xp: player.xp,
+            level: player.level,
+            xpToNext: player.xpToNext,
+          },
+          enemiesCount: enemies.length,
+          bulletsCount: bullets.length,
+          pickupsCount: pickups.length,
+          particlesCount: particles.length,
+          floatTextsCount: floatTexts.length,
+          trailsCount: trails.length,
+          weaponPickupsCount: weaponPickups.length,
+          bossChestsCount: bossChests.length,
+          dronesCount: drones.length,
+          meteorsCount: meteors.length,
+        };
+        console.log('[PLAY_DEBUG 8] post-start state', postStartSnapshot);
+      } catch (err) {
+        console.error('[PLAY_DEBUG ERROR] startGame threw:', err);
+        throw err;
+      }
     });
 
     dom.restartBtn.addEventListener('click', () => showMenu());
@@ -533,16 +726,19 @@
     function togglePause() {
       if (state !== 'playing') return;
       paused = !paused;
+      syncGameState();
       if (paused) dom.startScreen.classList.add('hidden');
     }
+    NV.input.togglePause = togglePause;
 
     // === CAMBIO DE ARMA (teclas 1-6 entre las recogidas) ===
     function equipFromInventory(index) {
       if (index < 0 || !inventory[index] || inventory[index] === currentWeapon) return;
       currentWeapon = inventory[index];
-      addFloatText(W / 2, H / 2 - 40, 'EQUIPADO: ' + currentWeapon.name, RARITY_COLORS[currentWeapon.rarity]);
+      addFloatText(arenaW() / 2, arenaH() / 2 - 40, 'EQUIPADO: ' + currentWeapon.name, RARITY_COLORS[currentWeapon.rarity]);
       updateHUD();
       sfx.wheelSelect();
+      notifyMobileWeapon();
     }
 
     // === CAMBIO DE ARMA CON LA RUEDA DEL MOUSE (pistola base + inventario, circular) ===
@@ -557,10 +753,12 @@
       const next = NV.cycleWeapon(list[base], list, dir);
       if (!next || next === list[base]) return;
       currentWeapon = next;
-      addFloatText(W / 2, H / 2 - 40, 'EQUIPADO: ' + currentWeapon.name, RARITY_COLORS[currentWeapon.rarity]);
+      addFloatText(arenaW() / 2, arenaH() / 2 - 40, 'EQUIPADO: ' + currentWeapon.name, RARITY_COLORS[currentWeapon.rarity]);
       updateHUD();
       sfx.wheelSelect();
+      notifyMobileWeapon();
     }
+    NV.input.cycleWeapon = cycleWeapon;
 
     dom.sound.addEventListener('click', () => {
       NV.soundOn = !NV.soundOn;
@@ -792,6 +990,7 @@
 
   function showMenu() {
     state = 'menu';
+    syncGameState();
     dom.startScreen.classList.remove('hidden');
     dom.shop.classList.add('hidden');
     dom.gameOver.classList.add('hidden');
@@ -801,6 +1000,7 @@
   function startGame() {
     console.log('[START] Iniciando partida...');
     state = 'playing';
+    syncGameState();
     dom.startScreen.classList.add('hidden');
     dom.shop.classList.add('hidden');
     dom.gameOver.classList.add('hidden');
@@ -808,7 +1008,7 @@
 
     const char = CHARACTERS[player.character];
     player.maxCd = char.maxCd;
-    player.x = W / 2; player.y = H - 100;
+    player.x = arenaW() / 2; player.y = arenaH() - 100;
     player.maxHp = char.stats.hp + permUpgrades.hp * 20;
     player.hp = player.maxHp;
     player.speed = char.stats.speed * (1 + permUpgrades.speed * 0.15);
@@ -842,6 +1042,8 @@
     resizeCanvas();
     nextWave();
     updateHUD();
+    notifyMobileWeapon();
+    notifyMobileConsumable();
     console.log('[START] Partida iniciada correctamente');
   }
 
@@ -864,7 +1066,7 @@
       const bt = BOSS_TYPES[bossIndex];
                   // HP cuadrático en la oleada y durabilidad global: peleas largas y con peso.
                   const bossHp = Math.round((bt.hp + wave * wave * 12 + wave * 40) * 1.8);
-                  boss = { x: W/2, y: 100, hp: bossHp, maxHp: bossHp, radius: bt.radius, color: bt.color, timer: 0, atkTimer: 0, hitFlash: 0, name: bt.name, pattern: bt.pattern, attack: bt.attack, shape: bt.shape };
+                  boss = { x: arenaW()/2, y: 100, hp: bossHp, maxHp: bossHp, radius: bt.radius, color: bt.color, timer: 0, atkTimer: 0, hitFlash: 0, name: bt.name, pattern: bt.pattern, attack: bt.attack, shape: bt.shape };
       showBanner('¡' + bt.name + '!', bt.color);
       triggerFlash(bt.color);
       spawnExplosion(boss.x, boss.y, 40, boss.color, 1);
@@ -911,15 +1113,15 @@
     if (isBoss) {
       shake = 1;
       triggerFlash(bossColor || '#ffd700');
-      spawnExplosion(W / 2, H / 2, 90, bossColor || '#ffd700', 1.5);
-      spawnExplosion(W / 2, H / 2, 60, '#fff', 1.1);
-      spawnExplosion(W / 2, H / 2, 40, '#ff5f9b', 0.9);
+      spawnExplosion(arenaW() / 2, arenaH() / 2, 90, bossColor || '#ffd700', 1.5);
+      spawnExplosion(arenaW() / 2, arenaH() / 2, 60, '#fff', 1.1);
+      spawnExplosion(arenaW() / 2, arenaH() / 2, 40, '#ff5f9b', 0.9);
       showBanner('¡' + (bossName || 'BOSS') + ' DERROTADO!', '#ffd700');
     } else {
       shake = 0.4;
       triggerFlash('#7cf8ff');
-      spawnExplosion(W / 2, H / 2, 55, '#7cf8ff', 1);
-      spawnExplosion(W / 2, H / 2, 35, '#caa7ff', 0.8);
+      spawnExplosion(arenaW() / 2, arenaH() / 2, 55, '#7cf8ff', 1);
+      spawnExplosion(arenaW() / 2, arenaH() / 2, 35, '#caa7ff', 0.8);
       showBanner('Oleada ' + wave + ' completa! ◆', '#7cf8ff');
     }
     sfx.victory(wave, { milestone: isBoss || wave % 5 === 0 || wave % 10 === 0 || wave % 25 === 0 });
@@ -939,12 +1141,14 @@
   function skipShop() {
     wave++; // la oleada siguiente "arranca" recién al salir de la tienda
     state = 'playing';
+    syncGameState();
     dom.shop.classList.add('hidden');
     nextWave();
   }
 
   function showShop() {
     state = 'shop';
+    syncGameState();
     consumableBought = {}; // el tope de consumibles es por visita a la tienda
     updateHUD(); // La habilidad no debe seguir pulsando fuera del combate.
     dom.shop.classList.remove('hidden');
@@ -966,6 +1170,7 @@
     triggerFlash('#7cf8ff');
     sfx.consume(item.type);
     updateHUD();
+    notifyMobileConsumable();
   }
 
   // === TIENDA DE MEJORAS PERMANENTES (gasta metaShards) ===
@@ -1041,10 +1246,10 @@
         slot.addEventListener('click', () => {
           if (weapon === currentWeapon) {
             currentWeapon = NV.starterWeapon();
-            addFloatText(W/2, H/2, 'ARMA EQUIPADA: PISTOLA', '#fff');
+            addFloatText(arenaW()/2, arenaH()/2, 'ARMA EQUIPADA: PISTOLA', '#fff');
           } else {
             currentWeapon = weapon;
-            addFloatText(W/2, H/2, 'EQUIPADO: ' + weapon.name, RARITY_COLORS[weapon.rarity]);
+            addFloatText(arenaW()/2, arenaH()/2, 'EQUIPADO: ' + weapon.name, RARITY_COLORS[weapon.rarity]);
           }
           renderInventory();
         });
@@ -1063,7 +1268,7 @@
           if (currentWeapon === weapon) {
             currentWeapon = NV.starterWeapon();
           }
-          addFloatText(W / 2, H / 2, '+◆ ' + val, '#7cf8ff');
+          addFloatText(arenaW() / 2, arenaH() / 2, '+◆ ' + val, '#7cf8ff');
           updateHUD();
           renderInventory();
           sfx.shopSell();
@@ -1207,15 +1412,15 @@
         buy: () => {
           if (canFuse) {
             weaponFus[w.id] = fus + 1;
-            addFloatText(W / 2, H / 2, w.name + ' FUSIONADO → Nv' + (fus + 1), '#ffd700');
+            addFloatText(arenaW() / 2, arenaH() / 2, w.name + ' FUSIONADO → Nv' + (fus + 1), '#ffd700');
             sfx.fuse(fus + 1);
           } else if (inventory.length < INVENTORY_SLOTS) {
             inventory.push(w);
-            addFloatText(W/2, H/2, '¡' + w.name + '!', RARITY_COLORS[w.rarity]);
+            addFloatText(arenaW()/2, arenaH()/2, '¡' + w.name + '!', RARITY_COLORS[w.rarity]);
             sfx.shopBuy();
           } else {
             currentWeapon = w;
-            addFloatText(W/2, H/2, 'EQUIPADO: ' + w.name, RARITY_COLORS[w.rarity]);
+            addFloatText(arenaW()/2, arenaH()/2, 'EQUIPADO: ' + w.name, RARITY_COLORS[w.rarity]);
             sfx.shopBuy();
           }
         },
@@ -1307,7 +1512,7 @@
       el.innerHTML = iconHtml + '<div class="offer-name">' + item.name + "</div><div class=\"offer-desc\">" + item.desc + "</div>" + badgeHtml + "<div class='offer-price'>" + priceHtml + "</div>";
       el.addEventListener("click", () => {
         if (item.disabled) {
-          addFloatText(W/2, H/2, item.disabledReason || 'Límite alcanzado', '#ff5f9b');
+          addFloatText(arenaW()/2, arenaH()/2, item.disabledReason || 'Límite alcanzado', '#ff5f9b');
           return;
         }
         if (shards >= item.price) {
@@ -1318,7 +1523,7 @@
           setTimeout(() => { generateOffers(); updateHUD(); renderInventory(); }, 180);
           if (!item.weapon) sfx.shopBuy();
         } else {
-          addFloatText(W/2, H/2, "Fragmentos insuficientes", "#ff5f9b");
+          addFloatText(arenaW()/2, arenaH()/2, "Fragmentos insuficientes", "#ff5f9b");
         }
       });
       container.appendChild(el);
@@ -1331,6 +1536,7 @@
 
   function gameOver() {
     state = 'gameover';
+    syncGameState();
     deathTimer = 1.2;
     deathShake = 1;
     shake = 1;
@@ -1395,8 +1601,8 @@
     player.moveVy += Math.max(-maxDelta, Math.min(maxDelta, targetVy - player.moveVy));
     player.x += player.moveVx * dt;
     player.y += player.moveVy * dt;
-    player.x = Math.max(20, Math.min(W - 20, player.x));
-    player.y = Math.max(30, Math.min(H - 20, player.y));
+    player.x = Math.max(20, Math.min(arenaW() - 20, player.x));
+    player.y = Math.max(30, Math.min(arenaH() - 20, player.y));
     momentumVisual.shift = sliding;
 
     if (frame % 3 === 0) {
@@ -1538,7 +1744,7 @@
       player, enemies, boss, bullets, currentWeapon,
       currentWeaponLevel, weaponVisualTier, BULLET_TIER_COLORS, MAX_BULLETS,
       permDamageBonus: permUpgrades.damage, playWeaponSound,
-      audioPosition: { x: player.x, worldWidth: W },
+      audioPosition: { x: player.x, worldWidth: arenaW() },
       currentWeaponFusion: currentWeaponFusion(), fusionStep: WEAPON_FUSION_DMG,
       onTarget: (target) => { currentAutoTarget = target; },
     });
@@ -1550,7 +1756,7 @@
 
   function useSpecial() {
     const res = NV.useSpecial({
-      player, CHARACTERS, meteors, particles, drones, W, shake, specialVFX,
+      player, CHARACTERS, meteors, particles, drones, W: arenaW(), H: arenaH(), shake, specialVFX,
       enemies, shockwaves,
       cbs: { showBanner, triggerFlash, spawnExplosion, sfx, applyKnockback, addFloatText },
     });
@@ -1567,28 +1773,28 @@
   }
 
   function updateMeteors(dt) {
-    const res = NV.updateMeteors(dt, meteors, { H, enemies, boss, shake }, { killEnemy, applyKnockback, spawnExplosion });
+    const res = NV.updateMeteors(dt, meteors, { W: arenaW(), H: arenaH(), enemies, boss, shake }, { killEnemy, applyKnockback, spawnExplosion });
     meteors = res.meteors;
     shake = res.shake;
   }
 
   function spawnEnemy() {
-    NV.spawnEnemy({ enemies, MAX_ENEMIES, boss, wave, ENEMY_TYPES, W, H, waveEvent, forceTypeId: forceSpecterType });
+    NV.spawnEnemy({ enemies, MAX_ENEMIES, boss, wave, ENEMY_TYPES, W: arenaW(), H: arenaH(), waveEvent, forceTypeId: forceSpecterType });
   }
 
   function spawnElite() {
-    NV.spawnElite({ enemies, MAX_ENEMIES, boss, wave, ELITE_TYPES, W, H, waveEvent });
+    NV.spawnElite({ enemies, MAX_ENEMIES, boss, wave, ELITE_TYPES, W: arenaW(), H: arenaH(), waveEvent });
   }
 
   function spawnWeaponPickup() {
-    NV.spawnWeaponPickup(WEAPONS, weaponPickups, W, H, showBanner, RARITY_COLORS);
+    NV.spawnWeaponPickup(WEAPONS, weaponPickups, arenaW(), arenaH(), showBanner, RARITY_COLORS);
   }
 
   function killEnemy(e) {
     score = NV.killEnemy({
       e, score, player, weaponLevels, weaponKills, currentWeapon,
       WEAPON_KILLS_PER_LEVEL, addFloatText, spawnExplosion, triggerFlash, sfx, pickups, weaponKillProgress,
-      waveEvent, computePlayerHit, W,
+      waveEvent, computePlayerHit, W: arenaW(),
     });
     // Combo de kills: bonus escalable por encadenar derribos (<2s entre ellos).
     const cb = NV.comboOnKill(killCombo);
@@ -1612,7 +1818,7 @@
 
   function updateBoss(dt) {
     const res = NV.updateBoss(dt, {
-      boss, player, enemies, bullets, W, H,
+      boss, player, enemies, bullets, W: arenaW(), H: arenaH(),
       score, shards, wave, shake,
       MAX_BULLETS, MAX_ENEMY_BULLETS, enemyBulletCount, ENEMY_TYPES,
       spawnExplosion, showBanner, triggerFlash, triggerWaveVictory, addFloatText, sfx,
@@ -1659,7 +1865,7 @@
 
   function updateBullets(dt) {
     const res = NV.updateBullets(dt, {
-      bullets, W, H, player, enemies, boss, shake, hitstop,
+      bullets, W: arenaW(), H: arenaH(), player, enemies, boss, shake, hitstop,
       MAX_BULLETS, CHARACTERS, SHIELD_COOLDOWN,
       computePlayerHit, addFloatText, killEnemy, applyKnockback, spawnExplosion, gameOver,
       sfx, onPlayerDamaged: recordPlayerDamage,
@@ -1832,7 +2038,8 @@
   // === RENDER ===
   function draw() {
     resizeCanvas();
-    ctx.setTransform(scaleX, 0, 0, scaleY, 0, 0);
+    const vw = viewW(), vh = viewH(), vx = viewX(), vy = viewY();
+    ctx.setTransform(scaleX, 0, 0, scaleY, -vx * scaleX, -vy * scaleY);
 
     // META-VIS: contexto compartido de render (t, saturación, urgencia, gain).
     const metaRenderEnv = {
@@ -1846,22 +2053,29 @@
     // Fondo galaxia más oscuro: mejora el contraste de los visuales rítmicos
     // sin aclarar el campo donde se leen enemigos, balas y HUD.
     ctx.fillStyle = '#01030d';
-    ctx.fillRect(0, 0, W, H);
-    NV.drawStarfield(ctx, W, H, frame, player.x, player.y, NV.rhythm);
-    if (NV.drawRhythmLayer) NV.drawRhythmLayer(ctx, W, H, frame);
+    ctx.fillRect(vx, vy, vw, vh);
+    ctx.save();
+    ctx.translate(vx, vy);
+    NV.drawStarfield(ctx, vw, vh, frame, player.x - vx, player.y - vy, NV.rhythm);
+    if (NV.drawRhythmLayer) NV.drawRhythmLayer(ctx, vw, vh, frame);
+    ctx.restore();
 
     if (flashAlpha > 0 && flashColor) {
       ctx.fillStyle = flashColor;
       ctx.globalAlpha = flashAlpha;
-      ctx.fillRect(0, 0, W, H);
+      ctx.fillRect(vx, vy, vw, vh);
       ctx.globalAlpha = 1;
     }
 
     const gridAlpha = 0.03 + Math.sin(frame * 0.02) * 0.005;
     ctx.strokeStyle = `rgba(124, 248, 255, ${gridAlpha})`;
     ctx.lineWidth = 0.5;
-    for (let x = 0; x < W; x += 40) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
-    for (let y = 0; y < H; y += 40) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+    const gridStartX = Math.floor(vx / 40) * 40;
+    const gridEndX = vx + vw;
+    const gridStartY = Math.floor(vy / 40) * 40;
+    const gridEndY = vy + vh;
+    for (let x = gridStartX; x < gridEndX; x += 40) { ctx.beginPath(); ctx.moveTo(x, vy); ctx.lineTo(x, vy + vh); ctx.stroke(); }
+    for (let y = gridStartY; y < gridEndY; y += 40) { ctx.beginPath(); ctx.moveTo(vx, y); ctx.lineTo(vx + vw, y); ctx.stroke(); }
 
     // META-VIS-02b: neblina de densidad (capa 1, bajo entidades). Contexto
     // compartido de render: t, saturación por cantidad viva, urgencia por HP.
@@ -1878,7 +2092,7 @@
             const maxWaveTimer = NV.waveDuration(wave, waveEvent);
       const progress = Math.max(0, Math.min(1, 1 - (waveTimer / maxWaveTimer)));
       const barW = 200, barH = 6;
-      const barX = (W - barW) / 2, barY = 10;
+      const barX = (arenaW() - barW) / 2, barY = 10;
 
       // --- Contar enemigos vivos por categoría (Pilar 3 HUD) ---
       let alive = 0, elites = 0;
@@ -1910,7 +2124,7 @@
       ctx.fillStyle = '#7cf8ff';
       ctx.font = 'bold 10px system-ui';
       ctx.textAlign = 'center';
-      ctx.fillText('OLEADA ' + wave, W / 2, barY + 16);
+      ctx.fillText('OLEADA ' + wave, arenaW() / 2, barY + 16);
       // Contador de enemigos vivos + élites
       const countText = 'ENEMIGOS: ' + alive + ' (' + elites + ')';
       ctx.fillStyle = '#9bb0ff';
@@ -2082,19 +2296,19 @@
     if (waveEvent === 'fog' && state === 'playing') {
       ctx.save();
       ctx.fillStyle = 'rgba(8, 10, 22, 0.35)';
-      ctx.fillRect(0, 0, W, H);
-      const rx = W * 0.3, ry = H * 0.35; // elipse clara centrada en el jugador
-      const g = ctx.createRadialGradient(player.x, player.y, Math.min(rx, ry) * 0.4, player.x, player.y, Math.max(W, H) * 0.75);
+      ctx.fillRect(0, 0, arenaW(), arenaH());
+      const rx = arenaW() * 0.3, ry = arenaH() * 0.35; // elipse clara centrada en el jugador
+      const g = ctx.createRadialGradient(player.x, player.y, Math.min(rx, ry) * 0.4, player.x, player.y, Math.max(arenaW(), arenaH()) * 0.75);
       g.addColorStop(0, 'rgba(8, 10, 22, 0)');
       g.addColorStop(1, 'rgba(8, 10, 22, 0.85)');
       ctx.fillStyle = g;
-      ctx.fillRect(0, 0, W, H);
+      ctx.fillRect(0, 0, arenaW(), arenaH());
       ctx.restore();
     }
 
     if (showHUD) {
       drawSpecialCooldown();
-    NV.drawCombo(ctx, W, H, killCombo);
+    NV.drawCombo(ctx, arenaW(), arenaH(), killCombo);
       drawWeaponHUD();
     }
 
@@ -2105,18 +2319,18 @@
       const intensity = Math.max(0, deathTimer / 1.2);
       // Overlay rojo pulsante
       ctx.fillStyle = `rgba(200, 0, 0, ${0.3 + intensity * 0.3})`;
-      ctx.fillRect(0, 0, W, H);
+      ctx.fillRect(0, 0, arenaW(), arenaH());
 
       // Anillo de choque expandiéndose
       const ringR = (1 - intensity) * 600;
       ctx.strokeStyle = `rgba(255, 0, 0, ${intensity})`;
       ctx.lineWidth = 12 * intensity;
-      ctx.beginPath(); ctx.arc(W / 2, H / 2, ringR, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(arenaW() / 2, arenaH() / 2, ringR, 0, Math.PI * 2); ctx.stroke();
 
       // "FIN" gigante con latido
       const beat = 1 + Math.sin(frame * 0.5) * 0.1;
       ctx.save();
-      ctx.translate(W / 2, H / 2);
+      ctx.translate(arenaW() / 2, arenaH() / 2);
       ctx.scale(beat, beat);
       ctx.fillStyle = '#ff0000';
       ctx.shadowBlur = 50;
@@ -2129,32 +2343,32 @@
       // Ojos de jumpscare
       const eyeY = Math.sin(frame * 0.3) * 8;
       ctx.fillStyle = '#fff';
-      ctx.beginPath(); ctx.arc(W / 2 - 90, H / 2 + 80 + eyeY, 30, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.arc(W / 2 + 90, H / 2 + 80 + eyeY, 30, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(arenaW() / 2 - 90, arenaH() / 2 + 80 + eyeY, 30, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(arenaW() / 2 + 90, arenaH() / 2 + 80 + eyeY, 30, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = '#ff0000';
-      ctx.beginPath(); ctx.arc(W / 2 - 90, H / 2 + 80 + eyeY, 12, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.arc(W / 2 + 90, H / 2 + 80 + eyeY, 12, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(arenaW() / 2 - 90, arenaH() / 2 + 80 + eyeY, 12, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(arenaW() / 2 + 90, arenaH() / 2 + 80 + eyeY, 12, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = '#000';
-      ctx.beginPath(); ctx.arc(W / 2 - 90, H / 2 + 80 + eyeY, 4, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.arc(W / 2 + 90, H / 2 + 80 + eyeY, 4, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(arenaW() / 2 - 90, arenaH() / 2 + 80 + eyeY, 4, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(arenaW() / 2 + 90, arenaH() / 2 + 80 + eyeY, 4, 0, Math.PI * 2); ctx.fill();
     }
 
     // Pantalla de pausa (tecla P)
     if (paused) {
       ctx.fillStyle = 'rgba(5, 7, 20, 0.68)';
-      ctx.fillRect(0, 0, W, H);
+      ctx.fillRect(0, 0, arenaW(), arenaH());
       ctx.textAlign = 'center';
       ctx.fillStyle = '#7cf8ff';
       ctx.shadowBlur = 30; ctx.shadowColor = '#7cf8ff';
       ctx.font = 'bold 56px system-ui';
-      ctx.fillText('⏸ PAUSA', W / 2, H / 2 - 20);
+      ctx.fillText('⏸ PAUSA', arenaW() / 2, arenaH() / 2 - 20);
       ctx.shadowBlur = 0;
       ctx.fillStyle = '#aaa';
       ctx.font = '18px system-ui';
-      ctx.fillText('Pulsa P para continuar', W / 2, H / 2 + 24);
+      ctx.fillText('Pulsa P para continuar', arenaW() / 2, arenaH() / 2 + 24);
       ctx.fillStyle = '#666';
       ctx.font = '12px system-ui';
-      ctx.fillText('Oleada ' + wave + ' · Puntos ' + score, W / 2, H / 2 + 54);
+      ctx.fillText('Oleada ' + wave + ' · Puntos ' + score, arenaW() / 2, arenaH() / 2 + 54);
     }
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -2170,7 +2384,7 @@
 
 
   function drawSpecialCooldown() {
-    NV.drawSpecialCooldown(ctx, W, H, CHARACTERS, player);
+    NV.drawSpecialCooldown(ctx, arenaW(), arenaH(), CHARACTERS, player);
   }
 
 
@@ -2178,7 +2392,7 @@
   function drawWeaponHUD() {
     // Resolvedor de nivel por arma: cada slot muestra SU nivel (badge + tinte).
     const weaponLevelFor = (id) => weaponLevels[id] || 1;
-    NV.drawWeaponHUD(ctx, W, H, CHARACTERS, RARITY_COLORS, player, currentWeapon, currentWeaponLevel, inventory, NV.groupConsumables(consumableItems), consumSel, showHUD, weaponLevelFor);
+    NV.drawWeaponHUD(ctx, arenaW(), arenaH(), CHARACTERS, RARITY_COLORS, player, currentWeapon, currentWeaponLevel, inventory, NV.groupConsumables(consumableItems), consumSel, showHUD, weaponLevelFor);
   }
 
 

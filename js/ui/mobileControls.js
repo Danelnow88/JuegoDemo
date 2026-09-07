@@ -50,6 +50,21 @@
   const specialBtn = d.getElementById('touchSpecialBtn');
   const useBtn = d.getElementById('touchUseBtn');
   const fullscreenBtn = d.getElementById('fullscreenBtn');
+  const weaponPrev = d.getElementById('touchWeaponPrev');
+  const weaponNext = d.getElementById('touchWeaponNext');
+  const consumPrev = d.getElementById('touchConsumPrev');
+  const consumNext = d.getElementById('touchConsumNext');
+  const optionsBtn = d.getElementById('optionsBtn');
+  const mobileOptions = d.getElementById('mobileOptions');
+  const mPauseBtn = d.getElementById('mPauseBtn');
+  const mStatsBtn = d.getElementById('mStatsBtn');
+  const mSoundBtn = d.getElementById('mSoundBtn');
+  const mFullscreenBtn = d.getElementById('mFullscreenBtn');
+  const shopTabs = d.getElementById('shopTabs');
+  const shopEl = d.getElementById('shop');
+  const weaponIndicator = d.getElementById('weaponIndicator');
+  const consumableIndicator = d.getElementById('consumableIndicator');
+  const mobileHudEl = d.getElementById('mobileHud');
 
   const MAX_R = 40;      // radio máximo de arrastre del thumb (px CSS)
   const DEAD_PX = 8;     // dead zone en píxeles (tolerancia al apoyar el dedo)
@@ -151,9 +166,11 @@
   }
 
   // --- BOTONES TÁCTILES ---
+    // NOTA: No se llama e.preventDefault() aquí intencionalmente.
+  // preventDefault() en pointerdown suprime el click sintético posterior,
+  // y game.js escucha 'click' para startBtn/character cards/restartBtn.
   function press(fnSet) {
     return (e) => {
-      try { e.preventDefault(); } catch (_) { /* defensivo */ }
       if (typeof fnSet === 'function') fnSet();
     };
   }
@@ -180,6 +197,100 @@
     bind(useBtn, 'pointerdown', press(() => { if (typeof input.useSelected === 'function') input.useSelected(); }));
   }
 
+  // --- CAMBIO DE ARMA táctil (reutiliza cycleWeapon del juego) ---
+  if (weaponPrev) bind(weaponPrev, 'pointerdown', press(() => { if (typeof input.cycleWeapon === 'function') input.cycleWeapon(-1); }));
+  if (weaponNext) bind(weaponNext, 'pointerdown', press(() => { if (typeof input.cycleWeapon === 'function') input.cycleWeapon(1); }));
+  // --- SELECCIÓN DE CONSUMIBLE táctil (reutiliza cycleConsumable del juego) ---
+  if (consumPrev) bind(consumPrev, 'pointerdown', press(() => { if (typeof input.cycleConsumable === 'function') input.cycleConsumable(-1); }));
+  if (consumNext) bind(consumNext, 'pointerdown', press(() => { if (typeof input.cycleConsumable === 'function') input.cycleConsumable(1); }));
+  // --- MODO CHIP compacto: tocar el indicador cicla al siguiente.
+  //     Solo presentacion/mapeo de input: reutiliza cycleWeapon/cycleConsumable.
+  if (weaponIndicator) bind(weaponIndicator, 'pointerdown', press(() => { if (typeof input.cycleWeapon === 'function') input.cycleWeapon(1); }));
+  if (consumableIndicator) bind(consumableIndicator, 'pointerdown', press(() => { if (typeof input.cycleConsumable === 'function') input.cycleConsumable(1); }));
+
+  // --- PANEL DE OPCIONES MÓVIL (☰) ---
+  function closeOptions() { if (mobileOptions) mobileOptions.classList.add('hidden'); }
+  function openOptions() { if (mobileOptions) mobileOptions.classList.remove('hidden'); }
+  if (optionsBtn) {
+    bind(optionsBtn, 'pointerdown', press(() => {
+      if (mobileOptions && mobileOptions.classList.contains('hidden')) openOptions();
+      else closeOptions();
+    }));
+  }
+  // Cada botón del panel ejecuta la acción y cierra el panel.
+  if (mPauseBtn) bind(mPauseBtn, 'pointerdown', press(() => { if (typeof input.togglePause === 'function') input.togglePause(); closeOptions(); }));
+  if (mStatsBtn) bind(mStatsBtn, 'pointerdown', press(() => { if (typeof input.toggleStats === 'function') input.toggleStats(); closeOptions(); }));
+  if (mSoundBtn) bind(mSoundBtn, 'pointerdown', press(() => { if (typeof input.toggleSound === 'function') input.toggleSound(); closeOptions(); }));
+  if (mFullscreenBtn) bind(mFullscreenBtn, 'pointerdown', press(() => { if (viewport && typeof viewport.toggleFullscreen === 'function') viewport.toggleFullscreen(); closeOptions(); }));
+
+  // --- INDICADORES de arma y consumible (leídos vía NV.input, sin estado duplicado) ---
+  function renderWeaponInfo(info) {
+    if (!weaponIndicator) return;
+    const n = (info && info.name) || '—';
+    weaponIndicator.textContent = n;
+    weaponIndicator.title = 'Arma actual: ' + n;
+  }
+  function renderConsumableInfo(info) {
+    if (!consumableIndicator) return;
+    if (!info) { consumableIndicator.textContent = 'SIN'; consumableIndicator.title = 'Sin consumibles'; return; }
+    const label = info.type || info.name || '—';
+    const s = (typeof info.stack === 'number' && info.stack > 0) ? ' x' + info.stack : '';
+    consumableIndicator.textContent = label + s;
+    consumableIndicator.title = 'Consumible: ' + label;
+  }
+  if (input._onWeaponChange === undefined || input._onWeaponChange === null) input._onWeaponChange = [];
+  if (input._onConsumableChange === undefined || input._onConsumableChange === null) input._onConsumableChange = [];
+  if (Array.isArray(input._onWeaponChange)) input._onWeaponChange.push(renderWeaponInfo);
+  else input._onWeaponChange = [renderWeaponInfo];
+  if (Array.isArray(input._onConsumableChange)) input._onConsumableChange.push(renderConsumableInfo);
+  else input._onConsumableChange = [renderConsumableInfo];
+  // Forzar render inicial con valores actuales (si existe API).
+  try { if (typeof input.getWeaponInfo === 'function') renderWeaponInfo(input.getWeaponInfo()); } catch (_) { /* defensivo */ }
+  try { if (typeof input.getConsumableInfo === 'function') renderConsumableInfo(input.getConsumableInfo()); } catch (_) { /* defensivo */ }
+
+  // --- REFRESCAR pausa: ocultar controles de gameplay y permitir reanudar desde ☰ ---
+  function refreshPauseState() {
+    const root = (d && d.documentElement) ? d.documentElement : null;
+    const pausedFlag = !!(root && root.getAttribute && root.getAttribute('data-paused') === 'true');
+    if (mobileHudEl && mobileHudEl.classList) {
+      mobileHudEl.classList.toggle('nv-paused', pausedFlag);
+    }
+    // El botón ☰ sigue visible e interactivo (no lo ocultamos en pausa).
+    if (mPauseBtn && mPauseBtn.textContent) {
+      mPauseBtn.textContent = pausedFlag ? '▶ Reanudar' : '⏸ Pausa';
+    }
+    // Si estamos pausados y el panel abierto, no cambiarlo; si no pausado y no playing, cerrar.
+    const st = root && root.getAttribute ? (root.getAttribute('data-game-state') || '') : '';
+    if (st !== 'playing' && st !== 'paused' && mobileOptions && mobileOptions.classList && !mobileOptions.classList.contains('hidden')) {
+      closeOptions();
+    }
+  }
+  if (d && typeof d.addEventListener === 'function') {
+    // Observer liviano: escuchar cambios de atributo en <html> para pausa/estado.
+    try {
+      if (d.documentElement && typeof MutationObserver === 'function') {
+        const mo = new MutationObserver(() => refreshPauseState());
+        mo.observe(d.documentElement, { attributes: true, attributeFilter: ['data-paused', 'data-game-state'] });
+      }
+    } catch (_) { /* defensivo */ }
+  }
+  refreshPauseState();
+
+  // --- TABS DE TIENDA mobile: una sección visible por vez (solo #shop, no #permShop) ---
+  function initShopTabs() {
+    if (!shopTabs || !shopEl) return;
+    shopEl.setAttribute('data-active-tab', 'upgrades'); // default MEJORAS en mobile
+    const tabs = [].slice.call(shopTabs.querySelectorAll('.shop-tab'));
+    tabs.forEach((tab) => {
+      bind(tab, 'pointerdown', press(() => {
+        const name = tab.getAttribute('data-tab') || 'upgrades';
+        shopEl.setAttribute('data-active-tab', name);
+        tabs.forEach((t) => t.classList.toggle('active', t === tab));
+      }));
+    });
+  }
+  initShopTabs();
+
   // --- FULLSCREEN (género de entrada: el navegador exige un gesto del usuario) ---
   function updateFullscreenUI() {
     if (!fullscreenBtn) return;
@@ -187,9 +298,10 @@
     fullscreenBtn.textContent = fs ? '✕' : '⛶';
     fullscreenBtn.title = fs ? 'Salir de pantalla completa' : 'Jugar en pantalla completa';
   }
-  if (fullscreenBtn) {
+    if (fullscreenBtn) {
     bind(fullscreenBtn, 'pointerdown', (e) => {
-      try { e.preventDefault(); } catch (_) { /* defensivo */ }
+      // NO preventDefault: el click sintético debe llegar intacto.
+      // El botón es pequeño y no necesita scroll-lock.
       if (viewport && typeof viewport.toggleFullscreen === 'function') viewport.toggleFullscreen();
     });
     if (w && typeof w.addEventListener === 'function') {

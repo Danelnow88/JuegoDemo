@@ -48,6 +48,7 @@
           <button id="hudToggle" class="hud-btn active" type="button" title="Mostrar/ocultar HUD">HUD</button>
           <button id="sound" class="sound" type="button" title="Activar o silenciar sonido">♫ ON</button>
           <button id="fullscreenBtn" class="hud-btn touch-fullscreen" type="button" title="Jugar en pantalla completa">⛶</button>
+          <button id="optionsBtn" class="hud-btn touch-options" type="button" title="Opciones móviles">☰</button>
         </div>
       </header>
 
@@ -71,8 +72,13 @@
             </div>
             <div class="shard-bar"><span class="shard-glyph">◆</span><span id="shopShards">0</span></div>
           </div>
+          <div id="shopTabs" class="shop-tabs" role="tablist" aria-label="Secciones de la tienda">
+            <button type="button" class="shop-tab shop-tab-upgrades active" data-tab="upgrades" role="tab">MEJORAS</button>
+            <button type="button" class="shop-tab shop-tab-weapons" data-tab="weapons" role="tab">ARMAS</button>
+            <button type="button" class="shop-tab shop-tab-consumables" data-tab="consumables" role="tab">CONSUMIBLES</button>
+          </div>
           <div class="shop-grid">
-            <div class="shop-section shop-section-calibrations">
+            <div class="shop-section shop-section-calibrations" data-shop-tab="upgrades">
               <div class="shop-section-title"><span class="section-chip">SYS</span> MEJORAS</div>
               <div class="protocol-loadout shop-upgrade-dock">
                 <div class="dock-label">MEJORAS ADQUIRIDAS <span class="inv-hint">tipos 0/6 · nivel máx 6</span></div>
@@ -80,7 +86,7 @@
               </div>
               <div id="upgradesOffers" class="offers offers-upgrades"></div>
             </div>
-            <div class="shop-section shop-section-armory">
+            <div class="shop-section shop-section-armory" data-shop-tab="weapons">
               <div class="shop-section-title"><span class="section-chip">WPN</span> ARMERÍA</div>
               <div id="invPanel" class="inv-panel shop-weapon-dock">
                 <div class="dock-label">DOCK DE ARMAS <span class="inv-hint">clic equipar · vender</span></div>
@@ -88,7 +94,7 @@
               </div>
               <div id="weaponOffers" class="offers offers-weapons"></div>
             </div>
-            <div class="shop-section shop-section-protocols">
+            <div class="shop-section shop-section-protocols" data-shop-tab="consumables">
               <div class="shop-section-title"><span class="section-chip">PRT</span> CONSUMIBLES</div>
               <div class="protocol-loadout">
                 <div class="dock-label">CONSUMIBLES EQUIPADOS <span class="inv-hint">tipos 0/6 · stack 0/10</span></div>
@@ -141,6 +147,22 @@
           <button id="touchUseBtn" class="touch-btn touch-use" type="button">USAR</button>
           <button id="touchSlideBtn" class="touch-btn touch-slide" type="button">SHIFT</button>
           <button id="touchSpecialBtn" class="touch-btn touch-special" type="button">ESPECIAL</button>
+        </div>
+        <div id="mobileWeaponSwitch" class="mobile-weapon-switch" aria-label="Cambio de arma">
+          <button id="touchWeaponPrev" class="touch-btn touch-switch" type="button">◀</button>
+          <div id="weaponIndicator" class="switch-indicator" aria-live="polite">—</div>
+          <button id="touchWeaponNext" class="touch-btn touch-switch" type="button">▶</button>
+        </div>
+        <div id="mobileConsumableSwitch" class="mobile-consumable-switch" aria-label="Selección de consumible">
+          <button id="touchConsumPrev" class="touch-btn touch-switch" type="button">◀</button>
+          <div id="consumableIndicator" class="switch-indicator" aria-live="polite">SIN</div>
+          <button id="touchConsumNext" class="touch-btn touch-switch" type="button">▶</button>
+        </div>
+        <div id="mobileOptions" class="mobile-options hidden" aria-label="Panel de opciones">
+          <button id="mPauseBtn" class="opt-btn" type="button">⏸ Pausa</button>
+          <button id="mStatsBtn" class="opt-btn" type="button">Estadísticas</button>
+          <button id="mSoundBtn" class="opt-btn" type="button">Sonido</button>
+          <button id="mFullscreenBtn" class="opt-btn" type="button">⛶ Fullscreen</button>
         </div>
       </div>
 

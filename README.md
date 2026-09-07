@@ -472,6 +472,29 @@ Sistema de audio procedural basado en **Web Audio API** (sin archivos externos).
 
 ##  Timeline / versionado
 
+### v61 — Experiencia mobile landscape completa (controles y tienda responsive)
+- **Cambio de arma táctil**: botones ◀ ▶ (`#touchWeaponPrev/Next`) que reutilizan `NV.input.cycleWeapon` → la misma `cycleWeapon()` de rueda/teclas, sin duplicar lógica. (`index.html`, `js/ui/mobileControls.js`, `js/game.js`)
+- **Selección de consumible táctil**: botones ◀ ▶ (`#touchConsumPrev/Next`) que reutilizan `NV.input.cycleConsumable` → misma lógica de grupos/índice circular que Q/E. (`index.html`, `js/ui/mobileControls.js`, `js/game.js`)
+- **Panel de opciones móvil (☰)**: botón `#optionsBtn` en el HUD abre/cierra `#mobileOptions` con Pausa, Estadísticas, Sonido y Fullscreen (reutiliza `togglePause`/`showStats`/toggle de sonido/`viewport.toggleFullscreen`). Solo en móvil; se cierra al tocar una acción. (`index.html`, `js/ui/mobileControls.js`)
+- **Tabs de tienda mobile**: `#shopTabs` ([MEJORAS][ARMAS][CONSUMIBLES]) muestra UNA sección activa por vez en móvil (default MEJORAS vía `data-active-tab`). No duplica ofertas/lógica: solo alterna presentación. Desktop conserva sus **3 columnas** simultáneas. Los selectores están scoped a `#shop`, por lo que `#permShop` no se ve afectado. (`index.html`, `css/styles.css`, `js/ui/mobileControls.js`)
+- **Viewport / aspect ratio**: el playfield lógico sigue siendo **900×520** y se escala uniformemente (`min(cssW/900, cssH/520)` → `width: min(100%, calc(100dvh*900/520)); height: min(100%, calc(100dvw*520/900)); aspect-ratio: 900/520`). Nunca se deforma; el espacio lateral sobrante queda para los controles móviles. (`css/styles.css` — bloque `MOBILE LANDSCAPE: GAMEPLAY + SHOP LAYOUT`)
+- **Comportamiento responsive**: la adaptación mobile usa `.nv-mobile`, `.nv-landscape`, `pointer: coarse`, `orientation: landscape` y `env(safe-area-inset-*)` — sin detectar modelos, UAs ni resoluciones exactas. Rango objetivo landscape ~640–1000×320–500 (y ~1024×600 en tablets). Desktop queda funcionalmente intacto.
+- **Controles táctiles**: áreas ≥36px, chips semi-transparentes que no deforman el mundo; joystick + multitouch + botones sin `preventDefault` global.
+
+### v62 — Segunda pasada mobile: indicadores, header simplificado, joystick compacto, shop sin nested scroll
+- **Indicador de arma actual**: chip entre ◀ ▶ (`#weaponIndicator`) con el nombre corto del arma, leído vía nueva API `NV.input.getWeaponInfo()` (estado vive en game.js, NO se duplica en mobileControls). Se actualiza al iniciar partida y al cambiar arma por touch/teclado/mouse/equipar (`notifyMobileWeapon()`).
+- **Indicador de consumible actual**: chip (`#consumableIndicator`) con tipo + stack, vía `NV.input.getConsumableInfo()` (usa `consumSel` + `NV.groupConsumables` existentes). "SIN" si no hay consumibles. Se actualiza al iniciar, seleccionar, consumir y comprar (`notifyMobileConsumable()`).
+- **Header mobile simplificado**: en mobile quedan visibles solo wave, score, shards, HP, cooldown y el botón ☰. `#charBtn`, `#hudToggle`, `#sound`, `#fullscreenBtn` y el `.rhythm-widget` se ocultan SOLO visualmente (siguen en el DOM; desktop idéntico). Sus acciones viven ahora en el panel ☰.
+- **Panel ☰**: incluye Pausa/Reanudar (texto dinámico vía `data-paused`), Estadísticas, Sonido y Fullscreen. Sigue accesible mientras `paused=true` (el botón ☰ no se oculta). Se cierra al elegir una acción o al salir de `playing`.
+- **Pausa**: `x syncGameState()` publica `data-paused="true"`. En mobile, `.mobile-hud.nv-paused` oculta joystick, acciones, switches de arma y consumible (CSS puro). El ☰ queda fuera de ese bloque y sigue funcionando para reanudar.
+- **Joystick visual compacto**: base `clamp(72px,16vmin,92px)`, thumb `clamp(32px,8vmin,42px)`, opacidad baja inactivo y opaca en activo. La zona táctil `.joystick-zone` conserva su tamaño grande (área≠base). No se toca pointer capture ni multitouch.
+- **Composición de controles**: ESPECIAL/SHIFT/USAR (acción derecha), switches de arma/consumible desplazados a la derecha (`right` + safe-area) sin solaparse entre sí ni con gameplay. Indicadores integrados.
+- **Shop mobile sin nested scroll**: una sola sección activa por tab usa todo el alto; `.shop-grid` es el ÚNICO scroll vertical; `.offers` y `.shop-section` con `overflow: visible` y `max-height:none` (sin scroll interno). Grid de cards responsive `repeat(auto-fit, minmax(150px,1fr))` → 2/3/4 columnas según ancho. Textos de cards legibles (sin truncado).
+- **DESPLEGAR**: sticky al final del stack de la tienda (no tapa cards), respeta safe-area.
+- **PERM SHOP**: adaptado a mobile landscape con el mismo patrón (columna única + `shop-grid` scroller + grid responsive + `shop-deploy` al final). Shards y VOLVER visibles.
+- **Menu/game over mobile**: overlay usa todo el viewport, JUGAR y PERMANENTES siempre visibles.
+- **Responsive**: sin detectar modelo/resolución; por espacio (`.nv-mobile`, `.nv-landscape`, `pointer:coarse`, safe-areas, `clamp()`, `min()`). Rango objetivo 640–1000×320–500 y ~1024×600.
+
 ### v60 — Enemigos espectrales Canvas2D + Visual Lab
 - **6 enemigos espectrales Canvas2D nuevos** (wave 3-5): `specter_grunt`, `specter_archer`, `specter_guard` + 3 élites espectrales (`specter_elite_swift/wrath/void`). Definidos en `ENEMY_TYPES`/`ELITE_TYPES` con `shape !== 'specter'` (no WebGL). (`js/data/gameData.js`)
 - **Renderer espectral Canvas2D** (`js/render/spectralEnemies2D.js`): `drawSpectralEnemy2D()` con 3 ramas: 6 espectrales → `drawLabSpecterEnemy()` (fantasmas negros, ojos runa 0-5), 8 élites base → `drawEliteBossEnemy()` (raid bosses, coronas/mantos/sigilos/halos, ojos 6-11), resto → fallback original.
