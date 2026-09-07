@@ -38,6 +38,7 @@ function sandbox(opts) {
     devicePixelRatio: opts.dpr || 1,
     innerWidth: opts.cssW || 900,
     innerHeight: opts.cssH || 520,
+    location: { search: opts.search || '' },
     screen: { orientation: {} },
     addEventListener() {}, removeEventListener() {},
   };
@@ -70,7 +71,7 @@ t('desktop viewport mapping unchanged', () => {
 });
 
 t('mobile CONTAIN mapping unchanged con pillarbox', () => {
-  const sbx = loadViewport({ nv: { capabilities: { isMobile: true } }, cssW: 1800, cssH: 520, rectLeft: 100, rectTop: 50 });
+  const sbx = loadViewport({ nv: { capabilities: { isMobile: true } }, cssW: 1800, cssH: 520, rectLeft: 100, rectTop: 50, search: '?dynamicView=0' });
   const v = sbx.NV.viewport;
   v.refresh();
   eq(v.displayScale, 1, 'displayScale');
@@ -79,14 +80,14 @@ t('mobile CONTAIN mapping unchanged con pillarbox', () => {
 });
 
 t('screenToGame unchanged', () => {
-  const sbx = loadViewport({ nv: { capabilities: { isMobile: true } }, cssW: 1800, cssH: 520, rectLeft: 100, rectTop: 50 });
+  const sbx = loadViewport({ nv: { capabilities: { isMobile: true } }, cssW: 1800, cssH: 520, rectLeft: 100, rectTop: 50, search: '?dynamicView=0' });
   const p = sbx.NV.screenToGame(850, 250);
   eq(p.x, 300, 'x');
   eq(p.y, 200, 'y');
 });
 
 t('gameToScreen unchanged', () => {
-  const sbx = loadViewport({ nv: { capabilities: { isMobile: true } }, cssW: 1800, cssH: 520, rectLeft: 100, rectTop: 50 });
+  const sbx = loadViewport({ nv: { capabilities: { isMobile: true } }, cssW: 1800, cssH: 520, rectLeft: 100, rectTop: 50, search: '?dynamicView=0' });
   const p = sbx.NV.gameToScreen(300, 200);
   eq(p.x, 850, 'x');
   eq(p.y, 250, 'y');

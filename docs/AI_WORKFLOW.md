@@ -12,8 +12,10 @@
 - No crear otro viewport manager.
 - No crear otro world metrics manager.
 - `NV.worldMetrics` es la estructura central para separar referencia, vista runtime y arena.
-- No activar arena dinámica fuera de la aprobación explícita Stage 3: solo `?dynamicView=1` + móvil + landscape.
-- No activar viewport dinámico por defecto. Dynamic view/arena siguen detrás de `?dynamicView=1` + móvil + landscape.
+- Dynamic world view es el comportamiento por defecto en móvil landscape.
+- No restaurar contain fijo `900x520` en móvil landscape salvo pedido explícito; `?dynamicView=0` existe solo como fallback/debug legacy.
+- Desktop permanece legacy `900x520` y no debe activar arena dinámica.
+- Las features móviles futuras deben respetar `NV.worldMetrics` (`view*` para render/cámara y `arena*` para gameplay bounds).
 - No añadir parches CSS móviles conflictivos al final del archivo sin auditar las reglas existentes.
 
 ## Validación obligatoria

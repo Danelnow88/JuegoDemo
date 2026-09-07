@@ -99,8 +99,8 @@ t('viewport.worldMetrics: ref/view/arena permanecen 900x520 en Stage 0/1', () =>
   if (sbx.NV.viewport.worldMetrics !== m) throw new Error('viewport no comparte la métrica central');
 });
 
-t('viewport.screenToGame (móvil): escala uniforme + pillarbox + rect offset', () => {
-  const { sbx } = makeSandbox({ nv: { capabilities: { isMobile: true } }, cssW: 1800, cssH: 520, dpr: 2, rectLeft: 100, rectTop: 50 });
+t('viewport.screenToGame (móvil legacy fallback): escala uniforme + pillarbox + rect offset', () => {
+  const { sbx } = makeSandbox({ nv: { capabilities: { isMobile: true } }, cssW: 1800, cssH: 520, dpr: 2, rectLeft: 100, rectTop: 50, location: { search: '?dynamicView=0' } });
   load('js/core/viewport.js', sbx);
   const v = sbx.NV.viewport;
   v.refresh();

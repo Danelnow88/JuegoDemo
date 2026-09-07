@@ -10,13 +10,15 @@ Actualmente: `refW = 900`, `refH = 520`.
 
 `NV.worldMetrics.viewW` / `NV.worldMetrics.viewH` son las dimensiones lógicas visibles por el renderer/cámara. La conversión de entrada `screenToGame()` y la inversa `gameToScreen()` proyectan contra esta vista lógica.
 
-Sin flags: `viewW = 900`, `viewH = 520`, `viewX = 0`, `viewY = 0`.
+En desktop y móvil portrait: `viewW = 900`, `viewH = 520`, `viewX = 0`, `viewY = 0`.
 
-La política normal sigue siendo **CONTAIN**: escala uniforme, sin crop, sin stretch y con pillarbox/letterbox cuando corresponda.
+La política desktop sigue siendo **CONTAIN**: escala uniforme, sin crop, sin stretch y con pillarbox/letterbox cuando corresponda. En móvil landscape, Stage 3 dynamic es el comportamiento por defecto.
 
 ### Stage 3: Dynamic View + Dynamic Arena
 
-Detrás de `?dynamicView=1`, solo en móvil landscape, el renderer usa una vista lógica más ancha para llenar el ancho físico disponible sin estirar. Desde Stage 3, la arena jugable móvil dinámica se expande para coincidir con esa vista.
+Por defecto en móvil landscape, el renderer usa una vista lógica más ancha para llenar el ancho físico disponible sin estirar. La arena jugable móvil dinámica se expande para coincidir con esa vista.
+
+`?dynamicView=1` se conserva como alias/debug compatible, pero ya no es necesario. `?dynamicView=0` fuerza temporalmente el modo legacy contain `900x520` en móvil landscape para depuración.
 
 La fórmula autoritativa vive en `js/core/viewport.js`:
 
@@ -47,19 +49,21 @@ Esto hace visible y jugable todo el rango `0..viewW x 0..520`, evitando paredes 
 
 `NV.worldMetrics.arenaW` / `NV.worldMetrics.arenaH` son los límites reales de gameplay: clamp del jugador, spawns, culling de proyectiles, posiciones de jefe y demás reglas de arena.
 
-Sin flag y en desktop: `arenaW = 900`, `arenaH = 520`.
+En desktop y móvil portrait: `arenaW = 900`, `arenaH = 520`.
 
-Con `?dynamicView=1` en móvil landscape: `arenaW = viewW`, `arenaH = 520`.
+En móvil landscape por defecto: `arenaW = viewW`, `arenaH = 520`.
+
+Con `?dynamicView=0` en móvil landscape: `arenaW = 900`, `arenaH = 520` para debugging legacy.
 
 ## Estado actual y futuro
 
-Sin flag:
+Desktop / móvil portrait / fallback `?dynamicView=0`:
 
 ```js
 ref = view = arena = 900x520
 ```
 
-Con `?dynamicView=1` en móvil landscape:
+Móvil landscape por defecto:
 
 ```js
 ref = 900x520
@@ -68,7 +72,8 @@ view = arena = dynamicViewW x 520
 
 Balance:
 
-- `arenaW` dinámica solo está aprobada para `?dynamicView=1` + móvil + landscape.
+- `arenaW` dinámica es la arquitectura móvil landscape por defecto.
+- No restaurar contain fijo `900x520` en móvil landscape salvo pedido explícito o uso temporal de `?dynamicView=0`.
 - No compensar dificultad automáticamente al expandir arena: no cambiar spawn rate, MAX_ENEMIES, velocidades, salud, daño, rangos ni cantidades hasta medir impacto real.
 
 ## Regla para código nuevo

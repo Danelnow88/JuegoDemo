@@ -61,50 +61,51 @@ function loadViewport(opts) {
   return made;
 }
 
-t('flag OFF: view/arena permanecen 900x520', () => {
+t('mobile landscape sin query activa dynamic view por defecto', () => {
   const { sbx, root } = loadViewport({ nv: { capabilities: { isMobile: true, orientation: 'landscape' } }, cssW: 915, cssH: 412 });
   const m = sbx.NV.worldMetrics;
-  near(m.viewW, 900, 'viewW'); near(m.viewH, 520, 'viewH');
-  near(m.arenaW, 900, 'arenaW'); near(m.arenaH, 520, 'arenaH');
-  if (root.classList.contains('nv-dynamic-view')) throw new Error('clase dinámica activa sin flag');
+  if (!sbx.NV.viewport.dynamicViewActive) throw new Error('dynamicViewActive=false');
+  near(m.viewW, 520 * (915 / 412), 'viewW'); near(m.viewH, 520, 'viewH');
+  near(m.arenaW, m.viewW, 'arenaW'); near(m.arenaH, 520, 'arenaH');
+  if (!root.classList.contains('nv-dynamic-view')) throw new Error('clase dinámica no activa por defecto');
 });
 
-t('915x412 dynamic: viewH=520 y viewW≈1154.85', () => {
-  const { sbx } = loadViewport({ nv: { capabilities: { isMobile: true, orientation: 'landscape' } }, cssW: 915, cssH: 412, search: '?dynamicView=1' });
+t('915x412 dynamic default: viewH=520 y viewW≈1154.85', () => {
+  const { sbx } = loadViewport({ nv: { capabilities: { isMobile: true, orientation: 'landscape' } }, cssW: 915, cssH: 412 });
   const m = sbx.NV.worldMetrics;
   near(m.viewH, 520, 'viewH');
   near(m.viewW, 520 * (915 / 412), 'viewW');
 });
 
 t('view empieza en 0 porque la arena dinámica ya ocupa todo el visible', () => {
-  const { sbx } = loadViewport({ nv: { capabilities: { isMobile: true, orientation: 'landscape' } }, cssW: 915, cssH: 412, search: '?dynamicView=1' });
+  const { sbx } = loadViewport({ nv: { capabilities: { isMobile: true, orientation: 'landscape' } }, cssW: 915, cssH: 412 });
   const m = sbx.NV.worldMetrics;
   near(m.viewX, 0, 'viewX');
   near(m.viewY, 0, 'viewY');
 });
 
 t('arena/view center dinámico mapea al centro físico', () => {
-  const { sbx } = loadViewport({ nv: { capabilities: { isMobile: true, orientation: 'landscape' } }, cssW: 915, cssH: 412, search: '?dynamicView=1' });
+  const { sbx } = loadViewport({ nv: { capabilities: { isMobile: true, orientation: 'landscape' } }, cssW: 915, cssH: 412 });
   const p = sbx.NV.gameToScreen(sbx.NV.worldMetrics.arenaW / 2, 260);
   near(p.x, 915 / 2, 'screenX');
   near(p.y, 412 / 2, 'screenY');
 });
 
 t('screen left edge mapea a world x=viewX', () => {
-  const { sbx } = loadViewport({ nv: { capabilities: { isMobile: true, orientation: 'landscape' } }, cssW: 915, cssH: 412, search: '?dynamicView=1' });
+  const { sbx } = loadViewport({ nv: { capabilities: { isMobile: true, orientation: 'landscape' } }, cssW: 915, cssH: 412 });
   const p = sbx.NV.screenToGame(0, 206);
   near(p.x, sbx.NV.worldMetrics.viewX, 'worldX');
 });
 
 t('screen right edge mapea a world x=viewX+viewW', () => {
-  const { sbx } = loadViewport({ nv: { capabilities: { isMobile: true, orientation: 'landscape' } }, cssW: 915, cssH: 412, search: '?dynamicView=1' });
+  const { sbx } = loadViewport({ nv: { capabilities: { isMobile: true, orientation: 'landscape' } }, cssW: 915, cssH: 412 });
   const p = sbx.NV.screenToGame(915, 206);
   const m = sbx.NV.worldMetrics;
   near(p.x, m.viewX + m.viewW, 'worldX');
 });
 
 t('screenToGame/gameToScreen round trip en dynamic', () => {
-  const { sbx } = loadViewport({ nv: { capabilities: { isMobile: true, orientation: 'landscape' } }, cssW: 844, cssH: 390, rectLeft: 7, rectTop: 11, search: '?dynamicView=1' });
+  const { sbx } = loadViewport({ nv: { capabilities: { isMobile: true, orientation: 'landscape' } }, cssW: 844, cssH: 390, rectLeft: 7, rectTop: 11 });
   const a = sbx.NV.screenToGame(321, 222);
   const b = sbx.NV.gameToScreen(a.x, a.y);
   near(b.x, 321, 'x');
@@ -112,14 +113,14 @@ t('screenToGame/gameToScreen round trip en dynamic', () => {
 });
 
 t('scaleX≈scaleY por fórmula uniforme', () => {
-  const { sbx } = loadViewport({ nv: { capabilities: { isMobile: true, orientation: 'landscape' } }, cssW: 640, cssH: 360, search: '?dynamicView=1' });
+  const { sbx } = loadViewport({ nv: { capabilities: { isMobile: true, orientation: 'landscape' } }, cssW: 640, cssH: 360 });
   const m = sbx.NV.worldMetrics;
   near(640 / m.viewW, 360 / m.viewH, 'scale');
   near(m.scale, 360 / 520, 'metrics.scale');
 });
 
 t('gameplay arena matches dynamic view', () => {
-  const { sbx } = loadViewport({ nv: { capabilities: { isMobile: true, orientation: 'landscape' } }, cssW: 915, cssH: 412, search: '?dynamicView=1' });
+  const { sbx } = loadViewport({ nv: { capabilities: { isMobile: true, orientation: 'landscape' } }, cssW: 915, cssH: 412 });
   near(sbx.NV.worldMetrics.arenaW, 520 * (915 / 412), 'arenaW');
   near(sbx.NV.worldMetrics.arenaH, 520, 'arenaH');
 });
@@ -149,13 +150,24 @@ t('desktop remains 900x520 aunque tenga flag', () => {
   if (root.classList.contains('nv-dynamic-view')) throw new Error('dynamic activo en desktop');
 });
 
-t('dynamic CSS state only activates under flag + mobile landscape', () => {
+t('dynamic CSS state activates for mobile landscape default and respects fallback', () => {
   const css = fs.readFileSync('css/styles.css', 'utf8');
   if (!css.includes('.nv-mobile.nv-landscape.nv-dynamic-view .game-box')) throw new Error('selector dinámico scoped ausente');
   const noFlag = loadViewport({ nv: { capabilities: { isMobile: true, orientation: 'landscape' } }, cssW: 915, cssH: 412 });
-  if (noFlag.root.classList.contains('nv-dynamic-view')) throw new Error('clase activa sin flag');
+  if (!noFlag.root.classList.contains('nv-dynamic-view')) throw new Error('clase no activa sin flag');
   const yesFlag = loadViewport({ nv: { capabilities: { isMobile: true, orientation: 'landscape' } }, cssW: 915, cssH: 412, search: '?dynamicView=1' });
   if (!yesFlag.root.classList.contains('nv-dynamic-view')) throw new Error('clase no activa con flag');
+  const forcedOff = loadViewport({ nv: { capabilities: { isMobile: true, orientation: 'landscape' } }, cssW: 915, cssH: 412, search: '?dynamicView=0' });
+  if (forcedOff.root.classList.contains('nv-dynamic-view')) throw new Error('fallback dynamicView=0 no apagó la clase');
+  near(forcedOff.sbx.NV.worldMetrics.viewW, 900, 'fallback viewW');
+});
+
+t('portrait mobile no activa dynamic landscape gameplay', () => {
+  const { sbx, root } = loadViewport({ nv: { capabilities: { isMobile: true, orientation: 'portrait' } }, cssW: 412, cssH: 915 });
+  if (sbx.NV.viewport.dynamicViewActive) throw new Error('dynamic activo en portrait');
+  if (root.classList.contains('nv-dynamic-view')) throw new Error('clase activa en portrait');
+  near(sbx.NV.worldMetrics.arenaW, 900, 'arenaW');
+  near(sbx.NV.worldMetrics.arenaH, 520, 'arenaH');
 });
 
 t('WebGL center uses view rectangle metrics', () => {

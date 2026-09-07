@@ -17,8 +17,8 @@
   const NV = (w && w.NV) ? w.NV : {};
   if (w) w.NV = NV;
 
-  // Métricas autoritativas del mundo. Stage 3 expande SOLO la arena gameplay
-  // móvil dinámica (?dynamicView=1 + mobile landscape) para igualar la vista.
+  // Métricas autoritativas del mundo. Stage 3 expande la arena gameplay
+  // móvil landscape por defecto para igualar la vista. Desktop conserva legacy.
   const REFERENCE_W = 900;
   const REFERENCE_H = 520;
   const worldMetrics = NV.worldMetrics || {
@@ -61,10 +61,13 @@
     const n = parseFloat(v);
     return Number.isFinite(n) ? n : 0;
   }
-  function hasDynamicFlag() {
+  function dynamicViewParam() {
     try {
-      return !!(w && w.location && /(?:^|[?&])dynamicView=1(?:&|$)/.test(w.location.search || ''));
-    } catch (_) { return false; }
+      const search = (w && w.location && w.location.search) || '';
+      if (/(?:^|[?&])dynamicView=0(?:&|$)/.test(search)) return 'off';
+      if (/(?:^|[?&])dynamicView=1(?:&|$)/.test(search)) return 'on';
+    } catch (_) { /* ignore */ }
+    return '';
   }
   function setRootClass(name, on) {
     const root = queryRoot();
@@ -105,7 +108,8 @@
     logicalH: LOGICAL_H,
     worldMetrics,
     isMobile: !!(NV.capabilities && NV.capabilities.isMobile),
-    dynamicViewFlag: hasDynamicFlag(),
+    dynamicViewFlag: dynamicViewParam() === 'on',
+    dynamicViewForcedOff: dynamicViewParam() === 'off',
     dynamicViewActive: false,
 
     // Caja CSS del canvas (lo que el usuario VE, en píxeles CSS)
@@ -169,8 +173,10 @@
       }
       const orientation = (NV.capabilities && NV.capabilities.orientation)
         || (cssH > cssW ? 'portrait' : 'landscape');
-      viewport.dynamicViewFlag = hasDynamicFlag();
-      viewport.dynamicViewActive = !!(viewport.dynamicViewFlag && viewport.isMobile && orientation === 'landscape');
+      const dynamicParam = dynamicViewParam();
+      viewport.dynamicViewFlag = dynamicParam === 'on';
+      viewport.dynamicViewForcedOff = dynamicParam === 'off';
+      viewport.dynamicViewActive = !!(viewport.isMobile && orientation === 'landscape' && !viewport.dynamicViewForcedOff);
       setRootClass('nv-dynamic-view', viewport.dynamicViewActive);
       // La clase dinámica puede cambiar la caja CSS; medir de nuevo después de aplicarla.
       if (canvas && typeof canvas.getBoundingClientRect === 'function') {

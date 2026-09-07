@@ -44,13 +44,14 @@ function engineSandbox(rand) {
   return { window: w, console, Math: math, Array };
 }
 
-t('1. flag OFF: arenaW = 900', () => {
+t('1. mobile landscape default: arenaW follows viewW', () => {
   const sbx = viewport({ nv: { capabilities: { isMobile: true, orientation: 'landscape' } }, cssW: 915, cssH: 412 });
-  near(sbx.NV.worldMetrics.arenaW, 900, 'arenaW');
+  near(sbx.NV.worldMetrics.arenaW, 520 * 915 / 412, 'arenaW');
+  if (!sbx.NV.viewport.dynamicViewActive) throw new Error('dynamicViewActive=false');
 });
 
 t('2. dynamic 915x412: arenaW≈1154.85 y arenaH=520', () => {
-  const sbx = viewport({ nv: { capabilities: { isMobile: true, orientation: 'landscape' } }, cssW: 915, cssH: 412, search: '?dynamicView=1' });
+  const sbx = viewport({ nv: { capabilities: { isMobile: true, orientation: 'landscape' } }, cssW: 915, cssH: 412 });
   near(sbx.NV.worldMetrics.viewW, 520 * 915 / 412, 'viewW');
   near(sbx.NV.worldMetrics.arenaW, 520 * 915 / 412, 'arenaW');
   near(sbx.NV.worldMetrics.arenaH, 520, 'arenaH');
@@ -112,7 +113,7 @@ t('9. desktop remains 900x520', () => {
 });
 
 t('10. legacy mobile remains 900x520', () => {
-  const sbx = viewport({ nv: { capabilities: { isMobile: true, orientation: 'landscape' } }, cssW: 915, cssH: 412 });
+  const sbx = viewport({ nv: { capabilities: { isMobile: true, orientation: 'landscape' } }, cssW: 915, cssH: 412, search: '?dynamicView=0' });
   near(sbx.NV.worldMetrics.arenaW, 900, 'arenaW'); near(sbx.NV.worldMetrics.arenaH, 520, 'arenaH');
 });
 
@@ -120,13 +121,13 @@ t('11. Canvas2D/WebGL center alignment remains correct', () => {
   const g = fs.readFileSync('js/game.js', 'utf8');
   if (!g.includes('ctx.setTransform(scaleX, 0, 0, scaleY, -vx * scaleX, -vy * scaleY)')) throw new Error('Canvas2D transform no usa view origin');
   if (!g.includes('camera.left = viewX()') || !g.includes('camera.right = viewX() + viewW()')) throw new Error('WebGL camera no usa view rect');
-  const sbx = viewport({ nv: { capabilities: { isMobile: true, orientation: 'landscape' } }, cssW: 915, cssH: 412, search: '?dynamicView=1' });
+  const sbx = viewport({ nv: { capabilities: { isMobile: true, orientation: 'landscape' } }, cssW: 915, cssH: 412 });
   const p = sbx.NV.gameToScreen(sbx.NV.worldMetrics.arenaW / 2, 260);
   near(p.x, 915 / 2, 'centerX'); near(p.y, 412 / 2, 'centerY');
 });
 
 t('12. screenToGame/gameToScreen round-trip correctly', () => {
-  const sbx = viewport({ nv: { capabilities: { isMobile: true, orientation: 'landscape' } }, cssW: 915, cssH: 412, search: '?dynamicView=1' });
+  const sbx = viewport({ nv: { capabilities: { isMobile: true, orientation: 'landscape' } }, cssW: 915, cssH: 412 });
   const a = sbx.NV.screenToGame(123, 321);
   const b = sbx.NV.gameToScreen(a.x, a.y);
   near(b.x, 123, 'x'); near(b.y, 321, 'y');

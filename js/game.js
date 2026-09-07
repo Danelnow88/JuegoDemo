@@ -18,7 +18,7 @@
   const REF_W = worldMetrics.refW, REF_H = worldMetrics.refH;
   const ARENA_W = worldMetrics.arenaW, ARENA_H = worldMetrics.arenaH;
   // Aliases legacy iniciales. En Stage 3 el gameplay consulta arenaW()/arenaH()
-  // para que SOLO mobile ?dynamicView=1 use la arena dinámica autorizada.
+  // para que mobile landscape use la arena dinámica y desktop conserve legacy.
   const GW = REF_W, GH = REF_H;
   const canvas = NV.canvas;
   const ctx = NV.ctx;

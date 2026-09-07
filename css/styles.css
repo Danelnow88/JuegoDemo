@@ -1145,7 +1145,7 @@ canvas {
     border-radius: 8px;
   }
 
-  /* Stage 3 dynamic: ?dynamicView=1 + mobile landscape.
+  /* Stage 3 dynamic: mobile landscape default (debug fallback: ?dynamicView=0).
      Full-bleed physical stage; gameplay arena follows JS view metrics. */
   .nv-mobile.nv-landscape.nv-dynamic-view .game-box {
     width: 100%;
