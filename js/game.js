@@ -346,6 +346,7 @@
   // === INPUT ===
   let moveLeft = false, moveRight = false, moveUp = false, moveDown = false;
   let slideHeld = false, specialPressed = false, showStats = false, showHUD = true, paused = false;
+  let settingsRestorePaused = false;
 
   // === PUENTE INPUT (táctil → el MISMO sistema lógico) ===
   // La capa móvil (mobileControls.js) escribe en ESTOS mismos canales booleanos que
@@ -397,6 +398,16 @@
       dom.sound.textContent = NV.soundOn ? '♫ ON' : '♫ OFF';
       dom.sound.classList.toggle('off', !NV.soundOn);
     }
+  };
+  NV.input.setSettingsOpen = (open) => {
+    if (state !== 'playing') { syncGameState(); return; }
+    if (open) {
+      settingsRestorePaused = paused;
+      paused = true;
+    } else {
+      paused = settingsRestorePaused;
+    }
+    syncGameState();
   };
 
   // === PERSONAJES ===
@@ -508,8 +519,9 @@
     const charCards = document.querySelectorAll('.char-card');
     charCards.forEach(card => {
       card.addEventListener('click', () => {
-        charCards.forEach(c => c.classList.remove('selected'));
+        charCards.forEach(c => { c.classList.remove('selected'); c.setAttribute('aria-pressed', 'false'); });
         card.classList.add('selected');
+        card.setAttribute('aria-pressed', 'true');
         player.character = card.getAttribute('data-char');
         const char = CHARACTERS[player.character];
         player.color = char.color;
@@ -2223,6 +2235,7 @@
     // Legibilidad del golpe: dibujar PRIMERO a los no-atacantes y DESPUÉS a los
     // atacantes (atkFlash activo) => el enemigo que golpea queda por encima
     // visualmente y no es tapado por los superpuestos. Solo orden de dibujo.
+    if (NV.prepareEnemyVisualBudget) NV.prepareEnemyVisualBudget(enemies, player);
     for (const e of enemies) if (!(e.atkFlash > 0)) drawEnemy(e);
     for (const e of enemies) if (e.atkFlash > 0) drawEnemy(e);
     const autoTargetInRange = currentAutoTarget ? (Math.hypot(currentAutoTarget.x - player.x, currentAutoTarget.y - player.y) <= (currentWeapon.range || Infinity)) : false;
@@ -2306,8 +2319,10 @@
 
     if (showHUD) {
       drawSpecialCooldown();
-    NV.drawCombo(ctx, arenaW(), arenaH(), killCombo);
-      drawWeaponHUD();
+      const mobilePresentation = !!(NV.capabilities && NV.capabilities.isMobile);
+      NV.drawCombo(ctx, arenaW(), arenaH(), killCombo, mobilePresentation ? { x: viewX() + viewW() / 2 - 18, y: 22 } : null);
+      if (!mobilePresentation) drawWeaponHUD();
+      else NV.consumSlotRects = [];
     }
 
     if (showStats) drawStats();

@@ -47,6 +47,7 @@
           <button id="charBtn" class="hud-btn" type="button" title="Estadísticas (TAB)"><svg class="stat-svg" viewBox="0 0 16 16" focusable="false" aria-hidden="true"><path d="M3 13V8h2v5H3Zm4 0V4h2v9H7Zm4 0V2h2v11h-2Z" /></svg></button>
           <button id="hudToggle" class="hud-btn active" type="button" title="Mostrar/ocultar HUD">HUD</button>
           <button id="sound" class="sound" type="button" title="Activar o silenciar sonido">♫ ON</button>
+          <button id="settingsBtn" class="hud-btn desktop-settings" type="button" title="Ajustes">⚙</button>
           <button id="fullscreenBtn" class="hud-btn touch-fullscreen" type="button" title="Jugar en pantalla completa">⛶</button>
           <button id="optionsBtn" class="hud-btn touch-options" type="button" title="Opciones móviles">☰</button>
         </div>
@@ -57,12 +58,26 @@
         <canvas id="specter-overlay" class="espectro-lite-canvas" width="900" height="520"></canvas>
         <div id="waveBanner" class="wave-banner hidden"></div>
 
-        <div id="startScreen" class="overlay">
-          <h1>NEON VOID</h1>
-          <p class="subtitle">Elegí tu piloto y sobreviví a las oleadas del Vacío</p>
-          <div id="charGrid" class="char-grid"></div>
-          <button id="startBtn" class="primary" type="button">JUGAR</button>
-          <button id="permBtn" class="primary secondary" type="button">MEJORAS PERMANENTES</button>
+        <div id="startScreen" class="overlay lobby-screen">
+          <div class="lobby-shell">
+            <header class="lobby-header">
+              <div class="lobby-kicker">SUPERVIVENCIA · NEON ROGUELITE</div>
+              <h1>NEON VOID</h1>
+              <p class="subtitle">Elegí tu piloto y sobreviví a las oleadas del Vacío</p>
+            </header>
+            <section class="lobby-roster" aria-labelledby="lobbyRosterTitle">
+              <div class="lobby-section-head">
+                <span id="lobbyRosterTitle">SELECCIÓN DE PILOTO</span>
+                <span id="lobbyCharacterCount">0 disponibles</span>
+              </div>
+              <div id="charGrid" class="char-grid"></div>
+            </section>
+            <footer class="lobby-actions">
+              <button id="startBtn" class="primary lobby-play" type="button">JUGAR</button>
+              <button id="permBtn" class="primary secondary lobby-secondary" type="button">MEJORAS PERMANENTES</button>
+              <button id="lobbySettingsBtn" class="primary secondary lobby-settings" type="button">AJUSTES</button>
+            </footer>
+          </div>
         </div>
         <div id="shop" class="shop-screen hidden">
           <div class="shop-terminal-head">
@@ -119,14 +134,18 @@
           <button id="permBack" class="primary" type="button">← VOLVER AL MENÚ</button>
         </div>
 
-        <div id="gameOver" class="overlay hidden">
-          <h1 id="goTitle">FIN</h1>
-          <p id="goText"></p>
-          <div class="go-stats">
-            <div class="go-stat"><span>PUNTOS</span><span id="goScore">0</span></div>
-            <div class="go-stat"><span>OLEADA</span><span id="goWave">0</span></div>
-          </div>
-          <button id="restartBtn" class="primary" type="button">REINTENTAR</button>
+        <div id="gameOver" class="overlay hidden game-over-screen">
+          <section class="game-over-panel" aria-labelledby="goTitle">
+            <div class="game-over-kicker">RUN FINALIZADA</div>
+            <h1 id="goTitle">FIN</h1>
+            <p id="goText" class="game-over-summary"></p>
+            <div class="go-stats">
+              <div class="go-stat"><span>PUNTOS</span><span id="goScore">0</span></div>
+              <div class="go-stat"><span>OLEADA</span><span id="goWave">0</span></div>
+            </div>
+            <div class="game-over-future" aria-hidden="true"></div>
+            <button id="restartBtn" class="primary" type="button">REINTENTAR</button>
+          </section>
         </div>
       </section>
 
@@ -162,8 +181,29 @@
           <button id="mPauseBtn" class="opt-btn" type="button">⏸ Pausa</button>
           <button id="mStatsBtn" class="opt-btn" type="button">Estadísticas</button>
           <button id="mSoundBtn" class="opt-btn" type="button">Sonido</button>
+          <button id="mSettingsBtn" class="opt-btn" type="button">⚙ Ajustes</button>
           <button id="mFullscreenBtn" class="opt-btn" type="button">⛶ Fullscreen</button>
         </div>
+      </div>
+
+      <div id="settingsPanel" class="settings-overlay hidden" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="settingsTitle">
+        <section class="settings-panel">
+          <header class="settings-head">
+            <div><span class="settings-kicker">SISTEMA</span><h2 id="settingsTitle">AJUSTES</h2></div>
+            <button id="settingsClose" class="settings-close" type="button" aria-label="Cerrar ajustes">×</button>
+          </header>
+          <div class="settings-section">
+            <h3>GRÁFICOS / RENDIMIENTO</h3>
+            <div class="quality-options" role="radiogroup" aria-label="Calidad visual">
+              <label><input type="radio" name="graphicsQuality" value="auto" /><span><b>Auto</b><small>Equilibra detalle cuando hay muchas élites.</small></span></label>
+              <label><input type="radio" name="graphicsQuality" value="high" /><span><b>Alta</b><small>Calidad visual completa actual.</small></span></label>
+              <label><input type="radio" name="graphicsQuality" value="performance" /><span><b>Rendimiento</b><small>Simplifica VFX secundarios antes.</small></span></label>
+            </div>
+            <label class="settings-toggle"><input id="settingsParticles" type="checkbox" /><span><b>Partículas mejoradas</b><small>Partículas decorativas de enemigos.</small></span></label>
+            <label class="settings-toggle"><input id="settingsHeavyVfx" type="checkbox" /><span><b>VFX intensos de élites</b><small>Halos y geometría secundaria de la familia Hidra.</small></span></label>
+          </div>
+          <p class="settings-note">Los ajustes gráficos no cambian enemigos, daño, vida, spawns ni dificultad.</p>
+        </section>
       </div>
 
       <div id="rotateOverlay" class="rotate-overlay" role="alert" aria-live="assertive">
@@ -178,6 +218,7 @@
     </main>
 
     <script src="js/core/state.js"></script>
+    <script src="js/core/settings.js"></script>
     <script src="js/core/utils.js"></script>
     <script src="js/core/viewport.js"></script>
     <script src="js/data/gameData.js"></script>
@@ -185,6 +226,7 @@
     <script src="js/data/consumables.js"></script>
     <script src="js/audio/synth.js"></script>
     <script src="js/ui/dom.js"></script>
+    <script src="js/ui/settingsPanel.js"></script>
     <script src="js/ui/characters.js"></script>
     <script src="js/render/canvas.js"></script>
     <script src="js/render/projectiles.js"></script>

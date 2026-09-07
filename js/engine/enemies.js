@@ -6,6 +6,14 @@
   'use strict';
   const NV = window.NV;
 
+  function reportSpawnCandidate(st, candidate) {
+    if (typeof st.onSpawnCandidate !== 'function') return;
+    try { st.onSpawnCandidate(Object.freeze(candidate)); } catch (_) { /* hook futuro no altera spawn actual */ }
+  }
+  NV.describeEnemySpawnCandidate = function (type, x, y, isElite) {
+    return { typeId: type && (type.id || type.visualId) || null, x, y, isElite: !!isElite };
+  };
+
   // ---- Selección ponderada: tipos con 'weight' usan ese valor; el resto defaulta a 1.0 ----
   // Si ningún tipo disponible define weight, la selección es equivalente a uniforme.
   NV.weightedRandom = function (items) {
@@ -62,6 +70,7 @@
       const mi = NV.LAB_SPECTER_IDS[type.id];
       if (mi !== undefined) hitboxRadius = type.radius * NV.labModelHitboxFactor(mi);
     }
+    reportSpawnCandidate(st, NV.describeEnemySpawnCandidate(type, side, y, false));
     st.enemies.push({
       x: side, y: y,
       hp: Math.round(type.hp * hpScale), maxHp: Math.round(type.hp * hpScale),
@@ -135,6 +144,7 @@
       // Metadatos para render espectral (solo cuando el tipo define id).
       if (elite.id) pushed.enemyTypeId = elite.id;
       if (elite.visualId) pushed.visualId = elite.visualId;
+      reportSpawnCandidate(st, NV.describeEnemySpawnCandidate(elite, side, y, true));
       st.enemies.push(pushed);
       // Traza de spawn para élites espectrales.
       if (elite.spectralElite && elite.id && elite.id.indexOf('specter_') === 0) {

@@ -5,8 +5,8 @@
 // desktop y comprueba, sin tocar la lógica del juego:
 //   - clases <html> (nv-mobile / nv-landscape|nv-portrait);
 //   - menú visible (startScreen sin hidden → init() corrió);
-//   - canvas con aspecto preservado (~900:520) en móvil;
-//   - SIN desborde horizontal (canvas width <= innerWidth);
+//   - activación de Dynamic View en móvil landscape;
+//   - canvas/lobby presentes sin desborde físico ni errores runtime;
 //   - ausencia de excepciones JS en la consola del navegador.
 // `--window-size` de Edge headless incluye el marco, así que el tamaño interno
 // real se MIDE con una sonda data: y se calibra antes de cada dump del juego.
@@ -25,7 +25,7 @@ const MOBILE_LANDSCAPE = [
   [640, 360], [720, 360], [740, 360], [780, 360],
   [844, 390], [852, 393], [915, 412], [932, 430],
 ];
-const DESKTOP = [[1280, 800], [1920, 1080]];
+const DESKTOP = [[900, 520], [1280, 800], [1920, 1080]];
 
 // Marco de ventana estimado del headless (punto de partida; se calibra igual).
 const OFFSET_W = 24, OFFSET_H = 92;
@@ -90,13 +90,12 @@ function check(label, innerW, innerH, withMobile) {
   if (realW > realH && !isLandscape) issues.push('viewport horizontal sin nv-landscape');
 
   const canvasMatch = stdout.match(/id="game" width="(\d+)" height="(\d+)"/);
-  let aspectOk = false;
+  let aspectOk = true;
   if (canvasMatch) {
     const w = parseInt(canvasMatch[1], 10), h = parseInt(canvasMatch[2], 10);
-    // tolerancia ±2.5% sobre 900/520
-    aspectOk = h > 0 && Math.abs(w / h - 900 / 520) < 0.025;
-    if (withMobile && !aspectOk) issues.push('aspecto distorsionado ' + w + 'x' + h);
-    if (withMobile && w > realW + 2) issues.push('desborde horizontal: canvas ' + w + ' > inner ' + realW);
+    if (!(w > 0 && h > 0)) { aspectOk = false; issues.push('backing canvas inválido ' + w + 'x' + h); }
+    if (withMobile && realW > realH && !classes.includes('nv-dynamic-view')) issues.push('landscape móvil sin nv-dynamic-view');
+    if ((!withMobile || realH > realW) && classes.includes('nv-dynamic-view')) issues.push('dynamic view fuera de mobile landscape');
   } else {
     issues.push('canvas no encontrado');
   }
@@ -114,7 +113,7 @@ function check(label, innerW, innerH, withMobile) {
     ' inner=' + realW + 'x' + realH +
     (withMobile ? ' mobile=on' : ' mobile=off') +
     ' html=' + (classes.join(' ') || '(none)') +
-    (canvasMatch ? ' canvas=' + canvasMatch[1] + 'x' + canvasMatch[2] + ' aspect=' + (aspectOk ? 'ok' : '(desktop legacy)') : '') +
+    (canvasMatch ? ' canvas=' + canvasMatch[1] + 'x' + canvasMatch[2] + ' backing=' + (aspectOk ? 'ok' : 'FAIL') : '') +
     (issues.length ? ' -> ' + issues.join(' | ') : '')
   );
   return issues.length ? 1 : 0;

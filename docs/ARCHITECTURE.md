@@ -16,6 +16,8 @@ Orden conceptual de carga:
 6. coordinador (`js/game.js`);
 7. adaptación táctil (`js/ui/mobileControls.js`).
 
+`js/core/settings.js` se carga después del namespace y antes de render/gameplay. Es la única fuente de preferencias generales persistentes.
+
 ## Game logic
 
 Existe **una sola implementación compartida de gameplay**. Desktop y móvil ejecutan el mismo loop, entidades, colisiones, oleadas, tiendas, progresión y balance.
@@ -44,6 +46,21 @@ La referencia es `900x520`. Desktop mantiene vista y arena en esa medida. Móvil
 - `NV.ESPECTRO_LITE_ACTIVE` es `false` por defecto; los espectros de producción usan el renderer Canvas2D.
 - Cámara y transformaciones visuales consumen métricas `view*`, no bounds de arena por conveniencia.
 
+### Presupuesto visual de la familia Hidra
+
+Las variantes élite se identifican por el modelo visual `LAB_SPECTER_IDS -> 5` (`RB6 / Entidad Hidra`), no por color. Su render activo es:
+
+`js/game.js` → `NV.drawSpectralEnemy2D()` → `drawLabSpecterEnemy()` → `drawLabEnemyModel(5)`.
+
+`NV.prepareEnemyVisualBudget()` selecciona las instancias full más cercanas al jugador mediante un `WeakSet` de render. La selección no escribe propiedades en entidades ni cambia array, update, colisiones, HP, daño o conteo de oleada.
+
+- `high`: todas las instancias usan calidad completa;
+- `auto`: hasta 7 instancias cercanas usan calidad completa;
+- `performance`: hasta 4 instancias cercanas usan calidad completa;
+- overflow: mantiene cuerpo, contorno, ojos y estados, pero reduce blobs secundarios, partículas, jitter y `shadowBlur`.
+
+Los perfiles élite combinados están cacheados para evitar `Object.assign()` por entidad y frame. Los recursos visuales no se crean ni renderizan antes de que existan entidades activas.
+
 ## Input
 
 - El teclado actualiza los canales lógicos definidos en `js/game.js`.
@@ -58,6 +75,8 @@ La referencia es `900x520`. Desktop mantiene vista y arena en esa medida. Móvil
 - `js/game.js` publica `data-game-state` y `data-paused` en `<html>`.
 - CSS y `js/ui/mobileControls.js` controlan visibilidad y adaptación; no mantienen un segundo estado de juego.
 - La UI DOM móvil se posiciona en coordenadas del viewport físico y respeta safe areas. No pertenece al sistema de coordenadas del mundo.
+- Lobby, Game Over y Settings usan una única estructura DOM compartida; CSS decide su composición desktop/móvil.
+- En móvil, arma y consumible viven en chips DOM dedicados. El panel Canvas completo de arma/consumible se dibuja solo en desktop para evitar duplicación y solapamiento.
 
 La propiedad por estado está documentada en [UI States](UI_STATES.md).
 
@@ -68,6 +87,25 @@ La propiedad por estado está documentada en [UI States](UI_STATES.md).
 - `js/data/balance.js`: constantes de tuning y topes.
 - La tienda consume `NV.WEAPONS`, `NV.consumableList()` y las definiciones de mejoras existentes.
 - Renderers de iconos y audio pueden tener comportamiento específico por ID, con fallback cuando corresponde.
+
+## Settings
+
+`js/core/settings.js` expone `NV.settings` y las APIs `getSettings`, `setGraphicsQuality`, `setGraphicsOption`, `getGraphicsPolicy` y `onSettingsChange`.
+
+- Persistencia única: `localStorage['neonVoidSettings']`.
+- Defaults: calidad `high`, partículas activas y VFX intensos activos.
+- El renderer consume una política derivada; nunca lee `localStorage`.
+- `js/ui/settingsPanel.js` presenta el mismo panel en desktop, lobby y móvil.
+- Si Settings se abre durante una partida, reutiliza la pausa compartida y restaura el estado previo al cerrar.
+- Las preferencias gráficas no pueden modificar simulación ni balance.
+
+La integración con fuentes externas de audio en móvil requiere investigación separada de permisos, Media Capture y restricciones de plataforma. No forma parte del sistema de Settings actual.
+
+## Hook futuro de spawn telegraph
+
+`js/engine/enemies.js` expone `NV.describeEnemySpawnCandidate()` y admite el callback opcional `onSpawnCandidate` antes de insertar un spawn normal o élite. El callback recibe tipo, posición y clasificación élite del spawn que se ejecutará.
+
+Actualmente el juego no conecta ese callback: no hay warning, delay, fade-in ni distancia mínima nueva. El hook permite añadir telegraphing más adelante sin duplicar la selección de spawn ni alterar las fórmulas actuales.
 
 ## Límites entre sistemas
 

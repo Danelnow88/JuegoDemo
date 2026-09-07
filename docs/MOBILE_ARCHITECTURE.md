@@ -74,6 +74,30 @@ Portrait no activa Dynamic World View. Se mantienen `view = arena = 900x520` y e
 
 **La UI móvil es UI del viewport físico, no UI en coordenadas de mundo.** Joystick, botones, opciones, menús y tiendas no deben posicionarse usando `arenaW` o `viewW` salvo una necesidad visual explícita.
 
+## Lobby responsive
+
+El lobby usa una única estructura DOM y la misma fuente `NV.characterList()` en desktop y móvil.
+
+- Desktop presenta cuatro cards espaciosas dentro del frame de referencia.
+- Móvil landscape convierte el overlay de menú en layout físico de viewport completo.
+- Header, roster y acciones son regiones estructurales separadas.
+- Las cuatro cards permanecen simultáneamente visibles en los viewports objetivo normales.
+- Las descripciones móviles muestran una jerarquía útil de hasta cuatro líneas; no se resuelve el espacio reduciendo todo globalmente.
+- `JUGAR`, `MEJORAS PERMANENTES` y `AJUSTES` pertenecen al área de acciones compartida.
+
+Añadir un personaje a `NV.CHARACTERS` y `CHARACTER_ORDER` lo incorpora al mismo renderer de lobby para ambas presentaciones. No crear arrays de personajes móviles.
+
+## HUD físico móvil
+
+- Top-left: información esencial de run desde el HUD DOM compartido.
+- Top-center: combo Canvas cuando está activo.
+- Top-right: única entrada `☰`.
+- Bottom-left: joystick.
+- Bottom-right: `USAR`, `SHIFT` y `ESPECIAL`.
+- Bottom-center: chips DOM de arma y consumible.
+
+El panel Canvas completo de arma/consumible se omite en móvil porque duplicaba los mismos datos y competía con `☰`. Desktop conserva el renderer Canvas completo.
+
 ## Contrato automático de compatibilidad móvil
 
 ### A. World feature

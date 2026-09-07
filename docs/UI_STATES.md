@@ -6,19 +6,22 @@
 
 | Estado de producto | Estado/condición DOM | Contenedores principales | HUD/controles móviles |
 | --- | --- | --- | --- |
-| Menu / Character Select | `data-game-state="menu"`; `#startScreen` visible | `#startScreen`, `#charGrid`, `#startBtn`, `#permBtn` | Ocultos |
+| Lobby / Character Select | `data-game-state="menu"`; `#startScreen` visible | `#startScreen`, `#charGrid`, `#startBtn`, `#permBtn`, `#lobbySettingsBtn` | Ocultos |
 | Playing | `data-game-state="playing"`, `data-paused="false"` | `#game`, HUD compacto, banners | Visibles y activos |
 | Paused | `data-game-state="playing"`, `data-paused="true"`; `#mobileHud.nv-paused` | Mundo detenido; menú `#mobileOptions` accesible | Acciones de gameplay ocultas/desactivadas; ☰ accesible |
 | Shop | `data-game-state="shop"`; `#shop` visible | `#shop`, tabs y ofertas | HUD y controles de gameplay ocultos |
 | Perm Shop | estado base `menu`; `#permShop` visible y `#startScreen` oculto | `#permShop`, `#permOffers`, `#permBack` | Ocultos |
 | Game Over | `data-game-state="gameover"`; `#gameOver` visible | `#gameOver`, resultados, `#restartBtn` | Ocultos |
+| Settings | `data-settings-open="true"`; `#settingsPanel` visible | panel gráfico compartido | Gameplay pausado si se abrió durante play; controles ocultos |
 
-## Menu / Character Select
+## Lobby / Character Select
 
 - Es UI DOM de viewport completo.
 - No muestra HUD ni controles de gameplay.
-- La selección usa las cards generadas en `#charGrid`.
+- `#startScreen > .lobby-shell` separa presentación, roster y acciones.
+- La selección usa cards generadas en `#charGrid` desde `NV.characterList()`.
 - En móvil landscape no debe quedar limitada al aspect ratio lógico del mundo.
+- El mismo DOM se presenta espacioso en desktop y utiliza el viewport físico en móvil.
 
 ## Playing
 
@@ -26,6 +29,7 @@
 - Se muestra el HUD mínimo necesario y los controles táctiles de `#mobileHud`.
 - `#joystickZone`, `#mobileActions`, selectores de arma/consumible y `#optionsBtn` pertenecen al viewport físico.
 - El panel `#mobileOptions` comienza cerrado y reutiliza acciones de `NV.input`.
+- El panel Canvas de inventario/consumibles se omite en móvil; sus datos viven en `#mobileWeaponSwitch` y `#mobileConsumableSwitch`.
 
 ## Paused
 
@@ -51,9 +55,18 @@
 
 ## Game Over
 
-- `#gameOver` presenta resultado y acción de reintento.
+- `#gameOver` centra `.game-over-panel`, que agrupa título, resumen, score/oleada y acción primaria.
 - HUD desktop secundario y controles móviles se ocultan.
 - El mundo puede seguir dibujándose como fondo, pero no acepta gameplay input.
+- `.game-over-future` reserva una separación estructural para recompensas/estadísticas/acciones futuras sin implementar esos sistemas.
+
+## Settings
+
+- `#settingsPanel` es un modal DOM compartido, accesible desde el header desktop, el lobby y `#mobileOptions`.
+- Publica `data-settings-open` en `<html>`.
+- Durante play llama `NV.input.setSettingsOpen(true)`, pausa la simulación y restaura el estado previo al cerrar.
+- Oculta el menú móvil subyacente y no crea coordenadas de mundo ni estado de gameplay paralelo.
+- Sus controles escriben exclusivamente en `NV.settings`.
 
 ## Reglas para UI nueva
 

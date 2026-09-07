@@ -59,6 +59,7 @@
   const mPauseBtn = d.getElementById('mPauseBtn');
   const mStatsBtn = d.getElementById('mStatsBtn');
   const mSoundBtn = d.getElementById('mSoundBtn');
+  const mSettingsBtn = d.getElementById('mSettingsBtn');
   const mFullscreenBtn = d.getElementById('mFullscreenBtn');
   const shopTabs = d.getElementById('shopTabs');
   const shopEl = d.getElementById('shop');
@@ -221,6 +222,7 @@
   if (mPauseBtn) bind(mPauseBtn, 'pointerdown', press(() => { if (typeof input.togglePause === 'function') input.togglePause(); closeOptions(); }));
   if (mStatsBtn) bind(mStatsBtn, 'pointerdown', press(() => { if (typeof input.toggleStats === 'function') input.toggleStats(); closeOptions(); }));
   if (mSoundBtn) bind(mSoundBtn, 'pointerdown', press(() => { if (typeof input.toggleSound === 'function') input.toggleSound(); closeOptions(); }));
+  if (mSettingsBtn) bind(mSettingsBtn, 'pointerdown', press(() => { if (NV.settingsUI && typeof NV.settingsUI.open === 'function') NV.settingsUI.open(); closeOptions(); }));
   if (mFullscreenBtn) bind(mFullscreenBtn, 'pointerdown', press(() => { if (viewport && typeof viewport.toggleFullscreen === 'function') viewport.toggleFullscreen(); closeOptions(); }));
 
   // --- INDICADORES de arma y consumible (leídos vía NV.input, sin estado duplicado) ---
@@ -261,7 +263,7 @@
     }
     // Si estamos pausados y el panel abierto, no cambiarlo; si no pausado y no playing, cerrar.
     const st = root && root.getAttribute ? (root.getAttribute('data-game-state') || '') : '';
-    if (st !== 'playing' && st !== 'paused' && mobileOptions && mobileOptions.classList && !mobileOptions.classList.contains('hidden')) {
+    if (st !== 'playing' && mobileOptions && mobileOptions.classList && !mobileOptions.classList.contains('hidden')) {
       closeOptions();
     }
   }

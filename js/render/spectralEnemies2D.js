@@ -112,6 +112,15 @@
     boss_mutante:   { body: '#32cd32', core: '#a0ffa0', glow: '#60ff60', spikes: 9, innerRatio: 0.76, spikeLen: 0.4, pulseRate: 1.3, pulseAmt: 0.07, particles: 10, particleSize: 0.6, eyeStyle: 'asymmetric', radiusMul: 1.3, auraRadius: 2.4, auraAlpha: 0.25, mutateEffect: true },
     boss_apocalipsis:{ body: '#ff1493', core: '#ffa0d0', glow: '#ff50a0', spikes: 14, innerRatio: 0.85, spikeLen: 0.5, pulseRate: 0.6, pulseAmt: 0.06, particles: 16, particleSize: 0.85, eyeStyle: 'deep', radiusMul: 1.5, auraRadius: 3.0, auraAlpha: 0.35, rageEffect: true },
   };
+  const RESOLVED_ELITE_PROFILES = Object.create(null);
+  let hydraFullRender = new WeakSet();
+  let hydraCandidates = [];
+  let visualBudgetPrepared = false;
+  let activeGraphicsPolicy = { quality: 'high', particles: true, heavyVfx: true, hydraFullBudget: Infinity };
+  const DETAIL_FULL = Object.freeze({ simplified: false, particles: true });
+  const DETAIL_FULL_NO_PARTICLES = Object.freeze({ simplified: false, particles: false });
+  const DETAIL_SIMPLE = Object.freeze({ simplified: true, particles: false });
+  let visualBudgetStats = { family: 'lab_model_5_hydra', total: 0, full: 0, simplified: 0, budget: Infinity };
   function hash01(e, salt) {
     const v = Math.sin((e.x || 0) * 12.9898 + (e.y || 0) * 78.233 + (e.radius || 1) * 37.719 + salt * 43.1234) * 43758.5453;
     return v - Math.floor(v);
@@ -133,8 +142,12 @@
     if (e.isElite) {
       const vid = e.visualId || 'elite_base';
       const ep = ELITE_PROFILES[vid] || ELITE_PROFILES.elite_base;
-      const base = PROFILES[e.enemyTypeId] || PROFILES.drone;
-      return Object.assign({}, base, ep, { elite: true, eliteVisualId: vid });
+      const baseId = PROFILES[e.enemyTypeId] ? e.enemyTypeId : 'drone';
+      const cacheKey = baseId + '|' + vid;
+      if (!RESOLVED_ELITE_PROFILES[cacheKey]) {
+        RESOLVED_ELITE_PROFILES[cacheKey] = Object.assign({}, PROFILES[baseId], ep, { elite: true, eliteVisualId: vid });
+      }
+      return RESOLVED_ELITE_PROFILES[cacheKey];
     }
     return PROFILES[e.enemyTypeId] || PROFILES.drone;
   }
@@ -338,6 +351,41 @@
     const id = e.enemyTypeId || e.id || e.typeId || e.visualId;
     return LAB_SPECTER_IDS[id] || 0;
   }
+  function isHydraFamily(e) {
+    return !!(e && !e.dead && isLabSpecter(e) && labPoseIndex(e) === 5);
+  }
+  function graphicsPolicy() {
+    return NV.getGraphicsPolicy ? NV.getGraphicsPolicy() : { quality: 'high', particles: true, heavyVfx: true, hydraFullBudget: Infinity };
+  }
+  NV.isHydraEnemyFamily = isHydraFamily;
+  NV.prepareEnemyVisualBudget = function (enemies, player) {
+    const policy = graphicsPolicy();
+    activeGraphicsPolicy = policy;
+    hydraFullRender = new WeakSet();
+    visualBudgetPrepared = true;
+    hydraCandidates.length = 0;
+    for (const e of enemies || []) if (isHydraFamily(e)) hydraCandidates.push(e);
+    const budget = Math.max(0, policy.hydraFullBudget == null ? Infinity : policy.hydraFullBudget);
+    if (budget !== Infinity && player) {
+      hydraCandidates.sort((a, b) => {
+        const adx = a.x - player.x, ady = a.y - player.y;
+        const bdx = b.x - player.x, bdy = b.y - player.y;
+        const delta = (adx * adx + ady * ady) - (bdx * bdx + bdy * bdy);
+        return delta || (a.x - b.x) || (a.y - b.y);
+      });
+    }
+    const fullCount = budget === Infinity ? hydraCandidates.length : Math.min(hydraCandidates.length, budget);
+    for (let i = 0; i < fullCount; i++) hydraFullRender.add(hydraCandidates[i]);
+    visualBudgetStats = {
+      family: 'lab_model_5_hydra',
+      total: hydraCandidates.length,
+      full: fullCount,
+      simplified: hydraCandidates.length - fullCount,
+      budget,
+    };
+    return visualBudgetStats;
+  };
+  NV.getEnemyVisualBudgetStats = function () { return Object.assign({}, visualBudgetStats); };
   function labBlobShadow(ctx, x, y, r, a) {
     const g = ctx.createRadialGradient(x, y, 0, x, y, r);
     g.addColorStop(0, 'rgba(255,0,32,' + a + ')');
@@ -513,7 +561,7 @@
   // Funciones exactas del lab: ojos con look-at, blobs orgánicos agitados y
   // partículas flotantes. Jitter real por-frame (Math.random) como en el lab.
   // El tiempo avanza time += 0.03 por frame (igual que enemy-visual-lab.html).
-  function drawLabEyes(ctx, eyeX, eyeY, targetX, targetY, count = 1, eyeScale = 1, time = 0, colorGlow = '#ff2a4b') {
+  function drawLabEyes(ctx, eyeX, eyeY, targetX, targetY, count = 1, eyeScale = 1, time = 0, colorGlow = '#ff2a4b', simplified = false) {
     // Contraste adaptativo del ojo según la luminancia del acento del enemigo:
     //  - Acento MUY claro (blanco/amarillo/cian claro, lum>0.78): esclera oscura
     //    #0d0d12 + pupila clara (la esclera blanca desaparecería contra el cuerpo).
@@ -542,7 +590,7 @@
       const posX = count === 1 ? 0 : (i === 0 ? -eyeSpacing / 2 : eyeSpacing / 2);
       const posY = count === 3 && i === 2 ? -eyeSpacing * 0.7 : 0;
 
-      const jitter = (Math.random() - 0.5) * 1.5;
+      const jitter = simplified ? 0 : (Math.random() - 0.5) * 1.5;
       const eyeRadius = Math.max(1, (8 * eyeScale) + Math.sin(time * 15 + i) * 1);
 
       // Esclera (relleno adaptativo + contorno oscuro en luminancia media)
@@ -550,7 +598,7 @@
       ctx.arc(posX + jitter, posY + jitter, eyeRadius, 0, Math.PI * 2);
       ctx.fillStyle = scleraFill;
       ctx.shadowColor = colorGlow;
-      ctx.shadowBlur = 10;
+      ctx.shadowBlur = simplified ? 0 : 10;
       ctx.fill();
       ctx.shadowBlur = 0;
       if (scleraStroke) {
@@ -576,7 +624,7 @@
     ctx.restore();
   }
 
-  function drawHandDrawnLiquidBlob(ctx, cx, cy, radius, pointsCount, noiseAmp, speedMult, seed, colorGlow = '#ff2a4b', time = 0) {
+  function drawHandDrawnLiquidBlob(ctx, cx, cy, radius, pointsCount, noiseAmp, speedMult, seed, colorGlow = '#ff2a4b', time = 0, simplified = false) {
     ctx.save();
     ctx.translate(cx, cy);
 
@@ -585,7 +633,7 @@
       const angle = (i / pointsCount) * Math.PI * 2;
       const n1 = Math.sin(angle * 4 + time * 12 * speedMult + seed);
       const n2 = Math.cos(angle * 7 - time * 18 * speedMult + seed * 2);
-      const jitter = (Math.random() - 0.5) * 2;
+    const jitter = simplified ? 0 : (Math.random() - 0.5) * 2;
       const r = radius + (n1 + n2 * 0.5) * noiseAmp + jitter;
       const x = Math.cos(angle) * r;
       const y = Math.sin(angle) * r;
@@ -601,20 +649,23 @@
     // blob sobre fondos brillantes o elementos luminosos del mapa. A mayor
     // luminancia del acento, más fuerte y ancha la halo negra exterior.
     const auraLum = luminance(colorGlow || '#ff2a4b');
-    ctx.save();
-    ctx.strokeStyle = 'rgba(2, 3, 8, ' + (0.45 + Math.max(0, auraLum - 0.35) * 0.45).toFixed(2) + ')';
-    ctx.lineWidth = 7 + auraLum * 3;
-    ctx.shadowBlur = 0;
-    ctx.stroke();
-    ctx.restore();
+    if (!simplified) {
+      ctx.save();
+      ctx.strokeStyle = 'rgba(2, 3, 8, ' + (0.45 + Math.max(0, auraLum - 0.35) * 0.45).toFixed(2) + ')';
+      ctx.lineWidth = 7 + auraLum * 3;
+      ctx.shadowBlur = 0;
+      ctx.stroke();
+      ctx.restore();
+    }
 
     ctx.lineWidth = 2.5 + Math.sin(time * 20 + seed) * 1;
     ctx.strokeStyle = colorGlow;
     ctx.shadowColor = colorGlow;
-    ctx.shadowBlur = 12;
+    ctx.shadowBlur = simplified ? 0 : 12;
     ctx.stroke();
     ctx.shadowBlur = 0;
 
+    if (simplified) { ctx.restore(); return; }
     // Tinta secundaria suelta
     ctx.beginPath();
     for (let i = 0; i <= pointsCount / 2; i++) {
@@ -650,6 +701,19 @@
         ctx.shadowBlur = 0;
     ctx.restore();
   }
+  function drawHydraSimplified(ctx, cx, cy, targetX, targetY, time, enemyColor) {
+    drawHandDrawnLiquidBlob(ctx, cx, cy - 8, 45, 12, 8, 0.8, 75, enemyColor, time, true);
+    ctx.fillStyle = '#08080e';
+    ctx.strokeStyle = enemyColor;
+    ctx.lineWidth = 2;
+    for (const side of [-1, 1]) {
+      ctx.beginPath();
+      ctx.arc(cx + side * 29, cy + 30, 13, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    }
+    drawLabEyes(ctx, cx, cy - 12, targetX, targetY, 3, 0.82, time, enemyColor, true);
+  }
   // ===== ESPECTRO LEGACY (shape 'specter') -> Modelo RB2 (Ameba Coronada) =====
   // Identidad visual distintiva y reconocible en oleadas 16/17: color carmesí/orange
   // #FF3300 y escala 0.75 (tabla de tamaños). Reemplaza al renderer Three.js legacy.
@@ -671,7 +735,7 @@
       color
     );
   }
-  function drawLabEnemyModel(ctx, modelIndex, cx, cy, scale = 1, targetX = cx, targetY = cy, time = 0, enemyColor = '#ff2a4b') {
+  function drawLabEnemyModel(ctx, modelIndex, cx, cy, scale = 1, targetX = cx, targetY = cy, time = 0, enemyColor = '#ff2a4b', detail) {
     ctx.save();
     ctx.scale(scale, scale);
     const adjCx = cx / scale;
@@ -682,20 +746,20 @@
     switch (modelIndex % 6) {
       case 0: // RB1 - Proto-Nodo Líquido
         drawHandDrawnLiquidBlob(ctx, adjCx, adjCy, 35, 12, 8, 1.2, 10, enemyColor, time);
-        drawLiquidParticles(ctx, adjCx, adjCy, 4, 45, 10, enemyColor, time);
+        if (!detail || detail.particles !== false) drawLiquidParticles(ctx, adjCx, adjCy, 4, 45, 10, enemyColor, time);
         drawLabEyes(ctx, adjCx, adjCy, adjTx, adjTy, 1, 1, time, enemyColor);
         break;
       case 1: // RB2 - Ameba Coronada
         drawHandDrawnLiquidBlob(ctx, adjCx, adjCy - 30, 18, 8, 10, 1.8, 20, enemyColor, time);
         drawHandDrawnLiquidBlob(ctx, adjCx, adjCy + 5, 40, 14, 10, 1.0, 25, enemyColor, time);
-        drawLiquidParticles(ctx, adjCx, adjCy, 6, 52, 20, enemyColor, time);
+        if (!detail || detail.particles !== false) drawLiquidParticles(ctx, adjCx, adjCy, 6, 52, 20, enemyColor, time);
         drawLabEyes(ctx, adjCx, adjCy - 5, adjTx, adjTy, 2, 0.9, time, enemyColor);
         break;
       case 2: // RB3 - Viscera Manto
         drawHandDrawnLiquidBlob(ctx, adjCx - 25, adjCy + 15, 28, 10, 12, 1.6, 30, enemyColor, time);
         drawHandDrawnLiquidBlob(ctx, adjCx + 25, adjCy + 15, 28, 10, 12, 1.6, 32, enemyColor, time);
         drawHandDrawnLiquidBlob(ctx, adjCx, adjCy - 5, 38, 14, 8, 1.2, 35, enemyColor, time);
-        drawLiquidParticles(ctx, adjCx, adjCy, 6, 58, 30, enemyColor, time);
+        if (!detail || detail.particles !== false) drawLiquidParticles(ctx, adjCx, adjCy, 6, 58, 30, enemyColor, time);
         drawLabEyes(ctx, adjCx, adjCy - 8, adjTx, adjTy, 1, 1.2, time, enemyColor);
         break;
       case 3: // RB4 - Halo Espectral
@@ -709,7 +773,7 @@
         if (ctx.setLineDash) ctx.setLineDash([]);
         ctx.restore();
         drawHandDrawnLiquidBlob(ctx, adjCx, adjCy, 38, 16, 9, 1.3, 40, enemyColor, time);
-        drawLiquidParticles(ctx, adjCx, adjCy, 8, 65, 40, enemyColor, time);
+        if (!detail || detail.particles !== false) drawLiquidParticles(ctx, adjCx, adjCy, 8, 65, 40, enemyColor, time);
         drawLabEyes(ctx, adjCx, adjCy, adjTx, adjTy, 1, 1.1, time, enemyColor);
         break;
       case 4: // RB5 - Núcleo Sigilo
@@ -721,16 +785,20 @@
         ctx.lineWidth = 1.5;
         ctx.strokeRect(-12, -12, 24, 24);
         ctx.restore();
-        drawLiquidParticles(ctx, adjCx, adjCy, 7, 55, 50, enemyColor, time);
+        if (!detail || detail.particles !== false) drawLiquidParticles(ctx, adjCx, adjCy, 7, 55, 50, enemyColor, time);
         drawLabEyes(ctx, adjCx, adjCy, adjTx, adjTy, 2, 0.8, time, enemyColor);
         break;
       case 5: // RB6 - Entidad Hidra
       default:
+        if (detail && detail.simplified) {
+          drawHydraSimplified(ctx, adjCx, adjCy, adjTx, adjTy, time, enemyColor);
+          break;
+        }
         drawHandDrawnLiquidBlob(ctx, adjCx - 30, adjCy + 35, 15, 8, 12, 1.6, 60, enemyColor, time);
         drawHandDrawnLiquidBlob(ctx, adjCx, adjCy + 45, 18, 8, 14, 1.8, 65, enemyColor, time);
         drawHandDrawnLiquidBlob(ctx, adjCx + 30, adjCy + 35, 15, 8, 12, 1.6, 70, enemyColor, time);
         drawHandDrawnLiquidBlob(ctx, adjCx, adjCy - 10, 45, 18, 12, 1.1, 75, enemyColor, time);
-        drawLiquidParticles(ctx, adjCx, adjCy, 10, 70, 60, enemyColor, time);
+        if (!detail || detail.particles !== false) drawLiquidParticles(ctx, adjCx, adjCy, 10, 70, 60, enemyColor, time);
         drawLabEyes(ctx, adjCx, adjCy - 12, adjTx, adjTy, 3, 0.85, time, enemyColor);
         break;
     }
@@ -1046,7 +1114,9 @@
     // Dispatcher oficial del lab: poseIdx 0..5 elige RB1..RB6. Se dibuja en el
     // origen local (trasladado arriba); la escala del modelo ya aplicada arriba
     // fija su tamaño aprobado tras el down-scale por modelo.
-    drawLabEnemyModel(ctx, poseIdx, 0, 0, 1, lookX, lookY, (frame || 0) * 0.03, enemyColor);
+    const simplified = poseIdx === 5 && visualBudgetPrepared && !hydraFullRender.has(e);
+    const detail = simplified ? DETAIL_SIMPLE : (activeGraphicsPolicy.particles ? DETAIL_FULL : DETAIL_FULL_NO_PARTICLES);
+    drawLabEnemyModel(ctx, poseIdx, 0, 0, 1, lookX, lookY, (frame || 0) * 0.03, enemyColor, detail);
 
     // --- Hit-Flash de daño (Pilar 2): 1-2 frames de brillo blanco ---
     if (e.hitFlash > 0) {

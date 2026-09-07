@@ -55,6 +55,7 @@
     mPauseBtn: document.getElementById('mPauseBtn'),
     mStatsBtn: document.getElementById('mStatsBtn'),
     mSoundBtn: document.getElementById('mSoundBtn'),
+    mSettingsBtn: document.getElementById('mSettingsBtn'),
     mFullscreenBtn: document.getElementById('mFullscreenBtn'),
     shopTabs: document.getElementById('shopTabs'),
     weaponIndicator: document.getElementById('weaponIndicator'),

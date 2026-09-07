@@ -327,9 +327,10 @@
 
   NV.drawSlotRow = drawSlotRow;
 
-NV.drawCombo = function (ctx, W, H, combo) {
+NV.drawCombo = function (ctx, W, H, combo, opts) {
     if (!combo || combo.count < 2) return;
-    const x = 10, y = 20;
+    opts = opts || {};
+    const x = opts.x == null ? 10 : opts.x, y = opts.y == null ? 20 : opts.y;
     const heat = Math.min(1, combo.count / 15);
     const col = heat > 0.66 ? '#ff5f5f' : heat > 0.33 ? '#ffd700' : '#7cf8ff';
     const pulse = 1 + Math.min(0.35, combo.timer * 0.12);

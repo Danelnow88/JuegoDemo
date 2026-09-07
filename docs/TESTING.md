@@ -18,6 +18,10 @@ node tests/mobile_compat.js
 node tests/world_metrics_noop.js
 node tests/dynamic_viewport.js
 node tests/dynamic_arena.js
+node tests/lobby_foundation.js
+node tests/ui_foundation.js
+node tests/settings_foundation.js
+node tests/enemy_family_lod.js
 ```
 
 Conteos verificados el 7 de septiembre de 2026:
@@ -28,6 +32,29 @@ Conteos verificados el 7 de septiembre de 2026:
 | `world_metrics_noop` | 10 | 0 |
 | `dynamic_viewport` | 16 | 0 |
 | `dynamic_arena` | 12 | 0 |
+| `lobby_foundation` | 5 | 0 |
+| `ui_foundation` | 5 | 0 |
+| `settings_foundation` | 5 | 0 |
+| `enemy_family_lod` | 5 | 0 |
+
+## Responsive browser check
+
+Con `node tools/serve.js` ejecutándose:
+
+```bash
+node tools/verify_viewports.js
+```
+
+La herramienta calibra el viewport interno de Edge headless y cubre, entre otros casos, móvil landscape `915x412`, móvil landscape `844x390` y desktop reference `900x520`. Verifica clases de capacidad/orientación, Dynamic View en landscape móvil, canvas/lobby inicializados y ausencia de excepciones JavaScript. Las fórmulas runtime se validan por separado en `dynamic_viewport` y `dynamic_arena`. Sigue siendo validación automatizada de navegador, no prueba en dispositivo físico.
+
+## Performance diagnostics
+
+```bash
+node tools/diagnostics/enemy_anim_profiler.js
+node tools/diagnostics/hydra_lod_benchmark.js
+```
+
+Estos comandos reportan CPU headless, operaciones y unidades raster ponderadas. No son mediciones de FPS real. `hydra_lod_benchmark.js` compara 1, 6, 7, 10 y 12 instancias de la familia visual Hidra en `high`, `auto` y `performance`.
 
 ## Full suite
 
@@ -40,7 +67,7 @@ npm test
 Baseline verificado el 7 de septiembre de 2026:
 
 ```text
-RESULT run_all: total=66 failed=2
+RESULT run_all: total=70 failed=2
 ```
 
 ## Fallos baseline conocidos

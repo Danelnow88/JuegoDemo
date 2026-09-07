@@ -34,6 +34,8 @@ Abrir `http://localhost:8080/`. También puede abrirse `index.html` directamente
 - `js/game.js` coordina estado, loop, gameplay compartido y transiciones UI.
 - `js/engine/` contiene sistemas de gameplay; `js/render/` contiene renderers; `js/data/` contiene definiciones de contenido y balance.
 - Teclado y controles táctiles escriben en la misma abstracción lógica `NV.input`.
+- El lobby, Game Over y Settings usan DOM compartido con presentación responsive.
+- `js/core/settings.js` centraliza calidad visual y persistencia sin alterar gameplay.
 
 Detalles: [Arquitectura](docs/ARCHITECTURE.md).
 
@@ -43,6 +45,13 @@ Detalles: [Arquitectura](docs/ARCHITECTURE.md).
 - **Móvil landscape:** Dynamic World View y Dynamic Arena se activan automáticamente. La altura lógica permanece en `520` y el ancho lógico/arena se expande para llenar el viewport sin stretch, crop ni gutters laterales.
 - **Móvil portrait:** se conserva el overlay de orientación y el comportamiento legacy de métricas.
 - `?dynamicView=0` fuerza temporalmente contain `900x520` en móvil landscape para diagnóstico.
+- El HUD móvil usa datos DOM arriba, menú único arriba-derecha y selectores de arma/item abajo-centro; el panel Canvas redundante se conserva solo en desktop.
+
+## Ajustes gráficos
+
+El panel compartido **Ajustes** ofrece calidad `Auto`, `Alta` y `Rendimiento`, además de toggles para partículas y VFX intensos de élites. El valor por defecto es **Alta**, equivalente a la calidad visual previa. Los modos alternativos solo reducen coste visual secundario; no cambian enemigos, daño, vida, spawns ni dificultad.
+
+La familia visual élite `RB6 / Entidad Hidra` dispone de un presupuesto LOD estable por proximidad al jugador en `Auto` y `Rendimiento`. Todas las entidades siguen visibles y funcionales.
 
 Contrato completo: [Arquitectura móvil](docs/MOBILE_ARCHITECTURE.md) y [Estados UI](docs/UI_STATES.md).
 
@@ -58,7 +67,7 @@ node tests/dynamic_arena.js
 npm test
 ```
 
-Baseline actual: 66 suites; 2 fallos conocidos (`kamikaze` y `lab_model_hitbox`). Cualquier fallo adicional es una regresión hasta investigarlo. Conteos y política: [Testing](docs/TESTING.md).
+Baseline actual: 70 suites; 2 fallos conocidos (`kamikaze` y `lab_model_hitbox`). Cualquier fallo adicional es una regresión hasta investigarlo. Conteos y política: [Testing](docs/TESTING.md).
 
 ## Despliegue
 
