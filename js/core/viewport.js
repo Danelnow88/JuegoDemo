@@ -7,8 +7,8 @@
 //  - safe areas (leídas de custom properties definidas en CSS);
 //  - conversión reusable screen↔game y game↔screen;
 //  - reacción a resize / orientationchange / visualViewport / fullscreenchange.
-// NO contiene lógica de juego. Los entes del mundo siguen usando su sistema de
-// coordenadas lógicas 900x520; aquí solo se decide cómo se proyectan a la pantalla.
+// NO contiene lógica de juego. Las entidades usan coordenadas lógicas de arena;
+// aquí se decide qué región se ve y cómo se proyecta a la pantalla física.
 (() => {
   'use strict';
 

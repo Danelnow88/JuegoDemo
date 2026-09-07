@@ -1,86 +1,130 @@
-# Arquitectura móvil: métricas del mundo
+# Arquitectura móvil
+
+Este documento es el **contrato autoritativo de compatibilidad móvil**.
+
+## Política de producción
+
+La activación es:
+
+```js
+dynamicViewActive = isMobile && orientation === 'landscape' && !dynamicViewForcedOff;
+```
+
+- Móvil landscape activa Dynamic World View y Dynamic Arena automáticamente.
+- `?dynamicView=1` sigue aceptado como alias compatible, pero no es necesario.
+- `?dynamicView=0` fuerza el modo contain legacy exclusivamente como fallback de depuración.
+- Desktop nunca activa la arena dinámica por defecto ni por `?dynamicView=1`.
+- Móvil portrait conserva el overlay de orientación y métricas legacy.
 
 ## Reference world
 
-`NV.worldMetrics.refW` / `NV.worldMetrics.refH` son las dimensiones de diseño de referencia. Representan el lienzo lógico original del juego y los valores contra los que se diseñaron HUD, efectos, balance visual y pruebas legacy.
-
-Actualmente: `refW = 900`, `refH = 520`.
-
-## Runtime view
-
-`NV.worldMetrics.viewW` / `NV.worldMetrics.viewH` son las dimensiones lógicas visibles por el renderer/cámara. La conversión de entrada `screenToGame()` y la inversa `gameToScreen()` proyectan contra esta vista lógica.
-
-En desktop y móvil portrait: `viewW = 900`, `viewH = 520`, `viewX = 0`, `viewY = 0`.
-
-La política desktop sigue siendo **CONTAIN**: escala uniforme, sin crop, sin stretch y con pillarbox/letterbox cuando corresponda. En móvil landscape, Stage 3 dynamic es el comportamiento por defecto.
-
-### Stage 3: Dynamic View + Dynamic Arena
-
-Por defecto en móvil landscape, el renderer usa una vista lógica más ancha para llenar el ancho físico disponible sin estirar. La arena jugable móvil dinámica se expande para coincidir con esa vista.
-
-`?dynamicView=1` se conserva como alias/debug compatible, pero ya no es necesario. `?dynamicView=0` fuerza temporalmente el modo legacy contain `900x520` en móvil landscape para depuración.
-
-La fórmula autoritativa vive en `js/core/viewport.js`:
-
-```js
-viewH = refH; // 520
-viewW = Math.max(refW, viewH * (physicalStageWidth / physicalStageHeight));
-arenaW = viewW;
-arenaH = viewH;
-viewX = 0;
-viewY = 0;
-scale = physicalStageHeight / viewH;
+```text
+refW = 900
+refH = 520
 ```
 
-Ejemplo `915x412`:
+Estas métricas representan constantes de diseño y compatibilidad legacy. No son necesariamente los bounds runtime en móvil landscape.
 
-```js
-viewW ≈ 1154.85
-viewH = 520
-arenaW ≈ 1154.85
-arenaH = 520
+## Desktop
+
+```text
+view = 900x520
+arena = 900x520
 viewX = 0
 viewY = 0
 ```
 
-Esto hace visible y jugable todo el rango `0..viewW x 0..520`, evitando paredes invisibles internas alrededor del antiguo `x=900`.
+La presentación usa escala uniforme contain, sin stretch ni crop. Letterbox o pillarbox puede aparecer según el contenedor.
 
-## Gameplay arena
+## Mobile landscape
 
-`NV.worldMetrics.arenaW` / `NV.worldMetrics.arenaH` son los límites reales de gameplay: clamp del jugador, spawns, culling de proyectiles, posiciones de jefe y demás reglas de arena.
-
-En desktop y móvil portrait: `arenaW = 900`, `arenaH = 520`.
-
-En móvil landscape por defecto: `arenaW = viewW`, `arenaH = 520`.
-
-Con `?dynamicView=0` en móvil landscape: `arenaW = 900`, `arenaH = 520` para debugging legacy.
-
-## Estado actual y futuro
-
-Desktop / móvil portrait / fallback `?dynamicView=0`:
+La fórmula Stage 3 no debe alterarse:
 
 ```js
-ref = view = arena = 900x520
+viewH = 520;
+viewW = Math.max(900, 520 * stageAspect);
+
+arenaW = viewW;
+arenaH = 520;
+
+viewX = 0;
+viewY = 0;
 ```
 
-Móvil landscape por defecto:
+Consecuencias:
 
-```js
-ref = 900x520
-view = arena = dynamicViewW x 520
-```
+- el mundo llena el ancho físico disponible;
+- no hay stretching;
+- no hay cover cropping;
+- no quedan gutters laterales del contain antiguo;
+- la arena se expande horizontalmente junto con la vista;
+- las proporciones en unidades de mundo permanecen consistentes;
+- `screenToGame()` y `gameToScreen()` proyectan contra la vista dinámica.
 
-Balance:
+## Mobile portrait
 
-- `arenaW` dinámica es la arquitectura móvil landscape por defecto.
-- No restaurar contain fijo `900x520` en móvil landscape salvo pedido explícito o uso temporal de `?dynamicView=0`.
-- No compensar dificultad automáticamente al expandir arena: no cambiar spawn rate, MAX_ENEMIES, velocidades, salud, daño, rangos ni cantidades hasta medir impacto real.
+Portrait no activa Dynamic World View. Se mantienen `view = arena = 900x520` y el overlay `#rotateOverlay` solicita orientación horizontal. No sustituir esta política por un segundo layout de gameplay portrait sin una decisión arquitectónica explícita.
 
-## Regla para código nuevo
+## Semántica de métricas
 
-Evitar `900` / `520` crudos cuando exista una semántica clara:
+- Diseño/reference legacy: `NV.worldMetrics.refW/refH`.
+- Renderer, cámara y región visible: `viewW/viewH/viewX/viewY`.
+- Gameplay, clamps, spawns y culling: `arenaW/arenaH`.
+- UI DOM móvil: coordenadas CSS del viewport físico y safe areas.
 
-- diseño/base legacy: usar `NV.worldMetrics.refW/refH`;
-- render/cámara/vista visible: usar `NV.worldMetrics.viewW/viewH/viewX/viewY`;
-- gameplay/bounds/spawns/culling: usar `NV.worldMetrics.arenaW/arenaH`;
-- DOM/UI móvil: no depender de coordenadas de arena salvo intención explícita.
+**La UI móvil es UI del viewport físico, no UI en coordenadas de mundo.** Joystick, botones, opciones, menús y tiendas no deben posicionarse usando `arenaW` o `viewW` salvo una necesidad visual explícita.
+
+## Contrato automático de compatibilidad móvil
+
+### A. World feature
+
+Ejemplos: enemigo, boss, proyectil, pickup, meteorito o VFX de mundo.
+
+Comportamiento esperado:
+
+- hereda automáticamente métricas de vista/arena mediante los sistemas existentes;
+- usa `arena*` para bounds y `view*` para render/cámara;
+- requiere **cero código de gameplay específico para móvil**.
+
+Si una world feature necesita ramas por modelo de teléfono, la integración viola el contrato.
+
+### B. Data feature
+
+Ejemplos: definición de arma, consumible, enemigo, boss o artículo de tienda.
+
+Comportamiento esperado:
+
+- se declara en la fuente de datos existente;
+- aparece automáticamente en UI data-driven donde el sistema lo soporte;
+- puede requerir renderer, icono, audio o handler específico por ID, pero no una variante móvil de gameplay.
+
+### C. UI feature
+
+Ejemplos: widget HUD, minimapa, árbol de habilidades o panel nuevo.
+
+Requisito:
+
+- debe existir una decisión explícita para presentación desktop y móvil;
+- debe definir propiedad por estado y coordenadas físicas en móvil;
+- no debe crear estado de gameplay duplicado.
+
+### D. Input feature
+
+Ejemplos: nueva acción, tecla o gesto.
+
+Requisito:
+
+- debe mapearse primero a la abstracción lógica compartida;
+- teclado, touch u otros dispositivos alimentan el mismo canal;
+- la acción y su física se implementan una sola vez.
+
+## Limitaciones de balance
+
+La arquitectura dinámica no incluye compensación automática de dificultad:
+
+1. una arena más ancha puede reducir la presión de enemigos;
+2. la densidad aparente de spawns puede ser menor;
+3. bosses usan mayormente amplitudes absolutas en unidades de mundo;
+4. pickups y meteoritos pueden quedar más distribuidos.
+
+No modificar tasas, cantidades, velocidades, daño, salud, rangos ni patrones durante trabajo de viewport salvo pedido explícito de balance.

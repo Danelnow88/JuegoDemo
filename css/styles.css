@@ -903,14 +903,8 @@ canvas {
   .rotate-overlay { display: none !important; }
 }
 .nv-mobile.nv-landscape .rotate-overlay { display: none !important; }
-/*
- *  Aseguramos que el overlay de rotaci�n nunca se muestre en modo landscape.
- *  Algunos dispositivos, como el Samsung Galaxy S20 FE, pueden fallar al
- *  disparar la media query '(orientation: landscape)' dentro de la regla
- *  anterior (la cual depende de 'pointer: coarse').  Esta regla
- *  adicional obliga a ocultar el overlay en todas las orientaciones
- *  horizontales, independientemente del tipo de puntero detectado.
- */
+/* Refuerzo genérico: ocultar el overlay en landscape aunque la media query de
+   capacidad no se actualice a tiempo durante un cambio de orientación. */
 @media (orientation: landscape) {
   .rotate-overlay { display: none !important; }
 }

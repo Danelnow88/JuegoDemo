@@ -96,7 +96,7 @@
   let shake = 0, hitstop = 0, flashColor = null, flashAlpha = 0, specialVFX = null;
   let deathTimer = 0, deathShake = 0;
 
-  // Sync game state to DOM for CSS-based responsive UI
+  // Publica el estado compartido para que CSS y la UI móvil controlen visibilidad.
   function syncGameState() {
     const root = document.documentElement;
     if (root) {
@@ -528,7 +528,7 @@
       });
     });
 
-    // --- Diagnostic listeners for #startBtn (mobile landscape test) ---
+    // Instrumentación opcional del botón de inicio para diagnóstico móvil.
     dom.startBtn.addEventListener('pointerdown', (e) => {
       // Capture a snapshot of relevant DOM and event data for debugging mobile
       const elFromPoint = document.elementFromPoint(e.clientX, e.clientY);
@@ -918,7 +918,7 @@
       // Brillo/glow fade en función de la energía detectada
       icon.style.opacity = (0.65 + energy * 0.35).toFixed(3);
       icon.style.filter = 'drop-shadow(0 0 ' + (2 + energy * 6).toFixed(1) + 'px hsl(' + Math.round(hue) + ',80%,60%))';
-      // ===== TEMP DEBUG (eliminar tras diagnosticar) — activar con index.html?rhythmdebug=1 =====
+      // Diagnóstico opt-in del widget de ritmo: activar con ?rhythmdebug=1.
       if (typeof NV._rhythmDbg === 'undefined') {
         NV._rhythmDbg = (typeof location !== 'undefined') && /[?&]rhythmdebug=1/.test(location.search || '');
         NV._rhythmDbgLast = 0; NV._rhythmDbgSumT = 0; NV._rhythmDbgMaxBeat = 0; NV._rhythmDbgLastTr = '';
@@ -939,11 +939,10 @@
           NV._rhythmDbgMaxBeat = 0;
         }
       }
-      // ===== FIN TEMP DEBUG =====
     }
     NV.updateRhythmWidgetIcon = updateRhythmWidgetIcon;
 
-    // ===== TEMP DEBUG: tecla T fuerza un pulso sin audio — eliminar tras diagnosticar =====
+    // En modo ?rhythmdebug=1, T fuerza un pulso para aislar captura vs. render.
     // Prueba binaria: si el ícono se mueve con T => el problema es la detección de
     // audio real (r.beat nunca sube). Si no se mueve ni con T => render/CSS/JS.
     const dbgKey = (typeof location !== 'undefined') && /[?&]rhythmdebug=1/.test(location.search || '');
@@ -965,7 +964,6 @@
         }, 350);
       });
     }
-    // ===== FIN TEMP DEBUG =====
   }
 
   function loadMeta() {

@@ -6,3 +6,9 @@ Thumbs.db
 *.bak
 *.old
 *.orig
+
+# Generated diagnostic/probe output (source diagnostics under tools/ stay tracked)
+tmp_*.txt
+.tmp_*.txt
+*_diff.txt
+probe_out.txt

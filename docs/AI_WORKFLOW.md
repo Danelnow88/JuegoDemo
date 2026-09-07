@@ -1,33 +1,38 @@
-# AI workflow para cambios de viewport/móvil
+# Workflow para agentes de IA
 
-## Reglas de métricas del mundo
+## Antes de editar
 
-- Bounds y reglas de gameplay usan métricas de arena: `NV.worldMetrics.arenaW` / `arenaH`.
-- Render, cámara, overlays y efectos centrados en lo visible usan métricas de vista: `NV.worldMetrics.viewW` / `viewH` / `viewX` / `viewY`.
-- Constantes de diseño/base legacy usan métricas de referencia: `NV.worldMetrics.refW` / `refH`.
-- La UI móvil/DOM no debe mutar ni reinterpretar coordenadas de gameplay.
+1. Leer `README.md`.
+2. Leer el documento de arquitectura relevante.
+3. Inspeccionar el código real; la documentación no reemplaza la verificación.
+4. Ejecutar `git status --short --branch` y preservar trabajo ajeno.
 
-## Restricciones arquitectónicas
+## Reglas obligatorias
 
-- No crear otro viewport manager.
-- No crear otro world metrics manager.
-- `NV.worldMetrics` es la estructura central para separar referencia, vista runtime y arena.
-- Dynamic world view es el comportamiento por defecto en móvil landscape.
-- No restaurar contain fijo `900x520` en móvil landscape salvo pedido explícito; `?dynamicView=0` existe solo como fallback/debug legacy.
-- Desktop permanece legacy `900x520` y no debe activar arena dinámica.
-- Las features móviles futuras deben respetar `NV.worldMetrics` (`view*` para render/cámara y `arena*` para gameplay bounds).
-- No añadir parches CSS móviles conflictivos al final del archivo sin auditar las reglas existentes.
+- No duplicar gameplay para móvil.
+- No crear un segundo viewport manager.
+- No crear una segunda fuente de `worldMetrics`; `NV.worldMetrics` vive en `js/core/viewport.js`.
+- Bounds, clamps, spawns y culling usan métricas `arena*`.
+- Render, cámara y región visible usan métricas `view*`.
+- Constantes de diseño/reference usan métricas `ref*`.
+- UI móvil usa coordenadas del viewport físico y safe areas.
+- No hardcodear layouts para Samsung, iPhone u otros modelos concretos.
+- No anexar parches CSS conflictivos sin auditar reglas y especificidad existentes.
+- No modificar balance salvo que la tarea lo solicite explícitamente.
+- No considerar checks headless o estáticos como validación en dispositivo real.
+- No crear ramas mobile-only para world features que deberían heredar métricas.
+- No hacer commit ni push salvo solicitud explícita.
+- No usar amend, rebase, reset destructivo ni force push para trabajo normal.
+- No stagear diagnósticos, logs o temporales.
 
-## Validación obligatoria
+## Después de editar
 
-- Ejecutar pruebas móviles después de cambios arquitectónicos: `node tests/mobile_compat.js`.
-- Ejecutar la suite completa: `npm test`.
-- Ejecutar cualquier prueba nueva relacionada con métricas/viewport.
-- Verificar visualmente desktop y mobile contain cuando el cambio afecte presentación.
+1. Ejecutar checks de sintaxis.
+2. Ejecutar las pruebas dirigidas relevantes.
+3. Ejecutar `npm test`.
+4. Revisar `git diff` y `git status`.
+5. Reportar archivos cambiados exactos.
+6. Reportar regresiones nuevas y distinguirlas de fallos baseline.
+7. Reportar explícitamente si cambiaron gameplay, balance o world metrics.
 
-## Git safety
-
-- No hacer commit ni push salvo pedido explícito.
-- No hacer reset, restore de archivos completos, rebase, amend ni force push.
-- Preservar trabajo sin commitear del usuario.
-- No agregar archivos temporales/diagnóstico al control de versiones.
+Para comandos y baseline actual, consultar [TESTING.md](TESTING.md). Para despliegue, consultar [DEPLOYMENT.md](DEPLOYMENT.md).
