@@ -51,6 +51,58 @@
     return next;
   }
 
+  function setupBowChain(b, firstTarget, enemies) {
+    const targets = [];
+    let from = firstTarget;
+    let remaining = b.bounceLeft;
+    while (remaining > 0) {
+      const next = findBounceTarget(from, enemies, b);
+      if (!next) break;
+      targets.push(next);
+      rememberHitTarget(b, next);
+      from = next;
+      remaining--;
+    }
+    b.chainTargets = targets;
+    b.chainIndex = 0;
+    b.chainSpeed = 900;
+    b.state = 'chain';
+  }
+
+  function segmentHitsCircle(x1, y1, x2, y2, cx, cy, radius) {
+    const dx = x2 - x1, dy = y2 - y1;
+    const lenSq = dx * dx + dy * dy;
+    if (lenSq <= 0.000001) return Math.hypot(cx - x2, cy - y2) < radius;
+    const t = Math.max(0, Math.min(1, ((cx - x1) * dx + (cy - y1) * dy) / lenSq));
+    return Math.hypot(cx - (x1 + dx * t), cy - (y1 + dy * t)) < radius;
+  }
+
+  function shotgunCanDamage(b, target) {
+    const group = b.shotGroup;
+    if (!group) return true;
+    if (group.targets.indexOf(target) !== -1) return true;
+    if (group.targets.length >= group.cap) return false;
+    group.targets.push(target);
+    return true;
+  }
+
+  function updateShotgunPelletVelocity(b, dt) {
+    if (b.impactType !== 'pellet' || !Number.isFinite(b.shotgunBaseAngle)) return;
+    const speed = b.shotgunSpeed || Math.hypot(b.vx, b.vy);
+    const range = b.maxTravelDistance || 240;
+    const bloomStart = Math.max(0, Math.min(range - 1, b.shotgunBloomStart || 90));
+    const sampleDistance = Math.min(range, (b.traveledDistance || 0) + speed * Math.max(0, dt) * 0.5);
+    const raw = Math.max(0, Math.min(1, (sampleDistance - bloomStart) / Math.max(1, range - bloomStart)));
+    const bloom = raw * raw * (3 - 2 * raw);
+    const compactHalf = (b.shotgunCompactSpread || 0.018) * 0.5;
+    const maxHalf = (b.shotgunMaxSpread || 0.44) * 0.5;
+    const offset = (b.shotgunSpreadFactor || 0) * (compactHalf + (maxHalf - compactHalf) * bloom);
+    const angle = b.shotgunBaseAngle + offset;
+    b.vx = Math.cos(angle) * speed;
+    b.vy = Math.sin(angle) * speed;
+    b.shotgunBloom = bloom;
+  }
+
   function explodeSplash(b, st) {
     const radius = b.splashRadius || 0;
     if (radius <= 0) return;
@@ -78,8 +130,60 @@
 
     for (const b of bullets) {
       if (b.dead) continue;
-      b.x += b.vx * dt;
-      b.y += b.vy * dt;
+      if (!b.isEnemy && b.wid === 'bow' && b.state === 'chain' && b.chainTargets && b.chainIndex < b.chainTargets.length) {
+        if (dt <= 0) {
+          while (b.chainIndex < b.chainTargets.length) {
+            const target = b.chainTargets[b.chainIndex++];
+            if (!target || target.dead) continue;
+            applyPlayerBulletDamage(b, target, st);
+          }
+          b.dead = true;
+          continue;
+        }
+        const target = b.chainTargets[b.chainIndex];
+        if (!target || target.dead) {
+          b.chainIndex++;
+          if (b.chainIndex >= b.chainTargets.length) b.dead = true;
+          continue;
+        }
+        const dx = target.x - b.x, dy = target.y - b.y;
+        const dist = Math.hypot(dx, dy);
+        const speed = b.chainSpeed || 900;
+        if (dist <= target.radius + 4) {
+          applyPlayerBulletDamage(b, target, st);
+          b.chainIndex++;
+          if (b.chainIndex >= b.chainTargets.length) b.dead = true;
+        } else {
+          const step = Math.min(dist, speed * dt);
+          b.vx = dx / dist * speed;
+          b.vy = dy / dist * speed;
+          b.x += dx / dist * step;
+          b.y += dy / dist * step;
+        }
+        continue;
+      }
+
+      updateShotgunPelletVelocity(b, dt);
+      const oldX = b.x, oldY = b.y;
+      let travelStep = Math.hypot(b.vx, b.vy) * dt;
+      let expiresAfterStep = false;
+      if (!b.isEnemy && b.maxTravelDistance > 0) {
+        const remaining = Math.max(0, b.maxTravelDistance - (b.traveledDistance || 0));
+        if (travelStep >= remaining) {
+          const ratio = travelStep > 0 ? remaining / travelStep : 0;
+          b.x += b.vx * dt * ratio;
+          b.y += b.vy * dt * ratio;
+          travelStep = remaining;
+          expiresAfterStep = true;
+        } else {
+          b.x += b.vx * dt;
+          b.y += b.vy * dt;
+        }
+        b.traveledDistance = (b.traveledDistance || 0) + travelStep;
+      } else {
+        b.x += b.vx * dt;
+        b.y += b.vy * dt;
+      }
       if (b.x < -10 || b.x > W + 10 || b.y < -10 || b.y > H + 10) {
         if (!b.isEnemy && b.impactType === 'splash') explodeSplash(b, st);
         b.dead = true;
@@ -116,8 +220,11 @@
           if (e.dead) continue;
           if (hasHitTarget(b, e)) continue;
           const d = Math.hypot(b.x - e.x, b.y - e.y);
-          if ((b.impactType === 'sustain' && d < e.radius + (b.splashRadius || 18)) ||
-              (b.impactType !== 'sustain' && d < e.radius + 4)) {
+          const collided = b.impactType === 'pellet'
+            ? segmentHitsCircle(oldX, oldY, b.x, b.y, e.x, e.y, e.radius + 3)
+            : ((b.impactType === 'sustain' && d < e.radius + (b.splashRadius || 18)) ||
+              (b.impactType !== 'sustain' && d < e.radius + 4));
+          if (collided) {
             // ESCUDO (shielder): bloquea balas frontales solo cuando el escudo está listo.
             if (e.shield) {
               if (e.shieldCd <= 0) {
@@ -132,23 +239,15 @@
                 }
               }
             }
+            if (b.impactType === 'pellet' && !shotgunCanDamage(b, e)) continue;
             rememberHitTarget(b, e);
             applyPlayerBulletDamage(b, e, st);
             hitCount++;
             if (NV.playtest) NV.playtest.bulletHit(hitCount); // telemetría opt-in F08 (pierce/alineación)
             if (b.impactType === 'splash') explodeSplash(b, st);
             if (b.impactType === 'bounce' && b.bounceLeft > 0) {
-              let from = e;
-              while (b.bounceLeft > 0) {
-                const next = findBounceTarget(from, enemies, b);
-                if (!next) break;
-                b.x = next.x; b.y = next.y;
-                rememberHitTarget(b, next);
-                applyPlayerBulletDamage(b, next, st);
-                b.bounceLeft--;
-                from = next;
-              }
-              b.dead = true;
+              setupBowChain(b, e, enemies);
+              if (!b.chainTargets.length) b.dead = true;
               break;
             }
             // CONTRATO PIERCE (F04): `pierce` = TOTAL de objetivos dañables antes de morir
@@ -160,7 +259,10 @@
         if (boss && !boss.dead && !b.dead) {
           const d = Math.hypot(b.x - boss.x, b.y - boss.y);
           const contactRadius = b.impactType === 'sustain' ? (b.splashRadius || 18) : 4;
-          if (d < boss.radius + contactRadius) {
+          const bossCollision = b.impactType === 'pellet'
+            ? segmentHitsCircle(oldX, oldY, b.x, b.y, boss.x, boss.y, boss.radius + 3)
+            : d < boss.radius + contactRadius;
+          if (bossCollision && shotgunCanDamage(b, boss)) {
             boss.hp -= b.damage;
             boss.hitFlash = Math.max(boss.hitFlash, 0.10);
             var _bhs = NV.hitSlowFor("BOSS");
@@ -170,6 +272,7 @@
           }
         }
       }
+      if (expiresAfterStep && !b.dead) b.dead = true;
     }
     return { bullets: bullets.filter((b) => !b.dead), shake, hitstop, gameOver: over };
   };

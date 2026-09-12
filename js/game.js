@@ -206,6 +206,7 @@
 
   // === ENTIDADES ===
   let enemies = [], bullets = [], particles = [], pickups = [], floatTexts = [], shockwaves = [], trails = [], weaponPickups = [], drones = [], meteors = [], bossChests = [], hazards = [];
+  let flameZones = [];
   let minefieldState = NV.createMinefieldState ? NV.createMinefieldState() : { spawnTimer: 0, serial: 0, spawned: 0, active: false };
   const MAX_HOSTILES = NV.BALANCE.MAX_HOSTILES, MAX_HEAVY_HOSTILES = NV.BALANCE.MAX_HEAVY_HOSTILES;
   const MAX_ENEMIES = MAX_HOSTILES, MAX_BULLETS = NV.BALANCE.MAX_BULLETS, MAX_PARTICLES = NV.BALANCE.MAX_PARTICLES;
@@ -1175,6 +1176,7 @@
     killCombo = { count: 0, timer: 0 };
     heartbeatTimer = 0; heartbeatWasCritical = false; countdownLastSecond = 0;
     enemies = []; bullets = []; particles = []; pickups = [];
+    flameZones = [];
     clearEspectroBridge();
     floatTexts = []; trails = []; weaponPickups = []; bossChests = [];
     shockwaves = []; drones = []; meteors = []; hazards = [];
@@ -1209,6 +1211,7 @@
     // partículas, drones, meteoros, estelas, textos/cofres/armas del suelo de la
     // oleada anterior acumulándose entre oleadas (deuda técnica de rendimiento).
     enemies = []; bullets = []; particles = []; pickups = [];
+    flameZones = [];
     clearEspectroBridge();
     floatTexts = []; trails = []; shockwaves = []; weaponPickups = [];
     drones = []; meteors = []; bossChests = []; hazards = [];
@@ -1268,6 +1271,7 @@
     if (NV.clearHazards) NV.clearHazards(hazards, minefieldState); else hazards = [];
     clearCombatIntent();
     bullets = [];
+    flameZones = [];
     state = 'wave_end';
     presentation.kind = 'wave_end';
     presentation.elapsed = 0;
@@ -1779,6 +1783,7 @@
     state = 'player_dying';
     if (NV.clearHazards) NV.clearHazards(hazards, minefieldState); else hazards = [];
     bullets = [];
+    flameZones = [];
     drones = [];
     meteors = [];
     presentation.kind = 'player_dying';
@@ -1988,7 +1993,7 @@
     if (currentAutoTarget && (currentAutoTarget.dead || Math.hypot(currentAutoTarget.x - player.x, currentAutoTarget.y - player.y) > (currentWeapon.range || Infinity))) currentAutoTarget = null;
     const cadence = NV.inputIntent.advanceFireCadence(
       fireTimer, dt, fireActive, hitstop > 0,
-      () => playerBulletCount() < MAX_PLAYER_BULLETS ? shoot(firePolicy) : false,
+      () => currentWeapon.id === 'flamethrower' || playerBulletCount() < MAX_PLAYER_BULLETS ? shoot(firePolicy) : false,
       weaponFireInterval(), MIN_FIRE_INTERVAL
     );
     fireTimer = cadence.timer;
@@ -2031,6 +2036,8 @@
     updateBoss(dt);
     if (state !== 'playing') return;
     updateBullets(dt);
+    updateFlameZones(dt, firePolicy === 'manual' && combatIntent.aimActive ? Math.atan2(combatIntent.aimY, combatIntent.aimX) : null);
+    NV.updateBurns(dt, { enemies, boss, killEnemy });
     if (state !== 'playing') return;
     // La muerte resuelta por hazards/enemigos/proyectiles tiene prioridad sobre el
     // fin de oleada cuando ambos eventos caen en el mismo frame.
@@ -2083,6 +2090,28 @@
       aimVector: firePolicy === 'manual' ? { x: combatIntent.aimX, y: combatIntent.aimY } : null,
       currentWeaponFusion: currentWeaponFusion(), fusionStep: WEAPON_FUSION_DMG,
       onTarget: (target) => { currentAutoTarget = target; },
+      onFlame: (config) => {
+        const life = Math.max(0.24, fireInterval * 1.35);
+        let zone = flameZones[0];
+        if (!zone || zone.dead) {
+          zone = NV.createFlameZone({
+            x: config.x, y: config.y, angle: config.angle, range: config.range,
+            halfAngle: 0.22, damage: config.damage,
+            tickRate: NV.BALANCE.FLAME_TICK_RATE || 6,
+            life, maxLife: life,
+            burnDamage: NV.BALANCE.FLAME_BURN_DPS || 2,
+            burnDuration: NV.BALANCE.FLAME_BURN_DURATION || 0.6,
+            color: config.color,
+            seed: ((frame * 0.61803398875) % 1),
+          });
+          flameZones.length = 0;
+          flameZones.push(zone);
+        } else {
+          zone.x = config.x; zone.y = config.y; zone.angle = config.angle;
+          zone.range = config.range; zone.damage = config.damage;
+          zone.life = life; zone.maxLife = life; zone.dead = false;
+        }
+      },
     });
     // Telemetría opt-in F08: solo dispara reales (NV.shoot devuelve false fuera de rango).
     if (res && NV.playtest) { NV.playtest.shot(); NV.playtest.setFireMode(firePolicy); }
@@ -2251,6 +2280,13 @@
     });
     bullets = res.bullets; shake = res.shake; hitstop = res.hitstop;
     if (res.gameOver) { gameOver(); return; }
+  }
+
+  function updateFlameZones(dt, aimAngle) {
+    flameZones = NV.updateFlameZones(dt, flameZones, {
+      player, enemies, boss, currentAutoTarget, aimAngle,
+      killEnemy, addFloatText, applyKnockback,
+    });
   }
 
   function recordPlayerDamage(hit) {
@@ -2667,6 +2703,10 @@
       }
       drawBulletShape(b, def, g);
       ctx.shadowBlur = 0;
+    }
+
+    for (const zone of flameZones) {
+      if (!zone.dead && NV.drawFlameZone) NV.drawFlameZone(ctx, zone, !!(vbp && vbp.tier === 'minimal'));
     }
 
     for (const ft of floatTexts) {

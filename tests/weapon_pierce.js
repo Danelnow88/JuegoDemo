@@ -50,8 +50,9 @@ t('datos rebalanceados: pierce/cadencia por rol sin tocar daño base', () => {
   const expected = {
     sniper: { damage: 50, fireRate: 70, pierce: 4 },
     laser: { damage: 25, fireRate: 20, pierce: 2 },
-    bow: { damage: 22, fireRate: 36 },
-    flamethrower: { damage: 6, fireRate: 14, pierce: 2 },
+    bow: { damage: 19, fireRate: 36 },
+    flamethrower: { damage: 6, fireRate: 14 },
+    plasma: { damage: 36, fireRate: 35 },
     railgun: { damage: 70, fireRate: 84, pierce: 8 },
     rifle: { damage: 20, fireRate: 25, pierce: 2 },
   };

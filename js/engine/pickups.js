@@ -106,14 +106,23 @@
     return { weaponPickups: weaponPickups.filter((wp) => !wp.dead), currentWeapon };
   };
   // ---- Cofre de jefe: al matar al jefe suelta un cofre que al tocarlo libera 1-3 pickups ----
-  // Consumible imán: atrae todos los shards/armas del campo al jugador con una transición visible.
+  // Consumible imán: selecciona una vez los pickups más cercanos, hasta un límite duro.
+  // Los excedentes permanecen en el mundo y no se ordenan de nuevo durante la atracción.
   NV.magnetCollect = function (pickups, weaponPickups, player) {
-    let n = 0;
+    const cap = (NV.BALANCE && NV.BALANCE.MAGNET_CAP) || 50;
+    const eligible = [];
     for (const p of pickups) {
-      if (!p.dead) { p.magnetPull = true; p.magnetLife = 0.8; n++; }
+      if (!p.dead && !p.magnetPull) eligible.push({ obj: p, distSq: (p.x - player.x) ** 2 + (p.y - player.y) ** 2 });
     }
     for (const w of weaponPickups) {
-      if (!w.dead) { w.magnetPull = true; w.magnetLife = 0.8; n++; }
+      if (!w.dead && !w.magnetPull) eligible.push({ obj: w, distSq: (w.x - player.x) ** 2 + (w.y - player.y) ** 2 });
+    }
+    eligible.sort((a, b) => a.distSq - b.distSq);
+    let n = 0;
+    for (let i = 0; i < eligible.length && n < cap; i++) {
+      eligible[i].obj.magnetPull = true;
+      eligible[i].obj.magnetLife = 0.8;
+      n++;
     }
     return n;
   };

@@ -35,6 +35,15 @@
     MINEFIELD_SPEED_ELITE: 1.10,
     MINEFIELD_SPEED_CAP: 260,
     MAX_ENEMIES: 30, MAX_BULLETS: 200, MAX_PARTICLES: 200,
+    MAGNET_CAP: 50,
+    SHOTGUN_PELLET_COUNT: 12,
+    SHOTGUN_SPREAD: 0.44,
+    SHOTGUN_COMPACT_SPREAD: 0.018,
+    SHOTGUN_BLOOM_START: 90,
+    SHOTGUN_UNIQUE_TARGET_CAP: 3,
+    FLAME_TICK_RATE: 6,
+    FLAME_BURN_DPS: 2,
+    FLAME_BURN_DURATION: 0.6,
     // Movimiento controlado: las tasas se derivan de la velocidad efectiva para que
     // permanentes/temporales no alarguen la parada ni creen inercia descontrolada.
     MOVE_ACCEL_TIME: 0.13,
