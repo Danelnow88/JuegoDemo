@@ -311,6 +311,22 @@ t('wire: HTML expone switch de armas y consumibles y panel de opciones', () => {
   }
 });
 
+t('lobby fullscreen móvil usa API real y sincroniza soporte/orientación/estado', () => {
+  const h = fs.readFileSync('index.html', 'utf8');
+  const mc = fs.readFileSync('js/ui/mobileControls.js', 'utf8');
+  const viewport = fs.readFileSync('js/core/viewport.js', 'utf8');
+  const css = fs.readFileSync('css/lobby-f093.css', 'utf8');
+  if (!h.includes('id="lobbyFullscreenBtn"') || !h.includes('PANTALLA COMPLETA')) throw new Error('botón lobby ausente');
+  if (!mc.includes('syncLobbyFullscreenButton') || !mc.includes('viewport.requestFullscreen()')) throw new Error('wiring fullscreen lobby ausente');
+  if (!mc.includes("classList.contains('nv-landscape')") || !mc.includes("getAttribute('data-game-state') === 'menu'")) throw new Error('visibilidad no respeta landscape/lobby');
+  if (!mc.includes("addEventListener('fullscreenchange'") || !mc.includes("addEventListener('webkitfullscreenchange'")) throw new Error('estado fullscreen no sincronizado');
+  if (!mc.includes("lobbyMo.observe(startScreen") || !mc.includes("attributeFilter: ['class']")) throw new Error('retorno al lobby no resincroniza botón');
+  if (!viewport.includes("typeof root.requestFullscreen === 'function'") || !viewport.includes("typeof root.webkitRequestFullscreen === 'function'")) throw new Error('feature detection incompleta');
+  if (!viewport.includes("d.addEventListener('fullscreenchange', onViewportChange)")) throw new Error('viewport no refresca al salir por UI del navegador');
+  if (!css.includes('.nv-mobile.nv-landscape .main-lobby-actions .lobby-fullscreen:not(.hidden)')) throw new Error('estilo mobile landscape ausente');
+  if (!/\.lobby-fullscreen:not\(\.hidden\)\s*\{[\s\S]*position:\s*fixed;[\s\S]*top:\s*max\(8px,[\s\S]*right:\s*max\(10px,/.test(css)) throw new Error('botón no queda visible sin empujar JUGAR');
+});
+
 t('wire: mobileControls cablea ciclo de arma/consumible y opciones', () => {
   const mc = fs.readFileSync('js/ui/mobileControls.js', 'utf8');
   if (!mc.includes('input.cycleWeapon')) throw new Error('sin cycleWeapon en mobileControls');

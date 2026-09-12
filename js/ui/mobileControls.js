@@ -51,6 +51,8 @@
   const specialBtn = d.getElementById('touchSpecialBtn');
   const useBtn = d.getElementById('touchUseBtn');
   const fullscreenBtn = d.getElementById('fullscreenBtn');
+  const lobbyFullscreenBtn = d.getElementById('lobbyFullscreenBtn');
+  const startScreen = d.getElementById('startScreen');
   const weaponPrev = d.getElementById('touchWeaponPrev');
   const weaponNext = d.getElementById('touchWeaponNext');
   const consumPrev = d.getElementById('touchConsumPrev');
@@ -274,12 +276,17 @@
       resetButtons();
       resetJoystick();
       if (nextState !== 'playing' && nextState !== 'wave_end') closeOptions();
+      syncLobbyFullscreenButton();
     });
     // Observer liviano: escuchar cambios de atributo en <html> para pausa/estado.
     try {
       if (d.documentElement && typeof MutationObserver === 'function') {
-        const mo = new MutationObserver(() => refreshPauseState());
+        const mo = new MutationObserver(() => { refreshPauseState(); syncLobbyFullscreenButton(); });
         mo.observe(d.documentElement, { attributes: true, attributeFilter: ['data-paused', 'data-game-state'] });
+        if (startScreen) {
+          const lobbyMo = new MutationObserver(() => syncLobbyFullscreenButton());
+          lobbyMo.observe(startScreen, { attributes: true, attributeFilter: ['class'] });
+        }
       }
     } catch (_) { /* defensivo */ }
   }
@@ -301,24 +308,61 @@
   initShopTabs();
 
   // --- FULLSCREEN (género de entrada: el navegador exige un gesto del usuario) ---
-  function updateFullscreenUI() {
-    if (!fullscreenBtn) return;
-    const fs = !!(viewport && viewport.readFullscreen && viewport.readFullscreen());
-    fullscreenBtn.textContent = fs ? '✕' : '⛶';
-    fullscreenBtn.title = fs ? 'Salir de pantalla completa' : 'Jugar en pantalla completa';
+  function syncLobbyFullscreenButton() {
+    if (!lobbyFullscreenBtn) return false;
+    const root = d.documentElement;
+    const landscape = !!(root && root.classList && root.classList.contains('nv-landscape'));
+    const lobbyState = !!(root && root.getAttribute && root.getAttribute('data-game-state') === 'menu');
+    const lobbyVisible = !!(startScreen && startScreen.classList && !startScreen.classList.contains('hidden'));
+    const supported = !!(viewport && typeof viewport.canFullscreen === 'function' && viewport.canFullscreen());
+    const fullscreen = !!(viewport && typeof viewport.readFullscreen === 'function' && viewport.readFullscreen());
+    const show = landscape && lobbyState && lobbyVisible && supported && !fullscreen;
+    lobbyFullscreenBtn.classList.toggle('hidden', !show);
+    lobbyFullscreenBtn.setAttribute('aria-hidden', show ? 'false' : 'true');
+    return show;
   }
+  NV.mobileControls.syncLobbyFullscreenButton = syncLobbyFullscreenButton;
+
+  if (lobbyFullscreenBtn) {
+    bind(lobbyFullscreenBtn, 'pointerdown', () => {
+      // Llamada directa dentro del gesto del usuario: no auto-fullscreen.
+      if (!syncLobbyFullscreenButton()) return;
+      if (viewport && typeof viewport.requestFullscreen === 'function') {
+        viewport.requestFullscreen().then((ok) => {
+          if (ok && typeof viewport.lockLandscape === 'function') viewport.lockLandscape();
+          if (typeof viewport.refresh === 'function') viewport.refresh();
+          syncLobbyFullscreenButton();
+        });
+      }
+    });
+  }
+
+  function updateFullscreenUI() {
+    const fs = !!(viewport && viewport.readFullscreen && viewport.readFullscreen());
     if (fullscreenBtn) {
+      fullscreenBtn.textContent = fs ? '✕' : '⛶';
+      fullscreenBtn.title = fs ? 'Salir de pantalla completa' : 'Jugar en pantalla completa';
+    }
+    syncLobbyFullscreenButton();
+  }
+  if (fullscreenBtn) {
     bind(fullscreenBtn, 'pointerdown', (e) => {
       // NO preventDefault: el click sintético debe llegar intacto.
       // El botón es pequeño y no necesita scroll-lock.
       if (viewport && typeof viewport.toggleFullscreen === 'function') viewport.toggleFullscreen();
     });
-    if (w && typeof w.addEventListener === 'function') {
-      w.addEventListener('fullscreenchange', updateFullscreenUI);
-      w.addEventListener('orientationchange', updateFullscreenUI);
-    }
-    updateFullscreenUI();
   }
+  if (w && typeof w.addEventListener === 'function') {
+    w.addEventListener('fullscreenchange', updateFullscreenUI);
+    w.addEventListener('webkitfullscreenchange', updateFullscreenUI);
+    w.addEventListener('orientationchange', updateFullscreenUI);
+    w.addEventListener('resize', updateFullscreenUI);
+  }
+  if (d && typeof d.addEventListener === 'function') {
+    d.addEventListener('fullscreenchange', updateFullscreenUI);
+    d.addEventListener('webkitfullscreenchange', updateFullscreenUI);
+  }
+  updateFullscreenUI();
 
   // --- Higiene global ---
   if (w && typeof w.addEventListener === 'function') {

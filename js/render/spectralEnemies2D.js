@@ -731,16 +731,53 @@
     ctx.restore();
   }
   function drawHydraSimplified(ctx, cx, cy, targetX, targetY, time, enemyColor) {
-    drawHandDrawnLiquidBlob(ctx, cx, cy - 8, 45, 12, 8, 0.8, 75, enemyColor, time, true);
-    ctx.fillStyle = '#08080e';
-    ctx.strokeStyle = enemyColor;
-    ctx.lineWidth = 2;
-    for (const side of [-1, 1]) {
-      ctx.beginPath();
-      ctx.arc(cx + side * 29, cy + 30, 13, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
+    // LOD esencial: conserva la misma silueta de cuatro lóbulos líquidos que la
+    // Hidra full y la misma fase de animación, pero omite jitter aleatorio,
+    // partículas, aura negra ancha y shadowBlur. No crea un render pass nuevo.
+    const lobes = [
+      { x: -30, y: 35, radius: 15, points: 8, noise: 12, speed: 1.6, seed: 60 },
+      { x: 0, y: 45, radius: 18, points: 8, noise: 14, speed: 1.8, seed: 65 },
+      { x: 30, y: 35, radius: 15, points: 8, noise: 12, speed: 1.6, seed: 70 },
+      { x: 0, y: -10, radius: 45, points: 14, noise: 12, speed: 1.1, seed: 75 },
+    ];
+    for (const lobe of lobes) {
+      drawHandDrawnLiquidBlob(
+        ctx,
+        cx + lobe.x,
+        cy + lobe.y,
+        lobe.radius,
+        lobe.points,
+        lobe.noise,
+        lobe.speed,
+        lobe.seed,
+        enemyColor,
+        time,
+        true
+      );
     }
+
+    // Capa interior animada barata: un único contorno orgánico sin glow ni
+    // partículas. Evita que el cuerpo reducido se lea como círculos separados.
+    ctx.save();
+    ctx.translate(cx, cy - 10);
+    ctx.beginPath();
+    const innerPoints = 10;
+    for (let i = 0; i <= innerPoints; i++) {
+      const angle = (i / innerPoints) * Math.PI * 2;
+      const wave = Math.sin(angle * 3 + time * 12) * 2.8 + Math.cos(angle * 5 - time * 9) * 1.4;
+      const radius = 25 + wave;
+      const x = Math.cos(angle) * radius;
+      const y = Math.sin(angle) * radius;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+    ctx.lineWidth = 1;
+    ctx.shadowBlur = 0;
+    ctx.stroke();
+    ctx.restore();
+
     drawLabEyes(ctx, cx, cy - 12, targetX, targetY, 3, 0.82, time, enemyColor, true);
   }
   // ===== ESPECTRO LEGACY (shape 'specter') -> Modelo RB2 (Ameba Coronada) =====

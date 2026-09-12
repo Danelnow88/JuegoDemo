@@ -277,7 +277,11 @@
 
     // --- Fullscreen + orientation lock (con fallback) ---
     canFullscreen() {
-      return !!(d && (d.fullscreenEnabled || d.webkitFullscreenEnabled));
+      const root = queryRoot();
+      if (!d || !root) return false;
+      const standard = typeof root.requestFullscreen === 'function' && d.fullscreenEnabled !== false;
+      const webkit = typeof root.webkitRequestFullscreen === 'function' && d.webkitFullscreenEnabled !== false;
+      return standard || webkit;
     },
 
     requestFullscreen() {
@@ -358,6 +362,7 @@
       w.addEventListener('resize', onViewportChange);
       w.addEventListener('orientationchange', onViewportChange);
       w.addEventListener('fullscreenchange', onViewportChange);
+      w.addEventListener('webkitfullscreenchange', onViewportChange);
       w.addEventListener('pageshow', onViewportChange);
     } else if (typeof w.attachEvent === 'function') {
       w.attachEvent('onresize', onViewportChange);
@@ -367,6 +372,10 @@
       w.visualViewport.addEventListener('resize', onViewportChange);
       w.visualViewport.addEventListener('scroll', onViewportChange);
     }
+  }
+  if (d && typeof d.addEventListener === 'function') {
+    d.addEventListener('fullscreenchange', onViewportChange);
+    d.addEventListener('webkitfullscreenchange', onViewportChange);
   }
 
   viewport.refresh();

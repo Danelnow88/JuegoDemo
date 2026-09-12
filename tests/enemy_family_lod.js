@@ -4,9 +4,12 @@ function t(name, fn) { try { fn(); pass++; console.log('  ok  ' + name); } catch
 
 function ctx() {
   const calls = [];
+  const points = [];
+  let depth = 0, minDepth = 0;
   return {
-    calls, save(){}, restore(){}, translate(){}, rotate(){}, scale(){}, beginPath(){ calls.push('path'); }, closePath(){},
-    moveTo(){}, lineTo(){ calls.push('seg'); }, bezierCurveTo(){ calls.push('seg'); }, quadraticCurveTo(){ calls.push('seg'); },
+    calls, points, get depth(){ return depth; }, get minDepth(){ return minDepth; },
+    save(){ depth++; calls.push('save'); }, restore(){ depth--; minDepth = Math.min(minDepth, depth); calls.push('restore'); }, translate(){}, rotate(){}, scale(){}, beginPath(){ calls.push('path'); }, closePath(){},
+    moveTo(x, y){ points.push([x, y]); }, lineTo(x, y){ calls.push('seg'); points.push([x, y]); }, bezierCurveTo(){ calls.push('seg'); }, quadraticCurveTo(){ calls.push('seg'); },
     arc(){ calls.push('arc'); }, ellipse(){ calls.push('arc'); }, fill(){ calls.push('fill'); }, stroke(){ calls.push('stroke'); },
     fillRect(){ calls.push('fillRect'); }, strokeRect(){ calls.push('strokeRect'); }, setLineDash(){}, fillText(){},
     createRadialGradient(){ calls.push('gradient'); return { addColorStop(){} }; },
@@ -52,6 +55,39 @@ t('selección full es estable por proximidad, no por color', () => {
   NV.drawSpectralEnemy2D(farCtx, enemies[5], 30, { x: 100, y: 100 }, null);
   if (nearCtx.calls.length <= farCtx.calls.length) throw new Error('overflow no redujo detalle');
   if (!farCtx.calls.includes('fill') || !farCtx.calls.includes('stroke')) throw new Error('simplificado invisible');
+});
+
+t('LOD reducido conserva la silueta animada esencial de Hidra', () => {
+  const NV = load('performance');
+  const orangeBulwark = { ...hydra(0), color: '#f80', visualId: 'elite_bulwark' };
+  const orangeChaos = { ...hydra(1), color: '#ff4500', visualId: 'elite_chaos' };
+  const blueVelocity = { ...hydra(2), color: '#0ff', visualId: 'elite_velocity' };
+  const spectralBlue = { ...hydra(3), color: '#55f6ff', enemyTypeId: 'specter_elite_swift', visualId: 'elite_specter_swift' };
+  const variants = [orangeBulwark, orangeChaos, blueVelocity, spectralBlue];
+  for (const enemy of variants) {
+    const closer = Array.from({ length: 4 }, (_, i) => ({ ...hydra(20 + i), x: i, y: 0 }));
+    enemy.x = 1000; enemy.y = 1000;
+    NV.prepareEnemyVisualBudget(closer.concat(enemy), { x: 0, y: 0 });
+    const c0 = ctx(), c1 = ctx();
+    NV.drawSpectralEnemy2D(c0, enemy, 0, { x: 200, y: 100 }, null);
+    NV.drawSpectralEnemy2D(c1, enemy, 30, { x: 200, y: 100 }, null);
+    const paths0 = c0.calls.filter((call) => call === 'path').length;
+    const paths1 = c1.calls.filter((call) => call === 'path').length;
+    if (paths0 < 10 || paths1 < 10) throw new Error(enemy.visualId + ' perdió capas esenciales');
+    const signature0 = c0.points.slice(0, 20).map((p) => p.map((v) => Number(v).toFixed(2)).join(',')).join('|');
+    const signature1 = c1.points.slice(0, 20).map((p) => p.map((v) => Number(v).toFixed(2)).join(',')).join('|');
+    if (signature0 === signature1) throw new Error(enemy.visualId + ' quedó congelado');
+    if (c0.depth !== 0 || c1.depth !== 0 || c0.minDepth < 0 || c1.minDepth < 0) throw new Error(enemy.visualId + ' fuga save/restore');
+  }
+});
+
+t('renderer reducido usa el mismo path compartido para variantes naranja y azul', () => {
+  const src = fs.readFileSync('js/render/spectralEnemies2D.js', 'utf8');
+  if ((src.match(/function drawHydraSimplified/g) || []).length !== 1) throw new Error('fix duplicado por color');
+  for (const id of ['elite_bulwark', 'elite_chaos', 'elite_velocity', 'specter_elite_swift']) {
+    if (!src.includes(id)) throw new Error('falta variante real ' + id);
+  }
+  if (!src.includes('const lobes = [') || !src.includes('innerPoints = 10')) throw new Error('LOD esencial incompleto');
 });
 
 t('Alta mantiene ruta full para todas las instancias', () => {
