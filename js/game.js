@@ -2535,7 +2535,7 @@
       ctx.fillStyle = '#9bb0ff';
       ctx.font = 'bold 9px system-ui';
       ctx.textAlign = 'left';
-      ctx.fillText(countText, viewX() + 12, viewY() + (mobilePresentation ? 50 : 43));
+      ctx.fillText(countText, viewX() + 12, viewY() + (mobilePresentation ? 58 : 43));
     }
 
     if (specialVFX) drawSpecialVFX(specialVFX);
@@ -2749,7 +2749,7 @@
     if (showHUD && (state === 'playing' || state === 'wave_end')) {
       drawSpecialCooldown();
       const mobilePresentation = !!(NV.capabilities && NV.capabilities.isMobile);
-      NV.drawCombo(ctx, arenaW(), arenaH(), killCombo, mobilePresentation ? { x: viewX() + 12, y: viewY() + 75 } : null);
+      NV.drawCombo(ctx, arenaW(), arenaH(), killCombo, mobilePresentation ? { x: viewX() + 12, y: viewY() + 83 } : null);
       NV.drawDashStamina(ctx, viewX(), viewY(), viewW(), viewH(), player, mobilePresentation);
       if (!mobilePresentation) drawWeaponHUD();
       else NV.consumSlotRects = [];
