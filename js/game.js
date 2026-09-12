@@ -2387,27 +2387,6 @@
     dom.hpBar.classList.toggle('critical', criticalHealth);
     dom.hpFill.classList.toggle('critical', criticalHealth);
     notifyMobileSpecial();
-
-    if (state !== 'playing' || paused) {
-      dom.specialFill.style.background = '#3d4355';
-      dom.specialCooldown.classList.remove('is-ready');
-      return;
-    }
-
-    const char = CHARACTERS[player.character];
-    if (player.specialCd > 0) {
-      const pct = (player.specialCd / char.maxCd) * 100;
-      // La recarga llena todo el icono, pasando de gris neutro a verde.
-      const readiness = 1 - pct / 100;
-      const r = Math.round(61 + (78 - 61) * readiness);
-      const g = Math.round(67 + (232 - 67) * readiness);
-      const b = Math.round(85 + (142 - 85) * readiness);
-      dom.specialFill.style.background = 'rgb(' + r + ', ' + g + ', ' + b + ')';
-      dom.specialCooldown.classList.remove('is-ready');
-    } else {
-      dom.specialFill.style.background = '#4ee88e';
-      dom.specialCooldown.classList.add('is-ready');
-    }
   }
 
   // Dibuja el proyectil del jugador según su forma (identidad visual por arma),
@@ -2789,7 +2768,7 @@
 
   // F09.4: anillo/contorno de cooldown alrededor del jugador ELIMINADO.
   // Era redundante: la disponibilidad de la habilidad ya se comunica con
-  // (1) el indicador DOM del header (.special-cooldown/#specialFill) y
+  // (1) el botón ESPECIAL móvil (anillo de progreso, segundos y LISTO) y
   // (2) el slot de habilidad del panel canvas (drawWeaponHUD).
   // Se conserva este stub como no-op para no romper llamadas externas.
   function drawSpecialCooldown() { return; }

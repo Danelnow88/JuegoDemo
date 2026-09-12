@@ -5,8 +5,8 @@
   const NV = window.NV;
 
   // F09.4 — ELIMINADO: anillo/contorno de cooldown alrededor del jugador.
-  // Era redundante: el estado de la habilidad ya vive en el header DOM
-  // (.special-cooldown/#specialFill) y en el slot de habilidad del panel
+  // Era redundante: el estado de la habilidad vive en el botón ESPECIAL
+  // móvil (progreso, segundos y LISTO) y en el slot de habilidad del panel
   // canvas. Se mantiene como no-op para no romper llamadas existentes.
   NV.drawSpecialCooldown = function () { return; };
 

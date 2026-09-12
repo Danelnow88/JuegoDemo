@@ -40,8 +40,6 @@
     hpFill: document.getElementById('hpFill'),
     hpText: document.getElementById('hpText'),
     hpBar: document.querySelector('.hp-bar'),
-    specialFill: document.getElementById('specialFill'),
-    specialCooldown: document.querySelector('.special-cooldown'),
     hudToggle: document.getElementById('hudToggle'),
     charBtn: document.getElementById('charBtn'),
     permScreen: document.getElementById('permShop'),
