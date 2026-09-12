@@ -25,6 +25,40 @@ t('detona el 50% del DoT acumulado y limpia phaseAcc', () => {
   if (hits !== 1) throw new Error('hits=' + hits);
 });
 
+t('superviviente no pasa por killEnemy', () => {
+  const player = { x: 400, y: 300 };
+  const enemy = { x: 450, y: 300, hp: 50, dead: false, phaseAcc: 20 };
+  let kills = 0;
+  NV.detonatePhase(player, [enemy], null, [], Object.assign({}, cbs, { killEnemy() { kills++; } }));
+  if (enemy.hp !== 40 || kills !== 0 || enemy.phaseAcc !== 0) throw new Error('hp=' + enemy.hp + ' kills=' + kills);
+});
+
+t('daño letal resuelve kill inmediatamente por callback normal', () => {
+  const player = { x: 400, y: 300 };
+  const enemy = { x: 450, y: 300, hp: 10, dead: false, phaseAcc: 40 };
+  const killed = [];
+  NV.detonatePhase(player, [enemy], null, [], Object.assign({}, cbs, { killEnemy(e) { e.dead = true; killed.push(e); } }));
+  if (killed.length !== 1 || killed[0] !== enemy || !enemy.dead || enemy.phaseAcc !== 0) throw new Error('kill no resuelto');
+});
+
+t('múltiples afectados resuelven sólo los letales', () => {
+  const player = { x: 400, y: 300 };
+  const lethalA = { hp: 5, dead: false, phaseAcc: 20 };
+  const survivor = { hp: 50, dead: false, phaseAcc: 20 };
+  const lethalB = { hp: 1, dead: false, phaseAcc: 4 };
+  const killed = [];
+  const hits = NV.detonatePhase(player, [lethalA, survivor, lethalB], null, [], Object.assign({}, cbs, { killEnemy(e) { e.dead = true; killed.push(e); } }));
+  if (hits !== 3 || killed.length !== 2 || killed[0] !== lethalA || killed[1] !== lethalB || survivor.hp !== 40) throw new Error('hits=' + hits + ' kills=' + killed.length);
+});
+
+t('enemigo ya muerto se ignora y conserva su acumulado', () => {
+  const player = { x: 0, y: 0 };
+  const enemy = { hp: 1, dead: true, phaseAcc: 50 };
+  let kills = 0;
+  const hits = NV.detonatePhase(player, [enemy], null, [], Object.assign({}, cbs, { killEnemy() { kills++; } }));
+  if (hits !== 0 || kills !== 0 || enemy.hp !== 1 || enemy.phaseAcc !== 50) throw new Error('muerto fue procesado');
+});
+
 t('jefe: acc*0.5*0.3 (DoT de aura sin mult ya se aplicó en vivo)', () => {
   const player = { x: 400, y: 300 };
   const boss = { x: 430, y: 300, hp: 5000, dead: false, phaseAcc: 120 };

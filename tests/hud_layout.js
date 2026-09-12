@@ -35,7 +35,8 @@ const mockCtx = {
   save: function(){}, restore: function(){}, translate: function(){}, scale: function(){},
   font: '', fillStyle: '', strokeStyle: '', globalAlpha: 1, shadowColor: '', shadowBlur: 0, textAlign: '', lineWidth: 1, lineCap: '', lineJoin: '',
 };
-const inv = [WEAPONS[3]];
+// Nuevo modelo de loadout: la pistola inicial es un arma normal del inventario.
+const inv = [WEAPONS[0], WEAPONS[3]];
 const char = NV.CHARACTERS['boti'];
 const player = { character: 'boti', specialCd: 0, agility: 0, maxCd: 4, luck: 0, armor: 0, speed: 0 };
 
@@ -67,7 +68,7 @@ t('HUD de consumibles usa iconos canvas aprobados a tamaño real 18px', () => {
   if (mockCtx.__c.some(c => c.startsWith('Tp,') || c.startsWith('Ts,'))) throw new Error('todavía imprime placeholder textual');
 });
 
-// slot 0 = pistola fija con icono canvas aprobado
+// slot 0 = pistola como arma normal del inventario (icono canvas aprobado)
 mockCtx.__c.length = 0;
 NV.drawWeaponHUD(mockCtx, 800, 600, NV.CHARACTERS, RARITY_COLORS, player, WEAPONS[0], () => 1, inv, [], 0, true);
 const pistolCalls = mockCtx.__c.filter(c => c.startsWith('WICON:pistol'));

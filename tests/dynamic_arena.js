@@ -83,7 +83,7 @@ t('5. boss center = arenaW / 2', () => {
 t('6. projectile culling uses arenaW', () => {
   const sbx = engineSandbox();
   load('js/engine/bullets.js', sbx.window);
-  const st = { bullets: [{ x: 910, y: 260, vx: 0, vy: 0, damage: 1, dead: false }], W: 1154.85, H: 520, player: { x: 450, y: 260, hp: 100, invuln: 0, character: 'boti' }, enemies: [], boss: null, CHARACTERS: { boti: { size: 12 } }, SHIELD_COOLDOWN: 1, computePlayerHit: () => ({ dmg: 1 }), addFloatText() {}, killEnemy() {}, applyKnockback() {}, spawnExplosion() {} };
+  const st = { bullets: [{ x: 910, y: 260, vx: 0, vy: 0, damage: 1, dead: false }], W: 1154.85, H: 520, player: { x: 450, y: 260, hp: 100, invuln: 0, character: 'boti' }, enemies: [], boss: null, CHARACTERS: { boti: { size: 12 } }, SHIELD_COOLDOWN: 1, applyPlayerDamage: () => ({ applied: true, damage: 1, killed: false }), addFloatText() {}, killEnemy() {}, applyKnockback() {}, spawnExplosion() {} };
   const r = sbx.window.NV.updateBullets(0, st);
   if (r.bullets.length !== 1) throw new Error('bala dentro de arena dinámica fue purgada');
 });

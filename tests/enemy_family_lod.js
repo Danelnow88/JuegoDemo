@@ -70,7 +70,7 @@ t('hook futuro de spawn no cambia cantidad, HP ni daño', () => {
   const type = { id: 'drone', hp: 10, speed: 20, radius: 5, color: '#fff', score: 1, xp: 1, damage: 7, behavior: 'chase' };
   NV.spawnEnemy({ enemies, MAX_ENEMIES: 80, boss: null, wave: 1, ENEMY_TYPES: [type], W: 900, H: 520, onSpawnCandidate: (c) => seen.push(c) });
   if (enemies.length !== 1 || seen.length !== 1) throw new Error('cantidad alterada');
-  if (enemies[0].hp !== 10 || enemies[0].damage !== 9) throw new Error('stats alterados');
+  if (enemies[0].hp !== 9 || enemies[0].damage !== 7.2) throw new Error('stats alterados: hp='+enemies[0].hp+' dmg='+enemies[0].damage);
   if (seen[0].x !== enemies[0].x || seen[0].y !== enemies[0].y) throw new Error('hook no describe spawn real');
 });
 

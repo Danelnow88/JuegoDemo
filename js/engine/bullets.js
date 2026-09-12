@@ -20,6 +20,10 @@
     const dealt = Math.max(1, b.damage - (e.resist || 0));
     e.hp -= dealt;
     if (e.isElite) e.stun = 0.25;
+    e.hitFlash = Math.max(e.hitFlash || 0, 0.10);
+    var _hsCat = e.isElite ? "ELITE" : "NORMAL";
+    var _hs = NV.hitSlowFor(_hsCat);
+    if ((e.hitSlowImmunity || 0) <= 0 && (e.hitSlowUntil || 0) <= 0) { e.hitSlowUntil = _hs.activeDuration; e.hitSlowImmunity = _hs.activeDuration + _hs.immunity; }
     // Número de daño con código de color por intensidad (sin textos "CRITICAL!"):
     // normal blanco · sustancial cian · crítico rojo intenso con fuente mayor.
     const dfs = hitFloatStyle(dealt, !!b.crit);
@@ -60,14 +64,14 @@
     }
     if (boss && !boss.dead && Math.hypot(boss.x - b.x, boss.y - b.y) <= radius + boss.radius) {
       boss.hp -= b.damage;
-      boss.hitFlash = Math.max(boss.hitFlash, 0.15);
+      boss.hitFlash = Math.max(boss.hitFlash, 0.10);
       NV.bossHitReaction(boss, b.damage, st.addFloatText);
     }
   }
 
   NV.updateBullets = function (dt, st) {
     const { bullets, W, H, player, enemies, boss, CHARACTERS, SHIELD_COOLDOWN,
-      computePlayerHit, addFloatText, killEnemy, applyKnockback, spawnExplosion } = st;
+      applyPlayerDamage, addFloatText, killEnemy, applyKnockback, spawnExplosion } = st;
     let shake = st.shake || 0;
     let hitstop = st.hitstop || 0;
     let over = false;
@@ -97,21 +101,12 @@
             continue;
           }
           if (player.invuln <= 0 && player.stun <= 0) {
-          const hit = computePlayerHit(b.damage);
             b.dead = true;
-            if (hit.dodged) {
-              addFloatText(player.x, player.y - 20, 'ESQUIVA', '#8dfaff');
-            } else {
-              const damage = hit.dmg;
-              const hpBefore = player.hp;
-              player.hp -= damage;
-              if (st.onPlayerDamaged) st.onPlayerDamaged({ cause: 'projectile', projectile: b, hpBefore, hpAfter: player.hp, damage, crit: !!hit.crit });
-              if (st.sfx && st.sfx.playerHit && player.hp > 0) st.sfx.playerHit();
+            const hit = applyPlayerDamage(b.damage, { cause: 'projectile', projectile: b });
+            if (hit.applied) {
               if (b.stunChance && Math.random() < b.stunChance) { player.stun = 0.6; addFloatText(player.x, player.y - 30, 'STUN', '#ff0'); }
               shake = Math.max(shake, hit.crit ? 0.3 : 0.1);
-              const pfs = hitFloatStyle(damage, !!hit.crit);
-              addFloatText(player.x, player.y - 20, '-' + damage, pfs.color, pfs.size);
-              if (player.hp <= 0) { over = true; break; }
+              if (hit.killed) { over = true; break; }
             }
           }
         }
@@ -140,6 +135,7 @@
             rememberHitTarget(b, e);
             applyPlayerBulletDamage(b, e, st);
             hitCount++;
+            if (NV.playtest) NV.playtest.bulletHit(hitCount); // telemetría opt-in F08 (pierce/alineación)
             if (b.impactType === 'splash') explodeSplash(b, st);
             if (b.impactType === 'bounce' && b.bounceLeft > 0) {
               let from = e;
@@ -155,6 +151,9 @@
               b.dead = true;
               break;
             }
+            // CONTRATO PIERCE (F04): `pierce` = TOTAL de objetivos dañables antes de morir
+            // (primario + N penetraciones finitas). Alcanzado el límite la bala muere,
+            // garantizando penetración finita y legible (p.ej. rifle 2 = primario + 1).
             if (b.pierce && hitCount >= b.pierce) { b.dead = true; break; }
           }
         }
@@ -163,7 +162,9 @@
           const contactRadius = b.impactType === 'sustain' ? (b.splashRadius || 18) : 4;
           if (d < boss.radius + contactRadius) {
             boss.hp -= b.damage;
-            boss.hitFlash = Math.max(boss.hitFlash, 0.15);
+            boss.hitFlash = Math.max(boss.hitFlash, 0.10);
+            var _bhs = NV.hitSlowFor("BOSS");
+            if ((boss.hitSlowImmunity || 0) <= 0 && (boss.hitSlowUntil || 0) <= 0) { boss.hitSlowUntil = _bhs.activeDuration; boss.hitSlowImmunity = _bhs.activeDuration + _bhs.immunity; }
             if (b.impactType === 'splash') explodeSplash(b, st);
             b.dead = true; hitstop = 0.03; NV.bossHitReaction(boss, b.damage, addFloatText);
           }

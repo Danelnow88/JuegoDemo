@@ -23,7 +23,7 @@ function baseSt(enemy, hits) {
     enemies: [enemy],
     player: { x: 400, y: 400, xp: 0, xpToNext: 10, level: 1, maxHp: 100, hp: 80, luck: 0, invuln: 0, stun: 0 },
     bullets: [], MAX_BULLETS: 50, MAX_ENEMY_BULLETS: 50, enemyBulletCount: () => 0,
-    computePlayerHit: (dmg) => { hits.push(dmg); return { dmg }; },
+    applyPlayerDamage: (dmg, opts) => { hits.push(dmg); return { applied: true, damage: dmg, killed: false, crit: false, opts }; },
     addFloatText: () => {}, spawnExplosion: (px, py, n, c) => booms.push([px, py, c]),
     sfx: { explosion: () => {}, levelup: () => {} }, triggerFlash: () => {},
     pickups: [], weaponLevels: {}, weaponKills: {}, WEAPON_KILLS_PER_LEVEL: 5,
@@ -95,7 +95,7 @@ t('updateEnemies: daño de contacto tiene cooldown por enemigo aunque el jugador
   if (hits.length !== 1) throw new Error('contacto repetido durante cooldown del enemigo: ' + hits.length);
 });
 
-t('updateEnemies: separa varios chase apilados y evita cascada inmediata de golpes', () => {
+t('updateEnemies: resuelve amontonamiento de chase apilados (misma especie se fusiona) y evita cascada', () => {
   function mkChase(i) {
     return {
       x: 410 + (i % 2), y: 400 + (i % 3), hp: 40, maxHp: 40, speed: 75, radius: 11, color: '#f07bad', shape: 'circle',
@@ -104,10 +104,14 @@ t('updateEnemies: separa varios chase apilados y evita cascada inmediata de golp
       resist: 0, shootTimer: 0, stunChance: 0, slowUntil: 0, stun: 0,
     };
   }
-  function overlapPairs(enemies) {
+  // El contrato vigente resuelve el amontonamiento por DOS vías: separación
+  // (especies distintas) y FUSIÓN de la misma especie que se toca (mecánica
+  // posterior intencional: fuseEnemies, probada en hostile_budget). El conteo
+  // de solapamiento evalúa SOLO enemigos vivos.
+  function overlapPairs(aliveEnemies) {
     let n = 0;
-    for (let i = 0; i < enemies.length; i++) for (let j = i + 1; j < enemies.length; j++) {
-      if (Math.hypot(enemies[i].x - enemies[j].x, enemies[i].y - enemies[j].y) < enemies[i].radius + enemies[j].radius) n++;
+    for (let i = 0; i < aliveEnemies.length; i++) for (let j = i + 1; j < aliveEnemies.length; j++) {
+      if (Math.hypot(aliveEnemies[i].x - aliveEnemies[j].x, aliveEnemies[i].y - aliveEnemies[j].y) < aliveEnemies[i].radius + aliveEnemies[j].radius) n++;
     }
     return n;
   }
@@ -115,17 +119,58 @@ t('updateEnemies: separa varios chase apilados y evita cascada inmediata de golp
   const enemies = Array.from({ length: 8 }, (_, i) => mkChase(i));
   const st = baseSt(enemies[0], hits);
   st.enemies = enemies;
-  const before = overlapPairs(enemies);
+  const before = overlapPairs(enemies.filter((e) => !e.dead));
+  if (before !== 28) throw new Error('fixture: pares iniciales=' + before);
   st.player.invuln = 10;
   for (let i = 0; i < 20; i++) NV.updateEnemies(0.016, st);
-  const after = overlapPairs(enemies);
+  const alive = enemies.filter((e) => !e.dead);
+  const after = overlapPairs(alive);
   if (!(after < before)) throw new Error('no redujo amontonamiento: before=' + before + ' after=' + after);
+  // Misma especie apilada: la fusión la condensa (8 -> 1). Sin fusión el
+  // amontonamiento igualmente se resuelve por separación (probado abajo).
+  if (alive.length !== 1) throw new Error('misma especie no se condensó: vivos=' + alive.length);
 
   st.player.invuln = 0;
   NV.updateEnemies(0.016, st);
   if (hits.length !== 1) throw new Error('primer golpe esperado: hits=' + hits.length);
   NV.updateEnemies(0.016, st);
   if (hits.length !== 1) throw new Error('cascada inmediata de golpes: hits=' + hits.length);
+});
+
+t('updateEnemies: separa chase de especies distintas sin fusionarlos (separación pura)', () => {
+  function mkChase(i) {
+    return {
+      x: 410 + (i % 2), y: 400 + (i % 3), hp: 40, maxHp: 40, speed: 75, radius: 11, color: '#f07bad', shape: 'circle',
+      score: 10, xp: 10, dead: false, behavior: 'chase', angle: 0, erraticTimer: 0,
+      knockbackRes: 0, knockVelX: 0, knockVelY: 0, damage: 12, shield: false, shieldCd: 0,
+      resist: 0, shootTimer: 0, stunChance: 0, slowUntil: 0, stun: 0,
+      enemyTypeId: 'unique_' + i, // especies únicas: la fusión no aplica
+    };
+  }
+  function overlapPairs(aliveEnemies) {
+    let n = 0;
+    for (let i = 0; i < aliveEnemies.length; i++) for (let j = i + 1; j < aliveEnemies.length; j++) {
+      if (Math.hypot(aliveEnemies[i].x - aliveEnemies[j].x, aliveEnemies[i].y - aliveEnemies[j].y) < aliveEnemies[i].radius + aliveEnemies[j].radius) n++;
+    }
+    return n;
+  }
+  const hits = [];
+  const enemies = Array.from({ length: 8 }, (_, i) => mkChase(i));
+  const st = baseSt(enemies[0], hits);
+  st.enemies = enemies;
+  // Jugador lejos: sin atracción al mismo punto, la separación pura debe
+  // liberar TODOS los pares solapados.
+  st.player.x = 400; st.player.y = 100;
+  st.player.invuln = 10;
+  const before = overlapPairs(enemies);
+  if (before !== 28) throw new Error('fixture: pares iniciales=' + before);
+  const r = NV.updateEnemies(0.016, st);
+  let last = r.enemies;
+  for (let i = 1; i < 20; i++) last = NV.updateEnemies(0.016, st).enemies;
+  const alive = last.filter((e) => !e.dead);
+  if (alive.length !== 8) throw new Error('especies distintas no deben fusionarse: vivos=' + alive.length);
+  const after = overlapPairs(alive);
+  if (after !== 0) throw new Error('separación pura incompleta: after=' + after);
 });
 
 t('contacto letal: el atacante muere al dañar, pasa por onKill (explosión + score) y no hay cascada', () => {

@@ -102,6 +102,64 @@
   // Permite que la UI se suscriba a cambios de estado.
   NV.rhythmNotifier = function (fn) { NV.rhythm.onStateChange = (typeof fn === 'function') ? fn : null; };
 
+  // ===== Groove math compartido =====
+  // Matemática pura/reutilizable del movimiento del #rhythm-widget. No toca DOM,
+  // audio ni Canvas: cada consumidor conserva su propio state de envelopes y solo
+  // mapea estas salidas a su renderer. Campo Minado usa UNA base compartida por
+  // update, no seis analysers ni seis loops de smoothing.
+  function clamp01(v) { return Math.max(0, Math.min(1, v || 0)); }
+  NV.createRhythmGrooveState = function () {
+    return { pulseEnv: 0, energyEnv: 0, breathPhase: 0, smoothScale: 1, smoothSkew: 0 };
+  };
+  NV.computeRhythmGroove = function (state, rhythm, dtSec, opts) {
+    state = state || NV.createRhythmGrooveState();
+    opts = opts || {};
+    const connected = typeof opts.connected === 'boolean'
+      ? opts.connected
+      : !!(rhythm && rhythm.enabled && rhythm.active && rhythm.state === 'listening');
+    const idle = !connected && !!opts.idle;
+    const dtMs = Math.max(0, Math.min(80, (dtSec || 0) * 1000));
+    const energy = connected ? clamp01(rhythm.energy) : (idle ? clamp01(opts.idleEnergy == null ? 0.18 : opts.idleEnergy) : 0);
+    const beat = connected ? clamp01(rhythm.beat) : 0;
+    const kick = connected ? clamp01(rhythm.kick) : 0;
+    const onset = connected ? clamp01(rhythm.onset) : 0;
+    const accent = connected ? clamp01(rhythm.accent) : 0;
+    const perc = Math.max(beat, kick * 0.85, onset * 0.65);
+    const targetPulse = Math.min(1, perc * 2.1);
+    const curPulse = state.pulseEnv || 0;
+    const pulseTau = targetPulse > curPulse ? 45 : 300;
+    const pulseA = 1 - Math.exp(-dtMs / pulseTau);
+    const pulseEnv = curPulse + (targetPulse - curPulse) * pulseA;
+    state.pulseEnv = pulseEnv;
+    const curvedPulse = pulseEnv * pulseEnv * (3 - 2 * pulseEnv);
+
+    const curEnergy = state.energyEnv || 0;
+    const energyTau = energy > curEnergy ? 180 : 520;
+    const energyA = 1 - Math.exp(-dtMs / energyTau);
+    const energyEnv = curEnergy + (energy - curEnergy) * energyA;
+    state.energyEnv = energyEnv;
+    const hasMotion = idle || energyEnv > 0.025;
+    const phaseSpeed = idle
+      ? ((opts.idleBpm || 114) / 60) * Math.PI * 2
+      : (1.55 + energyEnv * 2.8 + curvedPulse * 1.6) * Math.PI * 2;
+    state.breathPhase = (state.breathPhase || 0) + (hasMotion ? (dtSec || 0) * phaseSpeed : 0);
+    const breath = hasMotion ? (0.5 + 0.5 * Math.sin(state.breathPhase)) : 0;
+    const breathAmp = hasMotion ? (idle ? 0.055 : 0.10 + energyEnv * 0.18) : 0;
+    const targetScale = Math.min(1.62, 1 + breathAmp * breath + 0.48 * curvedPulse);
+    const targetSkew = 4.2 * curvedPulse + (hasMotion ? Math.sin(state.breathPhase * 1.35) * energyEnv * 1.25 : 0);
+    const curScale = state.smoothScale == null ? 1 : state.smoothScale;
+    const curSkew = state.smoothSkew == null ? 0 : state.smoothSkew;
+    const scaleTau = targetScale > curScale ? 35 : 240;
+    const skewTau = targetSkew > curSkew ? 35 : 200;
+    state.smoothScale = curScale + (targetScale - curScale) * (1 - Math.exp(-dtMs / scaleTau));
+    state.smoothSkew = curSkew + (targetSkew - curSkew) * (1 - Math.exp(-dtMs / skewTau));
+    return {
+      connected, idle, beat, kick, onset, accent, energy,
+      pulseEnv, curvedPulse, energyEnv, breathPhase: state.breathPhase,
+      breath, breathAmp, smoothScale: state.smoothScale, smoothSkew: state.smoothSkew,
+    };
+  };
+
   // Detección de captura de pestaña/sistema vía getDisplayMedia (única vía real).
   NV.rhythmSupported = function () {
     const nav = (typeof navigator !== 'undefined') ? navigator : (window && window.navigator);

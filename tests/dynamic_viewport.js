@@ -127,14 +127,14 @@ t('gameplay arena matches dynamic view', () => {
 
 t('boss center uses runtime arena center', () => {
   const g = fs.readFileSync('js/game.js', 'utf8');
-  if (!g.includes('boss = { x: arenaW()/2, y: 100')) throw new Error('boss center no usa arenaW()/2');
+  if (!g.includes('bossCandidate = { x: arenaW()/2, y: 100')) throw new Error('boss center no usa arenaW()/2');
   if (g.includes('boss = { x: viewW()/2')) throw new Error('boss usa view center');
 });
 
 t('enemy spawn dimensions use runtime arena W/H', () => {
   const g = fs.readFileSync('js/game.js', 'utf8');
   if (!g.includes('function arenaW()')) throw new Error('arenaW accessor ausente');
-  if (!g.includes('NV.spawnEnemy({ enemies, MAX_ENEMIES, boss, wave, ENEMY_TYPES, W: arenaW(), H: arenaH()')) throw new Error('spawnEnemy no recibe arena runtime W/H');
+  if (!g.includes('NV.spawnEnemy({ enemies, boss, MAX_HOSTILES, MAX_HEAVY_HOSTILES, wave, ENEMY_TYPES, W: arenaW(), H: arenaH()')) throw new Error('spawnEnemy no recibe arena runtime W/H');
 });
 
 t('projectile bounds use runtime arena W/H', () => {

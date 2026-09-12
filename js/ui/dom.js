@@ -7,6 +7,9 @@
 
   NV.dom = {
     startScreen: document.getElementById('startScreen'),
+    characterSelectScreen: document.getElementById('characterSelectScreen'),
+    lobbyPlayBtn: document.getElementById('lobbyPlayBtn'),
+    pilotsBtn: document.getElementById('pilotsBtn'),
     charGrid: document.getElementById('charGrid'),
     startBtn: document.getElementById('startBtn'),
     shop: document.getElementById('shop'),

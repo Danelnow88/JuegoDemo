@@ -256,15 +256,10 @@
     const e2 = metaEnv(env);
     ctx.save();
     if (!target || target.dead) {
-      // "Buscando": círculo punteado alrededor del jugador.
-      if (player) {
-        ctx.globalAlpha = 0.14 * e2.gain;
-        ctx.strokeStyle = NV.META_VIS_PALETTE.info;
-        ctx.lineWidth = 1;
-        ctx.setLineDash([4, 4]);
-        ctx.beginPath(); ctx.arc(player.x, player.y, 34, 0, Math.PI * 2); ctx.stroke();
-        ctx.setLineDash([]);
-      }
+      // F09.5 — ELIMINADO: círculo punteado "Buscando" alrededor del jugador.
+      // Era el contorno segmentado redundante visible durante oleadas/eventos/jefes
+      // (radio 34, setLineDash [4,4]). El estado de autoapuntado ya se lee en el
+      // retículo sobre el objetivo y en el HUD; sin draws, sin coste extra.
       ctx.restore();
       return false;
     }

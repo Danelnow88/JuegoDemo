@@ -42,6 +42,18 @@ t('rhythmAnalyze publica bandas normalizadas y beat ante graves fuertes', () => 
   if (st.energy < 0 || st.energy > 1) throw new Error('energy fuera de rango');
 });
 
+t('computeRhythmGroove comparte envelope widget/minas con valores finitos y bounded', () => {
+  const NV = loadNV();
+  const r = { enabled: true, active: true, state: 'listening', beat: 0.9, kick: 0.8, onset: 0.7, accent: 0.6, energy: 0.75 };
+  const st = NV.createRhythmGrooveState();
+  let g;
+  for (let i = 0; i < 12; i++) g = NV.computeRhythmGroove(st, r, 1 / 60, { connected: true });
+  for (const k of ['pulseEnv', 'curvedPulse', 'energyEnv', 'breathPhase', 'smoothScale', 'smoothSkew']) if (!Number.isFinite(g[k])) throw new Error('no finito ' + k);
+  if (g.curvedPulse < 0 || g.curvedPulse > 1 || g.smoothScale < 1 || g.smoothScale > 1.62) throw new Error(JSON.stringify(g));
+  const idle = NV.computeRhythmGroove(NV.createRhythmGrooveState(), null, 1 / 60, { connected: false, idle: true, idleBpm: 114 });
+  if (!idle.idle || !Number.isFinite(idle.breathPhase) || idle.breath <= 0) throw new Error('idle no determinista');
+});
+
 t('drawRhythmLayer cambia paleta por banda dominante y tempo mueve el centro', () => {
   const NV = loadNV();
   const low = mkCtx(), high = mkCtx(), fast = mkCtx();
@@ -313,14 +325,14 @@ t('game.js usa fondo galaxia mas oscuro para contraste sin aclarar combate', () 
   const g = fs.readFileSync('js/game.js', 'utf8');
   if (!g.includes("ctx.fillStyle = '#01030d'")) throw new Error('fondo galaxia no aplicado');
   const bg = g.indexOf("ctx.fillStyle = '#01030d'");
-  const star = g.indexOf('NV.drawStarfield(ctx, vw, vh, frame, player.x - vx, player.y - vy, NV.rhythm)', bg);
+  const star = g.indexOf('NV.drawStarfield(ctx, cameraW, cameraH, frame, player.x - cameraLeft, player.y - cameraTop, NV.rhythm)', bg);
   if (!(star > bg)) throw new Error('fondo no precede starfield');
 });
 
 t('game.js integra drawRhythmLayer después del starfield y antes de gameplay/HUD', () => {
   const g = fs.readFileSync('js/game.js', 'utf8');
-  const star = g.indexOf('NV.drawStarfield(ctx, vw, vh, frame, player.x - vx, player.y - vy, NV.rhythm)');
-  const rhythm = g.indexOf('NV.drawRhythmLayer(ctx, vw, vh, frame)');
+  const star = g.indexOf('NV.drawStarfield(ctx, cameraW, cameraH, frame, player.x - cameraLeft, player.y - cameraTop, NV.rhythm)');
+  const rhythm = g.indexOf('NV.drawRhythmLayer(ctx, cameraW, cameraH, frame)');
   const grid = g.indexOf('const gridAlpha', rhythm);
   const special = g.indexOf('if (specialVFX)', rhythm);
   if (!(star >= 0 && rhythm > star)) throw new Error('no va después del starfield');

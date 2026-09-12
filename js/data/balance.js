@@ -10,9 +10,51 @@
 
   NV.BALANCE = {
     // Tope de buffers de entidad
-    MAX_ENEMIES: 80, MAX_BULLETS: 200, MAX_PARTICLES: 200,
+    MAX_HOSTILES: 30, MAX_HEAVY_HOSTILES: 7,
+    MAX_SPEAKER_MINES: 6,
+    SPEAKER_MINE_INITIAL_COUNT: 5,
+    SPEAKER_MINE_DETONATE_TIME: 0.12,
+    SPEAKER_MINE_VISUAL_RADIUS: 16,
+    SPEAKER_MINE_TRIGGER_RADIUS: 14,
+    SPEAKER_MINE_DAMAGE_BASE: 38,
+    SPEAKER_MINE_DAMAGE_PER_WAVE: 0.5,
+    SPEAKER_MINE_DAMAGE_CAP: 52,
+    SPEAKER_MINE_PLAYER_MIN_DIST: 175,
+    SPEAKER_MINE_SEPARATION: 105,
+    SPEAKER_MINE_ARENA_MARGIN: 42,
+    SPEAKER_MINE_PLACEMENT_ATTEMPTS: 24,
+    SPEAKER_MINE_INITIAL_CADENCE: 0.28,
+    SPEAKER_MINE_REFILL_CADENCE: 2.4,
+    SPEAKER_MINE_TELEGRAPH_DURATION: 0.9,
+    SPEAKER_MINE_REFILL_CADENCE_P3_1: 2.6,
+    SPEAKER_MINE_REFILL_CADENCE_WAVE_THRESHOLD: 8,
+    SPEAKER_MINE_TACTICAL_CHANCE: 0.7,
+    SPEAKER_MINE_PLAYER_PREDICTION: 0.65,
+    MINEFIELD_SPEED_NORMAL: 1.22,
+    MINEFIELD_SPEED_FAST: 1.12,
+    MINEFIELD_SPEED_ELITE: 1.10,
+    MINEFIELD_SPEED_CAP: 260,
+    MAX_ENEMIES: 30, MAX_BULLETS: 200, MAX_PARTICLES: 200,
+    // Movimiento controlado: las tasas se derivan de la velocidad efectiva para que
+    // permanentes/temporales no alarguen la parada ni creen inercia descontrolada.
+    MOVE_ACCEL_TIME: 0.13,
+    MOVE_DECEL_TIME: 0.10,
+    MOVE_TURN_TIME: 0.085,
+    MOVE_REVERSE_TIME: 0.11,
+    // Dash stamina: dos usos desde lleno, dash breve y recuperación por tiempo de simulación.
+    DASH_STAMINA_MAX: 100,
+    DASH_STAMINA_COST: 50,
+    DASH_DURATION: 0.15,
+    DASH_SPEED: 560,
+    DASH_RECHARGE_DELAY: 0.90,
+    DASH_REGEN_PER_SECOND: 100 / 2.9,
     // Presupuesto separado de balas por bando
     MAX_PLAYER_BULLETS: 150, MAX_ENEMY_BULLETS: 120,
+    // Nuevas permanentes (por nivel): chance de crítico propio / esquiva / HP/s regen / % extra de drop
+    PERM_MOVE_SPEED_PER_LEVEL: 0.02,
+    PERM_MOVE_CONTROL_PER_LEVEL: 0.025,
+    MAX_AGILITY: 2,
+    AGILITY_PER_UPGRADE: 0.2,
     // Progresión permanente
     MAX_PERM_LEVEL: 10,
     // Nuevas permanentes (por nivel): chance de crítico propio / esquiva / HP/s regen / % extra de drop
@@ -112,5 +154,27 @@
     return { color: NV.DAMAGE_FLOAT_COLORS.normal, size: 13 };
   };
 
+  // F10: difficulty modes
+  NV.DIFFICULTY = {
+    easy:   { id: "easy",   label: "Facil",   hpMult: 0.80, dmgMult: 0.75, spawnMult: 0.85 },
+    normal: { id: "normal", label: "Normal",   hpMult: 1.00, dmgMult: 1.00, spawnMult: 1.00 },
+    hard:   { id: "hard",   label: "Dificil", hpMult: 1.20, dmgMult: 1.25, spawnMult: 1.15 },
+  };
+  NV.DIFFICULTY_ORDER = ["easy", "normal", "hard"];
+  NV.difficultyGet = function (id) { return NV.DIFFICULTY[id] || NV.DIFFICULTY.normal; };
+  NV.difficultyHpMult = function (id) { return NV.difficultyGet(id).hpMult; };
+  NV.difficultyDmgMult = function (id) { return NV.difficultyGet(id).dmgMult; };
+  NV.HIT_SLOW = {
+    NORMAL: { multiplier: 0.85, activeDuration: 0.15, immunity: 0.20 },
+    ELITE:  { multiplier: 0.90, activeDuration: 0.12, immunity: 0.23 },
+    BOSS:   { multiplier: 0.95, activeDuration: 0.08, immunity: 0.27 },
+  };
+  NV.hitSlowFor = function (category) { return NV.HIT_SLOW[category] || NV.HIT_SLOW.NORMAL; };
+  NV.difficultySafeMult = function (kind, diffId) {
+    if (!NV.DIFFICULTY) return 1;
+    var d = NV.difficultyGet(diffId || (NV.settings && NV.settings.gameplay && NV.settings.gameplay.difficulty));
+    if (!d) return 1;
+    return kind === "hp" ? d.hpMult : kind === "dmg" ? d.dmgMult : kind === "spawn" ? (d.spawnMult||1) : 1;
+  };
   Object.freeze(NV.BALANCE);
 })();

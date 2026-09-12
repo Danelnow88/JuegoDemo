@@ -66,8 +66,20 @@ t('HUD dibuja filas horizontales (drawSlotRow) y expone rects para el click', ()
 t('game.js conecta Q (ciclar), F (usar seleccionado) y click en slot', () => {
   const g = fs.readFileSync('js/game.js', 'utf8');
   if (!g.includes("canvas.addEventListener('click'")) throw new Error('sin click handler');
-  if (!g.includes('consumSel = 0;') || !/startGame[\s\S]{0,2000}consumSel = 0;/.test(g)) throw new Error('sin reset por partida');
+  const start = g.indexOf('function startGame()');
+  const next = g.indexOf('function nextWave()', start);
+  if (start < 0 || next < 0 || !g.slice(start, next).includes('consumSel = 0;')) throw new Error('sin reset por partida');
   if (!g.includes('NV.consumeByType(consumableItems')) throw new Error('F no usa el tipo seleccionado');
+});
+
+t('P1.5: reconciliación determinista de selección al consumir', () => {
+  const g = fs.readFileSync('js/game.js', 'utf8');
+  if (!g.includes('function reconcileConsumSel()')) throw new Error('helper de reconciliación ausente');
+  if (!g.includes('consumSel = n === 0 ? 0 : (consumSel >= n ? 0 :')) throw new Error('sin wrap a primero ni reset a vacío');
+  // Se reconcilia después de consumir y en el caso de item faltante.
+  const useBlock = g.slice(g.indexOf('function useConsumable()'), g.indexOf('function reconcileConsumSel') === -1 ? undefined : g.indexOf('// === TIENDA DE MEJORAS PERMANENTES'));
+  if ((useBlock.match(/reconcileConsumSel\(\);/g) || []).length < 2) throw new Error('reconciliación no llamada tras consumir');
+  if (g.includes('consumSel = Math.max(0, consumSel - 1);')) throw new Error('heurística vieja de selección presente');
 });
 
 console.log('RESULT consum_hud: pass=' + pass + ' fail=' + fail);

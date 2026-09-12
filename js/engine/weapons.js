@@ -48,6 +48,18 @@
     return Math.min(0.4, lv * 0.02 + (fus || 0) * 0.06);
   };
 
+  // Perfil de impacto por arma.
+  //
+  // CONTRATO DE PIERCE (explícito, F04): `pierce` cuenta el número TOTAL de objetivos
+  // distintos que el proyectil puede dañar antes de morir. El PRIMERO es el objetivo
+  // primario; los siguientes son penetraciones finitas. p.ej. rifle `pierce: 2` =
+  // objetivo primario + 1 enemigo adicional (NUNCA "2 penetraciones tras el primero").
+  // El guard de muerte está en engine/bullets.js (`hitCount >= b.pierce` → dead).
+  // `Infinity` = sin tope (railgun / sustain del flamethrower).
+  //
+  // Rifle (F04): identidad de arma habilidosa — arma automática estable, aim manual
+  // exacto (sin spread ni recoil; el ángulo depende solo de aimVector en manual) y
+  // penetración de línea moderada y finita. El resto de armas NO se rediseña.
   NV.weaponImpactProfile = function (weapon) {
     const id = weapon && weapon.id;
     if (id === 'rifle') return { type: 'pierce', pierce: 2 };
@@ -65,17 +77,23 @@
     const { player, enemies, boss, bullets, currentWeapon: weapon } = state;
     const count = Math.min(weapon.count || 1, 7);
     const spread = weapon.spread || 0;
-    const target = NV.findTarget({ player, enemies, boss });
+    const manualAim = state.aimVector && Number.isFinite(state.aimVector.x) && Number.isFinite(state.aimVector.y);
+    const target = manualAim ? null : NV.findTarget({ player, enemies, boss });
     if (state.onTarget) state.onTarget(target);
 
     // === RANGO DE ACTIVACIÓN ===
     // El arma solo dispara si hay objetivo y está dentro de su alcance (config por arma en WEAPONS.range).
     // Devuelve false para que game.js reintente pronto sin consumir la cadencia del arma.
-    if (!target) return false;
-    const range = weapon.range || Infinity;
-    if (Math.hypot(target.x - player.x, target.y - player.y) > range) return false;
+    if (!manualAim) {
+      if (!target) return false;
+      const range = weapon.range || Infinity;
+      if (Math.hypot(target.x - player.x, target.y - player.y) > range) return false;
+    }
 
-    const baseAngle = Math.atan2(target.y - player.y, target.x - player.x);
+    const aimLength = manualAim ? Math.hypot(state.aimVector.x, state.aimVector.y) : 0;
+    const aim = manualAim && aimLength > 0.000001 ? { x: state.aimVector.x / aimLength, y: state.aimVector.y / aimLength, active: true } : null;
+    if (manualAim && !aim) return false;
+    const baseAngle = manualAim ? Math.atan2(aim.y, aim.x) : Math.atan2(target.y - player.y, target.x - player.x);
 
     // Durante overdrive, disparos duplicados
     const actualCount = player.overdrive > 0 ? count * 2 : count;
@@ -84,6 +102,7 @@
     const vTier = state.weaponVisualTier();
     const glowColor = (state.currentWeaponFusion || 0) > 0 ? '#ffd700' : state.BULLET_TIER_COLORS[vTier];
 
+    let firedCount = 0, anyCrit = false;
     for (let i = 0; i < actualCount; i++) {
       if (bullets.length >= state.MAX_BULLETS) break;
       const angle = baseAngle + (i - (actualCount - 1) / 2) * spread;
@@ -107,7 +126,29 @@
         // Crecimiento por nivel/fusión + halo dorado si el arma está fusionada.
         growth: NV.bulletSizeGrowth(state.currentWeaponLevel(), state.currentWeaponFusion),
       });
+      firedCount++;
+      anyCrit = anyCrit || crit;
     }
-    state.playWeaponSound(weapon, state.audioPosition || { x: player.x, worldWidth: state.W || 900 });
+    if (firedCount > 0) {
+      const audioEvent = Object.assign({}, state.audioPosition || { x: player.x, worldWidth: state.W || 900 }, {
+        projectileCount: firedCount,
+        crit: anyCrit,
+        fusion: state.currentWeaponFusion || 0,
+        fireInterval: state.fireInterval,
+      });
+      // Audio es un consumidor opcional del evento. El proyectil ya fue creado
+      // arriba y un fallo de Web Audio no puede abortar el update de gameplay.
+      try {
+        state.playWeaponSound(weapon, audioEvent);
+      } catch (err) {
+        const audioDebug = !!(
+          NV.DEBUG_AUDIO === true ||
+          (NV.audio && typeof NV.audio.getWeaponSfxStats === 'function' && NV.audio.getWeaponSfxStats().debug)
+        );
+        if (audioDebug && typeof console !== 'undefined' && console.error) {
+          console.error('[AUDIO] weapon SFX failed after projectile creation:', err);
+        }
+      }
+    }
   };
 })();

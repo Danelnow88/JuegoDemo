@@ -6,6 +6,21 @@
   'use strict';
   const NV = window.NV;
 
+  function getDiffMult(kind) { return (typeof NV.difficultySafeMult === "function") ? NV.difficultySafeMult(kind, NV.runDifficulty) : 1; }
+
+  function canSpawn(st, count, heavyCount) {
+    if (NV.canSpawnHostileBatch) return NV.canSpawnHostileBatch(st, count, heavyCount);
+    if (st.ignoreHostileBudget === true) return true;
+    let heavy = 0;
+    for (const e of st.enemies) if (!e.dead && (e.isElite || e.hostileClass === 'heavy')) heavy++;
+    return st.enemies.filter((e) => !e.dead).length + count <= (st.MAX_HOSTILES || st.MAX_ENEMIES || 30)
+      && heavy + (heavyCount || 0) <= (st.MAX_HEAVY_HOSTILES || 7);
+  }
+  function hostileClass(entity) {
+    if (NV.hostileClassOf) return NV.hostileClassOf(entity);
+    return entity && entity.isElite ? 'heavy' : ((entity && entity.hostileClass) || 'light');
+  }
+
   function reportSpawnCandidate(st, candidate) {
     if (typeof st.onSpawnCandidate !== 'function') return;
     try { st.onSpawnCandidate(Object.freeze(candidate)); } catch (_) { /* hook futuro no altera spawn actual */ }
@@ -13,6 +28,11 @@
   NV.describeEnemySpawnCandidate = function (type, x, y, isElite) {
     return { typeId: type && (type.id || type.visualId) || null, x, y, isElite: !!isElite };
   };
+
+  // ---- F07 SPITTER: constantes de banda/telegraph/disparo ----
+  // Banda espacial: lejos -> approach, en banda -> strafe, cerca -> retreat.
+  // WINDUP real con snapshot + lead parcial topado; ATTACK = 1 disparo sin
+  // homing; RECOVERY = ventana de castigo sin refire.
 
   // ---- Selección ponderada: tipos con 'weight' usan ese valor; el resto defaulta a 1.0 ----
   // Si ningún tipo disponible define weight, la selección es equivalente a uniforme.
@@ -36,7 +56,7 @@
 
   // ---- Spawn normal ----
   NV.spawnEnemy = function (st) {
-    if (st.enemies.length >= st.MAX_ENEMIES) return;
+    if (!canSpawn(st, 1, 0)) return false;
     if (st.boss && !st.boss.dead) return;
 
     const spectersEnabled = NV.SPECTER_ENABLED !== false;
@@ -56,6 +76,8 @@
       type = NV.weightedRandom(available);
     }
     if (!type) return;
+    const hostileClass = type.hostileClass || 'light';
+    if (!canSpawn(st, 1, hostileClass === 'heavy' ? 1 : 0)) return false;
 
     const side = Math.random() < 0.5 ? 0 : st.W;
     const y = 80 + Math.random() * (st.H - 200);
@@ -73,23 +95,26 @@
     reportSpawnCandidate(st, NV.describeEnemySpawnCandidate(type, side, y, false));
     st.enemies.push({
       x: side, y: y,
-      hp: Math.round(type.hp * hpScale), maxHp: Math.round(type.hp * hpScale),
-      speed: type.speed + Math.min(40, st.wave * 2.5),
+      hp: Math.round(type.hp * hpScale * 0.85 * getDiffMult("hp")), maxHp: Math.round(type.hp * hpScale * 0.85 * getDiffMult("hp")),
+      speed: type.speed + Math.min(40, st.wave * 1.5),
       radius: hitboxRadius, color: type.color, shape: type.shape,
       enemyTypeId: type.id,
+      hostileClass,
+      movementClass: type.movementClass || (NV.enemyMovementClass ? NV.enemyMovementClass(type) : ((type.behavior === 'kami' || type.speed >= 150) ? 'fast' : (type.speed <= 70 ? 'slow' : 'normal'))),
       score: type.score * (1 + st.wave * 0.1), xp: type.xp * (1 + st.wave * 0.1),
       dead: false, behavior: type.behavior,
       angle: Math.random() * Math.PI * 2, erraticTimer: 0,
       knockbackRes: type.knockbackRes || 0, knockVelX: 0, knockVelY: 0,
-      damage: (type.damage || 10) + dmgScale, shield: type.shield || false, shieldCd: 0, resist: type.resist || 0,
+      damage: ((type.damage || 10) + dmgScale) * 0.80 * getDiffMult("dmg"), shield: type.shield || false, shieldCd: 0, resist: type.resist || 0,
+      hitFlash: 0, hitSlowUntil: 0, hitSlowImmunity: 0,
+      erraticTargetAngle: Math.random() * Math.PI * 2,
       shootTimer: 0, stunChance: type.stunChance || 0,
-      // Evento CAMPO MINADO: algunos enemigos detonan en cadena al morir.
-      mine: !!(st.waveEvent === 'mines' && Math.random() < 0.5),
     });
     // Traza de spawn para los espectros (nuevos y legacy WebGL) en consola.
     if (type.id && type.id.indexOf('specter_') === 0) {
       console.log('[SPAWN] wave=' + st.wave + ' type=' + type.id);
     }
+    return true;
   };
 
   // ---- Spawn élite (cada 2 oleadas, desde la 3) ----
@@ -104,7 +129,7 @@
     const count = st.waveEvent === 'elites' ? 3 : 2;
     const startIndex = baseElites.length ? ((st.wave / 2 - 1) * 2) % baseElites.length : 0;
     for (let i = 0; i < count; i++) {
-      if (st.enemies.length >= st.MAX_ENEMIES) break;
+      if (!canSpawn(st, 1, 1)) break;
       let elite = baseElites.length ? baseElites[(startIndex + i) % baseElites.length] : null;
       // Chance rara de reemplazar por un élite espectral disponible (suma de weights).
       if (spectralElites.length) {
@@ -132,12 +157,14 @@
       }
       const pushed = {
         x: side, y: y,
-        hp: Math.round(elite.hp + st.wave * st.wave * 1.5), maxHp: Math.round(elite.hp + st.wave * st.wave * 1.5),
+        hp: Math.round((elite.hp + st.wave * st.wave * 1.5) * 0.85 * getDiffMult("hp")), maxHp: Math.round((elite.hp + st.wave * st.wave * 1.5) * 0.85 * getDiffMult("hp")),
         speed: elite.speed + st.wave,
         radius: hitboxRadius, color: elite.color, shape: elite.shape,
         score: elite.score, xp: elite.xp, dead: false,
         behavior: elite.behavior, angle: Math.random() * Math.PI * 2,
-        erraticTimer: 0, isElite: true, eliteDamage: eliteDmg,
+        hostileClass: 'heavy',
+        movementClass: elite.movementClass || (NV.enemyMovementClass ? NV.enemyMovementClass(elite) : ((elite.behavior === 'kami' || elite.speed >= 150) ? 'fast' : (elite.speed <= 70 ? 'slow' : 'normal'))),
+        erraticTimer: 0, isElite: true, eliteDamage: eliteDmg * 0.80 * getDiffMult("dmg"), hitFlash: 0, hitSlowUntil: 0, hitSlowImmunity: 0, erraticTargetAngle: Math.random() * Math.PI * 2,
         knockbackRes: 0.3, knockVelX: 0, knockVelY: 0, shootTimer: 0,
         stunChance: elite.stunChance || 0, resist: elite.resist || 0,
       };
@@ -162,6 +189,8 @@
   }
   NV.killEnemy = function (st) {
     const e = st.e;
+    if (e.killResolved) return st.score;
+    e.killResolved = true;
     e.dead = true;
     let score = st.score + e.score;
     st.player.xp += e.xp;
@@ -203,18 +232,13 @@
     if (st.waveEvent === 'payday') {
       st.pickups.push({ x: e.x + 6, y: e.y + 6, type: 'shard', value: 2, dead: false });
     }
-    // Evento CAMPO MINADO: el enemigo mina explota al morir (área, daño al jugador si está cerca).
-    if (e.mine) {
-      st.spawnExplosion(e.x, e.y, 26, '#ff5f9b', 0.9);
-      if (st.computePlayerHit && Math.hypot(e.x - st.player.x, e.y - st.player.y) < 90) {
-        st.computePlayerHit(20);
-      }
-    }
     // KAMIKAZE: siempre detona al morir (por disparo o por autodetonacion).
     if (e.behavior === 'kami') {
       st.spawnExplosion(e.x, e.y, 34, '#ff5f3d', 1.1);
-      if (st.computePlayerHit && Math.hypot(e.x - st.player.x, e.y - st.player.y) < 95) {
-        st.computePlayerHit(24);
+      if (!e.kamikazeDamageApplied && st.applyPlayerDamage && Math.hypot(e.x - st.player.x, e.y - st.player.y) < 95) {
+        e.kamikazeDamageApplied = true;
+        const hit = st.applyPlayerDamage(24, { cause: 'kamikaze-explosion', enemy: e, allowCrit: false, allowDodge: false });
+        if (hit && hit.killed && st.onPlayerKilled) st.onPlayerKilled(hit);
       }
     }
     if (st.sfx.enemyDeath) st.sfx.enemyDeath(e.isElite ? 'elite' : 'normal', { x: e.x, worldWidth: st.W || 900 });
@@ -285,6 +309,21 @@
   // fusionLevel: 0 = normal, 1+ = fusionado (más HP, daño, tamaño). Indicador visual en render.
   const FUSION_MIN = 3;       // enemigos mínimos para fusionar
   const FUSION_RADIUS = 40;   // distancia para considerarse "juntos"
+  // ---- SPITTER (F07): banda de rango y tiempos ----
+  // too far -> approach · en banda -> strafe/reposición · too close -> retreat.
+  // WINDUP real (cero spawn, aim snapshot legible) -> ATTACK (1 disparo de la
+  // familia existente, lead parcial topado, sin homing) -> RECOVERY real (sin
+  // refire). Strafe persistente para evitar jitter izquierda/derecha.
+  const SPIT_FAR = 320;
+  const SPIT_NEAR = 180;
+  const SPIT_BAND_MID = 250;
+  const SPIT_WINDUP = 0.6;
+  const SPIT_RECOVERY = 1.0;
+  const SPIT_CYCLE = 1.6;
+  const SPIT_BULLET_SPEED = 250;
+  const SPIT_LEAD_FACTOR = 0.5;
+  const SPIT_LEAD_CAP = 60;
+  const SPIT_STRAFE_HOLD = 1.6;
   function enemyFusionKey(e) {
     // "Especie" estable: los espectrales usan enemyTypeId; los legacy caen a
     // visualId/shape/behavior para NO fusionar cualquier enemigo undefined con otro.
@@ -322,6 +361,13 @@
       e.damage = Math.round(totalDmg * (1 + 0.15 * (n - 1))); // +15% por cada fusión extra
       e.radius = Math.min(60, e.radius * (1 + 0.18 * (n - 1))); // crece con tope
       e.fusionLevel = maxLevel + 1;
+      // La fusión conserva su renderer, pero su clasificación mecánica puede escalar.
+      // Extrema (nivel 3+ o radio 45+) consume heavy sólo si queda presupuesto; de
+      // lo contrario permanece medium para no violar el cap autoritativo.
+      if (hostileClass(e) !== 'heavy') {
+        const extreme = e.fusionLevel >= 3 || e.radius >= 45;
+        e.hostileClass = extreme && canSpawn(st, 0, 1) ? 'heavy' : 'medium';
+      }
       e.color = fusionColor(e.fusionLevel);
       e.fusionFlash = 0.9;
       if (st && st.addFloatText) st.addFloatText(e.x, e.y - e.radius - 16, 'FUSION ' + e.fusionLevel, e.color);
@@ -337,7 +383,7 @@
   // Devuelve { enemies, shake, gameOver }. Mutaciones de array/player por ref; los
   // primitivos let (enemies filtrado, shake) y el flag gameOver vuelven del retorno.
   NV.updateEnemies = function (dt, st) {
-    const { enemies, player, bullets, MAX_BULLETS, MAX_ENEMY_BULLETS, enemyBulletCount, computePlayerHit, addFloatText } = st;
+    const { enemies, player, bullets, MAX_BULLETS, MAX_ENEMY_BULLETS, enemyBulletCount, applyPlayerDamage, addFloatText } = st;
     let shake = st.shake || 0;
     let gameOver = false;
     // Cuadrícula espacial de vecinos (una pasada O(n)) — reutilizada por las 3
@@ -357,15 +403,120 @@
             if (e.contactCd > 0) e.contactCd = Math.max(0, e.contactCd - dt);
             if (e.atkFlash > 0) e.atkFlash = Math.max(0, e.atkFlash - dt);
             if (e.fusionFlash > 0) e.fusionFlash = Math.max(0, e.fusionFlash - dt);
+      if (e.hitFlash > 0) e.hitFlash = Math.max(0, e.hitFlash - dt);
       const stunned = e.stun > 0;
       // Congelante: algunos enemigos ralentizados (slowUntil).
       if (e.slowUntil > 0) e.slowUntil -= dt;
-      const spd = e.speed * (e.slowUntil > 0 ? 0.5 : 1);
+      if (e.hitSlowUntil > 0) e.hitSlowUntil = Math.max(0, e.hitSlowUntil - dt);
+      if (e.hitSlowImmunity > 0) e.hitSlowImmunity = Math.max(0, e.hitSlowImmunity - dt);
+      // Campo Minado acelera movimiento efectivo sin mutar permanentemente e.speed.
+      const eventSpeed = NV.minefieldEnemySpeed ? NV.minefieldEnemySpeed(e, st.waveEvent) : e.speed;
+      const hitSlowActive = e.hitSlowUntil > 0;
+      const hitSlowMult = hitSlowActive ? NV.hitSlowFor(e.isElite ? "ELITE" : "NORMAL").multiplier : 1;
+      const spd = eventSpeed * (e.slowUntil > 0 ? 0.5 : 1) * hitSlowMult;
       if (!stunned) {
         if (e.behavior === 'chase') {
           const angle = Math.atan2(st.player.y - e.y, st.player.x - e.x);
           e.x += Math.cos(angle) * spd * dt + kbx * dt;
           e.y += Math.sin(angle) * spd * dt + kby2 * dt;
+        } else if (e.behavior === 'flank') {
+          // RUNNER (F06): flanqueador. F05 (NV.enemyState) es la UNICA fuente
+          // autoritativa de state lifecycle CUANDO disponible; fallback interno si no.
+          const player = st.player;
+          const dx = player.x - e.x, dy = player.y - e.y;
+          const distToPlayer = Math.hypot(dx, dy);
+          const invDist = Math.max(distToPlayer, 1);
+
+          // Inicializar flankSide una sola vez (persistido en e.flankSide).
+          if (e.flankSide !== -1 && e.flankSide !== 1) {
+            e.flankSide = Math.random() < 0.5 ? -1 : 1;
+          }
+
+          // --- State lifecycle: F05 es autoridad; fallback interno si no cargado ---
+          if (NV.enemyState) {
+            if (!e.intent) {
+              e.intent = NV.enemyState.createIntent(e);
+              e.intent.preferredRange = 130;
+            }
+            NV.enemyState.updateIntent(e, dt); // tick del timer
+            var intent = e.intent;
+            var state = intent.state;
+            var t = intent.stateTimer;
+          } else {
+            if (!e.flankState) e.flankState = 'idle';
+            if (e.stateTimer == null) e.stateTimer = 0.8;
+            e.stateTimer -= dt;
+            if (e.stateTimer < 0) e.stateTimer = 0;
+            var state = e.flankState;
+            var t = e.stateTimer;
+          }
+
+          var targetX, targetY;
+          var next;
+
+          if (state === 'idle' || state === 'positioning') {
+            // APPROACH: acercamiento lateral. Target offset lateral respecto al
+            // jugador, PERO distinto de player.center.
+            next = state;
+            var flankOffset = 90 + e.flankSide * 30;
+            targetX = player.x + (-dy / invDist) * flankOffset;
+            targetY = player.y + (dx / invDist) * flankOffset;
+            if (distToPlayer < 80 || t <= 0) {
+              next = 'attack'; // -> COMMIT
+              e.committedTargetX = player.x + e.flankSide * 18; // SNAPSHOT
+              e.committedTargetY = player.y + e.flankSide * 10; // SNAPSHOT
+              e.commitDirX = e.committedTargetX - e.x; // SNAPSHOT
+              e.commitDirY = e.committedTargetY - e.y; // SNAPSHOT
+              if (NV.enemyState) e.intent.stateTimer = 0.45; else e.stateTimer = 0.45;
+            }
+          } else if (state === 'attack' || state === 'COMMIT') {
+            // COMMIT: lunge hacia el SNAPSHOT. El jugador no redirige al Runner.
+            next = state;
+            targetX = e.committedTargetX;
+            targetY = e.committedTargetY;
+            if (t <= 0 || distToPlayer < e.radius + 20) {
+              next = 'recovery'; // -> RECOVERY
+              if (NV.enemyState) e.intent.stateTimer = 0.6; else e.stateTimer = 0.6;
+              if (Math.random() < 0.4) e.flankSide = -e.flankSide;
+            }
+          } else if (state === 'recovery') {
+            // RECOVERY: retroceso crea separacion antes del proximo approach.
+            next = state;
+            var awayDist = Math.hypot(e.x - player.x, e.y - player.y);
+            var retreatDist = 120;
+            targetX = e.x + (dx ? -dx / Math.max(awayDist, 1) : 0) * retreatDist;
+            targetY = e.y + (dy ? -dy / Math.max(awayDist, 1) : 0) * retreatDist;
+            if (t <= 0) {
+              next = 'positioning'; // -> APPROACH
+              if (NV.enemyState) e.intent.stateTimer = 0.8; else e.stateTimer = 0.8;
+            }
+          } else {
+            // Fallback a POSITIONING (APPROACH) si estado inesperado.
+            next = 'positioning';
+            targetX = player.x + (-dy / invDist) * (90 + e.flankSide * 30);
+            targetY = player.y + (dx / invDist) * (90 + e.flankSide * 30);
+            if (NV.enemyState) e.intent.stateTimer = Math.max(e.intent.stateTimer, 0.8);
+          }
+
+          // Persistir estado (F05 es autoridad; fallback usa campos propios).
+          if (NV.enemyState) {
+            intent.state = next;
+          } else {
+            e.flankState = next;
+          }
+
+          // Movimiento hacia el objetivo.
+          var toTargetX = targetX - e.x;
+          var toTargetY = targetY - e.y;
+          var toTargetDist = Math.hypot(toTargetX, toTargetY);
+          if (toTargetDist > 1e-3) {
+            var inv = 1 / toTargetDist;
+            var moveSpeed = spd;
+            e.x += toTargetX * inv * moveSpeed * dt;
+            e.y += toTargetY * inv * moveSpeed * dt;
+          }
+          // Steering de F05 (factor de movimiento, sin override de legacy).
+          if (NV.enemyState) NV.enemyState.computeSteering(e);
         } else if (e.behavior === 'kami') {
           // KAMIKAZE: persigue; a <130px se arma (mecha 0.8s, parpadeo) y detonan.
           const angle = Math.atan2(st.player.y - e.y, st.player.x - e.x);
@@ -387,7 +538,9 @@
           }
         } else if (e.behavior === 'erratic') {
           e.erraticTimer -= dt;
-          if (e.erraticTimer <= 0) { e.angle += (Math.random() - 0.5) * 3; e.erraticTimer = 0.5; }
+          if (e.erraticTimer <= 0) { e.erraticTargetAngle = Math.random() * Math.PI * 2; e.erraticTimer = 0.5; }
+          const _angleDiff = Math.atan2(Math.sin(e.erraticTargetAngle - e.angle), Math.cos(e.erraticTargetAngle - e.angle));
+          e.angle += _angleDiff * Math.min(1, 5 * dt);
           e.x += (Math.cos(e.angle) * spd + kbx) * dt;
           e.y += (Math.sin(e.angle) * spd + kby2) * dt;
         } else if (e.behavior === 'swarm') {
@@ -411,33 +564,119 @@
             e.y += Math.sin(angle) * spd * dt + kby2 * dt;
           }
         } else if (e.behavior === 'ranged') {
-          const dist = Math.hypot(st.player.x - e.x, st.player.y - e.y);
-          if (dist > 170) {
-            const angle = Math.atan2(st.player.y - e.y, st.player.x - e.x);
-            e.x += Math.cos(angle) * spd * 0.5 * dt + kbx * dt;
-            e.y += Math.sin(angle) * spd * 0.5 * dt + kby2 * dt;
-          } else {
-            // Separación ranged (cuadrícula, no O(n²)): mismo radio (radius+...)*0.7
-            // y mismo empuje ((minD-od)*1.2*dt) que antes.
-            forEachGridNeighbor(e, grid, (other) => {
-              if (other.dead) return;
-              const od = Math.hypot(other.x - e.x, other.y - e.y);
-              const minD = (e.radius + other.radius) * 0.7;
-              if (od > 0 && od < minD) {
-                const a2 = Math.atan2(e.y - other.y, e.x - other.x);
-                const push = (minD - od) * 1.2 * dt;
-                e.x += Math.cos(a2) * push;
-                e.y += Math.sin(a2) * push;
-              }
-            });
-            e.shootTimer += dt;
-            if (e.shootTimer > 1.2) {
-              e.shootTimer = 0;
-              const angle = Math.atan2(st.player.y - e.y, st.player.x - e.x);
-              if (bullets.length < MAX_BULLETS && st.enemyBulletCount() < MAX_ENEMY_BULLETS)
-                bullets.push({ x: e.x, y: e.y, vx: Math.cos(angle) * 250, vy: Math.sin(angle) * 250, damage: e.damage, color: e.color, isEnemy: true, dead: false, sourceEnemy: e, sourceType: e.enemyTypeId || 'ranged' });
-            }
+          // SPITTER / ESCOPURAS (F07): F05 es la autoridad de estados.
+          // Banda [SPIT_NEAR, SPIT_FAR]: lejos -> approach, en banda ->
+          // strafe persistente, cerca -> RETREAT. WINDUP real sin spawn con
+          // aim snapshot + lead parcial topado; ATTACK = 1 disparo familia
+          // existente sin homing; RECOVERY = ventana de castigo sin refire.
+          const pdx = st.player.x - e.x, pdy = st.player.y - e.y;
+          const dist = Math.hypot(pdx, pdy);
+          const invD = Math.max(dist, 1);
+          if (e.spitStrafe !== -1 && e.spitStrafe !== 1) {
+            e.spitStrafe = Math.random() < 0.5 ? -1 : 1;
+            e.spitStrafeT = SPIT_STRAFE_HOLD;
           }
+          if (!(e.spitStrafeT > 0)) {
+            e.spitStrafeT = SPIT_STRAFE_HOLD;
+            if (Math.random() < 0.35) e.spitStrafe = -e.spitStrafe;
+          } else {
+            e.spitStrafeT -= dt;
+          }
+          let rState, rTimer;
+          if (NV.enemyState) {
+            if (!e.intent) {
+              e.intent = NV.enemyState.createIntent(e);
+              e.intent.preferredRange = SPIT_BAND_MID;
+              e.intent.flankOffset = 90;
+            }
+            NV.enemyState.updateIntent(e, dt);
+            rState = e.intent.state;
+            rTimer = e.intent.stateTimer;
+          } else {
+            if (e.spitState == null) { e.spitState = 'idle'; e.spitTimer = 0; }
+            e.spitTimer = Math.max(0, (e.spitTimer || 0) - dt);
+            rState = e.spitState;
+            rTimer = e.spitTimer;
+          }
+          const setRState = (next, timer) => {
+            if (NV.enemyState) { e.intent.state = next; e.intent.stateTimer = timer; }
+            else { e.spitState = next; e.spitTimer = timer; }
+            rState = next; rTimer = timer;
+          };
+          const fireSpitterShot = () => {
+            const tx0 = (e.spitAimX != null ? e.spitAimX : st.player.x);
+            const ty0 = (e.spitAimY != null ? e.spitAimY : st.player.y);
+            const ang = Math.atan2(ty0 - e.y, tx0 - e.x);
+            if (bullets.length < MAX_BULLETS && st.enemyBulletCount() < MAX_ENEMY_BULLETS)
+              bullets.push({ x: e.x, y: e.y, vx: Math.cos(ang) * SPIT_BULLET_SPEED, vy: Math.sin(ang) * SPIT_BULLET_SPEED, damage: e.damage, color: e.color, isEnemy: true, dead: false, sourceEnemy: e, sourceType: e.enemyTypeId || 'ranged' });
+            e.shootTimer = 0;
+            e.spitFired = true;
+          };
+          if (rState === 'idle') {
+            e.shootTimer = e.shootTimer || 0;
+            e.spitFired = false;
+            setRState('positioning', Math.max(rTimer || 0, 0.2));
+          } else if (rState === 'positioning') {
+            e.shootTimer = (e.shootTimer || 0) + dt;
+            e.spitFired = false;
+            if (dist < SPIT_NEAR) {
+              setRState('retreat', 0.6);
+            } else if (dist >= SPIT_NEAR && dist <= SPIT_FAR && e.shootTimer >= SPIT_CYCLE) {
+              const pvx = st.player.moveVx || 0, pvy = st.player.moveVy || 0;
+              const tof = dist / SPIT_BULLET_SPEED;
+              let lx = pvx * tof * SPIT_LEAD_FACTOR, ly = pvy * tof * SPIT_LEAD_FACTOR;
+              const lm = Math.hypot(lx, ly);
+              if (lm > SPIT_LEAD_CAP) { lx *= SPIT_LEAD_CAP / lm; ly *= SPIT_LEAD_CAP / lm; }
+              e.spitAimX = st.player.x + lx;
+              e.spitAimY = st.player.y + ly;
+              e.spitFired = false;
+              setRState('windup', SPIT_WINDUP);
+            } else {
+              let mx, my;
+              if (dist > SPIT_FAR) {
+                mx = (pdx / invD) * spd * 0.5; my = (pdy / invD) * spd * 0.5;
+              } else {
+                const sx = (-pdy / invD) * e.spitStrafe, sy = (pdx / invD) * e.spitStrafe;
+                const drift = (dist - SPIT_BAND_MID) / Math.max(SPIT_FAR - SPIT_NEAR, 1);
+                mx = sx * spd * 0.4 + (pdx / invD) * spd * 0.25 * drift;
+                my = sy * spd * 0.4 + (pdy / invD) * spd * 0.25 * drift;
+              }
+              e.x += mx * dt + kbx * dt;
+              e.y += my * dt + kby2 * dt;
+            }
+          } else if (rState === 'windup') {
+            if (rTimer <= 0) {
+              fireSpitterShot();
+              setRState('recovery', SPIT_RECOVERY);
+            }
+          } else if (rState === 'attack') {
+            if (!e.spitFired) fireSpitterShot();
+            setRState('recovery', SPIT_RECOVERY);
+          } else if (rState === 'recovery') {
+            if (rTimer <= 0) setRState('positioning', 0.2);
+          } else if (rState === 'retreat') {
+            e.spitFired = false;
+            const rx = (-pdx / invD), ry = (-pdy / invD);
+            e.x += rx * spd * 0.6 * dt + kbx * dt;
+            e.y += ry * spd * 0.6 * dt + kby2 * dt;
+            if (dist > SPIT_NEAR + 30 || rTimer <= 0) setRState('positioning', 0.2);
+          } else {
+            setRState('positioning', 0.2);
+          }
+          // Separación ranged (cuadrícula, no O(n²)): mismo radio (radius+...)*0.7
+          // y mismo empuje ((minD-od)*1.2*dt) que antes. Vale en todos los estados.
+          forEachGridNeighbor(e, grid, (other) => {
+            if (other.dead) return;
+            const od = Math.hypot(other.x - e.x, other.y - e.y);
+            const minD = (e.radius + other.radius) * 0.7;
+            if (od > 0 && od < minD) {
+              const a2 = Math.atan2(e.y - other.y, e.x - other.x);
+              const push = (minD - od) * 1.2 * dt;
+              e.x += Math.cos(a2) * push;
+              e.y += Math.sin(a2) * push;
+            }
+          });
+          if (NV.enemyState) NV.enemyState.computeSteering(e);
         }
       }
 
@@ -468,16 +707,10 @@
       const inContact = d < e.radius + 20;
       if (inContact && st.player.invuln <= 0 && st.player.stun <= 0 && (e.contactCd || 0) <= 0) {
         const baseDmg = e.isElite ? (e.eliteDamage || 0) : e.damage;
-        const hit = computePlayerHit(baseDmg);
+        const hit = applyPlayerDamage(baseDmg, { cause: 'contact', enemy: e });
         if (hit.dodged) {
           e.atkFlash = 0.25; // gesto corto: destaca QUÉ enemigo intentó golpear
-          addFloatText(st.player.x, st.player.y - 20, 'ESQUIVA', '#8dfaff');
-        } else {
-          const damage = hit.dmg;
-          const hpBefore = st.player.hp;
-          st.player.hp -= damage;
-          if (st.onPlayerDamaged) st.onPlayerDamaged({ cause: 'contact', enemy: e, hpBefore, hpAfter: st.player.hp, damage, crit: !!hit.crit });
-          if (st.sfx && st.sfx.playerHit && st.player.hp > 0) st.sfx.playerHit();
+        } else if (hit.applied) {
           st.player.invuln = 0.5;
           const contactAngle = d > 0 ? Math.atan2(e.y - st.player.y, e.x - st.player.x) : e.angle || 0;
           const contactPush = Math.max(90, (e.speed || 0) * 1.2) * (1 - (e.knockbackRes || 0) * 0.5);
@@ -494,9 +727,7 @@
           if (st.onKill) st.onKill(e);
           if (e.stunChance && Math.random() < e.stunChance) { st.player.stun = 0.6; addFloatText(st.player.x, st.player.y - 30, 'STUN', '#ff0'); }
           shake = Math.max(shake, hit.crit ? 0.3 : 0.15);
-          const cfs = hitFloatStyle(damage, !!hit.crit);
-          addFloatText(st.player.x, st.player.y - 20, '-' + damage, cfs.color, cfs.size);
-          if (st.player.hp <= 0) { gameOver = true; return { enemies: enemies.filter((x) => !x.dead), shake, gameOver }; }
+          if (hit.killed) { gameOver = true; return { enemies: enemies.filter((x) => !x.dead), shake, gameOver }; }
         }
       }
     }

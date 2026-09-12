@@ -36,7 +36,7 @@ t('HUD de habilidad usa drawMetaSkillIcon a 18px dentro del slot 22', () => {
   if (!hud.includes('NV.drawMetaSkillIcon(ctx, char.special')) throw new Error('HUD no usa drawMetaSkillIcon');
   if (!hud.includes('var sl = 22')) throw new Error('slot skill no es 22');
   if (!hud.includes('ssy + sl / 2, 18')) throw new Error('icono skill no es 18px centrado');
-  if (!hud.includes('cy - radius - 8, 18')) throw new Error('cooldown sobre personaje no usa icono canvas 18px');
+  if (hud.includes('cy - radius - 8, 18')) throw new Error('F09.4 reintrodujo cooldown world-space sobre el personaje');
   if (!hud.includes('Habilidad: ${char.skillName}')) throw new Error('stats TAB conserva icono textual');
   if (hud.includes('char.skillIcon')) throw new Error('HUD conserva char.skillIcon');
 });

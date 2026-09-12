@@ -11,8 +11,7 @@
       ctx.addFloatText(ctx.player.x, ctx.player.y, '+40 HP', '#0f0');
     },
     overdrive(ctx) {
-      // Solo se multiplica la velocidad una vez para no inflarla con compras repetidas.
-      if (ctx.player.overdrive <= 0) ctx.player.speed *= CONSUMABLES.overdrive.speedMult;
+      // Solo renueva el timer. movement.js deriva el multiplicador efectivo sin mutar base stats.
       ctx.player.overdrive = CONSUMABLES.overdrive.duration;
       if (ctx.spawnShockwave) ctx.spawnShockwave(ctx.player.x, ctx.player.y, { maxRadius: 80, color: '#caa7ff', width: 3 });
       ctx.addFloatText(ctx.player.x, ctx.player.y, 'OVERDRIVE', '#caa7ff');

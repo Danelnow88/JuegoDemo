@@ -64,10 +64,54 @@
     ctx.restore();
   }
 
-  NV.drawPlayer = function (ctx, player, CHARACTERS, frame) {
+  NV.drawPlayer = function (ctx, player, CHARACTERS, frame, presentation) {
     const char = CHARACTERS[player.character];
     ctx.save();
     ctx.translate(player.x, player.y);
+    if (presentation) {
+      const visualScale = presentation.scale == null ? 1 : presentation.scale;
+      const visualAlpha = presentation.alpha == null ? 1 : presentation.alpha;
+      ctx.scale(visualScale, visualScale);
+      ctx.globalAlpha = visualAlpha;
+      if (presentation.flourish > 0) {
+        const flourish = Math.max(0, Math.min(1, presentation.flourish));
+        const signature = NV.PILOT_TRANSITIONS && NV.PILOT_TRANSITIONS[player.character];
+        const motif = signature ? signature.flourish : 'layer-lock';
+        const accent = signature ? signature.accent : char.color;
+        ctx.save();
+        ctx.globalAlpha = flourish * 0.62;
+        ctx.strokeStyle = accent; ctx.shadowColor = accent;
+        ctx.shadowBlur = 10; ctx.lineWidth = 2.25;
+        const radius = char.size + 7 + (1 - flourish) * 14;
+        if (motif === 'shield-reform') {
+          ctx.beginPath();
+          for (let i = 0; i < 6; i++) {
+            const a = -Math.PI / 2 + i * Math.PI / 3;
+            const px = Math.cos(a) * radius, py = Math.sin(a) * radius;
+            if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+          }
+          ctx.closePath(); ctx.stroke();
+        } else if (motif === 'orbit-sync') {
+          ctx.save(); ctx.rotate((1 - flourish) * 0.45);
+          ctx.beginPath(); ctx.ellipse(0, 0, radius + 8, radius * 0.36, 0, 0, Math.PI * 2); ctx.stroke();
+          ctx.rotate(-0.75);
+          ctx.beginPath(); ctx.ellipse(0, 0, radius + 3, radius * 0.28, 0, 0, Math.PI * 2); ctx.stroke();
+          ctx.restore();
+        } else if (motif === 'energy-compress') {
+          for (let i = 0; i < 3; i++) {
+            const a = frame * 0.05 + i * Math.PI * 2 / 3;
+            ctx.beginPath();
+            ctx.arc(Math.cos(a) * radius, Math.sin(a) * radius, 2.5 + flourish * 2, 0, Math.PI * 2);
+            ctx.stroke();
+          }
+        } else {
+          ctx.beginPath(); ctx.arc(0, 0, radius, 0, Math.PI * 2); ctx.stroke();
+          ctx.globalAlpha *= 0.55;
+          ctx.beginPath(); ctx.arc(0, 0, radius * 0.68, 0, Math.PI * 2); ctx.stroke();
+        }
+        ctx.restore();
+      }
+    }
 
     const invulnBlink = player.invuln > 0 && Math.floor(player.invuln * 20) % 2 === 0;
     const stunBlink = player.stun > 0 && Math.floor(player.stun * 20) % 2 === 0;
@@ -166,16 +210,19 @@
       ctx.shadowBlur = 0;
     }
 
-    // Aura pulsante
-    const auraPulse = 0.15 + Math.sin(frame * 0.08) * 0.05;
-    ctx.strokeStyle = char.color;
-    ctx.globalAlpha = auraPulse * (invulnBlink ? 0.4 : 1);
-    ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.arc(0, 0, char.size + 12 + Math.sin(frame * 0.1) * 3, 0, Math.PI * 2); ctx.stroke();
+    // F09.4: el aura pulsante genérica alrededor del jugador fue ELIMINADA.
+    // Era el contorno redundante visible en gameplay y en el preview del
+    // lobby (se confundía con el indicador de cooldown de la habilidad).
+    // Se conservan: parpadeo de invuln/stun, contorno rojo de vida crítica,
+    // zona/aura de Fase Fantasma, escudo de Muralla y anillos de ENJAMBRE.
+    // (No se deja alpha residual: el cuerpo se dibuja opaco salvo blink.)
     ctx.globalAlpha = invulnBlink ? 0.4 : 1;
 
     ctx.shadowBlur = 30;
     ctx.shadowColor = char.color;
+    // F09.4: el aura pulsante genérica alrededor del jugador fue ELIMINADA
+    // (era el contorno redundante visible en gameplay y en el lobby).
+    // La identidad del cuerpo se conserva vía glow + formas por piloto.
     const size = char.size;
     const cid = char.id || player.character;
 

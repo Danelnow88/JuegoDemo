@@ -33,6 +33,7 @@ Abrir `http://localhost:8080/`. También puede abrirse `index.html` directamente
 - `js/core/viewport.js` es la única fuente de métricas de referencia, vista y arena.
 - `js/game.js` coordina estado, loop, gameplay compartido y transiciones UI.
 - `js/engine/` contiene sistemas de gameplay; `js/render/` contiene renderers; `js/data/` contiene definiciones de contenido y balance.
+- `NV.applyPlayerDamage` es la autoridad de daño al jugador; `NV.getHostileBudget` deriva el presupuesto vivo con topes de 30 hostiles y 7 heavy, boss incluido.
 - Teclado y controles táctiles escriben en la misma abstracción lógica `NV.input`.
 - El lobby, Game Over y Settings usan DOM compartido con presentación responsive.
 - `js/core/settings.js` centraliza calidad visual y persistencia sin alterar gameplay.
@@ -67,7 +68,7 @@ node tests/dynamic_arena.js
 npm test
 ```
 
-Baseline actual: 70 suites; 2 fallos conocidos (`kamikaze` y `lab_model_hitbox`). Cualquier fallo adicional es una regresión hasta investigarlo. Conteos y política: [Testing](docs/TESTING.md).
+Baseline actual: 77 suites; 2 fallos conocidos (`kamikaze` y `lab_model_hitbox`). P3.1 añade Campo Minado táctico, `IDLE_GROOVE`/`MUSIC_GROOVE` y notas musicales decorativas; P3.1.1 hace que el widget de ritmo y Speaker Mines compartan groove math puro sin DOM por hazard. Cualquier fallo adicional es una regresión hasta investigarlo. Conteos y política: [Testing](docs/TESTING.md).
 
 ## Despliegue
 

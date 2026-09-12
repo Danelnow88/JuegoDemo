@@ -71,6 +71,8 @@
   const CHANNELS = { music:0.6, sfxUI:0.7, sfxPlayer:0.9, sfxEnemies:0.8, sfxAmbient:0.6 };
   // Volubilidad maestra por canal (0..1), configurable futuro -> sliders.
   const MASTER_VOLUME = { music:1, sfxUI:1, sfxPlayer:1, sfxEnemies:1, sfxAmbient:1 };
+  const SFX_CHANNELS = ['sfxUI', 'sfxPlayer', 'sfxEnemies', 'sfxAmbient'];
+  let masterGain = null;
 
   // Ducking: un canal puede ser atenuado temporalmente por un evento de otro canal.
   // Usado por SFX importantes (daño, victoria, combo) para bajar la música.
@@ -80,15 +82,21 @@
   // (modo headless/test) simplemente no hace nada → fallback a destination directo.
   function createMixer() {
     if (!NV.audioCtx) return;
+    if (NV.mixer && masterGain) return;
     const ctx = NV.audioCtx;
     const mixer = {};
+    masterGain = ctx.createGain();
+    masterGain.gain.value = NV.soundOn ? 1 : 0;
+    masterGain.connect(ctx.destination);
     for (const ch in CHANNELS) {
       const g = ctx.createGain();
       g.gain.value = CHANNELS[ch];
-      g.connect(ctx.destination);
+      g.connect(masterGain);
       mixer[ch] = g;
     }
     NV.mixer = mixer;
+    NV.audioMasterGain = masterGain;
+    applySfxVolume(NV.settings && NV.settings.audio ? NV.settings.audio.sfxVolume : 1);
   }
 
   // Enruta un GainNode a su canal; si no hay mixer (headless), cae a destination.
@@ -118,6 +126,27 @@
     if (!Object.prototype.hasOwnProperty.call(MASTER_VOLUME, name)) return;
     MASTER_VOLUME[name] = Math.max(0, Math.min(1, value));
     if (NV.mixer && NV.mixer[name]) NV.mixer[name].gain.value = MASTER_VOLUME[name] * CHANNELS[name];
+  }
+
+  function applySfxVolume(value) {
+    value = Number(value);
+    if (!Number.isFinite(value)) value = 1;
+    value = Math.max(0, Math.min(1, value));
+    for (const name of SFX_CHANNELS) setChannelVolume(name, value);
+    return value;
+  }
+
+  function setSoundEnabled(enabled) {
+    NV.soundOn = !!enabled;
+    if (masterGain && NV.audioCtx) {
+      const t = NV.audioCtx.currentTime;
+      masterGain.gain.cancelScheduledValues(t);
+      masterGain.gain.setValueAtTime(masterGain.gain.value, t);
+      masterGain.gain.linearRampToValueAtTime(NV.soundOn ? 1 : 0, t + 0.025);
+    }
+    if (!NV.soundOn && NV.audio && typeof NV.audio.stopAllWeapons === 'function') NV.audio.stopAllWeapons();
+    if (typeof NV.syncSoundUI === 'function') NV.syncSoundUI();
+    return NV.soundOn;
   }
 
   // Ducking temporal: atenúa `byChannel` a `to` hasta `until` segundos de audioCtx.
@@ -170,7 +199,7 @@
     gain.gain.setValueAtTime(0.01, time);
     gain.gain.exponentialRampToValueAtTime(0.001, time + dur);
     lfo.connect(filter.frequency);
-    osc.connect(filter); filter.connect(gain); gain.connect(NV.audioCtx.destination);
+    osc.connect(filter); filter.connect(gain); gain.connect(channelFor('music'));
     lfo.start(time); osc.start(time);
     osc.stop(time + dur); lfo.stop(time + dur);
   }
@@ -185,7 +214,7 @@
     filter.frequency.setValueAtTime(3000, NV.audioCtx.currentTime);
     gain.gain.setValueAtTime(vol || 0.03, NV.audioCtx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.001, NV.audioCtx.currentTime + dur);
-    osc.connect(filter); filter.connect(gain); gain.connect(NV.audioCtx.destination);
+    osc.connect(filter); filter.connect(gain); gain.connect(channelFor('music'));
     osc.start(); osc.stop(NV.audioCtx.currentTime + dur);
   }
   function scheduleNoise(dur, vol) {
@@ -201,7 +230,7 @@
     filter.frequency.setValueAtTime(200 + Math.random() * 200, NV.audioCtx.currentTime);
     gain.gain.setValueAtTime(vol || 0.04, NV.audioCtx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.001, NV.audioCtx.currentTime + dur);
-    src.connect(filter); filter.connect(gain); gain.connect(NV.audioCtx.destination);
+    src.connect(filter); filter.connect(gain); gain.connect(channelFor('sfxAmbient'));
     src.start(); src.stop(NV.audioCtx.currentTime + dur);
   }
   function scheduleDrum(type, dur, vol) {
@@ -216,7 +245,7 @@
     filter.frequency.setValueAtTime(type === 'kick' ? 150 : 4000, NV.audioCtx.currentTime);
     gain.gain.setValueAtTime(vol || 0.04, NV.audioCtx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.001, NV.audioCtx.currentTime + dur);
-    osc.connect(filter); filter.connect(gain); gain.connect(NV.audioCtx.destination);
+    osc.connect(filter); filter.connect(gain); gain.connect(channelFor('music'));
     osc.start(); osc.stop(NV.audioCtx.currentTime + dur);
   }
   function updateMusic(dt) {
@@ -348,6 +377,21 @@
     special: () => playTone(660, 0.4, 'triangle', 0.05, 'sfxPlayer'),
     playerLevelUp: () => { duck('music', 0.3, 0.14); playTone(523, 0.1, 'square', 0.05, 'sfxUI'); playTone(784, 0.13, 'triangle', 0.04, 'sfxUI'); },
     wave: () => playTone(440, 0.3, 'triangle', 0.06, 'sfxUI'),
+    // Speaker mines: eventos discretos sobre el mixer existente. El baile no
+    // genera voz continua; armado y explosión respetan mute/volumen/paneo.
+    speakerMineArm: (opts) => {
+      opts = opts || {};
+      playTone(210, 0.08, 'square', 0.025, 'sfxAmbient', opts);
+      playTone(315, 0.11, 'triangle', 0.018, 'sfxAmbient', opts);
+    },
+    speakerMineExplosion: (opts) => {
+      opts = opts || {};
+      duck('music', 0.18, 0.2);
+      scheduleNoise(0.22, 0.07);        // punch bajo + ataque
+      playTone(60, 0.3, 'sawtooth', 0.11, 'sfxAmbient', opts);   // graves fuertes
+      playTone(120, 0.09, 'triangle', 0.055, 'sfxAmbient', opts); // ataque claro
+      playTone(250, 0.13, 'square', 0.04, 'sfxAmbient', opts);   // tono percusivo sutil
+    },
   };
 
   sfx.levelup = () => sfx.playerLevelUp(); // alias legacy
@@ -403,6 +447,28 @@
     scheduleNoise(0.3, 0.06);
   };
 
+  const PILOT_TRANSITION_TONES = {
+    boti:  { death: [110, 87],  stable: [330, 440], deathType: 'sawtooth', stableType: 'sine' },
+    nova:  { death: [220, 132], stable: [520, 660], deathType: 'sawtooth', stableType: 'sine' },
+    rook:  { death: [72, 55],   stable: [146, 196], deathType: 'triangle', stableType: 'triangle' },
+    swarm: { death: [330, 220], stable: [440, 880], deathType: 'square', stableType: 'sine' }
+  };
+
+  sfx.deathTone = (pilotId) => {
+    const tone = PILOT_TRANSITION_TONES[pilotId] || PILOT_TRANSITION_TONES.boti;
+    duck('music', 0.28, 0.22);
+    playTone(tone.death[0], 0.28, tone.deathType, 0.055, 'sfxPlayer');
+    playTone(tone.death[1], 0.42, 'triangle', 0.035, 'sfxAmbient');
+    if (pilotId === 'nova' || pilotId === 'rook') scheduleNoise(0.16, 0.025);
+  };
+
+  sfx.stabilizeTone = (pilotId, isBoss) => {
+    const tone = PILOT_TRANSITION_TONES[pilotId] || PILOT_TRANSITION_TONES.boti;
+    const gain = isBoss ? 0.045 : 0.032;
+    playTone(tone.stable[0], 0.18, tone.stableType, gain, 'sfxUI');
+    playTone(tone.stable[1], 0.24, 'sine', gain * 0.72, 'sfxAmbient');
+  };
+
   function defaultWeaponSound(_weapon, opts, fus, vol) {
     playToneEx(880, 0.08, 'square', 0.03 * vol, opts);
   }
@@ -426,6 +492,9 @@
   function playWeaponSound(weapon, opts) {
     if (!NV.soundOn) return;
     opts = opts || {};
+    if (NV.audio && typeof NV.audio.weaponFire === 'function') {
+      return NV.audio.weaponFire((weapon && weapon.id) || 'pistol', opts);
+    }
     const fus = opts.fusion > 0 ? 1 + opts.fusion * 0.05 : 1; // pitch ↑ +5% por nivel de fusión
     const vol = (opts.crit ? 1.15 : 1) * (opts.fusion ? 1 + opts.fusion * 0.03 : 1);
     const handler = WEAPON_SOUND_HANDLERS[weapon.id] || defaultWeaponSound;
@@ -457,6 +526,8 @@
   NV.channelFor = channelFor;
   NV.panForX = panForX;
   NV.setChannelVolume = setChannelVolume;
+  NV.applySfxVolume = applySfxVolume;
+  NV.setSoundEnabled = setSoundEnabled;
   NV.mixerChannels = CHANNELS;
   NV.masterVolume = MASTER_VOLUME;
   NV.sfx = sfx;

@@ -38,9 +38,12 @@ t('parallax: capas se desplazan a distinta velocidad', () => {
   if (deltas.size < 2) throw new Error('capas sin diferenciación: ' + [...deltas].join(','));
 });
 
-t('game.js dibuja el starfield con la posición del jugador', () => {
+t('game.js dibuja el starfield conectado a la vista dinámica/cinematográfica', () => {
   const g = fs.readFileSync('js/game.js', 'utf8');
-  if (!g.includes('NV.drawStarfield(ctx, vw, vh, frame, player.x - vx, player.y - vy, NV.rhythm)')) throw new Error('no conectado a vista dinámica');
+  const starfieldCall = g.match(/NV\.drawStarfield\([^;]+\);/);
+  if (!starfieldCall) throw new Error('starfield no conectado');
+  if (!/frame/.test(starfieldCall[0]) || !/NV\.rhythm/.test(starfieldCall[0])) throw new Error('starfield sin tiempo/ritmo');
+  if (!/(player\.[xy]|cinematic\.(centerX|centerY)|view[XY])/.test(starfieldCall[0])) throw new Error('starfield no conectado a vista dinámica');
   if (!g.includes("spawnExplosion(player.x - (player.moveVx || 0)")) throw new Error('polvo de slide ausente');
 });
 

@@ -10,6 +10,7 @@ function t(desc, fn) {
   const dom = fs.readFileSync('js/ui/dom.js', 'utf8');
   const game = fs.readFileSync('js/game.js', 'utf8');
   const css = fs.readFileSync('css/styles.css', 'utf8');
+  const rhythm = fs.readFileSync('js/engine/rhythm.js', 'utf8');
 
   t('index.html contiene el widget rhythm-widget', () => {
     if (!html.includes('id="rhythm-widget"')) throw new Error('falta #rhythm-widget');
@@ -46,35 +47,25 @@ function t(desc, fn) {
     if (!css.includes('stroke: currentColor')) throw new Error('el SVG no usa currentColor (no se puede teñir por hue)');
   });
 
-  t('game.js: updateRhythmWidgetIcon aplica pulso/skew suavizados, color y glow', () => {
+  t('widget usa groove math compartida y solo aplica mapping DOM de pulso/skew/color/glow', () => {
     if (!game.includes('function updateRhythmWidgetIcon')) throw new Error('falta updateRhythmWidgetIcon');
     // gate: estático sin listening
     if (!game.includes("r.state !== 'listening'")) throw new Error('falta gate de estado listening');
-    // pulso percusivo (beat/kick/onset) + respiración continua por energía
-    if (!game.includes('const perc = Math.max(beat')) throw new Error('falta fuente percusiva combinada');
-    if (!game.includes('r.kick') || !game.includes('r.onset')) throw new Error('no usa kick/onset para movimiento');
-    if (!game.includes('Math.min(1, perc * 2.1)')) throw new Error('falta targetPulse percusivo amplificado');
+    if (!game.includes('NV.computeRhythmGroove(icon, r')) throw new Error('widget no consume groove compartida');
+    if (!rhythm.includes('NV.computeRhythmGroove')) throw new Error('helper groove ausente');
+    // Pulso percusivo + respiración + smoothstep + attack/release pertenecen a la
+    // capa compartida, no deben duplicarse en la UI ni en Canvas.
+    for (const token of ['const perc = Math.max(beat', 'Math.min(1, perc * 2.1)', 'pulseEnv * pulseEnv * (3 - 2 * pulseEnv)', 'energyEnv > 0.025', 'pulseTau', 'scaleTau', 'skewTau']) {
+      if (!rhythm.includes(token)) throw new Error('helper sin ' + token);
+    }
     if (!game.includes('skewX(')) throw new Error('falta distorsión skew de borde');
-    if (!game.includes('pulseEnv') || !game.includes('curvedPulse')) throw new Error('falta envelope/curva del pulso');
-    if (!game.includes('energyEnv') || !game.includes('breathPhase')) throw new Error('falta respiración continua por energía');
-    if (!game.includes('hasAudio = energyEnv > 0.025')) throw new Error('falta gate de audio real para movimiento continuo');
-    if (!game.includes('breathAmp')) throw new Error('falta amplitud de respiración');
-    if (!game.includes('pulseEnv * pulseEnv * (3 - 2 * pulseEnv)')) throw new Error('falta smoothstep del pulso');
-    if (!game.includes('targetScale') || !game.includes('smoothScale')) throw new Error('falta suavizado de escala');
-    if (!game.includes('pulseTau') || !game.includes('scaleTau') || !game.includes('skewTau')) throw new Error('falta attack/release temporal');
-    if (!game.includes('0.10 + energyEnv * 0.18')) throw new Error('falta breathAmp ampliado');
-    if (!game.includes('Math.min(1.62')) throw new Error('falta cap ampliado de escala');
-    if (!game.includes('0.48 * curvedPulse')) throw new Error('falta rango visual fuerte de escala por percusión');
-    if (!game.includes('4.2 * curvedPulse')) throw new Error('falta rango visual fuerte de skew por percusión');
-    if (!game.includes('Math.exp(-dtMs / pulseTau)')) throw new Error('falta lerp exponencial del envelope por dt');
-    if (!game.includes('Math.exp(-dtMs / scaleTau)')) throw new Error('falta lerp exponencial de escala por dt');
     if (!game.includes('transform = \'scale(')) throw new Error('falta apply scale');
     // color por hue
     if (!game.includes("icon.style.color = 'hsl(")) throw new Error('falta color por hue');
     // glow por energía
     if (!game.includes('icon.style.filter')) throw new Error('falta glow (filter)');
-    // usa hue/beat/energy de NV.rhythm
-    if (!game.includes('NV.rhythm') || !game.includes('r.hue') || !game.includes('r.beat') || !game.includes('r.energy')) throw new Error('no reusa NV.rhythm');
+    // usa hue y groove derivada de NV.rhythm
+    if (!game.includes('NV.rhythm') || !game.includes('r.hue') || !game.includes('groove.beat') || !game.includes('groove.energy')) throw new Error('no reusa NV.rhythm');
     // se llama en el loop
     if (!game.includes('NV.updateRhythmWidgetIcon()')) throw new Error('no se llama updateRhythmWidgetIcon en el loop');
   });
@@ -100,7 +91,7 @@ function t(desc, fn) {
     if (!glyphBlock.includes('transform-origin: 50% 50%') || !glyphBlock.includes('will-change: transform')) throw new Error('SVG interno no está preparado para transform');
   });
 
-  t('game.js resetea estado interno del suavizado cuando no hay captura', () => {
+  t('game.js resetea el state compartido del widget cuando no hay captura', () => {
     if (!game.includes('icon._smoothScale = 1')) throw new Error('no resetea smoothScale');
     if (!game.includes('icon._smoothSkew = 0')) throw new Error('no resetea smoothSkew');
     if (!game.includes('icon._pulseEnv = 0')) throw new Error('no resetea pulseEnv');

@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Neon Void</title>
     <link rel="stylesheet" href="css/styles.css" />
+    <link rel="stylesheet" href="css/lobby-f093.css" />
     <!-- Capa móvil: detección por capacidad (se carga primero; solo etiqueta <html>). -->
     <script src="js/core/capabilities.js"></script>
     <script type="importmap">
@@ -46,7 +47,7 @@
         <div class="hud-btns">
           <button id="charBtn" class="hud-btn" type="button" title="Estadísticas (TAB)"><svg class="stat-svg" viewBox="0 0 16 16" focusable="false" aria-hidden="true"><path d="M3 13V8h2v5H3Zm4 0V4h2v9H7Zm4 0V2h2v11h-2Z" /></svg></button>
           <button id="hudToggle" class="hud-btn active" type="button" title="Mostrar/ocultar HUD">HUD</button>
-          <button id="sound" class="sound" type="button" title="Activar o silenciar sonido">♫ ON</button>
+          <button id="sound" class="sound" type="button" title="Silenciar sonido" aria-pressed="true">🔊 SONIDO</button>
           <button id="settingsBtn" class="hud-btn desktop-settings" type="button" title="Ajustes">⚙</button>
           <button id="fullscreenBtn" class="hud-btn touch-fullscreen" type="button" title="Jugar en pantalla completa">⛶</button>
           <button id="optionsBtn" class="hud-btn touch-options" type="button" title="Opciones móviles">☰</button>
@@ -58,24 +59,84 @@
         <canvas id="specter-overlay" class="espectro-lite-canvas" width="900" height="520"></canvas>
         <div id="waveBanner" class="wave-banner hidden"></div>
 
-        <div id="startScreen" class="overlay lobby-screen">
+        <div id="startScreen" class="overlay lobby-screen main-lobby-screen">
+          <div class="lobby-atmosphere" aria-hidden="true">
+            <div class="lobby-nebula lobby-nebula-a"></div>
+            <div class="lobby-nebula lobby-nebula-b"></div>
+            <div class="lobby-grid-floor"></div>
+            <span class="lobby-star star-a"></span><span class="lobby-star star-b"></span>
+            <span class="lobby-star star-c"></span><span class="lobby-star star-d"></span>
+          </div>
+          <section class="main-lobby-panel" aria-labelledby="lobbyTitle">
+            <div class="main-lobby-copy">
+              <div class="lobby-kicker">SUPERVIVENCIA · NEON ROGUELITE</div>
+              <div class="lobby-brand" aria-label="Neon Void">
+                <span class="lobby-brand-mark">NV</span>
+                <h1 id="lobbyTitle"><span>NEON</span><strong>VOID</strong></h1>
+              </div>
+              <p class="subtitle">Atravesá el umbral. Prepará tu piloto. Sobreviví al pulso del Vacío.</p>
+              <div class="lobby-hero-info" aria-live="polite">
+                <div class="hero-info-header">
+                  <button id="hero-prev" class="hero-nav hero-prev" type="button" aria-label="Piloto anterior">◀</button>
+                  <div class="hero-info-name">
+                    <span id="heroName">BOTI</span>
+                    <small id="heroTag">Equilibrado</small>
+                  </div>
+                  <button id="hero-next" class="hero-nav hero-next" type="button" aria-label="Piloto siguiente">▶</button>
+                </div>
+                <div class="hero-info-stats" id="heroStats">HP 120 · SPD 195 · ARM 0</div>
+                <p class="hero-info-passive"><span>PASIVA</span><strong id="heroPassive">Regenera 1 HP cada 5s</strong></p>
+                <div class="hero-info-skill">
+                  <canvas class="hero-skill-icon" id="heroSkillIcon" width="24" height="24"></canvas>
+                  <p><span>ESPECIAL</span><strong id="heroSkillName">Lluvia Estelar</strong><small id="heroSkillDesc">Meteoritos devastadores contra enemigos normales</small></p>
+                </div>
+                <p class="hero-info-identity" id="heroIdentity">Supervivencia estable · especial de alto impacto y recarga larga</p>
+              </div>
+              <div class="main-lobby-actions" aria-label="Menú principal">
+                <button id="lobbyPlayBtn" class="primary lobby-play" type="button"><span>JUGAR</span><small>Iniciar con el piloto seleccionado</small></button>
+                <button id="pilotsBtn" class="primary secondary lobby-secondary" type="button">PILOTOS</button>
+                <button id="permBtn" class="primary secondary lobby-secondary" type="button">MEJORAS PERMANENTES</button>
+                <button id="lobbySettingsBtn" class="primary secondary lobby-settings" type="button">AJUSTES</button>
+              </div>
+              <div class="lobby-difficulty" id="lobbyDifficulty" aria-label="Dificultad">
+                <span class="lobby-diff-label">DIFICULTAD</span>
+                <div class="lobby-diff-options" id="lobbyDiffOptions">
+                  <button type="button" class="lobby-diff-btn" data-diff="easy" aria-pressed="false">FÁCIL</button>
+                  <button type="button" class="lobby-diff-btn" data-diff="normal" aria-pressed="false">NORMAL</button>
+                  <button type="button" class="lobby-diff-btn" data-diff="hard" aria-pressed="false">DIFÍCIL</button>
+                </div>
+              </div>
+              <div class="main-lobby-status" aria-label="Progreso guardado">
+                <span class="status-light"></span>
+                <p><strong>PROGRESO LOCAL ACTIVO</strong><small>Mejoras y ajustes guardados automáticamente</small></p>
+              </div>
+            </div>
+            <div class="lobby-hero" aria-label="Vista previa del piloto seleccionado">
+              <canvas id="lobbyPreview" class="lobby-preview"></canvas>
+            </div>
+          </section>
+        </div>
+
+        <div id="characterSelectScreen" class="overlay lobby-screen character-select-screen hidden">
+          <div class="lobby-atmosphere character-select-atmosphere" aria-hidden="true">
+            <div class="lobby-nebula lobby-nebula-a"></div><div class="lobby-nebula lobby-nebula-b"></div>
+            <div class="lobby-grid-floor"></div>
+          </div>
           <div class="lobby-shell">
             <header class="lobby-header">
-              <div class="lobby-kicker">SUPERVIVENCIA · NEON ROGUELITE</div>
-              <h1>NEON VOID</h1>
-              <p class="subtitle">Elegí tu piloto y sobreviví a las oleadas del Vacío</p>
+              <div class="lobby-kicker">ARCHIVO DE PILOTOS · ESCUADRÓN 04</div>
+              <h1><span>BIBLIOTECA</span> DE PILOTOS</h1>
+              <p class="subtitle">Compará perfiles, habilidades y riesgos. Tu selección queda lista en el lobby.</p>
             </header>
             <section class="lobby-roster" aria-labelledby="lobbyRosterTitle">
               <div class="lobby-section-head">
-                <span id="lobbyRosterTitle">SELECCIÓN DE PILOTO</span>
+                <span id="lobbyRosterTitle">PILOTOS DISPONIBLES</span>
                 <span id="lobbyCharacterCount">0 disponibles</span>
               </div>
               <div id="charGrid" class="char-grid"></div>
             </section>
-            <footer class="lobby-actions">
-              <button id="startBtn" class="primary lobby-play" type="button">JUGAR</button>
-              <button id="permBtn" class="primary secondary lobby-secondary" type="button">MEJORAS PERMANENTES</button>
-              <button id="lobbySettingsBtn" class="primary secondary lobby-settings" type="button">AJUSTES</button>
+            <footer class="lobby-actions character-select-actions">
+              <button id="startBtn" class="primary lobby-play" type="button">← USAR PILOTO · VOLVER AL LOBBY</button>
             </footer>
           </div>
         </div>
@@ -104,7 +165,7 @@
             <div class="shop-section shop-section-armory" data-shop-tab="weapons">
               <div class="shop-section-title"><span class="section-chip">WPN</span> ARMERÍA</div>
               <div id="invPanel" class="inv-panel shop-weapon-dock">
-                <div class="dock-label">DOCK DE ARMAS <span class="inv-hint">clic equipar · vender</span></div>
+                <div class="dock-label">DOCK DE ARMAS <span class="inv-hint">clic equipar · vender · click en 2 armas para intercambiar</span></div>
                 <div id="invSlots" class="inv-slots"></div>
               </div>
               <div id="weaponOffers" class="offers offers-weapons"></div>
@@ -131,7 +192,7 @@
               <div id="permOffers" class="offers"></div>
             </div>
           </div>
-          <button id="permBack" class="primary" type="button">← VOLVER AL MENÚ</button>
+          <button id="permBack" class="primary" type="button">← VOLVER AL LOBBY</button>
         </div>
 
         <div id="gameOver" class="overlay hidden game-over-screen">
@@ -144,7 +205,7 @@
               <div class="go-stat"><span>OLEADA</span><span id="goWave">0</span></div>
             </div>
             <div class="game-over-future" aria-hidden="true"></div>
-            <button id="restartBtn" class="primary" type="button">REINTENTAR</button>
+            <button id="restartBtn" class="primary" type="button">VOLVER AL LOBBY</button>
           </section>
         </div>
       </section>
@@ -164,7 +225,7 @@
         </div>
         <div id="mobileActions" class="mobile-actions" aria-label="Controles táctiles">
           <button id="touchUseBtn" class="touch-btn touch-use" type="button">USAR</button>
-          <button id="touchSlideBtn" class="touch-btn touch-slide" type="button">SHIFT</button>
+          <button id="touchSlideBtn" class="touch-btn touch-slide" type="button">DASH</button>
           <button id="touchSpecialBtn" class="touch-btn touch-special" type="button">ESPECIAL</button>
         </div>
         <div id="mobileWeaponSwitch" class="mobile-weapon-switch" aria-label="Cambio de arma">
@@ -180,7 +241,7 @@
         <div id="mobileOptions" class="mobile-options hidden" aria-label="Panel de opciones">
           <button id="mPauseBtn" class="opt-btn" type="button">⏸ Pausa</button>
           <button id="mStatsBtn" class="opt-btn" type="button">Estadísticas</button>
-          <button id="mSoundBtn" class="opt-btn" type="button">Sonido</button>
+          <button id="mSoundBtn" class="opt-btn" type="button" aria-pressed="true">🔊 Sonido: ON</button>
           <button id="mSettingsBtn" class="opt-btn" type="button">⚙ Ajustes</button>
           <button id="mFullscreenBtn" class="opt-btn" type="button">⛶ Fullscreen</button>
         </div>
@@ -193,6 +254,22 @@
             <button id="settingsClose" class="settings-close" type="button" aria-label="Cerrar ajustes">×</button>
           </header>
           <div class="settings-section">
+            <h3>AUDIO</h3>
+            <label class="settings-range" for="settingsSfxVolume">
+              <span><b>Efectos de sonido</b><small>Armas, enemigos, interfaz y ambiente.</small></span>
+              <output id="settingsSfxVolumeValue" for="settingsSfxVolume">100%</output>
+              <input id="settingsSfxVolume" type="range" min="0" max="100" step="1" value="100" aria-label="Volumen de efectos de sonido" />
+            </label>
+          </div>
+          <div class="settings-section">
+            <h3>CONTROLES</h3>
+            <div class="quality-options" role="radiogroup" aria-label="Política de disparo en escritorio">
+              <label><input type="radio" name="firePolicy" value="manual" /><span><b>Manual</b><small>Apunta con el mouse y mantén LMB para disparar.</small></span></label>
+              <label><input type="radio" name="firePolicy" value="legacy-auto" /><span><b>Auto clásico</b><small>Dispara al objetivo más cercano como hasta ahora.</small></span></label>
+            </div>
+            <p class="settings-note">En móvil se conserva el auto clásico hasta una futura iteración twin-stick.</p>
+          </div>
+          <div class="settings-section">
             <h3>GRÁFICOS / RENDIMIENTO</h3>
             <div class="quality-options" role="radiogroup" aria-label="Calidad visual">
               <label><input type="radio" name="graphicsQuality" value="auto" /><span><b>Auto</b><small>Equilibra detalle cuando hay muchas élites.</small></span></label>
@@ -202,7 +279,7 @@
             <label class="settings-toggle"><input id="settingsParticles" type="checkbox" /><span><b>Partículas mejoradas</b><small>Partículas decorativas de enemigos.</small></span></label>
             <label class="settings-toggle"><input id="settingsHeavyVfx" type="checkbox" /><span><b>VFX intensos de élites</b><small>Halos y geometría secundaria de la familia Hidra.</small></span></label>
           </div>
-          <p class="settings-note">Los ajustes gráficos no cambian enemigos, daño, vida, spawns ni dificultad.</p>
+          <p class="settings-note">El volumen de efectos es independiente del mute. Los ajustes gráficos no cambian enemigos, daño, vida, spawns ni dificultad.</p>
         </section>
       </div>
 
@@ -218,13 +295,15 @@
     </main>
 
     <script src="js/core/state.js"></script>
+    <script src="js/data/gameData.js"></script>
+    <script src="js/data/balance.js"></script>
     <script src="js/core/settings.js"></script>
     <script src="js/core/utils.js"></script>
     <script src="js/core/viewport.js"></script>
-    <script src="js/data/gameData.js"></script>
-    <script src="js/data/balance.js"></script>
+    <script src="js/core/inputIntent.js"></script>
     <script src="js/data/consumables.js"></script>
     <script src="js/audio/synth.js"></script>
+    <script src="js/audio/weaponSfx.js"></script>
     <script src="js/ui/dom.js"></script>
     <script src="js/ui/settingsPanel.js"></script>
     <script src="js/ui/characters.js"></script>
@@ -233,6 +312,8 @@
     <script src="js/render/spectralEnemies2D.js"></script>
     <script src="js/render/enemies.js"></script>
     <script src="js/render/metaReadability.js"></script>
+    <script src="js/render/visualBudget.js"></script>
+    <script src="js/render/hazards.js"></script>
     <script src="js/render/espectroLite.js"></script>
     <script src="js/render/bosses.js"></script>
     <script src="js/render/player.js"></script>
@@ -245,8 +326,12 @@
     <script src="js/engine/drones.js"></script>
     <script src="js/engine/meteors.js"></script>
     <script src="js/engine/pickups.js"></script>
+    <script src="js/engine/movement.js"></script>
     <script src="js/engine/consumables.js"></script>
     <script src="js/engine/metaDiagnostics.js"></script>
+    <script src="js/engine/hostileBudget.js"></script>
+    <script src="js/engine/performanceMonitor.js"></script>
+    <script src="js/engine/hazards.js"></script>
     <script src="js/engine/enemies.js"></script>
     <script src="js/engine/combat.js"></script>
     <script src="js/engine/boss.js"></script>

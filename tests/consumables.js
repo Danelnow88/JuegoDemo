@@ -105,7 +105,8 @@ t('applyConsumable preserva efectos y feedback de los 7 consumibles', () => {
     triggerFlash(color) { flashes.push(color); },
   };
   if (!NV.applyConsumable({ type: 'potion' }, ctx) || player.hp !== 100) throw new Error('potion');
-  if (!NV.applyConsumable({ type: 'overdrive' }, ctx) || player.speed !== 300 || player.overdrive !== 5) throw new Error('overdrive');
+  const speedBeforeOverdrive = player.speed;
+  if (!NV.applyConsumable({ type: 'overdrive' }, ctx) || player.speed !== speedBeforeOverdrive || player.overdrive !== 5) throw new Error('overdrive');
   if (!NV.applyConsumable({ type: 'shield' }, ctx) || player.invuln !== 2) throw new Error('shield');
   if (!NV.applyConsumable({ type: 'bomb' }, ctx) || enemies[0].hp !== 75 || boss.hp !== 150) throw new Error('bomb');
   if (!NV.applyConsumable({ type: 'freeze' }, ctx) || enemies[0].slowUntil !== 4) throw new Error('freeze');
@@ -194,7 +195,7 @@ t('Overdrive: handler dispara onda/flash y render tiene aura violeta persistente
     player, pickups: [], weaponPickups: [], enemies: [], boss: null,
     addFloatText() {}, triggerFlash(c) { flashes.push(c); }, spawnShockwave() { sw++; },
   });
-  if (player.speed !== 300 || player.overdrive !== 5) throw new Error('overdrive gameplay roto');
+  if (player.speed !== 200 || player.overdrive !== 5) throw new Error('overdrive debe renovar timer sin mutar speed');
   if (sw !== 1) throw new Error('sin onda de overdrive');
   if (!flashes.includes('#caa7ff')) throw new Error('sin flash violeta');
   const r = fs.readFileSync('js/render/player.js', 'utf8');

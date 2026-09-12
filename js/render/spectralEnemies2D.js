@@ -117,6 +117,7 @@
   let hydraCandidates = [];
   let visualBudgetPrepared = false;
   let activeGraphicsPolicy = { quality: 'high', particles: true, heavyVfx: true, hydraFullBudget: Infinity };
+  let activeVisualBudget = null; // P2: tier runtime (solo recorta calidad decorativa)
   const DETAIL_FULL = Object.freeze({ simplified: false, particles: true });
   const DETAIL_FULL_NO_PARTICLES = Object.freeze({ simplified: false, particles: false });
   const DETAIL_SIMPLE = Object.freeze({ simplified: true, particles: false });
@@ -131,6 +132,25 @@
     return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
   }
   function rgba(rgb, a) { return 'rgba(' + rgb[0] + ',' + rgb[1] + ',' + rgb[2] + ',' + a + ')'; }
+  NV.drawEnemyHitFeedback = function (ctx, entity, radius) {
+    if (!ctx || !entity || !(entity.hitFlash > 0)) return false;
+    const strength = Math.min(1, Math.max(0, entity.hitFlash / 0.10));
+    const r = Math.max(4, radius || entity.radius || 10);
+    ctx.save();
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 0.35 + strength * 0.45;
+    ctx.fillStyle = 'rgba(255, 42, 75, 0.24)';
+    ctx.strokeStyle = '#ff2a4b';
+    ctx.lineWidth = 2.5 + strength * 1.5;
+    ctx.shadowColor = '#ff2a4b';
+    ctx.shadowBlur = 8 + strength * 10;
+    ctx.beginPath();
+    ctx.arc(0, 0, r + 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+    return true;
+  };
   // Luminancia relativa (0..1) de un hex #rgb/#rrggbb. Base del contraste
   // adaptativo de ojos/auras: acentos claros (blanco, amarillos, cianes claros)
   // necesitan esclera oscura y aura negra más fuerte para leerse sobre el fondo.
@@ -365,7 +385,16 @@
     visualBudgetPrepared = true;
     hydraCandidates.length = 0;
     for (const e of enemies || []) if (isHydraFamily(e)) hydraCandidates.push(e);
-    const budget = Math.max(0, policy.hydraFullBudget == null ? Infinity : policy.hydraFullBudget);
+    let budget = Math.max(0, policy.hydraFullBudget == null ? Infinity : policy.hydraFullBudget);
+    // P2 visual budget: intersecta el presupuesto de settings con el tier runtime.
+    // SOLO recorta modelos completos (decorativo); nunca toca gameplay.
+    activeVisualBudget = (NV.getVisualBudget && typeof NV.getVisualBudget === 'function') ? NV.getVisualBudget() : null;
+    if (activeVisualBudget && activeVisualBudget.spectralDetail <= 0) {
+      budget = 0;
+    } else if (activeVisualBudget && activeVisualBudget.spectralDetail < 1) {
+      const cap = Math.ceil(hydraCandidates.length * activeVisualBudget.spectralDetail);
+      budget = budget === Infinity ? cap : Math.min(budget, cap);
+    }
     if (budget !== Infinity && player) {
       hydraCandidates.sort((a, b) => {
         const adx = a.x - player.x, ady = a.y - player.y;
@@ -1089,6 +1118,7 @@
     drawLabEye(ctx, -(p.eyeSep || 24), p.eyeY || -30, -1, rage * (isHydra ? eyeRageScale : 1), lookX, lookY, p.eye, -(p.eyeAng || 0), p.eyeStyle || 0);
     drawLabEye(ctx, +(p.eyeSep || 24), p.eyeY || -30, 1, rage * (isHydra ? eyeRageScale : 1), lookX, lookY, p.eye, +(p.eyeAng || 0), p.eyeStyle || 0);
     drawLabMouth(ctx, p.mouth, p.mouthY || 6);
+    NV.drawEnemyHitFeedback(ctx, e, 58);
     ctx.restore();
   }
   function drawLabSpecterEnemy(ctx, e, frame, player, profile, rx, ry) {
@@ -1114,20 +1144,11 @@
     // Dispatcher oficial del lab: poseIdx 0..5 elige RB1..RB6. Se dibuja en el
     // origen local (trasladado arriba); la escala del modelo ya aplicada arriba
     // fija su tamaño aprobado tras el down-scale por modelo.
-    const simplified = poseIdx === 5 && visualBudgetPrepared && !hydraFullRender.has(e);
+    const vbAllSimple = !!(activeVisualBudget && activeVisualBudget.spectralDetail <= 0);
+    const simplified = (poseIdx === 5 && visualBudgetPrepared && !hydraFullRender.has(e)) || vbAllSimple;
     const detail = simplified ? DETAIL_SIMPLE : (activeGraphicsPolicy.particles ? DETAIL_FULL : DETAIL_FULL_NO_PARTICLES);
     drawLabEnemyModel(ctx, poseIdx, 0, 0, 1, lookX, lookY, (frame || 0) * 0.03, enemyColor, detail);
-
-    // --- Hit-Flash de daño (Pilar 2): 1-2 frames de brillo blanco ---
-    if (e.hitFlash > 0) {
-      const atk = Math.min(1, Math.max(0, e.hitFlash / 0.25));
-      ctx.globalAlpha = atk;
-      ctx.fillStyle = '#ffffff';
-      ctx.globalCompositeOperation = 'screen';
-      ctx.fillRect(-60, -60, 120, 120);
-      ctx.globalCompositeOperation = 'source-over';
-      ctx.globalAlpha = 1;
-    }
+    NV.drawEnemyHitFeedback(ctx, e, MODEL_INTRINSIC_RADII[modelIdx]);
     ctx.restore();
   }
   function resolveBossProfile(boss) {
@@ -1142,14 +1163,6 @@
       const t = frame * 0.06;
       const cold = 0.5 + Math.sin(t * 3.5) * 0.5;
       ctx.fillStyle = 'rgba(103,232,249,' + (cold * 0.22) + ')';
-      ctx.beginPath(); ctx.arc(0, 0, e.radius, 0, Math.PI * 2); ctx.fill();
-    }
-    if (e.mine) {
-      ctx.strokeStyle = 'rgba(255,215,95,0.7)'; ctx.lineWidth = 1.5;
-      for (let i = 0; i < 4; i++) {
-        const a = (i / 4) * Math.PI * 2 + frame * 0.03;
-        ctx.beginPath(); ctx.moveTo(Math.cos(a) * (e.radius + 3), Math.sin(a) * (e.radius + 3)); ctx.lineTo(Math.cos(a) * (e.radius + 8), Math.sin(a) * (e.radius + 8)); ctx.stroke();
-      }
     }
     if (e.armed) {
       const blink = 0.4 + Math.sin(frame * 0.36) * 0.6;
@@ -1234,6 +1247,7 @@
     drawBody(ctx, e, frame, profile);
     drawProfileExtras(ctx, e, frame, profile);
     drawEyes(ctx, e, player, profile);
+    NV.drawEnemyHitFeedback(ctx, e, e.radius * (profile.radiusMul || 1));
     ctx.restore();
     return true;
   };
@@ -1401,12 +1415,6 @@
     ctx.translate(boss.x, boss.y);
     drawBossAura(ctx, boss, frame, profile);
     drawBossEffects(ctx, boss, frame, profile);
-    if (boss.hitFlash > 0) {
-      ctx.globalAlpha = boss.hitFlash;
-      ctx.fillStyle = '#fff';
-      ctx.beginPath(); ctx.arc(0, 0, boss.radius * (profile.radiusMul || 1.3), 0, Math.PI * 2); ctx.fill();
-      ctx.globalAlpha = 1;
-    }
     if (boss.phase2) {
       ctx.strokeStyle = 'rgba(255, 95, 155, 0.85)';
       ctx.lineWidth = 4;
@@ -1415,6 +1423,7 @@
       ctx.stroke();
     }
     drawBossBody(ctx, boss, frame, profile);
+    NV.drawEnemyHitFeedback(ctx, boss, boss.radius * (profile.radiusMul || 1.3));
     drawBossParticles(ctx, boss, frame, profile);
     drawBossEyes(ctx, boss, player, profile);
     drawBossHpBar(ctx, boss, profile);

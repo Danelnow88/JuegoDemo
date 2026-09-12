@@ -1,9 +1,10 @@
 // ===== UI MÓVIL: controles táctiles (capa de PRESENTACIÓN/ENTRADA, sin gameplay) =====
 // Joystick virtual + botones táctiles. Traduce gestos a los MISMOS canales lógicos
-// de entrada ya existentes que usa el teclado (expuestos por game.js como NV.input):
-//   moveLeft / moveRight / moveUp / moveDown        (movimiento)
-//   slideHeld                                       (Shift / deslizar)
-//   specialPressed                                  (Shift? no: Espacio/Z/X — habilidad)
+// de entrada que usa el teclado (expuestos por game.js como NV.input):
+//   moveX / moveY                                   (movimiento lógico)
+//   dashIntent                                      (Shift / deslizar actual)
+//   abilityIntent                                   (Espacio/Z/X — habilidad)
+//   fireIntent + aimX / aimY                        (desktop manual; móvil aún auto clásico)
 //   useSelected                                     (F — consumible seleccionado)
 // NO duplica física ni lógica de movimiento: solo escribe en las variables que el
 // propio game.js ya consume en update(). En escritorio (NV.capabilities.isMobile
@@ -268,6 +269,12 @@
     }
   }
   if (d && typeof d.addEventListener === 'function') {
+    d.addEventListener('nv-game-state-change', (event) => {
+      const nextState = event && event.detail ? event.detail.state : '';
+      resetButtons();
+      resetJoystick();
+      if (nextState !== 'playing' && nextState !== 'wave_end') closeOptions();
+    });
     // Observer liviano: escuchar cambios de atributo en <html> para pausa/estado.
     try {
       if (d.documentElement && typeof MutationObserver === 'function') {

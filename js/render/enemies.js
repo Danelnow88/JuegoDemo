@@ -188,10 +188,28 @@
       ctx.shadowBlur = 0;
     }
 
+    if (NV.drawEnemyHitFeedback) NV.drawEnemyHitFeedback(ctx, e, e.radius);
+
     ctx.shadowBlur = 0;
     // Ojos: skip para espectros (drawSpecter2D los dibuja con seguimiento al jugador)
     if (e.shape !== 'specter') {
       NV.drawEnemyEyes(ctx, e, player);
+    }
+
+    // SPITTER WINDUP (F07): telégrafo geométrico mínimo y barato. Solo lectura
+    // de e.intent/e.spitAim*: aim snapshot + arco de carga. Visible con calidad
+    // reducida (sin partículas/shadow/explosión; trazo simple con globalAlpha).
+    if (e.behavior === 'ranged' && e.intent && e.intent.state === 'windup') {
+      const ax = (e.spitAimX != null ? e.spitAimX : (player ? player.x : e.x));
+      const ay = (e.spitAimY != null ? e.spitAimY : (player ? player.y : e.y));
+      const aa = Math.atan2(ay - e.y, ax - e.x);
+      const windupTotal = 0.6;
+      const windupT = Math.min(1, Math.max(0, 1 - (e.intent.stateTimer || 0) / windupTotal));
+      ctx.strokeStyle = 'rgba(255,224,74,' + (0.35 + windupT * 0.45).toFixed(3) + ')';
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(0, 0);
+      ctx.lineTo(Math.cos(aa) * (r + 26), Math.sin(aa) * (r + 26)); ctx.stroke();
+      ctx.beginPath(); ctx.arc(0, 0, r + 4 + windupT * 5, aa - 0.9, aa + 0.9); ctx.stroke();
     }
 
     // Legibilidad del atacante (daño de contacto): halo blanco de selección +

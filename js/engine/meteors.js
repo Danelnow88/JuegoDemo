@@ -9,11 +9,17 @@
   NV.updateMeteors = function (dt, meteors, ctxState, cbs) {
     const { H, enemies, boss } = ctxState;
     const { killEnemy, applyKnockback, spawnExplosion } = cbs;
+    const visualOnly = ctxState.visualOnly === true;
     let shake = ctxState.shake || 0;
     if (meteors.length === 0) return { meteors, shake };
     for (const m of meteors) {
       m.x += m.vx * dt;
       m.y += m.vy * dt;
+      if (visualOnly) {
+        m.settleLife = m.settleLife == null ? 0.8 : m.settleLife - dt;
+        if (m.y > H + 20 || m.settleLife <= 0.000001) m.dead = true;
+        continue;
+      }
       if (m.y > H + 20) { m.dead = true; continue; }
       // Impacto
       for (const e of enemies) {
@@ -21,13 +27,14 @@
         const d = Math.hypot(e.x - m.x, e.y - m.y);
         if (d < m.radius + e.radius) {
           e.hp -= 40;
+          e.hitFlash = Math.max(e.hitFlash || 0, 0.10);
           if (e.hp <= 0) killEnemy(e);
           applyKnockback(e, m.x, m.y, 150);
         }
       }
       if (boss && !boss.dead) {
         const d = Math.hypot(boss.x - m.x, boss.y - m.y);
-        if (d < m.radius + boss.radius) { boss.hp -= 30 * (NV.BALANCE.METEOR_BOSS_DMG_MULT || 1); boss.hitFlash = 0.2; }
+        if (d < m.radius + boss.radius) { boss.hp -= 30 * (NV.BALANCE.METEOR_BOSS_DMG_MULT || 1); boss.hitFlash = Math.max(boss.hitFlash || 0, 0.10); }
       }
       if (m.y > H - 20) {
         m.dead = true;

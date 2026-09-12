@@ -43,15 +43,17 @@ t('playerHit es no fatal: distinto de sfx.damage y con ducking más suave', () =
   if (!hit.sb._ramps.includes(0.32)) throw new Error('playerHit no duckea a 0.32');
 });
 
-t('enemies.js conecta muerte normal/elite y daño no fatal a SFX nuevos', () => {
+t('enemies.js conecta muerte por tipo y delega daño al pipeline único', () => {
   const src = fs.readFileSync('js/engine/enemies.js', 'utf8');
   if (!src.includes("sfx.enemyDeath(e.isElite ? 'elite' : 'normal',")) throw new Error('killEnemy no usa enemyDeath por tipo');
-  if (!src.includes('st.sfx.playerHit') || !src.includes('st.player.hp > 0')) throw new Error('updateEnemies no usa playerHit no fatal');
+  if (!src.includes('applyPlayerDamage(baseDmg') || !src.includes("cause: 'contact'")) throw new Error('updateEnemies no delega daño de contacto');
 });
 
-t('bullets.js conecta proyectiles enemigos a playerHit solo si no es fatal', () => {
-  const src = fs.readFileSync('js/engine/bullets.js', 'utf8');
-  if (!src.includes('st.sfx.playerHit') || !src.includes('player.hp > 0')) throw new Error('updateBullets no conecta playerHit no fatal');
+t('bullets delega proyectiles y combat.js conecta playerHit solo si no es fatal', () => {
+  const bullets = fs.readFileSync('js/engine/bullets.js', 'utf8');
+  const combat = fs.readFileSync('js/engine/combat.js', 'utf8');
+  if (!bullets.includes('applyPlayerDamage(b.damage') || !bullets.includes("cause: 'projectile'")) throw new Error('updateBullets no delega proyectiles');
+  if (!combat.includes('st.sfx.playerHit') || !combat.includes('!result.killed')) throw new Error('pipeline no conecta playerHit no fatal');
 });
 
 t('boss.js conecta muerte de jefe a enemyDeath("boss")', () => {

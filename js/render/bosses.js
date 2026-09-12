@@ -6,7 +6,6 @@
 
   NV.drawBoss = function (ctx, boss, frame) {
     if (!boss || boss.dead) return;
-    if (boss.hitFlash > 0) boss.hitFlash = Math.max(0, boss.hitFlash - 0.05);
     ctx.save();
     ctx.translate(boss.x, boss.y);
     ctx.fillStyle = boss.color;
@@ -30,16 +29,6 @@
     ctx.fillStyle = '#fff';
     ctx.fillText(Math.ceil(boss.hp) + ' / ' + boss.maxHp, 0, 13);
     ctx.restore();
-
-    // Flash blanco al recibir daño
-    if (boss.hitFlash > 0) {
-      ctx.globalAlpha = boss.hitFlash;
-      ctx.fillStyle = '#fff';
-      ctx.beginPath();
-      for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2; ctx.lineTo(Math.cos(a) * boss.radius, Math.sin(a) * boss.radius); }
-      ctx.fill();
-    }
-    ctx.globalAlpha = 1;
 
     const r = boss.radius;
     ctx.save();
@@ -65,6 +54,7 @@
       ctx.closePath(); ctx.fill();
     }
     ctx.restore();
+    if (NV.drawEnemyHitFeedback) NV.drawEnemyHitFeedback(ctx, boss, boss.radius);
 
     ctx.fillStyle = '#fff';
     ctx.beginPath(); ctx.arc(-8, -5, 6, 0, Math.PI * 2); ctx.arc(8, -5, 6, 0, Math.PI * 2); ctx.fill();

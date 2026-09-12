@@ -28,18 +28,58 @@
     return char.takeDmgMult || 1;
   };
 
-  // Daño que recibe el jugador: crítica → armadura (plano) → pasiva del personaje → esquiva.
+  // Cálculo de daño recibido. Defaults conservan el combate histórico de proyectiles/contacto:
+  // esquiva y crítico habilitados. Hazards pueden deshabilitarlos explícitamente.
   NV.computePlayerHit = function (base, st) {
     const char = st.CHARACTERS[st.player.character];
+    const allowDodge = st.allowDodge !== false;
+    const allowCrit = st.allowCrit !== false;
     // Esquiva: pasiva del personaje + mejora permanente (+0.4%/nivel).
     const dodge = NV.characterDodgeChance(char) + (st.player.permDodge || 0) * NV.BALANCE.DODGE_PERM_CHANCE;
-    if (dodge > 0 && Math.random() < dodge) {
+    if (allowDodge && dodge > 0 && Math.random() < dodge) {
       return { dodged: true };
     }
-    const c = st.calcEnemyDamage(base);
+    const c = allowCrit ? st.calcEnemyDamage(base) : { dmg: base, crit: false };
     let dmg = Math.max(1, c.dmg - st.player.armor);
     const mult = NV.characterTakeDmgMult(char);
     dmg = Math.max(1, Math.round(dmg * mult));
     return { dodged: false, dmg, crit: c.crit };
+  };
+
+  // Única autoridad de APLICACIÓN de daño al jugador. El cálculo permanece puro arriba;
+  // esta función resuelve invulnerabilidad, HP y feedback/hook compartido.
+  NV.applyPlayerDamage = function (baseDamage, st) {
+    st = st || {};
+    const player = st.player;
+    const cause = st.cause || 'unknown';
+    if (!player) return { applied: false, dodged: false, crit: false, damage: 0, killed: false, cause, reason: 'no-player' };
+    if (st.respectInvulnerability !== false && player.invuln > 0) {
+      return { applied: false, dodged: false, crit: false, damage: 0, hpBefore: player.hp, hpAfter: player.hp, killed: player.hp <= 0, cause, reason: 'invulnerable' };
+    }
+    const hit = NV.computePlayerHit(baseDamage, {
+      player,
+      CHARACTERS: st.CHARACTERS,
+      calcEnemyDamage: st.calcEnemyDamage,
+      allowCrit: st.allowCrit,
+      allowDodge: st.allowDodge,
+    });
+    if (hit.dodged) {
+      if (st.addFloatText) st.addFloatText(player.x, player.y - 20, 'ESQUIVA', '#8dfaff');
+      return { applied: false, dodged: true, crit: false, damage: 0, hpBefore: player.hp, hpAfter: player.hp, killed: false, cause, reason: 'dodged' };
+    }
+    const damage = hit.dmg;
+    const hpBefore = player.hp;
+    player.hp -= damage;
+    const result = {
+      applied: true, dodged: false, crit: !!hit.crit, damage,
+      hpBefore, hpAfter: player.hp, killed: player.hp <= 0, cause,
+    };
+    if (st.addFloatText) {
+      const style = NV.damageFloatStyle ? NV.damageFloatStyle(damage, !!hit.crit) : { color: hit.crit ? '#FF2A4B' : '#FFFFFF', size: hit.crit ? 17 : 13 };
+      st.addFloatText(player.x, player.y - 20, '-' + damage, style.color, style.size);
+    }
+    if (st.onPlayerDamaged) st.onPlayerDamaged(Object.assign({}, st.event || {}, result));
+    if (st.sfx && st.sfx.playerHit && !result.killed) st.sfx.playerHit();
+    return result;
   };
 })();

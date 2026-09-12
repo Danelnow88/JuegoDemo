@@ -405,16 +405,42 @@ t('shop mobile: solo una sección activa y UNA scroll (sin nested)', () => {
 });
 
 t('permShop mobile: adaptado con grid responsive y scroll único', () => {
-  const css = fs.readFileSync('css/styles.css', 'utf8');
-  if (!css.includes('.nv-mobile #permShop .shop-grid')) throw new Error('falta permShop grid');
-  if (!css.includes('.nv-mobile #permShop .offers')) throw new Error('falta permShop offers');
+  const baseCss = fs.readFileSync('css/styles.css', 'utf8');
+  const lobbyCss = fs.readFileSync('css/lobby-f093.css', 'utf8');
+  if (!baseCss.includes('.nv-mobile #permShop .shop-grid')) throw new Error('falta permShop grid base');
+  if (!lobbyCss.includes('.nv-mobile #permShop.shop-screen')) throw new Error('falta autoridad sobre el nodo real de permShop');
+  if (/#permShop \.shop-screen\s*[,\{]/.test(lobbyCss.replace(/\/\*[\s\S]*?\*\//g, ''))) {
+    throw new Error('selector descendiente imposible reintroducido');
+  }
+  if (!/\.nv-mobile #permShop\.shop-screen::after\s*\{[\s\S]*inset-inline:\s*0;[\s\S]*transform:\s*translateY\(34px\);/.test(lobbyCss)) {
+    throw new Error('decoración heredada puede ampliar scrollWidth');
+  }
+  if (!/\.nv-mobile #permShop \.shop-grid::before\s*\{[\s\S]*inset:\s*0;/.test(lobbyCss)) {
+    throw new Error('decoración de shop-grid conserva inset negativo');
+  }
+  if (!/\.nv-mobile #permShop \.offers\s*\{[\s\S]*grid-template-columns:\s*repeat\(auto-fit, minmax\(min\(180px, 100%\), 1fr\)\);[\s\S]*overflow-x:\s*hidden;/.test(lobbyCss)) {
+    throw new Error('falta grilla final acotada al viewport');
+  }
 });
 
 t('menu/gameover mobile: overlay usa viewport sin header robando espacio', () => {
-  const css = fs.readFileSync('css/styles.css', 'utf8');
+  const css = fs.readFileSync('css/styles.css', 'utf8') + fs.readFileSync('css/lobby-f093.css', 'utf8');
+  const html = fs.readFileSync('index.html', 'utf8');
   if (!css.includes('.nv-mobile .overlay')) throw new Error('falta overlay mobile');
   if (!css.includes('.nv-mobile #startBtn')) throw new Error('no asegura JUGAR');
   if (!css.includes('.nv-mobile #permBtn')) throw new Error('no asegura PERMANENTES');
+  if (!html.includes('id="lobbyPlayBtn"') || !html.includes('id="pilotsBtn"') || !html.includes('id="characterSelectScreen"') || !html.includes('id="startBtn"')) throw new Error('flujo lobby/biblioteca incompleto');
+  if (!css.includes('.nv-mobile .main-lobby-panel') || !css.includes('.nv-mobile .character-select-actions')) throw new Error('adaptación móvil del nuevo flujo ausente');
+});
+
+t('lobby fullscreen mobile usa composición lateral y CTA alcanzable en landscape corto', () => {
+  const css = fs.readFileSync('css/styles.css', 'utf8') + fs.readFileSync('css/lobby-f093.css', 'utf8');
+  if (!/@media \(pointer: coarse\), \(max-height: 560px\)[\s\S]*\.main-lobby-panel[\s\S]*grid-template-columns:/.test(css)) throw new Error('lobby mobile no conserva regiones laterales');
+  if (!/\.main-lobby-actions \.lobby-play \{ min-height: clamp\(40px, 12vh, 52px\)/.test(css)) throw new Error('CTA principal no preserva target táctil');
+  if (!css.includes('.lobby-preview') || !css.includes('.lobby-hero { height: 100%; min-height: 0; }')) throw new Error('hero real no se adapta al viewport');
+  if (!css.includes('@media (pointer: coarse) and (orientation: landscape) and (max-height: 380px)')) throw new Error('sin gate para landscape extremadamente corto');
+  if (!css.includes('.character-select-screen .character-select-actions .primary { min-height: 30px')) throw new Error('acciones de biblioteca no alcanzables en altura corta');
+  if (!css.includes('@media (orientation: portrait) and (max-width: 700px)')) throw new Error('portrait fallback ausente');
 });
 
 console.log('RESULT mobile_compat: pass=' + pass + ' fail=' + fail);

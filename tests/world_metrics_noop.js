@@ -103,13 +103,13 @@ t('player bounds remain 900x520 via ARENA metrics', () => {
 
 t('enemy spawns still receive 900x520 arena dimensions', () => {
   const g = fs.readFileSync('js/game.js', 'utf8');
-  if (!g.includes('NV.spawnEnemy({ enemies, MAX_ENEMIES, boss, wave, ENEMY_TYPES, W: arenaW(), H: arenaH()')) throw new Error('spawnEnemy no recibe W/H arena runtime');
-  if (!g.includes('NV.spawnElite({ enemies, MAX_ENEMIES, boss, wave, ELITE_TYPES, W: arenaW(), H: arenaH()')) throw new Error('spawnElite no recibe W/H arena runtime');
+  if (!g.includes('NV.spawnEnemy({ enemies, boss, MAX_HOSTILES, MAX_HEAVY_HOSTILES, wave, ENEMY_TYPES, W: arenaW(), H: arenaH()')) throw new Error('spawnEnemy no recibe W/H arena runtime');
+  if (!g.includes('NV.spawnElite({ enemies, boss, MAX_HOSTILES, MAX_HEAVY_HOSTILES, wave, ELITE_TYPES, W: arenaW(), H: arenaH()')) throw new Error('spawnElite no recibe W/H arena runtime');
 });
 
 t('boss center remains x=450', () => {
   const g = fs.readFileSync('js/game.js', 'utf8');
-  if (!g.includes('boss = { x: arenaW()/2, y: 100')) throw new Error('boss spawn center no usa arenaW');
+  if (!g.includes('bossCandidate = { x: arenaW()/2, y: 100')) throw new Error('boss spawn center no usa arenaW');
   const sbx = { window: { NV: {} }, console, Math };
   sbx.window.window = sbx.window;
   load('js/engine/boss.js', sbx.window);
@@ -123,7 +123,7 @@ t('projectile culling remains equivalent at 900x520', () => {
   const sbx = { window: { NV: {} }, console, Math, Array };
   sbx.window.window = sbx.window;
   load('js/engine/bullets.js', sbx.window);
-  const st = { bullets: [{ x: 911, y: 260, vx: 0, vy: 0, damage: 1, dead: false }], W: 900, H: 520, player: { x: 450, y: 260, hp: 100, invuln: 0, character: 'boti' }, enemies: [], boss: null, CHARACTERS: { boti: { size: 12 } }, SHIELD_COOLDOWN: 1, computePlayerHit: () => ({ dmg: 1 }), addFloatText() {}, killEnemy() {}, applyKnockback() {}, spawnExplosion() {} };
+  const st = { bullets: [{ x: 911, y: 260, vx: 0, vy: 0, damage: 1, dead: false }], W: 900, H: 520, player: { x: 450, y: 260, hp: 100, invuln: 0, character: 'boti' }, enemies: [], boss: null, CHARACTERS: { boti: { size: 12 } }, SHIELD_COOLDOWN: 1, applyPlayerDamage: () => ({ applied: true, damage: 1, killed: false }), addFloatText() {}, killEnemy() {}, applyKnockback() {}, spawnExplosion() {} };
   const r = sbx.window.NV.updateBullets(0, st);
   if (r.bullets.length !== 0) throw new Error('bala fuera de W+10 no fue purgada');
 });

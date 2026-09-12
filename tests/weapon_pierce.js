@@ -26,7 +26,7 @@ function updateOnce(NV, bullets, enemies, boss) {
     bullets, W: 900, H: 520,
     player: { x: -1000, y: -1000, character: 'boti', bulwark: 0, invuln: 0, stun: 0 },
     enemies, boss, CHARACTERS: NV.CHARACTERS, SHIELD_COOLDOWN: 0.9,
-    computePlayerHit: () => ({ dodged: false, dmg: 1, crit: false }),
+    applyPlayerDamage: () => ({ applied: true, dodged: false, damage: 1, crit: false, killed: false }),
     addFloatText() {}, killEnemy(e) { e.dead = true; }, applyKnockback() {}, spawnExplosion() {},
   };
   return NV.updateBullets(0, st);

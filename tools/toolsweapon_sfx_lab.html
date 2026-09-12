@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Weapon SFX Lab — Polished HTML</title>
+<style>
+:root{color-scheme:dark;--bg:#05060a;--panel:#0c1018;--line:#273246;--text:#e9f1ff;--muted:#8390a8;--cyan:#4de7ff;--orange:#ff9a55}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;padding:18px;background:radial-gradient(circle at 50% 0,#142035,#070910 45%,#030407);color:var(--text);font:14px/1.4 system-ui,sans-serif}
+main{width:min(980px,100%);margin:auto;padding:20px;background:#080b12f7;border:1px solid var(--line);border-radius:16px;box-shadow:0 24px 90px #000b}
+h1{margin:0;color:var(--cyan);font-size:20px;letter-spacing:2px;text-transform:uppercase}.sub,.note,.status{color:var(--muted)}.sub{margin:4px 0 18px}
+.top{display:grid;grid-template-columns:1fr 1.2fr;gap:14px}.card{padding:14px;background:var(--panel);border:1px solid var(--line);border-radius:11px}.label,.section-title{color:var(--orange);font-size:11px;letter-spacing:1.2px;text-transform:uppercase}
+select,button{color:var(--text);background:#121a27;border:1px solid #34435a;border-radius:8px;font:inherit}select{width:100%;padding:11px;font-weight:700}#description{min-height:42px;color:#b7c4d9}.rate{color:var(--cyan);font-weight:800}
+canvas{display:block;width:100%;height:130px;margin:14px 0;background:#020306;border:1px solid var(--line);border-radius:10px}.buttons{display:grid;grid-template-columns:repeat(4,1fr);gap:9px}.buttons button{padding:12px 7px;font-weight:800;cursor:pointer}.buttons button:hover{border-color:var(--cyan)}#stop{color:#ff9aac;border-color:#743342}
+.section-title{margin:18px 0 8px}.controls{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.control{padding:10px;background:#090d14;border:1px solid #202a3a;border-radius:9px}.control header{display:flex;justify-content:space-between;font-size:12px}.control output{color:var(--cyan)}input[type=range]{width:100%;accent-color:var(--cyan)}
+.flame-only{display:none}.flame-selected .flame-only{display:block}.flame-selected .controls.flame-only{display:grid}.footer{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:14px}.footer button{padding:9px 13px;cursor:pointer}
+@media(max-width:700px){.top{grid-template-columns:1fr}.buttons,.controls{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<main id="app">
+<h1>Weapon SFX Lab — Polished HTML</h1>
+<p class="sub">Referencia acústica procedural · identidad aislada, ráfaga y cadencia real</p>
+<div class="top">
+  <section class="card">
+    <label class="label" for="weapon">Weapon</label><select id="weapon"></select>
+    <p id="description"></p>
+    <div class="rate">CURRENT PREVIEW RATE: <span id="rate"></span></div>
+    <div class="status">Estado: <span id="status">detenido</span></div>
+  </section>
+  <section class="card">
+    <div class="label">Preview contract</div>
+    <p>SINGLE evalúa el transiente. 3 SHOTS y REAL CADENCE permiten juzgar acumulación, mecánica y cola.</p>
+    <p class="note flame-only">Flamethrower SINGLE ejecuta START → 0.85 s SUSTAIN → STOP. REAL CADENCE inicia sustain indefinido.</p>
+  </section>
+</div>
+<canvas id="scope" width="940" height="130"></canvas>
+<div class="buttons">
+  <button id="single">SINGLE SHOT</button><button id="burst">3 SHOTS / SHORT BURST</button>
+  <button id="start">REAL CADENCE — START</button><button id="stop">STOP</button>
+</div>
+<h2 class="section-title">Sound parameters</h2><div class="controls" id="mainControls"></div>
+<h2 class="section-title flame-only">Flamethrower parameters</h2><div class="controls flame-only" id="flameControls"></div>
+<div class="footer"><span class="note">Un AudioContext · procedural · STOP cancela previews y libera voces.</span><button id="reset">RESET CURRENT PRESET</button></div>
+</main>
+<script>
+(() => {
+'use strict';
+
+// ============================================================================
+// PRESETS — parámetros exclusivamente acústicos
+// ============================================================================
+const PRESETS={
+ pistol:{name:'Pistol',description:'Balística limpia y compacta; menor que rifle sin convertirse en un click.',impact:.62,body:.50,brightness:.62,tail:.24,width:.28,texture:.32},
+ rifle:{name:'Rifle',description:'Crack ajustado, cuerpo firme, cola corta-media y mecanismo discreto posterior.',impact:.82,body:.72,brightness:.72,tail:.38,width:.42,texture:.46},
+ smg:{name:'SMG',description:'Ataque fino que forma una corriente mecánica coherente a cadencia real.',impact:.58,body:.38,brightness:.82,tail:.16,width:.24,texture:.38},
+ shotgun:{name:'Shotgun',description:'Descarga pesada, ancha y percutiva; pump/rack siempre después del disparo.',impact:.96,body:.98,brightness:.48,tail:.52,width:.78,texture:.68},
+ sniper:{name:'Sniper',description:'Crack extremo, cuerpo grande, profundidad larga y cerrojo posterior.',impact:1,body:.92,brightness:.76,tail:.82,width:.68,texture:.56},
+ laser:{name:'Laser',description:'Descarga eléctrica rápida con barrido, estática y cola sci-fi compacta.',impact:.62,body:.34,brightness:.94,tail:.26,width:.54,texture:.66},
+ plasma:{name:'Plasma',description:'Paquete energético denso: subgrave, pulso resonante y cola electromagnética.',impact:.74,body:.82,brightness:.62,tail:.46,width:.64,texture:.70},
+ flamethrower:{name:'Flamethrower',description:'Combustible presurizado continuo: flujo, turbulencia, combustión y sizzle.',impact:.36,body:.82,brightness:.52,tail:.36,width:.58,texture:.78,flowPressure:.86,turbulence:.76,combustion:.70,sizzle:.38,lowBody:.78},
+ bow:{name:'Bow',description:'Liberación táctil de cuerda, twang corto y aire veloz sin silbido largo.',impact:.50,body:.42,brightness:.66,tail:.24,width:.38,texture:.30},
+ railgun:{name:'Railgun',description:'Descarga inmediata brutal, resonancia electromagnética y cola controlada.',impact:1,body:1,brightness:.82,tail:.74,width:.76,texture:.72}
+};
+const DEFAULTS=JSON.parse(JSON.stringify(PRESETS));
+// Copiado de NV.WEAPONS. Intervalo estable de referencia = fireRate / 60.
+const PREVIEW_CADENCE={pistol:30/60,rifle:25/60,smg:12/60,shotgun:45/60,sniper:70/60,laser:20/60,plasma:35/60,flamethrower:null,bow:36/60,railgun:84/60};
+const IDS=Object.keys(PRESETS);
+
+// ============================================================================
+// AUDIO CORE
+// ============================================================================
+let ctx=null,input=null,compressor=null,limiter=null,master=null,analyser=null;
+const curves=new Map(),noises=new Map(),active=new Set();
+const rand=(a,b)=>a+Math.random()*(b-a);
+function initAudio(){
+ if(!ctx){
+  ctx=new(window.AudioContext||window.webkitAudioContext)();
+  input=ctx.createGain();input.gain.value=.34;
+  compressor=ctx.createDynamicsCompressor();compressor.threshold.value=-16;compressor.knee.value=14;compressor.ratio.value=5;compressor.attack.value=.002;compressor.release.value=.16;
+  limiter=ctx.createWaveShaper();limiter.curve=softCurve(1.65);limiter.oversample='2x';
+  master=ctx.createGain();master.gain.value=.82;analyser=ctx.createAnalyser();analyser.fftSize=2048;analyser.smoothingTimeConstant=.72;
+  input.connect(compressor);compressor.connect(limiter);limiter.connect(master);master.connect(analyser);analyser.connect(ctx.destination);
+ }
+ if(ctx.state==='suspended')ctx.resume();return ctx;
+}
+function softCurve(k){const key='s'+k;if(curves.has(key))return curves.get(key);const n=4096,c=new Float32Array(n);for(let i=0;i<n;i++){const x=i*2/n-1;c[i]=Math.tanh(x*k*2.2)/Math.tanh(k*2.2)}curves.set(key,c);return c}
+function driveCurve(a){const key='d'+a.toFixed(3);if(curves.has(key))return curves.get(key);const n=4096,c=new Float32Array(n),k=2+a*34;for(let i=0;i<n;i++){const x=i*2/n-1;c[i]=(2/Math.PI)*Math.atan(x*k)}curves.set(key,c);return c}
+function noise(kind='white',seconds=2.4){const c=initAudio(),key=kind+seconds+c.sampleRate;if(noises.has(key))return noises.get(key);const n=Math.floor(c.sampleRate*seconds),b=c.createBuffer(1,n,c.sampleRate),d=b.getChannelData(0);let brown=0;for(let i=0;i<n;i++){const w=Math.random()*2-1;if(kind==='brown'){brown=(brown+.018*w)/1.018;d[i]=brown*3.2}else if(kind==='pink')d[i]=w*.55+(i?d[i-1]*.42:0);else d[i]=w}noises.set(key,b);return b}
+function gain(v=1){const g=initAudio().createGain();g.gain.value=v;return g}
+function filt(type,f,q=.7){const n=initAudio().createBiquadFilter();n.type=type;n.frequency.value=f;n.Q.value=q;return n}
+function env(g,t,a,peak,r,floor=.0001){g.gain.cancelScheduledValues(t);g.gain.setValueAtTime(floor,t);g.gain.linearRampToValueAtTime(peak,t+a);g.gain.exponentialRampToValueAtTime(floor,t+a+r)}
+function startSource(buffer,t,dest,{loop=false,rate=1}={}){const s=initAudio().createBufferSource();s.buffer=buffer;s.loop=loop;s.playbackRate.setValueAtTime(rate,t);s.connect(dest);s.start(t);active.add(s);s.onended=()=>active.delete(s);return s}
+function noiseHit(t,dur,{kind='white',type='bandpass',freq=1000,q=.8,level=1,attack=.001,dest=null,rate=1}={}){initAudio();dest=dest||input;const f=filt(type,freq,q),g=gain();env(g,t,attack,level,Math.max(.004,dur-attack));f.connect(g);g.connect(dest);const s=startSource(noise(kind),t,f,{rate});s.stop(t+dur+.02);return s}
+function tone(t,{wave='sine',from=120,to=48,dur=.12,level=.5,dest=null,drive=0}={}){const c=initAudio();dest=dest||input;const o=c.createOscillator(),g=gain();o.type=wave;o.frequency.setValueAtTime(from,t);o.frequency.exponentialRampToValueAtTime(Math.max(1,to),t+dur);env(g,t,.001,level,dur);let out=o;if(drive){const sh=c.createWaveShaper();sh.curve=driveCurve(drive);sh.oversample='2x';o.connect(sh);out=sh}out.connect(g);g.connect(dest);o.start(t);o.stop(t+dur+.03);active.add(o);o.onended=()=>active.delete(o);return o}
+function stereo(node,t,width=.4,pan=0){const c=initAudio(),m=c.createChannelMerger(2),l=gain(.72),r=gain(.72),d=c.createDelay(.03);d.delayTime.setValueAtTime(.0015+width*.010,t);node.connect(l);node.connect(r);l.connect(m,0,0);r.connect(d);d.connect(m,0,1);if(c.createStereoPanner){const p=c.createStereoPanner();p.pan.setValueAtTime(pan,t);m.connect(p);p.connect(input)}else m.connect(input)}
+function tail(t,p,bus,scale=1){const c=initAudio(),send=gain(.10+p.tail*.20),d1=c.createDelay(.35),d2=c.createDelay(.35),f1=filt('lowpass',2500),f2=filt('lowpass',1200),g1=gain(.18*p.tail*scale),g2=gain(.10*p.tail*scale);d1.delayTime.value=.040+p.width*.014;d2.delayTime.value=.092+p.width*.024;bus.connect(send);send.connect(d1);send.connect(d2);d1.connect(f1);f1.connect(g1);d2.connect(f2);f2.connect(g2);g1.connect(input);g2.connect(input)}
+function crack(t,p,bus,s=1){noiseHit(t,.012,{type:'highpass',freq:1700+p.brightness*2100,q:.45,level:(.42+p.impact*.62)*s,attack:.0003,dest:bus,rate:rand(.92,1.08)})}
+function body(t,p,bus,s=1){noiseHit(t+.001,.075+p.body*.055,{kind:'pink',type:'lowpass',freq:260+p.body*520,q:.8,level:(.26+p.body*.76)*s,attack:.002,dest:bus});tone(t,{from:105+p.body*35,to:42,dur:.105+p.body*.05,level:(.12+p.body*.42)*s,dest:bus})}
+function crackle(t,p,bus,s=1){const count=Math.round(2+p.texture*5*s);for(let i=0;i<count;i++)noiseHit(t+rand(.004,.025+p.tail*.075),rand(.006,.017),{type:'highpass',freq:2600+rand(0,4300),level:(.035+p.texture*.09)*s,attack:.0002,dest:bus,rate:rand(.8,1.3)})}
+function click(t,dest,level=.4,pitch=1){noiseHit(t,.018,{type:'highpass',freq:2100*pitch,q:1.4,level,attack:.0002,dest,rate:rand(.92,1.1)});tone(t,{wave:'square',from:310*pitch,to:190*pitch,dur:.025,level:level*.16,dest})}
+
+// ============================================================================
+// DISCRETE SYNTHS
+// ============================================================================
+function ballistic(id,t,quality='full'){
+ const p=PRESETS[id],bus=gain(.72),sh=initAudio().createWaveShaper();sh.curve=driveCurve(.28+p.texture*.5);sh.oversample='2x';bus.connect(sh);stereo(sh,t,p.width,rand(-.08,.08));
+ crack(t,p,bus);body(t,p,bus,id==='shotgun'?1.16:1);noiseHit(t+.002,.09+p.tail*.30,{kind:'pink',type:'bandpass',freq:520+p.brightness*1050,q:.72,level:.30+p.body*.48,attack:.002,dest:bus,rate:rand(.94,1.06)});
+ crackle(t,p,bus,quality==='dense'&&id==='smg'?.30:1);tail(t,p,bus,quality==='dense'&&id==='smg'?.34:1);
+ if(id==='pistol')click(t+.105,bus,.25,.8);if(id==='rifle')click(t+.125,bus,.34,1);
+}
+function mechanismPair(delay,gap,width,first,second){later(()=>{const t=initAudio().currentTime+.006,bus=gain(.60);stereo(bus,t,width);click(t,bus,first.level,first.pitch);later(()=>{const t2=initAudio().currentTime+.006;click(t2,bus,second.level,second.pitch)},gap*1000)},delay*1000)}
+function shotgun(t,interval){ballistic('shotgun',t);tone(t,{from:82,to:35,dur:.19,level:.52});const window=Math.max(.18,interval-.12),delay=Math.min(.34,window*.48),gap=Math.min(.085,window*.25);mechanismPair(delay,gap,.55,{level:.72,pitch:.75},{level:.58,pitch:1.15})}
+function sniper(t,interval){ballistic('sniper',t);noiseHit(t,.48,{kind:'pink',type:'bandpass',freq:430,q:.62,level:.42,attack:.004});const delay=Math.min(.46,interval*.40),gap=Math.min(.13,interval*.16);mechanismPair(delay,gap,.42,{level:.48,pitch:.78},{level:.40,pitch:1.28})}
+function laser(t,q){const p=PRESETS.laser,bus=gain(.55),sh=initAudio().createWaveShaper();sh.curve=driveCurve(.72);bus.connect(sh);stereo(sh,t,p.width);tone(t,{wave:'sawtooth',from:3100,to:620,dur:.105,level:.56+p.impact*.3,dest:bus,drive:.48});noiseHit(t,.11,{type:'highpass',freq:3300,q:.8,level:.28+p.texture*.34,attack:.001,dest:bus});tone(t+.006,{wave:'triangle',from:880,to:410,dur:.14,level:.18+p.body*.24,dest:bus});tail(t,p,bus,q==='dense'?.5:1)}
+function plasma(t,q){const p=PRESETS.plasma,bus=gain(.58),sh=initAudio().createWaveShaper();sh.curve=driveCurve(.64);bus.connect(sh);stereo(sh,t,p.width);tone(t,{from:155,to:42,dur:.16,level:.62+p.body*.34,dest:bus});noiseHit(t,.19,{kind:'pink',type:'bandpass',freq:1850,q:8.5,level:.58+p.impact*.28,attack:.006,dest:bus,rate:rand(.94,1.05)});tone(t+.003,{wave:'sawtooth',from:320,to:205,dur:.18,level:.30,dest:bus,drive:.52});tone(t+.003,{wave:'sawtooth',from:347,to:220,dur:.18,level:.27,dest:bus,drive:.52});crackle(t,p,bus,q==='dense'?.45:.85);tail(t,p,bus,q==='dense'?.55:1)}
+function bow(t){const p=PRESETS.bow,bus=gain(.72);stereo(bus,t,p.width);noiseHit(t,.013,{type:'bandpass',freq:1450,q:12,level:.32+p.impact*.24,attack:.0002,dest:bus,rate:rand(.94,1.07)});tone(t,{wave:'triangle',from:610,to:185,dur:.055,level:.24+p.body*.25,dest:bus});noiseHit(t+.008,.16+p.tail*.12,{type:'bandpass',freq:3400+p.brightness*1700,q:2.1,level:.15+p.texture*.16,attack:.008,dest:bus,rate:1.12});tail(t,p,bus,.45)}
+function railgun(t,q){const p=PRESETS.railgun,bus=gain(.57),sh=initAudio().createWaveShaper();sh.curve=driveCurve(.88);sh.oversample='4x';bus.connect(sh);stereo(sh,t,p.width);tone(t,{wave:'sine',from:1450,to:1050,dur:.025,level:.12,dest:bus});crack(t,p,bus,1.16);body(t,p,bus,1.22);tone(t+.001,{wave:'sawtooth',from:2350,to:78,dur:.27,level:.58,dest:bus,drive:.74});noiseHit(t+.002,.42+p.tail*.25,{kind:'pink',type:'bandpass',freq:720,q:2.8,level:.45,attack:.002,dest:bus});crackle(t,p,bus,q==='dense'?.55:1);tail(t,p,bus,q==='dense'?.6:1)}
+function fireDiscrete(id,t,q='full'){const interval=PREVIEW_CADENCE[id];if(id==='shotgun')return shotgun(t,interval);if(id==='sniper')return sniper(t,interval);if(id==='laser')return laser(t,q);if(id==='plasma')return plasma(t,q);if(id==='bow')return bow(t);if(id==='railgun')return railgun(t,q);return ballistic(id,t,q)}
+
+// ============================================================================
+// CONTINUOUS SYNTHS — una sola voz persistente START / SUSTAIN / STOP
+// ============================================================================
+let flame=null;
+function loopLayer(kind,t,type,freq,q,level,bus){const src=initAudio().createBufferSource(),filter=filt(type,freq,q),g=gain(level);src.buffer=noise(kind);src.loop=true;src.connect(filter);filter.connect(g);g.connect(bus);src.start(t);active.add(src);src.onended=()=>active.delete(src);return{src,filter,g}}
+function startFlame(){
+ const c=initAudio();if(flame)return;const p=PRESETS.flamethrower,t=c.currentTime,bus=gain();bus.gain.setValueAtTime(.0001,t);bus.gain.exponentialRampToValueAtTime(.68,t+.12);stereo(bus,t,p.width);click(t,bus,.22,1.2);
+ noiseHit(t+.025,.16,{kind:'pink',type:'bandpass',freq:1450,q:1.1,level:.28+p.flowPressure*.28,attack:.018,dest:bus});noiseHit(t+.055,.11,{type:'highpass',freq:2600,q:.7,level:.16+p.combustion*.22,attack:.015,dest:bus});
+ const flow=loopLayer('brown',t,'bandpass',360+p.flowPressure*260,.65,.38+p.flowPressure*.54,bus),turb=loopLayer('pink',t,'bandpass',760+p.turbulence*1050,.9,.18+p.turbulence*.38,bus),comb=loopLayer('pink',t,'bandpass',1800+p.combustion*2200,1.05,.12+p.combustion*.34,bus),sizzle=loopLayer('white',t,'highpass',4300+p.brightness*2600,.7,.035+p.sizzle*.16,bus);
+ const bodyOsc=c.createOscillator(),bodyLP=filt('lowpass',145,.8),bodyGain=gain(.035+p.lowBody*.115);bodyOsc.type='sawtooth';bodyOsc.frequency.value=58;bodyOsc.connect(bodyLP);bodyLP.connect(bodyGain);bodyGain.connect(bus);bodyOsc.start(t);
+ const slow=c.createOscillator(),slowDepth=gain(110+p.turbulence*160);slow.type='sine';slow.frequency.value=.21;slow.connect(slowDepth);slowDepth.connect(turb.filter.frequency);slow.start(t);
+ const flutter=c.createOscillator(),flutterDepth=gain(.045+p.texture*.07);flutter.type='sine';flutter.frequency.value=5.2;flutter.connect(flutterDepth);flutterDepth.connect(flow.g.gain);flutter.start(t);
+ const drift=c.createOscillator(),driftDepth=gain(240);drift.type='sine';drift.frequency.value=.13;drift.connect(driftDepth);driftDepth.connect(comb.filter.frequency);drift.start(t);
+ [bodyOsc,slow,flutter,drift].forEach(n=>active.add(n));flame={bus,layers:[flow,turb,comb,sizzle],nodes:[bodyOsc,slow,flutter,drift],gains:[bodyGain,flow.g,turb.g,comb.g,sizzle.g]};setStatus('flamethrower sustain activo');
+}
+function stopFlame(){if(!flame||!ctx)return;const v=flame,t=ctx.currentTime;flame=null;v.bus.gain.cancelScheduledValues(t);v.bus.gain.setValueAtTime(Math.max(.0001,v.bus.gain.value),t);v.bus.gain.exponentialRampToValueAtTime(.0001,t+.28);v.gains.forEach(g=>{g.gain.cancelScheduledValues(t);g.gain.setValueAtTime(Math.max(.0001,g.gain.value),t);g.gain.exponentialRampToValueAtTime(.0001,t+.22)});noiseHit(t,.24,{kind:'pink',type:'bandpass',freq:720,q:.7,level:.18,attack:.002});[...v.layers.map(x=>x.src),...v.nodes].forEach(n=>{try{n.stop(t+.32)}catch(_){}});setStatus('flamethrower release')}
+
+// ============================================================================
+// PREVIEW ENGINE
+// ============================================================================
+let selected='rifle',cadenceTimer=null,pending=[];
+function later(fn,ms){const id=setTimeout(()=>{pending=pending.filter(x=>x!==id);fn()},ms);pending.push(id);return id}
+function cancelTimers(){if(cadenceTimer){clearInterval(cadenceTimer);cadenceTimer=null}pending.forEach(clearTimeout);pending=[]}
+function stopAll(){cancelTimers();stopFlame();setStatus('detenido')}
+function fireNow(id,index=0){fireDiscrete(id,initAudio().currentTime+.006,id==='smg'&&index>0?'dense':'full')}
+function single(){stopAll();if(selected==='flamethrower'){startFlame();later(stopFlame,850)}else{fireNow(selected);setStatus('single shot')}}
+function burst(){stopAll();if(selected==='flamethrower'){startFlame();later(stopFlame,1000);return}const interval=PREVIEW_CADENCE[selected];for(let i=0;i<3;i++)later(()=>fireNow(selected,i),i*interval*1000);setStatus('3 shots @ '+(1/interval).toFixed(2)+' shots/s')}
+function startCadence(){stopAll();if(selected==='flamethrower'){startFlame();return}const interval=PREVIEW_CADENCE[selected];let i=0;fireNow(selected,i++);cadenceTimer=setInterval(()=>fireNow(selected,i++),interval*1000);setStatus('real cadence activo')}
+
+// ============================================================================
+// UI
+// ============================================================================
+const app=document.getElementById('app'),weapon=document.getElementById('weapon'),description=document.getElementById('description'),rate=document.getElementById('rate'),status=document.getElementById('status');
+const MAIN=[['impact','Impact / attack'],['body','Body'],['brightness','Brightness'],['tail','Tail'],['width','Stereo width'],['texture','Texture / roughness']],FLAME=[['flowPressure','Flow pressure'],['turbulence','Turbulence'],['combustion','Combustion'],['sizzle','Sizzle'],['lowBody','Low body']];
+function setStatus(s){status.textContent=s}
+function controls(host,defs){defs.forEach(([key,label])=>{const box=document.createElement('label');box.className='control';box.innerHTML='<header><span>'+label+'</span><output id="out-'+key+'"></output></header><input id="ctl-'+key+'" type="range" min="0" max="100" step="1">';host.appendChild(box);box.querySelector('input').addEventListener('input',e=>{PRESETS[selected][key]=+e.target.value/100;box.querySelector('output').value=e.target.value+'%'})})}
+controls(document.getElementById('mainControls'),MAIN);controls(document.getElementById('flameControls'),FLAME);IDS.forEach(id=>{const o=document.createElement('option');o.value=id;o.textContent=PRESETS[id].name+' ['+id+']';weapon.appendChild(o)});
+function syncUI(){const p=PRESETS[selected],continuous=selected==='flamethrower';app.classList.toggle('flame-selected',continuous);description.textContent=p.description;rate.textContent=continuous?'CONTINUOUS':(1/PREVIEW_CADENCE[selected]).toFixed(2)+' shots/sec ('+(PREVIEW_CADENCE[selected]*1000).toFixed(0)+' ms)';[...MAIN,...FLAME].forEach(([key])=>{const el=document.getElementById('ctl-'+key),out=document.getElementById('out-'+key);if(!el||p[key]==null)return;el.value=Math.round(p[key]*100);out.value=el.value+'%'})}
+weapon.value=selected;syncUI();weapon.addEventListener('change',()=>{stopAll();selected=weapon.value;syncUI()});
+document.getElementById('single').addEventListener('click',single);document.getElementById('burst').addEventListener('click',burst);document.getElementById('start').addEventListener('click',startCadence);document.getElementById('stop').addEventListener('click',stopAll);document.getElementById('reset').addEventListener('click',()=>{stopAll();PRESETS[selected]=JSON.parse(JSON.stringify(DEFAULTS[selected]));syncUI();setStatus('preset restaurado')});window.addEventListener('beforeunload',stopAll);document.addEventListener('visibilitychange',()=>{if(document.hidden)stopAll()});
+
+// ============================================================================
+// VISUALIZER
+// ============================================================================
+const canvas=document.getElementById('scope'),cx=canvas.getContext('2d');
+function draw(){requestAnimationFrame(draw);cx.fillStyle='#020306';cx.fillRect(0,0,canvas.width,canvas.height);cx.strokeStyle='#152337';cx.beginPath();cx.moveTo(0,canvas.height/2);cx.lineTo(canvas.width,canvas.height/2);cx.stroke();if(!analyser)return;const data=new Uint8Array(analyser.fftSize);analyser.getByteTimeDomainData(data);cx.strokeStyle='#4de7ff';cx.lineWidth=2;cx.beginPath();for(let i=0;i<data.length;i++){const x=i/(data.length-1)*canvas.width,y=data[i]/255*canvas.height;i?cx.lineTo(x,y):cx.moveTo(x,y)}cx.stroke()}draw();
+
+window.WEAPON_SFX_LAB={PRESETS,PREVIEW_CADENCE,get audioContext(){return ctx},get flameActive(){return!!flame},get activeSourceCount(){return active.size},single,burst,start:startCadence,stop:stopAll,startFlame,stopFlame};
+})();
+</script>
+</body>
+</html>

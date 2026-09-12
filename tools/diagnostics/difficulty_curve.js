@@ -10,7 +10,7 @@ const oldHpScale = (w) => 1 + 0.30 * w;
 // Otras formulas verificadas en el codigo (game.js / enemies.js):
 //  dmgEnemigo = base + min(60, round(wave*1.5))
 //  bossHp     = (base + wave^2*12 + wave*40) * 1.8
-//  spawnInterval = max(0.25, 1.2 - wave*0.05) aprox, perWave cap 8, MAX_ENEMIES 80
+//  spawnInterval = max(0.25, 1.2 - wave*0.05) aprox, perWave cap 8, MAX_HOSTILES 30
 const wv = [1, 5, 10, 15, 20, 25, 30, 40];
 for (const w of wv) {
   const hpNew = NV.enemyHpScale(w);

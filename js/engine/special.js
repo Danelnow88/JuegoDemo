@@ -92,20 +92,24 @@
       const acc = e.phaseAcc || 0;
       if (acc > 0) {
         e.hp -= acc * MULT;
+        e.hitFlash = Math.max(e.hitFlash || 0, 0.10);
         if (cbs && cbs.addFloatText) cbs.addFloatText(e.x, e.y - 24, 'ESPECTRAL', '#caa7ff');
         hits++;
+        if (e.hp <= 0 && cbs && cbs.killEnemy) cbs.killEnemy(e);
       }
       e.phaseAcc = 0;
     }
     if (boss && !boss.dead && boss.phaseAcc > 0) {
       boss.hp -= boss.phaseAcc * MULT * (B && B.PHASE_AURA_BOSS_MULT || 0.3);
+      boss.hitFlash = Math.max(boss.hitFlash || 0, 0.10);
       if (cbs && cbs.addFloatText) cbs.addFloatText(boss.x, boss.y - 60, 'ESPECTRAL', '#caa7ff');
       hits++;
       boss.phaseAcc = 0;
     }
     // VFX de detonación bien diferenciado del aura: doble anillo espectral + estallido
     NV.spawnShockwave(shockwaves || [], player.x, player.y, { maxRadius: 110, color: '#caa7ff', width: 6 });
-    NV.spawnShockwave(shockwaves || [], player.x, player.y, { maxRadius: 70, color: '#fff', width: 3 });
+    // Anillo blanco secundario: decorativo, degradable vía visual budget (P2).
+    NV.spawnShockwave(shockwaves || [], player.x, player.y, { maxRadius: 70, color: '#fff', width: 3, secondary: true });
     if (cbs && cbs.spawnExplosion) cbs.spawnExplosion(player.x, player.y, 30, '#caa7ff', 0.8);
     if (cbs && cbs.triggerFlash) cbs.triggerFlash('#caa7ff');
     return hits;

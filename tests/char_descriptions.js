@@ -79,8 +79,8 @@ t('index.html deja contenedor y game.js renderiza cards dinámicas antes de icon
   if (!html.includes('js/ui/characters.js')) throw new Error('script characters.js no cargado');
   if (!dom.includes('charGrid: document.getElementById(\'charGrid\')')) throw new Error('dom.charGrid ausente');
   const renderIdx = game.indexOf('NV.renderCharacterCards(dom.charGrid, CHARACTERS, player.character);');
-  const iconsIdx = game.indexOf('renderMenuSkillIcons();');
-  const cardsIdx = game.indexOf("document.querySelectorAll('.char-card')");
+  const iconsIdx = game.indexOf('renderMenuSkillIcons();', renderIdx);
+  const cardsIdx = game.indexOf("document.querySelectorAll('.char-card')", iconsIdx);
   if (!(renderIdx >= 0 && renderIdx < iconsIdx && iconsIdx < cardsIdx)) throw new Error('orden render/iconos/bindings incorrecto');
 });
 

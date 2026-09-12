@@ -6,6 +6,24 @@
   'use strict';
   const NV = window.NV;
 
+  function canSpawn(st, count, heavyCount) {
+    if (NV.canSpawnHostileBatch) return NV.canSpawnHostileBatch(st, count, heavyCount);
+    if (st.ignoreHostileBudget === true) return true;
+    const bossCount = st.boss && !st.boss.dead ? 1 : 0;
+    let aliveEnemies = 0, heavy = bossCount;
+    for (const e of st.enemies) {
+      if (e.dead) continue;
+      aliveEnemies++;
+      if (e.isElite || e.hostileClass === 'heavy') heavy++;
+    }
+    return aliveEnemies + bossCount + count <= (st.MAX_HOSTILES || st.MAX_ENEMIES || 30)
+      && heavy + (heavyCount || 0) <= (st.MAX_HEAVY_HOSTILES || 7);
+  }
+
+  NV.canSpawnBoss = function (st) {
+    return canSpawn(st, 1, 1);
+  };
+
   // ---- IA: puntería predictiva (apunta a donde ESTARÁ el jugador, con 80% de lead para que sea esquivable) ----
   NV.predictAim = function (b, st, projSpeed) {
     const p = st.player;
@@ -53,7 +71,7 @@
 
   // ---- Esbirro (funciona incluso durante pelea con jefe) ----
   NV.spawnMinion = function (x, y, st) {
-    if (st.enemies.length >= 40) return;
+    if (!canSpawn(st, 1, 0)) return false;
     const t = st.ENEMY_TYPES[0];
     const e = {
       x: x, y: y,
@@ -61,9 +79,11 @@
       score: 8, xp: 8, dead: false, behavior: 'chase', angle: Math.random() * Math.PI * 2,
       erraticTimer: 0, isElite: false, eliteDamage: 8, knockbackRes: 0, knockVelX: 0, knockVelY: 0,
       damage: 8, shield: false, shootTimer: 0, stun: 0,
+      hostileClass: 'light',
     };
     e.maxHp = e.hp;
     st.enemies.push(e);
+    return true;
   };
 
   // ---- Ataques propios de cada jefe ----
@@ -81,9 +101,11 @@
         break;
       case 'summon':
         if (b.atkTimer >= 2.6 && st.enemies.length < 26) {
-          st.sfx.bossAttack.summon();
-          minion(b.x, b.y + 40); minion(b.x + 30, b.y + 20); minion(b.x - 30, b.y + 20);
-          b.atkTimer = 0;
+          if (canSpawn(Object.assign({}, st, { boss: b }), 3, 0)) {
+            st.sfx.bossAttack.summon();
+            minion(b.x, b.y + 40); minion(b.x + 30, b.y + 20); minion(b.x - 30, b.y + 20);
+            b.atkTimer = 0;
+          }
         }
         break;
       case 'spread':
@@ -126,8 +148,10 @@
         break;
       case 'split':
         if (!b.split && b.hp < b.maxHp / 2) {
-          b.split = true; st.sfx.bossAttack.split();
-          minion(b.x, b.y); minion(b.x, b.y); minion(b.x + 25, b.y - 20);
+          if (canSpawn(Object.assign({}, st, { boss: b }), 3, 0)) {
+            b.split = true; st.sfx.bossAttack.split();
+            minion(b.x, b.y); minion(b.x, b.y); minion(b.x + 25, b.y - 20);
+          }
         }
         if (b.atkTimer >= 1.15) { st.sfx.bossAttack.split(); proj(340, 24); b.atkTimer = 0; }
         break;
@@ -161,7 +185,12 @@
     const boss = st.boss;
     if (!boss || boss.dead) return { score: st.score, shards: st.shards, wave: st.wave, shake: st.shake, boss };
     const W = st.W, H = st.H;
-    boss.timer += dt;
+    if (boss.hitFlash > 0) boss.hitFlash = Math.max(0, boss.hitFlash - dt);
+    const _bossHitSlowActive = boss.hitSlowUntil > 0;
+    const _bossHitSlowMult = _bossHitSlowActive ? NV.hitSlowFor("BOSS").multiplier : 1;
+    if (boss.hitSlowUntil > 0) boss.hitSlowUntil = Math.max(0, boss.hitSlowUntil - dt);
+    if (boss.hitSlowImmunity > 0) boss.hitSlowImmunity = Math.max(0, boss.hitSlowImmunity - dt);
+    boss.timer += dt * _bossHitSlowMult;
     if ((boss.rageCd || 0) > 0) boss.rageCd -= dt;
 
     if (boss.pattern === 'chase') { boss.x = W / 2 + Math.sin(boss.timer * 0.3) * 200; }

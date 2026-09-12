@@ -46,6 +46,47 @@ t('initAudio() crea el mixer con todos los canales esperados + exports', () => {
   if (typeof g.setValueAtTime !== 'function' || typeof g.linearRampToValueAtTime !== 'function') throw new Error('gain sin API de modulacion');
 });
 
+t('master gain es único y el mute no recrea AudioContext', () => {
+  const NV = loadSynth(); NV.initAudio();
+  const originalCtx = NV.audioCtx;
+  if (!NV.audioMasterGain) throw new Error('master gain ausente');
+  const targets = [];
+  NV.audioMasterGain.gain.linearRampToValueAtTime = function (value) { targets.push(value); };
+  NV.setSoundEnabled(false);
+  if (NV.soundOn || targets[targets.length - 1] !== 0) throw new Error('mute no aplicado al master');
+  NV.setSoundEnabled(true);
+  if (!NV.soundOn || NV.audioCtx !== originalCtx || targets[targets.length - 1] !== 1) throw new Error('unmute recreó/no restauró');
+});
+
+t('volumen SFX escala buses compartidos y deja música intacta', () => {
+  const NV = loadSynth(); NV.initAudio();
+  const musicBefore = NV.mixer.music.gain.value;
+  NV.applySfxVolume(0.4);
+  if (NV.mixer.sfxUI.gain.value !== 0.7 * 0.4) throw new Error('sfxUI no escalado');
+  if (NV.mixer.sfxPlayer.gain.value !== 0.9 * 0.4) throw new Error('sfxPlayer no escalado');
+  if (NV.mixer.sfxEnemies.gain.value !== 0.8 * 0.4) throw new Error('sfxEnemies no escalado');
+  if (NV.mixer.sfxAmbient.gain.value !== 0.6 * 0.4) throw new Error('sfxAmbient no escalado');
+  if (NV.mixer.music.gain.value !== musicBefore) throw new Error('volumen SFX alteró música');
+});
+
+t('mute y volumen SFX son independientes', () => {
+  const NV = loadSynth(); NV.initAudio();
+  NV.applySfxVolume(0.35);
+  const playerGain = NV.mixer.sfxPlayer.gain.value;
+  NV.setSoundEnabled(false);
+  NV.setSoundEnabled(true);
+  if (NV.mixer.sfxPlayer.gain.value !== playerGain) throw new Error('mute destruyó volumen SFX');
+  if (NV.audioMasterGain.gain.value !== 1) throw new Error('unmute no restauró master');
+});
+
+t('applySfxVolume limita valores sin afectar master', () => {
+  const NV = loadSynth(); NV.initAudio();
+  const masterBefore = NV.audioMasterGain.gain.value;
+  if (NV.applySfxVolume(2) !== 1 || NV.mixer.sfxPlayer.gain.value !== 0.9) throw new Error('clamp superior falló');
+  if (NV.applySfxVolume(-1) !== 0 || NV.mixer.sfxPlayer.gain.value !== 0) throw new Error('clamp inferior falló');
+  if (NV.audioMasterGain.gain.value !== masterBefore) throw new Error('volumen SFX alteró master mute');
+});
+
 // ---- ducking ----
 t('duck() no crashea si no hay mixer (headless)', () => {
   const NV = loadSynth();

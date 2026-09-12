@@ -25,6 +25,9 @@
 - Toda UI nueva debe definir y verificar presentación responsive desktop, móvil landscape y ownership por estado.
 - No duplicar lobby, HUD, Settings, tienda ni Game Over por plataforma.
 - Los modos gráficos solo pueden cambiar coste visual; nunca conteos, HP, daño, spawns o dificultad.
+- Gameplay controla audio: primero crea/aplica el evento real y después notifica a `NV.audio`. Audio no puede programar proyectiles, cadencia, daño, doble disparo ni tiempos de recarga.
+- Todo SFX de armas debe reutilizar el único `NV.audioCtx`, el mixer y el mute existentes; no crear un segundo `AudioContext`.
+- Las armas continuas deben liberar sus voces al pausar, entrar a tienda/Game Over/menú, mutear u ocultar la página.
 - No hacer commit ni push salvo solicitud explícita.
 - No usar amend, rebase, reset destructivo ni force push para trabajo normal.
 - No stagear diagnósticos, logs o temporales.

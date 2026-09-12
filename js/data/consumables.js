@@ -7,7 +7,7 @@
 
   NV.CONSUMABLES = {
     potion:    { key: 'potion',    name: 'Poción',     useName: 'POCIÓN',     desc: 'Cura 40 HP (tecla F en partida)',     price: 10, banner: 'Poción guardada (F para usar)',  color: '#22c55e', hp: 40 },
-    overdrive: { key: 'overdrive', name: 'Overdrive',  useName: 'OVERDRIVE',  desc: '+50% velocidad 5s (tecla F)',         price: 18, banner: 'Overdrive guardado (F)',         color: '#caa7ff', speedMult: 1.5, duration: 5 },
+    overdrive: { key: 'overdrive', name: 'Overdrive',  useName: 'OVERDRIVE',  desc: '+18% velocidad 5s (tecla F)',         price: 18, banner: 'Overdrive guardado (F)',         color: '#caa7ff', speedMult: 1.18, duration: 5 },
     shield:    { key: 'shield',    name: 'Escudo',     useName: 'ESCUDO',     desc: 'Invulnerable 2s (tecla F)',           price: 22, banner: 'Escudo guardado (F)',            color: '#ffcf76', duration: 2 },
     bomb:      { key: 'bomb',      name: 'Bomba',      useName: 'BOMBA',      desc: 'Daña 25% HP a todos (tecla F)',       price: 34, banner: 'Bomba guardada (F)',             color: '#ff5f9b' },
     freeze:    { key: 'freeze',    name: 'Congelante', useName: 'CONGELANTE', desc: 'Enemigos lentos 50% por 4s (F)',      price: 26, banner: 'Congelante guardado (F)',        color: '#67e8f9', duration: 4 },

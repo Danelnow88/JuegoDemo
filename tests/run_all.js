@@ -7,7 +7,10 @@ const testsDir = path.join(rootDir, 'tests');
 const thisFile = path.basename(__filename);
 
 const testFiles = fs.readdirSync(testsDir)
-  .filter((file) => file.endsWith('.js') && file !== thisFile)
+  // Regla de descubrimiento: TODO archivo `*.js` es un test del suite, EXCEPTO
+  // los prefijados con `_` (residuos temporales/auxiliares de comandos rotos o
+  // borradores: p. ej. `_gen_test.js`). Los tests reales no llevan prefijo `_`.
+  .filter((file) => file.endsWith('.js') && !file.startsWith('_') && file !== thisFile)
   .sort();
 
 let failed = 0;

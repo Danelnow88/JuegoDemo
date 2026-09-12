@@ -19,10 +19,21 @@ function spawnOf(typeId) {
   return out[0];
 }
 
-t('specter_lite (RB1, 0.70): hitbox 12 -> 10.5', () => {
+t('specter_lite (RB2, 0.75): hitbox 12 -> 11.25', () => {
+  // Contrato vigente (auditado): la convención del roster es 0-based
+  // (modelIndex 0..5 = RB1..RB6, como drawLabSpecterEnemy y labPoseIndex).
+  // specter_lite está REMAPEADO a RB2 (Ameba Coronada) junto a specter_grunt;
+  // su identidad distintiva es su color de datos (#ff6a24 naranja) heredado
+  // como acento del modelo líquido, no su forma. Autoridades: el switch
+  // case 1 de drawLabEnemyModel (RB2 - Ameba Coronada), el test
+  // specter_threejs_integration (exige el literal specter_lite: 1) y
+  // spectral_enemies_render (factores 0-based [0.875, 0.9375, 1, 1, 1.025, 1.0625]).
+  // Hitbox = radiusDatos × (factorVisual / 0.8) = 12 × (0.75/0.8) = 11.25:
+  // el MISMO ratio que encoge el dibujo (labScale 0.8 -> 0.75), de modo que
+  // la detección coincide con la silueta a su nuevo tamaño.
   const e = spawnOf('specter_lite');
   if (!e) throw new Error('no spawneó');
-  if (Math.abs(e.radius - 10.5) > 0.01) throw new Error('radius=' + e.radius);
+  if (Math.abs(e.radius - 11.25) > 0.01) throw new Error('radius=' + e.radius);
 });
 
 t('specter_grunt (RB2, 0.75): hitbox 10 -> 9.375', () => {
@@ -66,6 +77,29 @@ t('sin renderer cargado: radio de datos intacto (fallback seguro)', () => {
     ENEMY_TYPES: sbx2.window.NV.ENEMY_TYPES, W: 800, H: 600, waveEvent: null, forceTypeId: 'specter_grunt',
   });
   if (!out[0] || out[0].radius !== 10) throw new Error('radius=' + (out[0] && out[0].radius));
+});
+
+t('CONTRATO: hitbox spawn = radiusDatos × labModelHitboxFactor(roster 0-based), ratio = visual/0.8', () => {
+  // Documenta el contrato visual/hitbox del Visual Lab: el radio de datos se
+  // adapta al spawn con el MISMO ratio que escala el dibujo por modelo
+  // (labScale = MODEL_SCALE_FACTORS[poseIdx], antes uniforme 0.8). Autoridad:
+  // spectralEnemies2D.js (labPoseIndex + drawLabSpecterEnemy + factores) y
+  // spectral_enemies_render.js (factores esperados por índice 0-based).
+  const expectedHitbox = {
+    specter_lite: 12 * 0.9375,   // RB2 (0.75)
+    specter_grunt: 10 * 0.9375,  // RB2 (0.75)
+    specter_core: 16 * 1,        // RB3 (0.80)
+    specter_archer: 12 * 1,      // RB4 (0.80)
+    specter_guard: 18 * 1.025,   // RB5 (0.82)
+  };
+  for (const [id, expected] of Object.entries(expectedHitbox)) {
+    const e = spawnOf(id);
+    if (!e) throw new Error(id + ' no spawneó');
+    if (Math.abs(e.radius - expected) > 0.01) throw new Error(id + ': radius=' + e.radius + ' esperado=' + expected);
+  }
+  // Jerarquía de hitboxes preservada: grunt < lite < archer/core < guard.
+  const lite = spawnOf('specter_lite'), grunt = spawnOf('specter_grunt'), guard = spawnOf('specter_guard');
+  if (!(grunt.radius < lite.radius && lite.radius < guard.radius)) throw new Error('jerarquía invertida');
 });
 
 console.log('\nRESULT lab_model_hitbox: pass=' + pass + ' fail=' + fail);

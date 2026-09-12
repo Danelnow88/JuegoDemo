@@ -4,31 +4,40 @@
   'use strict';
   const NV = window.NV;
 
-  // Anillo de cooldown alrededor del personaje.
-  NV.drawSpecialCooldown = function (ctx, W, H, CHARACTERS, player) {
-    const char = CHARACTERS[player.character];
-    const cx = player.x, cy = player.y;
-    const radius = char.size + 16;
+  // F09.4 — ELIMINADO: anillo/contorno de cooldown alrededor del jugador.
+  // Era redundante: el estado de la habilidad ya vive en el header DOM
+  // (.special-cooldown/#specialFill) y en el slot de habilidad del panel
+  // canvas. Se mantiene como no-op para no romper llamadas existentes.
+  NV.drawSpecialCooldown = function () { return; };
 
-    if (player.specialCd > 0) {
-      const progress = 1 - player.specialCd / char.maxCd;
-      ctx.strokeStyle = 'rgba(124, 248, 255, 0.5)';
-      ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.arc(cx, cy, radius, 0, Math.PI * 2); ctx.stroke();
-
-      ctx.strokeStyle = char.color;
-      ctx.lineWidth = 3;
-      ctx.lineCap = 'round';
-      ctx.beginPath();
-      const startAngle = -Math.PI / 2;
-      ctx.arc(cx, cy, radius, startAngle, startAngle + progress * Math.PI * 2);
-      ctx.stroke();
-      ctx.lineCap = 'default';
-    } else {
-      if (typeof NV.drawMetaSkillIcon === 'function') {
-        NV.drawMetaSkillIcon(ctx, char.special, cx, cy - radius - 8, 18, { glow: 4 });
+  NV.drawDashStamina = function (ctx, viewX, viewY, viewW, viewH, player, mobile) {
+    if (!player || !(player.dashStaminaMax > 0) || !(player.dashCost > 0)) return false;
+    const stamina = Math.max(0, Math.min(player.dashStaminaMax, player.dashStamina || 0));
+    const uses = Math.floor((stamina + 0.0001) / player.dashCost);
+    const segmentW = mobile ? 28 : 34, segmentH = mobile ? 5 : 6, gap = 4;
+    const totalW = segmentW * 2 + gap;
+    const x = viewX + viewW / 2 - totalW / 2;
+    const y = viewY + viewH - (mobile ? 58 : 18);
+    ctx.save();
+    ctx.font = 'bold ' + (mobile ? 7 : 8) + 'px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = uses > 0 ? '#7cf8ff' : '#7c8399';
+    ctx.fillText('DASH ' + uses, x + totalW / 2, y - 4);
+    for (let i = 0; i < 2; i++) {
+      const sx = x + i * (segmentW + gap);
+      const fill = Math.max(0, Math.min(1, (stamina - i * player.dashCost) / player.dashCost));
+      ctx.fillStyle = 'rgba(124, 248, 255, 0.14)';
+      ctx.fillRect(sx, y, segmentW, segmentH);
+      if (fill > 0) {
+        ctx.fillStyle = player.dashActive ? '#ffffff' : '#7cf8ff';
+        ctx.fillRect(sx, y, segmentW * fill, segmentH);
       }
+      ctx.strokeStyle = 'rgba(124, 248, 255, 0.55)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(sx, y, segmentW, segmentH);
     }
+    ctx.restore();
+    return true;
   };
 
     
@@ -240,11 +249,10 @@
     var bx = W - pw - 10;
     var by = 10;
     ctx.textAlign = 'left';
-    var pistol = NV.starterWeapon ? NV.starterWeapon() : NV.WEAPONS[0];
-    var wEntries = [{ weapon: pistol, color: RARITY_COLORS[pistol.rarity], glow: GLOW_BY_RARITY[pistol.rarity] || 0.3, fuse: 0, level: lvlFor(pistol.id) }].concat(
-      inventory.slice(0, 5).map(function (wItem) { return { weapon: wItem, color: RARITY_COLORS[wItem.rarity], glow: GLOW_BY_RARITY[wItem.rarity] || 0.3, fuse: wItem.fuseLevel || 0, level: lvlFor(wItem.id) }; })
-    );
-    var equippedIdx = weapon === pistol ? 0 : inventory.indexOf(weapon) + 1;
+    // Loadout real: los slots visuales son exactamente las posiciones del inventario
+    // (hotkeys 1-6 y dock de la tienda comparten este mismo orden).
+    var wEntries = inventory.slice(0, 6).map(function (wItem) { return { weapon: wItem, color: RARITY_COLORS[wItem.rarity], glow: GLOW_BY_RARITY[wItem.rarity] || 0.3, fuse: wItem.fuseLevel || 0, level: lvlFor(wItem.id) }; });
+    var equippedIdx = inventory.indexOf(weapon);
     if (equippedIdx < 0 || equippedIdx > 5) equippedIdx = -1;
     var hCnum = rgbaNum(iconColor);
     ctx.fillStyle = 'rgba(0,0,0,0.62)';
@@ -374,8 +382,9 @@ NV.drawCombo = function (ctx, W, H, combo, opts) {
       `Habilidad: ${char.skillName} (CD: ${char.maxCd}s)`,
       `Nivel: ${player.level}  |  XP: ${player.xp}/${player.xpToNext}`,
       `HP: ${Math.round(player.hp)}/${player.maxHp}  |  Armadura: ${player.armor}`,
-      `Velocidad: ${Math.round(player.speed)}  |  Suerte: ${player.luck}`,
-      `Agilidad: ${player.agility.toFixed(2)}x (maniobralidad)`,
+      `Velocidad: ${Math.round(player.effectiveMoveSpeed || player.speed)} (base ${Math.round(player.baseMoveSpeed || player.speed)})  |  Suerte: ${player.luck}`,
+      `Control: ${player.agility.toFixed(2)}x · permanente ${((player.moveControlPermanentMult || 1) * 100).toFixed(0)}%`,
+      `Dash: ${Math.floor(((player.dashStamina || 0) + 0.0001) / (player.dashCost || 50))}/2 · stamina ${Math.round(player.dashStamina || 0)}`,
       `Arma: ${weapon.name} (${weapon.rarity}) | Nv ${currentWeaponLevel()}` + (weaponVisualTier() > 0 ? ` | Tier ${weaponVisualTier()} (${BULLET_TIER_COLORS[weaponVisualTier()]})` : ''),
       `DaÃ±o: ${weapon.damage + permUpgrades.damage * 2 + (NV.weaponLevelDamageBonus ? NV.weaponLevelDamageBonus(currentWeaponLevel()) : currentWeaponLevel())}`,
       `Inventario: ${inventory.length}/${INVENTORY_SLOTS}  |  Consumibles: ${consumableItems.length}`,

@@ -2,7 +2,7 @@ const fs = require('fs');
 let pass = 0, fail = 0;
 function t(name, fn) { try { fn(); pass++; console.log('  ok  ' + name); } catch (e) { fail++; console.log('  FAIL ' + name + ' -> ' + e.message); } }
 const html = fs.readFileSync('index.html', 'utf8');
-const css = fs.readFileSync('css/styles.css', 'utf8');
+const css = fs.readFileSync('css/styles.css', 'utf8') + fs.readFileSync('css/lobby-f093.css', 'utf8');
 const game = fs.readFileSync('js/game.js', 'utf8');
 
 t('game over usa panel centrado reusable y una sola acción primaria', () => {
@@ -31,6 +31,16 @@ t('jerarquía HUD móvil separa info, menú y controles inferiores', () => {
 
 t('lobby y game over ocultan controles de gameplay', () => {
   if (!css.includes('[data-game-state="menu"] .mobile-hud') || !css.includes('[data-game-state="gameover"] .mobile-hud')) throw new Error('visibilidad por estado incompleta');
+});
+
+t('lobby y biblioteca son escenas fullscreen distintas sin duplicar roster ni hero', () => {
+  if (!html.includes('main-lobby-screen') || !html.includes('character-select-screen')) throw new Error('escenas de menú ausentes');
+  if ((html.match(/id="charGrid"/g) || []).length !== 1) throw new Error('charGrid duplicado');
+  if ((html.match(/id="lobbyPreview"/g) || []).length !== 1) throw new Error('preview duplicado');
+  const library = html.slice(html.indexOf('id="characterSelectScreen"'), html.indexOf('id="shop"'));
+  if (library.includes('id="lobbyPreview"')) throw new Error('hero invade biblioteca');
+  if (!css.includes('.lobby-screen {') || !css.includes('height: 100dvh')) throw new Error('menú no fullscreen');
+  if (!css.includes('.character-select-screen .char-card')) throw new Error('selector sin terminación visual propia');
 });
 
 console.log('RESULT ui_foundation: pass=' + pass + ' fail=' + fail);

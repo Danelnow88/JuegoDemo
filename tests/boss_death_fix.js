@@ -15,7 +15,7 @@ function makeSt(bulletDamage) {
     W: 800, H: 600, player,
     enemies: [], boss: null, MAX_BULLETS: 50, MAX_ENEMY_BULLETS: 50, SHIELD_COOLDOWN: 3,
     CHARACTERS: { boti: { size: 20 } },
-    computePlayerHit: (dmg) => ({ dmg }),
+    applyPlayerDamage: (dmg) => { const hpBefore = player.hp; player.hp -= dmg; return { applied: true, damage: dmg, hpBefore, hpAfter: player.hp, killed: player.hp <= 0, crit: false }; },
     addFloatText: () => {}, killEnemy: () => {}, applyKnockback: () => {}, spawnExplosion: () => {},
     gameOver: () => { calls.gameover++; },
   };
