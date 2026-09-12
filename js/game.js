@@ -473,22 +473,39 @@
   };
   // API mínima para que mobileControls lea el estado actual sin duplicarlo.
   NV.input.getWeaponInfo = () => {
-    if (!currentWeapon) return { name: '—', rarity: 'common' };
-    return { name: currentWeapon.name || '—', rarity: currentWeapon.rarity || 'common' };
+    if (!currentWeapon) return { id: 'pistol', name: '—', rarity: 'common' };
+    return { id: currentWeapon.id || 'pistol', name: currentWeapon.name || '—', rarity: currentWeapon.rarity || 'common' };
   };
-    NV.input.getConsumableInfo = () => {
+  NV.input.getConsumableInfo = () => {
     const g = NV.groupConsumables(consumableItems);
     if (!g.length || consumSel === undefined || consumSel < 0 || consumSel >= g.length) return null;
     const cur = g[consumSel];
     return { type: (cur && cur.type) || '—', name: (cur && cur.name) || (cur && cur.type) || '—', count: (cur && cur.count) || 0 };
   };
+  NV.input.getSpecialInfo = () => {
+    const char = CHARACTERS[player.character];
+    const max = char && char.maxCd > 0 ? char.maxCd : 1;
+    const remaining = Math.max(0, player.specialCd || 0);
+    const active = state === 'playing' && !paused;
+    return {
+      active,
+      ready: active && remaining <= 0,
+      remaining,
+      max,
+      progress: active ? Math.max(0, Math.min(1, 1 - remaining / max)) : 0,
+      color: (char && char.color) || '#7cf8ff',
+    };
+  };
   // Notifica a la capa móvil cuando cambia el estado de arma/consumible.
   function notifyMobileWeapon() { const cbs = NV.input._onWeaponChange; if (Array.isArray(cbs)) { const info = NV.input.getWeaponInfo(); try { cbs.forEach((cb) => { if (typeof cb === 'function') cb(info); }); } catch (_) { /* defensivo */ } } }
   function notifyMobileConsumable() { const cbs = NV.input._onConsumableChange; if (Array.isArray(cbs)) { const info = NV.input.getConsumableInfo(); try { cbs.forEach((cb) => { if (typeof cb === 'function') cb(info); }); } catch (_) { /* defensivo */ } } }
+  function notifyMobileSpecial() { const cbs = NV.input._onSpecialChange; if (Array.isArray(cbs)) { const info = NV.input.getSpecialInfo(); try { cbs.forEach((cb) => { if (typeof cb === 'function') cb(info); }); } catch (_) { /* defensivo */ } } }
   NV.input.notifyWeaponChange = notifyMobileWeapon;
   NV.input.notifyConsumableChange = notifyMobileConsumable;
+  NV.input.notifySpecialChange = notifyMobileSpecial;
   NV.input._onWeaponChange = NV.input._onWeaponChange || [];
   NV.input._onConsumableChange = NV.input._onConsumableChange || [];
+  NV.input._onSpecialChange = NV.input._onSpecialChange || [];
   // Panel de opciones móvil → reutiliza togglePause / showStats y el toggle de sonido.
   NV.input.toggleStats = () => { showStats = !showStats; };
   function syncSoundUI() {
@@ -2369,6 +2386,7 @@
     const criticalHealth = player.hp > 0 && player.hp / player.maxHp <= 0.25;
     dom.hpBar.classList.toggle('critical', criticalHealth);
     dom.hpFill.classList.toggle('critical', criticalHealth);
+    notifyMobileSpecial();
 
     if (state !== 'playing' || paused) {
       dom.specialFill.style.background = '#3d4355';
@@ -2506,17 +2524,18 @@
       ctx.lineWidth = 1;
       ctx.strokeRect(barX, barY, barW, barH);
 
-      // --- Texto de la oleada (izquierda) y contador de enemigos (derecha) ---
+      // --- Texto de la oleada centrado y contador apilado en upper-left ---
       ctx.fillStyle = '#7cf8ff';
       ctx.font = 'bold 10px system-ui';
       ctx.textAlign = 'center';
       ctx.fillText('OLEADA ' + wave, arenaW() / 2, barY + 16);
       // Contador de enemigos vivos + élites
       const countText = 'ENEMIGOS: ' + alive + ' (' + elites + ')';
+      const mobilePresentation = !!(NV.capabilities && NV.capabilities.isMobile);
       ctx.fillStyle = '#9bb0ff';
       ctx.font = 'bold 9px system-ui';
-      ctx.textAlign = 'right';
-      ctx.fillText(countText, barX + barW + 8, barY + 10);
+      ctx.textAlign = 'left';
+      ctx.fillText(countText, viewX() + 12, viewY() + (mobilePresentation ? 50 : 43));
     }
 
     if (specialVFX) drawSpecialVFX(specialVFX);
@@ -2730,7 +2749,7 @@
     if (showHUD && (state === 'playing' || state === 'wave_end')) {
       drawSpecialCooldown();
       const mobilePresentation = !!(NV.capabilities && NV.capabilities.isMobile);
-      NV.drawCombo(ctx, arenaW(), arenaH(), killCombo, mobilePresentation ? { x: viewX() + viewW() / 2 - 18, y: 22 } : null);
+      NV.drawCombo(ctx, arenaW(), arenaH(), killCombo, mobilePresentation ? { x: viewX() + 12, y: viewY() + 75 } : null);
       NV.drawDashStamina(ctx, viewX(), viewY(), viewW(), viewH(), player, mobilePresentation);
       if (!mobilePresentation) drawWeaponHUD();
       else NV.consumSlotRects = [];

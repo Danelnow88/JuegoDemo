@@ -68,6 +68,11 @@
   const shopEl = d.getElementById('shop');
   const weaponIndicator = d.getElementById('weaponIndicator');
   const consumableIndicator = d.getElementById('consumableIndicator');
+  const weaponIndicatorIcon = d.getElementById('weaponIndicatorIcon');
+  const consumableIndicatorIcon = d.getElementById('consumableIndicatorIcon');
+  const weaponIndicatorName = d.getElementById('weaponIndicatorName');
+  const consumableIndicatorName = d.getElementById('consumableIndicatorName');
+  const specialStatus = d.getElementById('touchSpecialStatus');
   const mobileHudEl = d.getElementById('mobileHud');
 
   const MAX_R = 40;      // radio máximo de arrastre del thumb (px CSS)
@@ -229,29 +234,68 @@
   if (mFullscreenBtn) bind(mFullscreenBtn, 'pointerdown', press(() => { if (viewport && typeof viewport.toggleFullscreen === 'function') viewport.toggleFullscreen(); closeOptions(); }));
 
   // --- INDICADORES de arma y consumible (leídos vía NV.input, sin estado duplicado) ---
+  function clearIndicatorIcon(canvas) {
+    if (!canvas || typeof canvas.getContext !== 'function') return null;
+    const iconCtx = canvas.getContext('2d');
+    if (!iconCtx) return null;
+    iconCtx.clearRect(0, 0, canvas.width, canvas.height);
+    return iconCtx;
+  }
   function renderWeaponInfo(info) {
     if (!weaponIndicator) return;
     const n = (info && info.name) || '—';
-    weaponIndicator.textContent = n;
+    if (weaponIndicatorName) weaponIndicatorName.textContent = n;
+    const iconCtx = clearIndicatorIcon(weaponIndicatorIcon);
+    if (iconCtx && typeof NV.drawWeaponIcon === 'function') {
+      NV.drawWeaponIcon(iconCtx, (info && info.id) || 'pistol', 16, 16, 27, { glow: 3 });
+    }
     weaponIndicator.title = 'Arma actual: ' + n;
   }
   function renderConsumableInfo(info) {
     if (!consumableIndicator) return;
-    if (!info) { consumableIndicator.textContent = 'SIN'; consumableIndicator.title = 'Sin consumibles'; return; }
+    const iconCtx = clearIndicatorIcon(consumableIndicatorIcon);
+    consumableIndicator.classList.toggle('is-empty', !info);
+    if (!info) {
+      if (consumableIndicatorName) consumableIndicatorName.textContent = 'SIN';
+      consumableIndicator.title = 'Sin consumibles';
+      return;
+    }
     const label = info.type || info.name || '—';
-    const s = (typeof info.stack === 'number' && info.stack > 0) ? ' x' + info.stack : '';
-    consumableIndicator.textContent = label + s;
+    const count = typeof info.count === 'number' ? info.count : info.stack;
+    const s = (typeof count === 'number' && count > 0) ? ' x' + count : '';
+    if (consumableIndicatorName) consumableIndicatorName.textContent = label + s;
+    if (iconCtx && typeof NV.drawConsumableIcon === 'function') {
+      NV.drawConsumableIcon(iconCtx, info.type || info.name, 16, 16, 27, { glow: 3 });
+    }
     consumableIndicator.title = 'Consumible: ' + label;
+  }
+  function renderSpecialInfo(info) {
+    if (!specialBtn || !info) return;
+    const progress = Math.max(0, Math.min(1, Number(info.progress) || 0));
+    const ready = !!info.ready;
+    if (specialBtn.style && typeof specialBtn.style.setProperty === 'function') {
+      specialBtn.style.setProperty('--special-progress', progress.toFixed(4));
+      specialBtn.style.setProperty('--special-color', info.color || '#7cf8ff');
+    }
+    specialBtn.classList.toggle('is-ready', ready);
+    specialBtn.classList.toggle('is-charging', !!info.active && !ready);
+    const status = ready ? 'LISTO' : (info.active ? Math.ceil(Math.max(0, info.remaining || 0)) + 's' : '—');
+    if (specialStatus) specialStatus.textContent = status;
+    specialBtn.setAttribute('aria-label', ready ? 'Especial listo' : 'Especial cargando, ' + status + ' restantes');
   }
   if (input._onWeaponChange === undefined || input._onWeaponChange === null) input._onWeaponChange = [];
   if (input._onConsumableChange === undefined || input._onConsumableChange === null) input._onConsumableChange = [];
+  if (input._onSpecialChange === undefined || input._onSpecialChange === null) input._onSpecialChange = [];
   if (Array.isArray(input._onWeaponChange)) input._onWeaponChange.push(renderWeaponInfo);
   else input._onWeaponChange = [renderWeaponInfo];
   if (Array.isArray(input._onConsumableChange)) input._onConsumableChange.push(renderConsumableInfo);
   else input._onConsumableChange = [renderConsumableInfo];
+  if (Array.isArray(input._onSpecialChange)) input._onSpecialChange.push(renderSpecialInfo);
+  else input._onSpecialChange = [renderSpecialInfo];
   // Forzar render inicial con valores actuales (si existe API).
   try { if (typeof input.getWeaponInfo === 'function') renderWeaponInfo(input.getWeaponInfo()); } catch (_) { /* defensivo */ }
   try { if (typeof input.getConsumableInfo === 'function') renderConsumableInfo(input.getConsumableInfo()); } catch (_) { /* defensivo */ }
+  try { if (typeof input.getSpecialInfo === 'function') renderSpecialInfo(input.getSpecialInfo()); } catch (_) { /* defensivo */ }
 
   // --- REFRESCAR pausa: ocultar controles de gameplay y permitir reanudar desde ☰ ---
   function refreshPauseState() {

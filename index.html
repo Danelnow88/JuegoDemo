@@ -227,16 +227,25 @@
         <div id="mobileActions" class="mobile-actions" aria-label="Controles táctiles">
           <button id="touchUseBtn" class="touch-btn touch-use" type="button">USAR</button>
           <button id="touchSlideBtn" class="touch-btn touch-slide" type="button">DASH</button>
-          <button id="touchSpecialBtn" class="touch-btn touch-special" type="button">ESPECIAL</button>
+          <button id="touchSpecialBtn" class="touch-btn touch-special is-ready" type="button" aria-label="Especial listo">
+            <span class="touch-special-label">ESPECIAL</span>
+            <span id="touchSpecialStatus" class="touch-special-status" aria-hidden="true">LISTO</span>
+          </button>
         </div>
         <div id="mobileWeaponSwitch" class="mobile-weapon-switch" aria-label="Cambio de arma">
           <button id="touchWeaponPrev" class="touch-btn touch-switch" type="button">◀</button>
-          <div id="weaponIndicator" class="switch-indicator" aria-live="polite">—</div>
+          <div id="weaponIndicator" class="switch-indicator" aria-live="polite">
+            <canvas id="weaponIndicatorIcon" class="switch-indicator-icon" width="32" height="32" aria-hidden="true"></canvas>
+            <span class="switch-indicator-copy"><span class="switch-indicator-kind">ARMA</span><span id="weaponIndicatorName" class="switch-indicator-name">—</span></span>
+          </div>
           <button id="touchWeaponNext" class="touch-btn touch-switch" type="button">▶</button>
         </div>
         <div id="mobileConsumableSwitch" class="mobile-consumable-switch" aria-label="Selección de consumible">
           <button id="touchConsumPrev" class="touch-btn touch-switch" type="button">◀</button>
-          <div id="consumableIndicator" class="switch-indicator" aria-live="polite">SIN</div>
+          <div id="consumableIndicator" class="switch-indicator is-empty" aria-live="polite">
+            <canvas id="consumableIndicatorIcon" class="switch-indicator-icon" width="32" height="32" aria-hidden="true"></canvas>
+            <span class="switch-indicator-copy"><span class="switch-indicator-kind">ITEM</span><span id="consumableIndicatorName" class="switch-indicator-name">SIN</span></span>
+          </div>
           <button id="touchConsumNext" class="touch-btn touch-switch" type="button">▶</button>
         </div>
         <div id="mobileOptions" class="mobile-options hidden" aria-label="Panel de opciones">
