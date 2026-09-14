@@ -391,11 +391,167 @@
     // Progresión visual: normal → amarillo → naranja → rojo → blanco (fusión extrema).
     return ['#d8f6ff', '#ffe04a', '#ff9a24', '#ff3a24', '#ffffff'][Math.min(level, 4)];
   }
+    // ===== F3: Hook/Pull system (specter_archer only, wave >= 15) =====
+  // El hookSystem es GLOBAL (game-owned, creado en game.js via NV.createHookSystem).
+  // Fases: idle -> windup -> projectile -> tether -> idle (+ lockoutTimer).
+  // La reservacion del source se hace en el loop principal (ver bloque 'ranged');
+  // esta funcion ejecuta la state machine y el tick de cooldowns enemigos.
+  // El pull del jugador se aplica en game.js (after dash+movement, before arena clamp).
+
+  // Reinicia el hookSystem al estado idle con lockout global y cooldown del source.
+  // Usado por: projectile miss, tether expiration, source death, invalid source,
+  // distance > max, player death, wave_end, shop_enter, gameover, restart.
+  NV.resetHookState = function (hookSystem) {
+    if (!hookSystem) return hookSystem;
+    const src = hookSystem.srcEnemy;
+    if (src) {
+      src.hookOwner = false;
+      src.hookWindup = false;
+      src.hookCooldown = NV.hookCooldownForDifficulty(NV.runDifficulty);
+    }
+    hookSystem.phase = 'idle';
+    hookSystem.windupTimer = 0;
+    hookSystem.tetherTimer = 0;
+    hookSystem.projectile = null;
+    hookSystem.tether = null;
+    hookSystem.srcEnemy = null;
+    hookSystem.lockoutTimer = NV.BALANCE.HOOK_GLOBAL_LOCKOUT_POST_RELEASE;
+    return hookSystem;
+  };
+
+  // Rompe el tether forzadamente (dash del jugador, player death).
+  // Aplica cooldown source + lockout global. Limpia flags del source.
+  NV.breakHookTether = function (hookSystem) {
+    if (!hookSystem || hookSystem.phase !== 'tether') return false;
+    const src = hookSystem.srcEnemy;
+    if (src) {
+      src.hookOwner = false;
+      src.hookWindup = false;
+      src.hookCooldown = NV.hookCooldownForDifficulty(NV.runDifficulty);
+    }
+    hookSystem.phase = 'idle';
+    hookSystem.tetherTimer = 0;
+    hookSystem.projectile = null;
+    hookSystem.tether = null;
+    hookSystem.srcEnemy = null;
+    hookSystem.lockoutTimer = NV.BALANCE.HOOK_GLOBAL_LOCKOUT_POST_RELEASE;
+    return true;
+  };
+
+  // State machine del Hook. Tick de lockout, cooldown enemigo-local, y fases.
+  // Called AFTER the main enemy loop (movement/contact resolved) so the pull
+  // direction uses the latest source/player positions.
+  NV.updateHookSystem = function (dt, hookSystem, enemies, player) {
+    if (!hookSystem) return;
+    const B = NV.BALANCE;
+
+    // 1. Tick lockout global (post-release / post-break)
+    if (hookSystem.lockoutTimer > 0) {
+      hookSystem.lockoutTimer -= dt;
+      if (hookSystem.lockoutTimer < 0) hookSystem.lockoutTimer = 0;
+    }
+
+    // 2. Tick enemy-local cooldowns (solo specter_archer)
+    for (const e of enemies) {
+      if (e.dead) continue;
+      if (e.enemyTypeId === 'specter_archer' && (e.hookCooldown || 0) > 0) {
+        e.hookCooldown -= dt;
+        if (e.hookCooldown < 0) e.hookCooldown = 0;
+      }
+    }
+
+    const src = hookSystem.srcEnemy;
+
+    // 3. Validar source en fases activas (muerte / fusion / removal del source)
+    if (hookSystem.phase === 'windup' || hookSystem.phase === 'projectile' || hookSystem.phase === 'tether') {
+      if (!src || src.dead || src.enemyTypeId !== 'specter_archer') {
+        NV.resetHookState(hookSystem);
+        return;
+      }
+    }
+
+    // 4. State machine
+    if (hookSystem.phase === 'windup') {
+      hookSystem.windupTimer -= dt;
+      if (hookSystem.windupTimer <= 0) {
+        // Lanzar projectile: SNAPSHOT del jugador al FINAL del windup
+        hookSystem.windupTimer = 0;
+        if (src) {
+          const pdx = player.x - src.x, pdy = player.y - src.y;
+          const dist = Math.hypot(pdx, pdy);
+          const invD = Math.max(dist, 1);
+          const spd = B.HOOK_PROJECTILE_SPEED;
+          hookSystem.projectile = {
+            x: src.x, y: src.y,
+            vx: pdx / invD * spd, vy: pdy / invD * spd,
+            dist: 0,
+          };
+        }
+        if (src) src.hookWindup = false;
+        hookSystem.phase = 'projectile';
+      }
+    } else if (hookSystem.phase === 'projectile') {
+      const p = hookSystem.projectile;
+      if (!p) { NV.resetHookState(hookSystem); return; }
+      const mx = p.vx * dt, my = p.vy * dt;
+      p.x += mx; p.y += my;
+      p.dist += Math.hypot(mx, my);
+
+      // max range: miss
+      if (p.dist >= B.HOOK_PROJECTILE_MAX_RANGE) {
+        NV.resetHookState(hookSystem);
+        return;
+      }
+      // hit: distancia al jugador < radio
+      const d = Math.hypot(p.x - player.x, p.y - player.y);
+      if (d < (player.radius || 20)) {
+        // Hit: crear tether (snapshot posicion del source)
+        hookSystem.tether = { srcX: src.x, srcY: src.y };
+        hookSystem.tetherTimer = B.HOOK_PULL_DURATION;
+        hookSystem.projectile = null;
+        hookSystem.phase = 'tether';
+      }
+    } else if (hookSystem.phase === 'tether') {
+      hookSystem.tetherTimer -= dt;
+      if (hookSystem.tetherTimer <= 0) {
+        NV.resetHookState(hookSystem); // expiracion
+      } else if (src) {
+        const d = Math.hypot(player.x - src.x, player.y - src.y);
+        if (d > B.HOOK_TETHER_MAX_RANGE) {
+          NV.resetHookState(hookSystem); // break distance > 400
+        }
+      }
+    }
+  };
+
+  // Player-side Hook update (testeable). Orden contractual: dash update ->
+  // normal movement -> Hook external pull -> arena clamp (el clamp lo hace
+  // game.js). wasDashing = player.dashActive ANTES del dash update de este
+  // frame. Dash press-edge durante tether: break inmediato, sin pull ese
+  // frame (aplica cooldown source + lockout global). Pull externo directo
+  // sobre player.x/y: NO muta moveVx/moveVy, NO toca movement.js.
+  // Retorna true si aplico pull este frame.
+  NV.applyHookPull = function (dt, hookSystem, player, wasDashing) {
+    if (!hookSystem || !player) return false;
+    if (hookSystem.phase === 'tether' && !wasDashing && player.dashActive) {
+      NV.breakHookTether(hookSystem);
+      return false;
+    }
+    if (hookSystem.phase !== 'tether' || !hookSystem.srcEnemy || player.dashActive) return false;
+    const hdx = hookSystem.srcEnemy.x - player.x, hdy = hookSystem.srcEnemy.y - player.y;
+    const hlen = Math.hypot(hdx, hdy);
+    if (!(hlen > 0.000001)) return false;
+    const pullSpd = NV.BALANCE.HOOK_PULL_EXTERNAL_SPEED;
+    player.x += (hdx / hlen) * pullSpd * dt;
+    player.y += (hdy / hlen) * pullSpd * dt;
+    return true;
+  };
+
   // ---- Update de todos los enemigos (comportamientos, daño al jugador) ----
   // Devuelve { enemies, shake, gameOver }. Mutaciones de array/player por ref; los
   // primitivos let (enemies filtrado, shake) y el flag gameOver vuelven del retorno.
   NV.updateEnemies = function (dt, st) {
-    const { enemies, player, bullets, MAX_BULLETS, MAX_ENEMY_BULLETS, enemyBulletCount, applyPlayerDamage, addFloatText } = st;
+    const { enemies, player, bullets, MAX_BULLETS, MAX_ENEMY_BULLETS, enemyBulletCount, applyPlayerDamage, addFloatText, wave, hookSystem } = st;
     let shake = st.shake || 0;
     let gameOver = false;
     // Cuadrícula espacial de vecinos (una pasada O(n)) — reutilizada por las 3
@@ -584,6 +740,9 @@
           const pdx = st.player.x - e.x, pdy = st.player.y - e.y;
           const dist = Math.hypot(pdx, pdy);
           const invD = Math.max(dist, 1);
+          // F3: Hook owner cannot normal-fire durante su Hook windup.
+          // Congela al owner (sin strafe ni avances de state) mientras windupea.
+          if (hookSystem && hookSystem.phase === 'windup' && hookSystem.srcEnemy === e) { continue; }
           if (e.spitStrafe !== -1 && e.spitStrafe !== 1) {
             e.spitStrafe = Math.random() < 0.5 ? -1 : 1;
             e.spitStrafeT = SPIT_STRAFE_HOLD;
@@ -616,6 +775,7 @@
             rState = next; rTimer = timer;
           };
           const fireSpitterShot = () => {
+            if (e.hookOwner) return; // F3: owner en Hook windup no dispara normal
             const tx0 = (e.spitAimX != null ? e.spitAimX : st.player.x);
             const ty0 = (e.spitAimY != null ? e.spitAimY : st.player.y);
             const ang = Math.atan2(ty0 - e.y, tx0 - e.x);
@@ -633,7 +793,7 @@
             e.spitFired = false;
             if (dist < SPIT_NEAR) {
               setRState('retreat', 0.6);
-            } else if (dist >= SPIT_NEAR && dist <= SPIT_FAR && e.shootTimer >= SPIT_CYCLE) {
+            } else if (dist >= SPIT_NEAR && dist <= SPIT_FAR && e.shootTimer >= SPIT_CYCLE && !e.hookWindup) {
               const pvx = st.player.moveVx || 0, pvy = st.player.moveVy || 0;
               const tof = dist / SPIT_BULLET_SPEED;
               let lx = pvx * tof * SPIT_LEAD_FACTOR, ly = pvy * tof * SPIT_LEAD_FACTOR;
@@ -657,13 +817,21 @@
               e.y += my * dt + kby2 * dt;
             }
           } else if (rState === 'windup') {
-            if (rTimer <= 0) {
+            // F3: el Hook owner NO dispara normal durante el Hook windup (gate completo).
+            if (!(e.hookOwner || e.hookWindup) && rTimer <= 0) {
               fireSpitterShot();
               setRState('recovery', SPIT_RECOVERY);
+            } else if ((e.hookOwner || e.hookWindup) && rTimer <= 0) {
+              setRState('positioning', 0.2);
             }
           } else if (rState === 'attack') {
-            if (!e.spitFired) fireSpitterShot();
-            setRState('recovery', SPIT_RECOVERY);
+            // F3: el Hook owner NO dispara normal durante el Hook windup/attack.
+            if (e.hookOwner || e.hookWindup) {
+              setRState('positioning', 0.2);
+            } else {
+              if (!e.spitFired) fireSpitterShot();
+              setRState('recovery', SPIT_RECOVERY);
+            }
           } else if (rState === 'recovery') {
             if (rTimer <= 0) setRState('positioning', 0.2);
           } else if (rState === 'retreat') {
@@ -689,6 +857,23 @@
             }
           });
           if (NV.enemyState) NV.enemyState.computeSteering(e);
+          // ===== F3: Hook/Pull reservation (specter_archer only, wave >= 15) =====
+          // Condiciones: specter_archer, wave >= unlock, local cooldown <= 0,
+          // hookSystem idle, lockout <= 0, no owner, no normal ranged windup/attack.
+          if (e.enemyTypeId === 'specter_archer'
+              && wave >= NV.BALANCE.HOOK_UNLOCK_WAVE
+              && (e.hookCooldown || 0) <= 0
+              && hookSystem
+              && hookSystem.phase === 'idle'
+              && (hookSystem.lockoutTimer || 0) <= 0
+              && !e.hookOwner
+              && rState !== 'windup' && rState !== 'attack') {
+            e.hookOwner = true;
+            hookSystem.phase = 'windup';
+            hookSystem.windupTimer = NV.BALANCE.HOOK_WINDUP_TIME;
+            hookSystem.srcEnemy = e;
+            e.hookWindup = true;
+          }
         }
       }
 
@@ -742,7 +927,16 @@
           if (hit.killed) { gameOver = true; return { enemies: enemies.filter((x) => !x.dead), shake, gameOver }; }
         }
       }
+        }
+    // ===== F3: Hook/Pull state machine (after enemy loop, before fusion) =====
+    // idle -> windup -> projectile -> tether -> idle (+ lockout).
+    // El pull del jugador se aplica en game.js (player update ordering).
+    // Limpieza source removal/fusion: si el source ya no está en el array vivo
+    // (filtrado por killEnemy/fusión del frame), invalidar el hook antes de tickear.
+    if (hookSystem && hookSystem.srcEnemy && (hookSystem.phase === 'windup' || hookSystem.phase === 'projectile' || hookSystem.phase === 'tether')) {
+      if (!enemies.includes(hookSystem.srcEnemy)) NV.resetHookState(hookSystem);
     }
+    if (hookSystem) NV.updateHookSystem(dt, hookSystem, enemies, player);
     // Fusión posterior al movimiento/contacto del frame: si 3+ enemigos de la
     // misma especie quedaron tocándose, se condensan en uno más grande y peligroso.
     fuseEnemies(enemies, st);

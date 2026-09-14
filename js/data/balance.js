@@ -239,5 +239,55 @@
     if (!d) return 1;
     return kind === "hp" ? d.hpMult : kind === "dmg" ? d.dmgMult : kind === "spawn" ? (d.spawnMult||1) : 1;
   };
+  // ===== F3: Hook/Pull (specter_archer only, wave >= 15) =====
+  // Constantes de balance para el sistema de gancho. Autoridad única: NV.BALANCE.
+  // (Asignadas al objeto antes del Object.freeze de abajo: quedan congeladas igual.)
+  NV.BALANCE.HOOK_UNLOCK_WAVE = 15;
+  NV.BALANCE.HOOK_WINDUP_TIME = 0.65;
+  NV.BALANCE.HOOK_PROJECTILE_SPEED = 525;
+  NV.BALANCE.HOOK_PROJECTILE_MAX_RANGE = 360;
+  NV.BALANCE.HOOK_PULL_DURATION = 0.375;
+  NV.BALANCE.HOOK_PULL_EXTERNAL_SPEED = 240;
+  NV.BALANCE.HOOK_TETHER_MAX_RANGE = 400;
+  NV.BALANCE.HOOK_GLOBAL_LOCKOUT_POST_RELEASE = 0.75;
+  NV.BALANCE.HOOK_DIRECT_DAMAGE = 0;
   Object.freeze(NV.BALANCE);
+  // Cooldown enemigo-local por dificultad. F3: specter_archer solo.
+  // Llamar con NV.runDifficulty en runtime.
+  NV.hookCooldownForDifficulty = function (diffId) {
+    const d = NV.difficultyGet(diffId != null ? diffId : (NV.runDifficulty != null ? NV.runDifficulty : 'normal'));
+    if (d.id === 'easy') return 6;
+    if (d.id === 'hard') return 4.25;
+    return 5; // normal + fallback
+  };
+  // Factory del hookSystem (game-owned). F3: un juego, un hookSystem.
+  // Fases: idle -> windup -> projectile -> tether -> idle (+ lockout).
+  NV.createHookSystem = function () {
+    return {
+      phase: 'idle',          // idle | windup | projectile | tether
+      windupTimer: 0,         // cuenta atrás HOOK_WINDUP_TIME
+      tetherTimer: 0,         // cuenta atrás HOOK_PULL_DURATION
+      lockoutTimer: 0,        // cuenta atrás HOOK_GLOBAL_LOCKOUT_POST_RELEASE
+      projectile: null,       // { x, y, vx, vy, dist } — separado de bullets[]
+      tether: null,           // { srcX, srcY } — posición fuente del enemigo al formar el tether
+      srcEnemy: null,         // referencia al specter_archer fuente (enemy-local cooldown)
+    };
+  };
+  // Limpieza TOTAL sin cooldown ni lockout: wave_end/shop_enter/gameover/restart/run nueva.
+  // Mid-run (miss/expire/dash/death/break) usa NV.resetHookState de engine/enemies.js
+  // (aplica cooldown del source + lockout global). NV.resetHookState vive en engine;
+  // aquí solo se define el fallback para sandboxes que cargan balance.js sin engine.
+  NV.resetHookSystem = NV.resetHookSystem || function (hs) {
+    if (!hs) return hs;
+    const src = hs.srcEnemy;
+    if (src) { src.hookOwner = false; src.hookWindup = false; }
+    hs.phase = 'idle';
+    hs.windupTimer = 0;
+    hs.tetherTimer = 0;
+    hs.lockoutTimer = 0;
+    hs.projectile = null;
+    hs.tether = null;
+    hs.srcEnemy = null;
+    return hs;
+  };
 })();

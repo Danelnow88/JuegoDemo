@@ -245,6 +245,66 @@
       ctx.shadowBlur = 0;
     }
 
+        ctx.restore();
+  };
+
+  // ===== F3: Hook/Pull rendering (Cheap O(1) visuals, world-space) =====
+  // Called from game.js world render flow AFTER enemies/player are drawn and
+  // BEFORE the world transform is restored. ctx já tiene setTransform(world).
+  // Visuales: windup telegraph, hook head + source line, tether source-player line.
+  // No particles, no gradients, no extra render pass.
+  NV.drawHookEffects = function (ctx, hookSystem, player) {
+    if (!hookSystem || !hookSystem.srcEnemy || !player) return;
+    const B = NV.BALANCE;
+    ctx.save();
+    ctx.setLineDash([]);
+
+    // Windup telegraph: linea source->player + arco de carga
+    if (hookSystem.phase === 'windup') {
+      const src = hookSystem.srcEnemy;
+      const w = Math.min(1, Math.max(0, 1 - (hookSystem.windupTimer || 0) / B.HOOK_WINDUP_TIME));
+      ctx.strokeStyle = 'rgba(255,178,74,' + (0.35 + w * 0.45).toFixed(3) + ')';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(src.x, src.y);
+      ctx.lineTo(player.x, player.y);
+      ctx.stroke();
+      const aa = Math.atan2(player.y - src.y, player.x - src.x);
+      const arcR = (src.radius || 12) + 18 + w * 6;
+      ctx.beginPath();
+      ctx.arc(src.x, src.y, arcR, aa - 0.45, aa + 0.45);
+      ctx.stroke();
+    }
+
+    // Projectile: cabeza del gancho + linea source->projectile
+    if (hookSystem.phase === 'projectile' && hookSystem.projectile) {
+      const p = hookSystem.projectile;
+      const src = hookSystem.srcEnemy;
+      ctx.strokeStyle = 'rgba(255,178,74,0.9)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      if (src) { ctx.moveTo(src.x, src.y); }
+      ctx.lineTo(p.x, p.y);
+      ctx.stroke();
+      ctx.fillStyle = '#ffb24a';
+      ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI * 2); ctx.fill();
+    }
+
+    // Tether: linea source->player + cabeza en el jugador.
+    // O(1): 1 linea + 1 circulo. Source VIVO (sigue al archer si se mueve).
+    if (hookSystem.phase === 'tether') {
+      const src = hookSystem.srcEnemy;
+      if (!src) return;
+      ctx.strokeStyle = 'rgba(255,178,74,0.8)';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(src.x, src.y);
+      ctx.lineTo(player.x, player.y);
+      ctx.stroke();
+      ctx.fillStyle = '#ffb24a';
+      ctx.beginPath(); ctx.arc(player.x, player.y, 5, 0, Math.PI * 2); ctx.fill();
+    }
+
     ctx.restore();
   };
 })();

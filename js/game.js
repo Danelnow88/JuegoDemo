@@ -404,6 +404,8 @@
 
   // === PROGRESO ===
   let wave = 1, score = 0, shards = 0, waveTimer = 0, spawnTimer = 0, boss = null, transition = 0;
+  // F3: hookSystem game-owned (un juego, un hookSystem). Fases: idle/windup/projectile/tether.
+  let hookSystem = NV.createHookSystem ? NV.createHookSystem() : null;
   // Evento de oleada activo (null si no hay): modifica la run de esa oleada.
   let waveEvent = null;
   const WAVE_EVENTS = NV.WAVE_EVENTS;
@@ -1175,6 +1177,7 @@
 
     wave = 1; score = 0; shards = 0;
     waveEvent = null;
+    hookSystem = NV.createHookSystem ? NV.createHookSystem() : null; // F3: hookSystem fresco por run (restart/new run)
     if (NV.clearHazards) NV.clearHazards(hazards, minefieldState); else hazards = [];
     shopBought = {};
     upgradeSlots = []; // los slots de mejoras se reinician por partida, igual que shopBought
@@ -1274,9 +1277,10 @@
     if (player.hp <= 0) { gameOver(); return false; }
     // Hazards no bloquean ni dañan durante la transición a tienda.
     if (NV.clearHazards) NV.clearHazards(hazards, minefieldState); else hazards = [];
-    clearCombatIntent();
+        clearCombatIntent();
     bullets = [];
     flameZones = [];
+    if (hookSystem && typeof NV.resetHookSystem === 'function') NV.resetHookSystem(hookSystem); // F3: cleanup hook en wave_end
     state = 'wave_end';
     presentation.kind = 'wave_end';
     presentation.elapsed = 0;
@@ -1784,6 +1788,7 @@
   function gameOver() {
     if (state === 'player_dying' || state === 'gameover') return false;
     clearCombatIntent();
+    if (hookSystem && typeof NV.resetHookSystem === 'function') NV.resetHookSystem(hookSystem); // F3: cleanup hook en gameover
     state = 'player_dying';
     if (NV.clearHazards) NV.clearHazards(hazards, minefieldState); else hazards = [];
     bullets = [];
@@ -1831,6 +1836,7 @@
     if (NV.audio && typeof NV.audio.stopAllWeapons === 'function') NV.audio.stopAllWeapons();
     NV.input.setFire(false);
     combatIntent.dashIntent = false;
+    if (hookSystem && typeof NV.resetHookSystem === 'function') NV.resetHookSystem(hookSystem); // F3: cleanup hook en shop_enter
     if (NV.clearHazards) NV.clearHazards(hazards, minefieldState); else hazards = [];
     state = 'shop_enter';
     presentation.kind = 'shop_enter';
@@ -1934,6 +1940,7 @@
       heartbeatTimer = 0;
     }
 
+    const wasDashing = !!player.dashActive;
     const dashing = NV.updatePlayerDash(
       player, combatIntent.dashIntent,
       combatIntent.moveX, combatIntent.moveY,
@@ -1941,6 +1948,25 @@
       dt
     );
     if (!dashing) NV.updatePlayerMovement(player, combatIntent.moveX, combatIntent.moveY, dt);
+    // ===== F3: Hook/Pull =====
+    // Orden contractual: dash update -> normal movement -> Hook external
+    // pull -> arena clamp. El pull vive en NV.applyHookPull (engine testeable);
+    // aca solo se preserva el orden (no se muta moveVx/moveVy ni movement.js).
+    if (hookSystem && typeof NV.applyHookPull === 'function') NV.applyHookPull(dt, hookSystem, player, wasDashing);
+    else {
+      if (hookSystem && hookSystem.phase === 'tether' && !wasDashing && player.dashActive) {
+        NV.breakHookTether(hookSystem);
+      }
+      if (hookSystem && hookSystem.phase === 'tether' && hookSystem.srcEnemy && !player.dashActive) {
+        const hdx = hookSystem.srcEnemy.x - player.x, hdy = hookSystem.srcEnemy.y - player.y;
+        const hlen = Math.hypot(hdx, hdy);
+        if (hlen > 0.000001) {
+          const pullSpd = NV.BALANCE.HOOK_PULL_EXTERNAL_SPEED;
+          player.x += (hdx / hlen) * pullSpd * dt;
+          player.y += (hdy / hlen) * pullSpd * dt;
+        }
+      }
+    }
     player.x = Math.max(20, Math.min(arenaW() - 20, player.x));
     player.y = Math.max(30, Math.min(arenaH() - 20, player.y));
     // El cursor vive en mundo: si el jugador se mueve, recalcular la dirección
@@ -2048,7 +2074,7 @@
     }
     updateHazards(dt);
     if (state !== 'playing') return;
-    updateEnemies(dt);
+    updateEnemies(dt); // F3: NV.updateEnemies ya ejecuta la state machine del hook
     if (state !== 'playing') return;
     updateBoss(dt);
     if (state !== 'playing') return;
@@ -2195,6 +2221,8 @@
 
   function killEnemy(e) {
     if (e.killResolved) return;
+    // F3: cleanup Hook si muere el source (muerte/fusion/removal invalida el hook).
+    if (hookSystem && hookSystem.srcEnemy === e && typeof NV.resetHookState === 'function') NV.resetHookState(hookSystem);
     score = NV.killEnemy({
       e, score, player, weaponLevels, weaponKills, currentWeapon,
       WEAPON_KILLS_PER_LEVEL, addFloatText, spawnExplosion, triggerFlash, sfx, pickups, weaponKillProgress,
@@ -2213,9 +2241,16 @@
     const res = NV.updateEnemies(dt, {
       enemies, player, bullets, MAX_BULLETS, MAX_ENEMY_BULLETS, shake,
       enemyBulletCount, applyPlayerDamage, addFloatText, spawnExplosion, waveEvent,
+      wave, hookSystem,
       onKill: (e) => killEnemy(e), // autodestrucción de kamikazes: mismo camino que un kill normal
       onPlayerDamaged: recordPlayerDamage,
     });
+    // F3: cleanup hook en source death/removal/fusion. updateEnemies ejecuta la
+    // state machine ANTES del fusion; este guarda valida el post-fusion filtrado.
+    if (hookSystem && hookSystem.srcEnemy && hookSystem.srcEnemy.dead) {
+      if (typeof NV.resetHookState === 'function') NV.resetHookState(hookSystem);
+      else if (typeof NV.resetHookSystem === 'function') NV.resetHookSystem(hookSystem);
+    }
     enemies = res.enemies; shake = res.shake;
     // Telemetría opt-in F08: muestreo agregado de intents Runner/Spitter (sin mutar entidades).
     if (NV.playtest && NV.playtest.enabled) {
@@ -2732,6 +2767,9 @@
 
     if (NV.drawMomentumReadability && state !== 'player_dying' && state !== 'gameover') NV.drawMomentumReadability(ctx, player, momentumVisual, metaRenderEnv);
     if (state !== 'gameover' && !(state === 'player_dying' && presentationProgress() >= 0.74)) drawPlayer();
+    // F3: Hook visuals (world transform activo) — tras enemigos/jugador, ANTES del restore.
+    if (NV.drawHookEffects && hookSystem) NV.drawHookEffects(ctx, hookSystem, player);
+    ctx.setTransform(scaleX, 0, 0, scaleY, -vx * scaleX, -vy * scaleY);
     // Retícula Canvas barata: geometría fija, sin glow, partículas ni DOM por frame.
     if (state === 'playing' && !paused && NV.input.getEffectiveFirePolicy() === 'manual' && combatIntent.aimActive) {
       const ax = combatIntent.aimWorldX, ay = combatIntent.aimWorldY;
