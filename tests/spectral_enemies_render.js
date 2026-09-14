@@ -59,8 +59,8 @@ t('drawSpectralEnemy2D NO muta datos del enemigo', () => {
   if (JSON.stringify(enemy) !== snapshot) throw new Error('mutó datos de gameplay');
 });
 
-t('visual raid boss de los 8 elites NO muta datos', () => {
-  const vids = ['elite_base', 'elite_velocity', 'elite_bulwark', 'elite_predator', 'elite_phantom', 'elite_chaos', 'elite_titan', 'elite_swift'];
+t('visual raid boss de los 7 elites base NO muta datos', () => {
+  const vids = ['elite_base', 'elite_velocity', 'elite_bulwark', 'elite_predator', 'elite_phantom', 'elite_titan', 'elite_swift'];
   for (const vid of vids) {
     const ctx = mkCtx();
     const enemy = { x: 100, y: 100, radius: 20, color: '#ff0', shape: 'hex', enemyTypeId: 'tank', visualId: vid, isElite: true, dead: false };
@@ -69,8 +69,8 @@ t('visual raid boss de los 8 elites NO muta datos', () => {
     if (JSON.stringify(enemy) !== snapshot) throw new Error('muto datos de gameplay en ' + vid);
   }
 });
-t('visual Lab de los 6 espectrales NO muta datos', () => {
-  const ids = ['specter_grunt', 'specter_archer', 'specter_guard', 'specter_elite_swift', 'specter_elite_wrath', 'specter_elite_void'];
+t('visual Lab de los 4 espectrales de producción NO muta datos', () => {
+  const ids = ['specter_grunt', 'specter_archer', 'specter_guard', 'specter_elite_void'];
   for (const id of ids) {
     const ctx = mkCtx();
     const enemy = { x: 100, y: 100, radius: 12, color: '#fff', shape: 'circle', enemyTypeId: id, visualId: id.replace('specter_elite_', 'elite_specter_'), isElite: id.indexOf('specter_elite_') === 0, dead: false };
@@ -155,8 +155,8 @@ t('render élite con visualId específico', () => {
   if (NV.drawSpectralEnemy2D(ctx, enemy, 30, player, null) !== true) throw new Error('esperaba true');
 });
 
-// Cobertura del API público para los 11 perfiles élite canónicos.
-const eliteVisualIds = ['elite_base', 'elite_velocity', 'elite_bulwark', 'elite_predator', 'elite_phantom', 'elite_chaos', 'elite_titan', 'elite_swift', 'specter_elite_swift', 'specter_elite_wrath', 'specter_elite_void'];
+// Cobertura del API público para los 8 perfiles élite canónicos.
+const eliteVisualIds = ['elite_base', 'elite_velocity', 'elite_bulwark', 'elite_predator', 'elite_phantom', 'elite_titan', 'elite_swift', 'elite_specter_void'];
 for (const vid of eliteVisualIds) {
   t('render élite visualId=' + vid + ' sin crash', () => {
     const ctx = mkCtx();
@@ -166,30 +166,38 @@ for (const vid of eliteVisualIds) {
   });
 }
 
-// Ruta canónica de producción: los 8 élites base llevan visualId; los 3
-// espectrales llevan enemyTypeId y visualId canónicos. Ningún caso fuerza
+// Ruta canónica de producción: los 7 élites base llevan visualId; el espectral
+// superviviente lleva enemyTypeId y visualId canónicos. Ningún caso fuerza
 // enemyTypeId='tank', porque eso seleccionaría el fallback raid-boss legacy.
-const hydraPathPreviouslyCoveredIds = ['elite_base', 'elite_velocity', 'elite_bulwark', 'elite_chaos', 'specter_elite_swift', 'specter_elite_wrath', 'specter_elite_void'];
-const hydraPathClosureIds = ['elite_predator', 'elite_phantom', 'elite_titan', 'elite_swift'];
-const canonicalHydraPathIds = hydraPathPreviouslyCoveredIds.concat(hydraPathClosureIds);
-t('cobertura Hydra/RB6 canónica enumera 11/11 élites sin duplicados', () => {
-  if (canonicalHydraPathIds.length !== 11 || new Set(canonicalHydraPathIds).size !== 11) throw new Error('esperaba 11 IDs canónicos únicos');
-  for (const vid of eliteVisualIds) if (!canonicalHydraPathIds.includes(vid)) throw new Error('falta ' + vid);
+const canonicalHydraPaths = [
+  { visualId: 'elite_base' },
+  { visualId: 'elite_velocity' },
+  { visualId: 'elite_bulwark' },
+  { visualId: 'elite_predator' },
+  { visualId: 'elite_phantom' },
+  { visualId: 'elite_titan' },
+  { visualId: 'elite_swift' },
+  { enemyTypeId: 'specter_elite_void', visualId: 'elite_specter_void' },
+];
+t('cobertura Hydra/RB6 canónica enumera 8/8 élites sin duplicados', () => {
+  const visualIds = canonicalHydraPaths.map((entry) => entry.visualId);
+  if (visualIds.length !== 8 || new Set(visualIds).size !== 8) throw new Error('esperaba 8 IDs canónicos únicos');
+  for (const vid of eliteVisualIds) if (!visualIds.includes(vid)) throw new Error('falta ' + vid);
 });
-for (const vid of canonicalHydraPathIds) {
-  t('ruta Hydra/RB6 canónica visualId=' + vid + ' sin crash', () => {
+for (const route of canonicalHydraPaths) {
+  t('ruta Hydra/RB6 canónica visualId=' + route.visualId + ' sin crash', () => {
     const ctx = mkCtx();
-    const enemy = { x: 100, y: 100, radius: 15, color: '#ff0', shape: 'hex', dead: false, isElite: true, visualId: vid };
-    if (vid.indexOf('specter_elite_') === 0) enemy.enemyTypeId = vid;
-    if (!NV.isHydraEnemyFamily(enemy)) throw new Error('no clasificó como Hydra/RB6: ' + vid);
-    if (NV.drawSpectralEnemy2D(ctx, enemy, 30, player, null) !== true) throw new Error('esperaba true para ' + vid);
-    if (ctx.calls.length < 5) throw new Error('pocos trazos Hydra/RB6 para ' + vid);
+    const enemy = { x: 100, y: 100, radius: 15, color: '#ff0', shape: 'hex', dead: false, isElite: true, visualId: route.visualId };
+    if (route.enemyTypeId) enemy.enemyTypeId = route.enemyTypeId;
+    if (!NV.isHydraEnemyFamily(enemy)) throw new Error('no clasificó como Hydra/RB6: ' + route.visualId);
+    if (NV.drawSpectralEnemy2D(ctx, enemy, 30, player, null) !== true) throw new Error('esperaba true para ' + route.visualId);
+    if (ctx.calls.length < 5) throw new Error('pocos trazos Hydra/RB6 para ' + route.visualId);
   });
 }
 
-t('NV.SPECTRAL_ELITE_PROFILES expone 11 perfiles', () => {
+t('NV.SPECTRAL_ELITE_PROFILES expone 8 perfiles', () => {
   if (!NV.SPECTRAL_ELITE_PROFILES) throw new Error('SPECTRAL_ELITE_PROFILES ausente');
-  if (Object.keys(NV.SPECTRAL_ELITE_PROFILES).length !== 11) throw new Error('esperaba 11 perfiles élite, hay ' + Object.keys(NV.SPECTRAL_ELITE_PROFILES).length);
+  if (Object.keys(NV.SPECTRAL_ELITE_PROFILES).length !== 8) throw new Error('esperaba 8 perfiles élite, hay ' + Object.keys(NV.SPECTRAL_ELITE_PROFILES).length);
 });
 
 t('cada perfil élite tiene haloColor y haloWidth', () => {

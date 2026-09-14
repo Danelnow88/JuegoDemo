@@ -26,8 +26,6 @@
     specter_core: 2,        // RB3 - Viscera Manto
     specter_archer: 3,      // RB4 - Halo Espectral
     specter_guard: 4,       // RB5 - Núcleo Sigilo
-    specter_elite_swift: 5, // RB6 - Entidad Hidra
-    specter_elite_wrath: 5,
     specter_elite_void: 5,
     // Cualquier variante élite (base o espectral) -> Modelo 5 (Hidra).
     elite_base: 5,
@@ -35,7 +33,6 @@
     elite_bulwark: 5,
     elite_predator: 5,
     elite_phantom: 5,
-    elite_chaos: 5,
     elite_titan: 5,
     elite_swift: 5,
   };
@@ -77,11 +74,8 @@
     elite_bulwark: { body: '#ff9a3d', core: '#ffd9b0', glow: '#ffb866', spikes: 10, innerRatio: 0.82, spikeLen: 0.25, pulseRate: 0.6, pulseAmt: 0.04, particles: 6, particleSize: 0.65, eyeStyle: 'deep', radiusMul: 1.2, haloColor: '#ff8c00', haloWidth: 3, haloPulse: 0.08, armorRing: true },
     elite_predator:{ body: '#f055ff', core: '#f0c8ff', glow: '#e080ff', spikes: 5, innerRatio: 0.55, spikeLen: 0.5, pulseRate: 2.2, pulseAmt: 0.07, particles: 3, particleSize: 0.4, eyeStyle: 'asymmetric', radiusMul: 1.05, haloColor: '#dd00ff', haloWidth: 2, haloPulse: 0.15, feralEyes: true },
     elite_phantom: { body: '#a0f0ff', core: '#e0ffff', glow: '#c0f0ff', spikes: 6, innerRatio: 0.65, spikeLen: 0.35, pulseRate: 1.4, pulseAmt: 0.12, particles: 7, particleSize: 0.35, eyeStyle: 'single', radiusMul: 1.0, haloColor: '#80f0ff', haloWidth: 2.5, haloPulse: 0.1, ghostly: true },
-    elite_chaos:   { body: '#ff5a30', core: '#ffb890', glow: '#ff8060', spikes: 9, innerRatio: 0.6, spikeLen: 0.45, pulseRate: 2.8, pulseAmt: 0.09, particles: 8, particleSize: 0.5, eyeStyle: 'asymmetric', radiusMul: 1.1, haloColor: '#ff4500', haloWidth: 3, haloPulse: 0.2, chaotic: true },
     elite_titan:   { body: '#ff3570', core: '#ffa0b8', glow: '#ff6088', spikes: 8, innerRatio: 0.75, spikeLen: 0.35, pulseRate: 0.4, pulseAmt: 0.04, particles: 8, particleSize: 0.7, eyeStyle: 'deep', radiusMul: 1.25, haloColor: '#ff1493', haloWidth: 3.5, haloPulse: 0.06, massive: true },
     elite_swift:   { body: '#80ff50', core: '#d0ffb0', glow: '#a0ff70', spikes: 2, innerRatio: 0.4, spikeLen: 0.6, pulseRate: 4.0, pulseAmt: 0.04, particles: 2, particleSize: 0.3, eyeStyle: 'narrow', radiusMul: 1.0, stretch: 1.6, haloColor: '#00ff44', haloWidth: 1.5, haloPulse: 0.22, ultraTrail: true },
-    elite_specter_swift: { body: '#55f6ff', core: '#d8fbff', glow: '#8cfaff', spikes: 4, innerRatio: 0.42, spikeLen: 0.85, pulseRate: 3.4, pulseAmt: 0.05, particles: 4, particleSize: 0.35, eyeStyle: 'narrow', radiusMul: 1.05, stretch: 1.65, haloColor: '#55f6ff', haloWidth: 2, haloPulse: 0.2, trailEffect: true, doubleAura: true },
-    elite_specter_wrath: { body: '#ff3ccf', core: '#ffd0f2', glow: '#ff78dd', spikes: 8, innerRatio: 0.7, spikeLen: 0.45, pulseRate: 1.7, pulseAmt: 0.09, particles: 7, particleSize: 0.6, eyeStyle: 'deep', radiusMul: 1.2, haloColor: '#ff3ccf', haloWidth: 3, haloPulse: 0.16, crown: true, intenseGlow: true },
     elite_specter_void: { body: '#9b4dff', core: '#1a001f', glow: '#c040ff', spikes: 7, innerRatio: 0.62, spikeLen: 0.5, pulseRate: 1.6, pulseAmt: 0.1, particles: 8, particleSize: 0.45, eyeStyle: 'single', radiusMul: 1.15, haloColor: '#c040ff', haloWidth: 2.5, haloPulse: 0.14, voidCore: true, phaseEffect: true },
   };
   // Visual de raid bosses espectrales aprobado en previews/enemy-visual-lab.html.
@@ -94,7 +88,6 @@
     elite_bulwark: { body:[1.14,.98], tilt:.04,  head:1.10, mouth:0, eye:1.06, eyeStyle:8,  tailLen:1.18, tailDir: 1, tailAmp:.78, eyeAng:.03, eyeSep:26, eyeY:-35, mouthY:8,  sigil:2, aura:1.26, shoulder:1.04, waist:.76, root:.52, crown:2, mantle:2, halo:2, tailMode:2 },
     elite_predator:{ body:[1.08,1.12], tilt:-.15, head:1.08, mouth:3, eye:1.00, eyeStyle:9,  tailLen:1.24, tailDir:-1, tailAmp:.68, eyeAng:.05, eyeSep:24, eyeY:-33, mouthY:9,  sigil:3, aura:1.22, shoulder:1.20, waist:.88, root:.64, crown:3, mantle:3, halo:3, tailMode:3 },
     elite_phantom: { body:[1.02,1.08], tilt:.14,  head:1.04, mouth:1, eye:.96, eyeStyle:10, tailLen:1.30, tailDir: 1, tailAmp:.74, eyeAng:.04, eyeSep:24, eyeY:-32, mouthY:7,  sigil:4, aura:1.20, shoulder:.96, waist:.72, root:.48, crown:4, mantle:4, halo:4, tailMode:4 },
-    elite_chaos:   { body:[1.18,1.00], tilt:-.04, head:1.14, mouth:2, eye:1.08, eyeStyle:11, tailLen:1.26, tailDir:-1, tailAmp:.82, eyeAng:.04, eyeSep:27, eyeY:-35, mouthY:8,  sigil:5, aura:1.30, shoulder:1.26, waist:.90, root:.66, crown:5, mantle:5, halo:5, tailMode:5 },
     elite_titan:   { body:[1.20,1.04], tilt:-.06, head:1.16, mouth:0, eye:1.10, eyeStyle:6,  tailLen:1.32, tailDir:-1, tailAmp:.88, eyeAng:.05, eyeSep:28, eyeY:-36, mouthY:9,  sigil:0, aura:1.34, shoulder:1.30, waist:.92, root:.68, crown:1, mantle:3, halo:4, tailMode:2 },
     elite_swift:   { body:[1.04,1.12], tilt:.10,  head:1.05, mouth:2, eye:.94, eyeStyle:7,  tailLen:1.22, tailDir: 1, tailAmp:.60, eyeAng:.03, eyeSep:23, eyeY:-32, mouthY:7,  sigil:1, aura:1.16, shoulder:1.10, waist:.78, root:.54, crown:2, mantle:1, halo:5, tailMode:1 }
   };
@@ -301,45 +294,12 @@
       ctx.beginPath(); ctx.arc(0, 0, r * 1.3, 0, Math.PI * 2); ctx.fill();
       ctx.globalAlpha = 1;
     }
-    // Caos (chaos): perturbación irregular de spikes
-    if (profile.chaotic) {
-      ctx.strokeStyle = profile.glow;
-      ctx.lineWidth = 1;
-      ctx.globalAlpha = 0.4 + Math.sin(time * 5) * 0.3;
-      for (let i = 0; i < 4; i++) {
-        const a = time * 3 + i * Math.PI * 0.5;
-        const len = r * (0.5 + hash01(e, 300 + i) * 0.5);
-        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(a) * len, Math.sin(a) * len); ctx.stroke();
-      }
-      ctx.globalAlpha = 1;
-    }
     // Masivo (titan): aura expansiva lenta
     if (profile.massive) {
       const expand = 0.8 + Math.sin(time * 0.5) * 0.2;
       ctx.globalAlpha = 0.2;
       ctx.fillStyle = profile.glow;
       ctx.beginPath(); ctx.arc(0, 0, r * 1.8 * expand, 0, Math.PI * 2); ctx.fill();
-      ctx.globalAlpha = 1;
-    }
-    // Doble aura (elite_specter_swift): anillo exterior adicional en contra-ritmo
-    if (profile.doubleAura) {
-      const pulse2 = 0.5 + Math.sin(time * 5) * 0.3;
-      ctx.globalAlpha = pulse2 * 0.35;
-      ctx.strokeStyle = profile.haloColor || profile.glow;
-      ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.arc(0, 0, r + 16 + Math.sin(time * 4) * 3, 0, Math.PI * 2); ctx.stroke();
-      ctx.globalAlpha = 1;
-    }
-    // Corona (elite_specter_wrath): púas triples sobre la parte superior
-    if (profile.crown) {
-      ctx.fillStyle = profile.glow;
-      ctx.globalAlpha = 0.9;
-      const spikes = 5;
-      for (let i = 0; i < spikes; i++) {
-        const a = -Math.PI / 2 + (i / (spikes - 1)) * (Math.PI * 0.7);
-        const cx = Math.cos(a) * r * 0.85, cy = Math.sin(a) * r * 0.85;
-        ctx.beginPath(); ctx.moveTo(cx - 3, cy - 2); ctx.lineTo(cx, cy - r * 0.3); ctx.lineTo(cx + 3, cy - 2); ctx.closePath(); ctx.fill();
-      }
       ctx.globalAlpha = 1;
     }
     // Núcleo vacío (elite_specter_void): orbe oscuro central con anillo pulsante
@@ -358,13 +318,6 @@
         const a = time * 2 + i * Math.PI * 0.66;
         ctx.beginPath(); ctx.arc(Math.cos(a) * r * 0.3, Math.sin(a) * r * 0.3, r * (0.8 + i * 0.2), a, a + Math.PI); ctx.stroke();
       }
-      ctx.globalAlpha = 1;
-    }
-    // Aura intensa (elite_specter_wrath): pulso de glow amplificado
-    if (profile.intenseGlow) {
-      ctx.globalAlpha = 0.2 + Math.sin(time * 3) * 0.1;
-      ctx.fillStyle = rgba(hexToRgb(profile.glow), 0.15);
-      ctx.beginPath(); ctx.arc(0, 0, r * 1.6, 0, Math.PI * 2); ctx.fill();
       ctx.globalAlpha = 1;
     }
   }

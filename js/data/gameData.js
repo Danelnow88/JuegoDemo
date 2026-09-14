@@ -179,15 +179,12 @@
     { name: 'TANQUE', hp: 160, speed: 35, radius: 30, color: '#f80', shape: 'rock', score: 60, xp: 60, behavior: 'chase', damage: 25, resist: 3, visualId: 'elite_bulwark' },
     { name: 'ASESINO', hp: 55, speed: 165, radius: 12, color: '#f0f', shape: 'diamond', score: 40, xp: 40, behavior: 'chase', damage: 30, visualId: 'elite_predator' },
     { name: 'FANTASMA', hp: 65, speed: 145, radius: 16, color: '#e0ffff', shape: 'circle', score: 45, xp: 45, behavior: 'erratic', damage: 25, visualId: 'elite_phantom' },
-    { name: 'CAOS', hp: 105, speed: 130, radius: 22, color: '#ff4500', shape: 'atom', score: 55, xp: 55, behavior: 'erratic', damage: 22, visualId: 'elite_chaos' },
     { name: 'GOLIATH', hp: 210, speed: 25, radius: 36, color: '#ff1493', shape: 'rock', score: 100, xp: 100, behavior: 'chase', damage: 35, stunChance: 0.15, resist: 3, visualId: 'elite_titan' },
     { name: 'VELOCITY', hp: 40, speed: 220, radius: 10, color: '#00ff88', shape: 'dot', score: 35, xp: 35, behavior: 'chase', damage: 18, visualId: 'elite_swift' },
 
     // === ÉLITES ESPECTRALES (minWave + weight, raros) ===
     // spectralElite: spawnElite los selecciona ponderado SOLO desde su minWave.
     // El resto de élites mantiene su ciclo original intacto (sin tocar mecánicas).
-    { id: 'specter_elite_swift', name: 'ESPECTRO VELOZ', hp: 70, speed: 195, radius: 12, color: '#55f6ff', shape: 'diamond', score: 70, xp: 70, behavior: 'chase', damage: 22, minWave: 12, weight: 0.04, visualId: 'elite_specter_swift', spectralElite: true },
-    { id: 'specter_elite_wrath', name: 'ESPECTRO IRA', hp: 130, speed: 95, radius: 22, color: '#ff3ccf', shape: 'hex', score: 90, xp: 90, behavior: 'chase', damage: 30, minWave: 14, weight: 0.03, visualId: 'elite_specter_wrath', spectralElite: true, knockbackRes: 0.5 },
     { id: 'specter_elite_void', name: 'ESPECTRO VACÍO', hp: 95, speed: 70, radius: 18, color: '#9b4dff', shape: 'circle', score: 95, xp: 95, behavior: 'ranged', damage: 24, minWave: 16, weight: 0.03, visualId: 'elite_specter_void', spectralElite: true, knockbackRes: 0.4, stunChance: 0.1 },
   ];
   for (const type of NV.ELITE_TYPES) type.hostileClass = 'heavy';

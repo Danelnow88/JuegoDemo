@@ -74,8 +74,8 @@ t('ELITE_TYPES.visualId coinciden con SPECTRAL_ELITE_PROFILES', () => {
   while ((match = regex.exec(gameDataSrc)) !== null) {
     visualIds.push(match[1]);
   }
-  // Debe haber al menos 8 visualIds (uno por élite)
-  if (visualIds.length < 8) throw new Error('menos de 8 visualIds en ELITE_TYPES: ' + visualIds.length);
+  // Debe haber exactamente 8 visualIds (uno por élite superviviente)
+  if (visualIds.length !== 8) throw new Error('esperaba 8 visualIds en ELITE_TYPES: ' + visualIds.length);
   // Verifica que el spectralEnemies2D.js tiene ELITE_PROFILES
   const spectralSrc = fs.readFileSync(path.join(__dirname, '..', 'js', 'render', 'spectralEnemies2D.js'), 'utf8');
   for (const vid of visualIds) {
@@ -85,19 +85,22 @@ t('ELITE_TYPES.visualId coinciden con SPECTRAL_ELITE_PROFILES', () => {
   }
 });
 
-// 8. Los 6 IDs espectrales nuevos existen en gameData.js
-t('gameData contiene los 6 enemigos espectrales nuevos', () => {
+// 8. Los 4 IDs espectrales de producción supervivientes existen en gameData.js
+t('gameData contiene los 4 enemigos espectrales de producción supervivientes', () => {
   const gameDataSrc = fs.readFileSync(path.join(__dirname, '..', 'js', 'data', 'gameData.js'), 'utf8');
-  const ids = ['specter_grunt', 'specter_archer', 'specter_guard', 'specter_elite_swift', 'specter_elite_wrath', 'specter_elite_void'];
+  const ids = ['specter_grunt', 'specter_archer', 'specter_guard', 'specter_elite_void'];
   for (const id of ids) {
     if (gameDataSrc.indexOf("id: '" + id + "'") === -1) throw new Error('falta ' + id + ' en gameData');
+  }
+  for (const id of ['specter_elite_swift', 'specter_elite_wrath']) {
+    if (gameDataSrc.indexOf("id: '" + id + "'") !== -1) throw new Error('ID retirado sigue en gameData: ' + id);
   }
 });
 
 // 9. El render espectral cubre los IDs nuevos
-t('spectralEnemies2D tiene perfiles para los 6 espectrales nuevos', () => {
+t('spectralEnemies2D tiene perfiles para los 4 espectrales supervivientes', () => {
   const spectralSrc = fs.readFileSync(path.join(__dirname, '..', 'js', 'render', 'spectralEnemies2D.js'), 'utf8');
-  for (const id of ['specter_grunt:', 'specter_archer:', 'specter_guard:', 'elite_specter_swift:', 'elite_specter_wrath:', 'elite_specter_void:']) {
+  for (const id of ['specter_grunt:', 'specter_archer:', 'specter_guard:', 'elite_specter_void:']) {
     if (spectralSrc.indexOf(id) === -1) throw new Error('falta perfil ' + id);
   }
 });

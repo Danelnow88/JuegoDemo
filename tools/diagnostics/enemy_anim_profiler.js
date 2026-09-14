@@ -100,7 +100,7 @@ const GROUPS = {
   basicos: ['drone', 'runner', 'tank', 'shielder', 'swarmlet', 'spitter', 'wisp', 'kamikaze', 'boss_minion'],
   'espectros-lab': ['specter_grunt', 'specter_archer', 'specter_guard'],
   'elites-no-espectrales': ['elite_base', 'elite_velocity', 'elite_bulwark', 'elite_titan'],
-  'elites-espectrales': ['specter_elite_swift', 'specter_elite_wrath', 'specter_elite_void'],
+  'elites-espectrales': ['specter_elite_void'],
 };
 
 function measure(types, frames, ablation) {

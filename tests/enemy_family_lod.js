@@ -60,10 +60,10 @@ t('selección full es estable por proximidad, no por color', () => {
 t('LOD reducido conserva la silueta animada esencial de Hidra', () => {
   const NV = load('performance');
   const orangeBulwark = { ...hydra(0), color: '#f80', visualId: 'elite_bulwark' };
-  const orangeChaos = { ...hydra(1), color: '#ff4500', visualId: 'elite_chaos' };
+  const pinkTitan = { ...hydra(1), color: '#ff1493', visualId: 'elite_titan' };
   const blueVelocity = { ...hydra(2), color: '#0ff', visualId: 'elite_velocity' };
-  const spectralBlue = { ...hydra(3), color: '#55f6ff', enemyTypeId: 'specter_elite_swift', visualId: 'specter_elite_swift' };
-  const variants = [orangeBulwark, orangeChaos, blueVelocity, spectralBlue];
+  const spectralVoid = { ...hydra(3), color: '#9b4dff', enemyTypeId: 'specter_elite_void', visualId: 'elite_specter_void' };
+  const variants = [orangeBulwark, pinkTitan, blueVelocity, spectralVoid];
   for (const enemy of variants) {
     const closer = Array.from({ length: 4 }, (_, i) => ({ ...hydra(20 + i), x: i, y: 0 }));
     enemy.x = 1000; enemy.y = 1000;
@@ -81,10 +81,10 @@ t('LOD reducido conserva la silueta animada esencial de Hidra', () => {
   }
 });
 
-t('renderer reducido usa el mismo path compartido para variantes naranja y azul', () => {
+t('renderer reducido usa el mismo path compartido para variantes supervivientes', () => {
   const src = fs.readFileSync('js/render/spectralEnemies2D.js', 'utf8');
   if ((src.match(/function drawHydraSimplified/g) || []).length !== 1) throw new Error('fix duplicado por color');
-  for (const id of ['elite_bulwark', 'elite_chaos', 'elite_velocity', 'specter_elite_swift']) {
+  for (const id of ['elite_bulwark', 'elite_titan', 'elite_velocity', 'specter_elite_void']) {
     if (!src.includes(id)) throw new Error('falta variante real ' + id);
   }
   if (!src.includes('const HYDRA_LOBES = Object.freeze([') || !src.includes('for (const lobe of HYDRA_LOBES)') || !src.includes('innerPoints = 10')) throw new Error('LOD esencial incompleto');

@@ -56,22 +56,12 @@ t('specter_guard registrado en ENEMY_TYPES', () => {
 });
 
 // ---- Élites ----
-t('specter_elite_swift registrado en ELITE_TYPES', () => {
-  const et = NV.ELITE_TYPES.find(x => x.id === 'specter_elite_swift');
-  if (!et) throw new Error('no encontrado');
-  if (!et.spectralElite) throw new Error('falta spectralElite');
-  if (et.minWave !== 12) throw new Error('minWave=' + et.minWave);
-  if (et.weight !== 0.04) throw new Error('weight=' + et.weight);
-  if (et.visualId !== 'elite_specter_swift') throw new Error('visualId=' + et.visualId);
+t('specter_elite_swift ausente de ELITE_TYPES', () => {
+  if (NV.ELITE_TYPES.some(x => x.id === 'specter_elite_swift')) throw new Error('sigue registrado');
 });
 
-t('specter_elite_wrath registrado en ELITE_TYPES', () => {
-  const et = NV.ELITE_TYPES.find(x => x.id === 'specter_elite_wrath');
-  if (!et) throw new Error('no encontrado');
-  if (!et.spectralElite) throw new Error('falta spectralElite');
-  if (et.minWave !== 14) throw new Error('minWave=' + et.minWave);
-  if (et.weight !== 0.03) throw new Error('weight=' + et.weight);
-  if (et.damage !== 30) throw new Error('damage=' + et.damage);
+t('specter_elite_wrath ausente de ELITE_TYPES', () => {
+  if (NV.ELITE_TYPES.some(x => x.id === 'specter_elite_wrath')) throw new Error('sigue registrado');
 });
 
 t('specter_elite_void registrado en ELITE_TYPES', () => {
@@ -126,26 +116,26 @@ t('wave 5 spawnea specter_guard (random alto -> último peso)', () => {
 });
 
 // ---- Gating por wave (élites espectrales) ----
-t('wave 11 NO spawnea élites espectrales (minWave 12+)', () => {
+t('wave 15 NO spawnea élites espectrales (minWave 16+)', () => {
   const r0 = rm.random; stubRandom(0);
   try {
     const spectralEt = NV.ELITE_TYPES.filter(t => t.spectralElite);
     const out = [];
-    NV.spawnElite({ enemies: out, MAX_ENEMIES: 20, boss: null, wave: 11, W: 800, H: 600, ELITE_TYPES: spectralEt, waveEvent: null });
+    NV.spawnElite({ enemies: out, MAX_ENEMIES: 20, boss: null, wave: 15, W: 800, H: 600, ELITE_TYPES: spectralEt, waveEvent: null });
     if (out.length !== 0) throw new Error('spawneó ' + out.length);
   } finally { restoreRandom(r0); }
 });
 
-t('wave 13 spawnea élite espectral swift (peso bajo + random bajo)', () => {
+t('wave 17 spawnea élite espectral void', () => {
   const r0 = rm.random; stubRandom(0);
   try {
     const spectralEt = NV.ELITE_TYPES.filter(t => t.spectralElite);
     const out = [];
-    NV.spawnElite({ enemies: out, MAX_ENEMIES: 20, boss: null, wave: 13, W: 800, H: 600, ELITE_TYPES: spectralEt, waveEvent: null });
+    NV.spawnElite({ enemies: out, MAX_ENEMIES: 20, boss: null, wave: 17, W: 800, H: 600, ELITE_TYPES: spectralEt, waveEvent: null });
     if (out.length === 0) throw new Error('no spawneó');
     for (const e of out) {
       if (!e.isElite) throw new Error('no es élite');
-      if (e.enemyTypeId !== 'specter_elite_swift') throw new Error('tipo=' + e.enemyTypeId);
+      if (e.enemyTypeId !== 'specter_elite_void') throw new Error('tipo=' + e.enemyTypeId);
     }
   } finally { restoreRandom(r0); }
 });
@@ -155,11 +145,11 @@ t('élite espectral lleva enemyTypeId y visualId', () => {
   try {
     const spectralEt = NV.ELITE_TYPES.filter(t => t.spectralElite);
     const out = [];
-    NV.spawnElite({ enemies: out, MAX_ENEMIES: 20, boss: null, wave: 13, W: 800, H: 600, ELITE_TYPES: spectralEt, waveEvent: null });
+    NV.spawnElite({ enemies: out, MAX_ENEMIES: 20, boss: null, wave: 17, W: 800, H: 600, ELITE_TYPES: spectralEt, waveEvent: null });
     if (!out.length) throw new Error('sin spawn');
     const e = out[0];
-    if (e.enemyTypeId !== 'specter_elite_swift') throw new Error('enemyTypeId=' + e.enemyTypeId);
-    if (e.visualId !== 'elite_specter_swift') throw new Error('visualId=' + e.visualId);
+    if (e.enemyTypeId !== 'specter_elite_void') throw new Error('enemyTypeId=' + e.enemyTypeId);
+    if (e.visualId !== 'elite_specter_void') throw new Error('visualId=' + e.visualId);
   } finally { restoreRandom(r0); }
 });
 
@@ -197,9 +187,9 @@ t('spawnElite loguea [SPAWN] para élites espectrales', () => {
     const r0 = rm.random; stubRandom(0);
     const spectralEt = NV.ELITE_TYPES.filter(t => t.spectralElite);
     const out = [];
-    NV.spawnElite({ enemies: out, MAX_ENEMIES: 20, boss: null, wave: 13, W: 800, H: 600, ELITE_TYPES: spectralEt, waveEvent: null });
+    NV.spawnElite({ enemies: out, MAX_ENEMIES: 20, boss: null, wave: 17, W: 800, H: 600, ELITE_TYPES: spectralEt, waveEvent: null });
     restoreRandom(r0);
-    if (!logs.some(l => l.indexOf('[SPAWN] wave=13 type=specter_elite_swift') !== -1)) throw new Error('log ausente: ' + logs.join(','));
+    if (!logs.some(l => l.indexOf('[SPAWN] wave=17 type=specter_elite_void') !== -1)) throw new Error('log ausente: ' + logs.join(','));
   } finally { console.log = orig; }
 });
 

@@ -8,11 +8,11 @@ function loadNV() {
   return sbx.window.NV;
 }
 const NV = loadNV();
-t('roster counts 13 normal 11 elite 10 boss', () => {
+t('roster counts 13 normal 8 elite 10 boss', () => {
   console.log('    info: ' + NV.ENEMY_TYPES.length + '/' + NV.ELITE_TYPES.length + '/' + NV.BOSS_TYPES.length);
   console.log('    info normal: ' + NV.ENEMY_TYPES.map((x) => x.id).join(','));
   if (NV.ENEMY_TYPES.length !== 13) throw new Error('normal');
-  if (NV.ELITE_TYPES.length !== 11) throw new Error('elite');
+  if (NV.ELITE_TYPES.length !== 8) throw new Error('elite');
   if (NV.BOSS_TYPES.length !== 10) throw new Error('boss');
 });
 t('unique enemy ids and boss names', () => {
