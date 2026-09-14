@@ -2015,17 +2015,24 @@
     if (transition <= 0) {
         spawnTimer -= dt;
     if (spawnTimer <= 0) {
-      // Densidad progresiva garantizada: cada oleada empieza con presión
-      // real (mínimo 2 enemigos por lote) para evitar "victorias sin combate".
-      const perWave = 2 + Math.min(6, Math.floor(wave / 2));
+      // F1 threat curve: densidad blanda — el refill normal se DETIENE al alcanzar
+      // el objetivo táctico de la oleada (NV.softHostileTarget); MAX_HOSTILES queda
+      // como techo duro de emergencia. Early (w<=10) sin efecto; late opera bajo
+      // el cap en vez de saturarlo. Lote con techo 5 + piso de reposición 0.35s:
+      // matar crea una reducción real y temporal de la presión del enjambre.
+      const perWave = NV.spawnBatchForWave(wave);
       const budget = NV.getHostileBudget({ enemies, boss, MAX_HOSTILES, MAX_HEAVY_HOSTILES });
-      if (budget.remainingHostiles > 0) {
-        const normalAttempts = Math.min(perWave, budget.remainingHostiles);
+      const softTarget = NV.softHostileTarget(wave, NV.runDifficulty);
+      if (budget.remainingHostiles > 0 && budget.hostiles < softTarget) {
+        // Top-up HASTA el objetivo blando (nunca por encima del soft target).
+        const normalAttempts = Math.min(perWave, budget.remainingHostiles, Math.max(0, softTarget - budget.hostiles));
         for (let i = 0; i < normalAttempts; i++) spawnEnemy();
-        spawnElite();
+        // F1: élites controladas — dejan de rellenar al llegar al objetivo heavy
+        // blando (SOFT_HEAVY_TARGET); MAX_HEAVY_HOSTILES sigue siendo el techo duro.
+        if (budget.heavy < NV.BALANCE.SOFT_HEAVY_TARGET) spawnElite();
       }
       if (Math.random() < 0.03 + wave * 0.002) spawnWeaponPickup();
-      spawnTimer = Math.max(0.25, (1.3 - wave * 0.035) * NV.waveSpawnFactor(wave, waveEvent)); // oleadas largas: mismo total de spawns
+      spawnTimer = Math.max(NV.BALANCE.LATE_REFILL_FLOOR, (1.3 - wave * 0.035) * NV.waveSpawnFactor(wave, waveEvent)); // oleadas largas: mismo total de spawns
     }
 
         waveTimer -= dt;
@@ -2523,14 +2530,10 @@
       const barW = 200, barH = 6;
       const barX = (arenaW() - barW) / 2, barY = 10;
 
-      // --- Contar enemigos vivos por categoría (Pilar 3 HUD) ---
-      let alive = 0, elites = 0;
-      for (let i = 0; i < enemies.length; i++) {
-        const en = enemies[i];
-        if (en.dead) continue;
-        alive++;
-        if (en.isElite || en.shape === 'specter' || en.enemyTypeId === 'specter_lite') elites++;
-      }
+      // Contador de enemigos vivos + heavy hostiles (misma clasificación que
+      // el presupuesto autoritativo; el boss se renderiza por una ruta separada).
+      const alive = enemies.reduce((count, enemy) => count + (!enemy.dead ? 1 : 0), 0);
+      const heavy = NV.heavyHostileCount(enemies);
 
       // --- Fondo de la barra ---
       ctx.fillStyle = 'rgba(255,255,255,0.1)';
@@ -2554,8 +2557,7 @@
       ctx.font = 'bold 10px system-ui';
       ctx.textAlign = 'center';
       ctx.fillText('OLEADA ' + wave, arenaW() / 2, barY + 16);
-      // Contador de enemigos vivos + élites
-      const countText = 'ENEMIGOS: ' + alive + ' (' + elites + ')';
+      const countText = 'ENEMIGOS: ' + alive + ' (' + heavy + ')';
       const mobilePresentation = !!(NV.capabilities && NV.capabilities.isMobile);
       ctx.fillStyle = '#9bb0ff';
       ctx.font = 'bold 9px system-ui';

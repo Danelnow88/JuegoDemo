@@ -72,8 +72,20 @@
     } else {
       // Pool por oleada: cada tipo tiene su minWave. Los umbrales reproducen el
       // desbloqueo escalonado original (slice por índice); kamikaze entra desde la 10.
+      // F1 composición: los roles tácticos ganan peso con la oleada (techo 2.0),
+      // con UNA sola llamada a Math.random (misma firma que weightedRandom).
       const available = enabledTypes.filter((t) => (t.minWave || 1) <= st.wave);
-      type = NV.weightedRandom(available);
+      const boost = (typeof NV.tacticalWeightBoost === 'function') ? NV.tacticalWeightBoost(st.wave) : 1;
+      const tactical = NV.TACTICAL_ENEMY_IDS || {};
+      const effWeight = (t) => {
+        const base = (typeof t.weight === 'number') ? t.weight : 1.0;
+        return tactical[t.id] ? base * boost : base;
+      };
+      let total = 0;
+      for (const t of available) total += effWeight(t);
+      let r = Math.random() * total;
+      type = available[available.length - 1];
+      for (const t of available) { r -= effWeight(t); if (r <= 0) { type = t; break; } }
     }
     if (!type) return;
     const hostileClass = type.hostileClass || 'light';
@@ -95,7 +107,7 @@
     reportSpawnCandidate(st, NV.describeEnemySpawnCandidate(type, side, y, false));
     st.enemies.push({
       x: side, y: y,
-      hp: Math.round(type.hp * hpScale * 0.85 * getDiffMult("hp")), maxHp: Math.round(type.hp * hpScale * 0.85 * getDiffMult("hp")),
+      hp: Math.round(type.hp * hpScale * 0.85 * getDiffMult("hp") * (NV.roleHpMult ? NV.roleHpMult(type.id) : 1)), maxHp: Math.round(type.hp * hpScale * 0.85 * getDiffMult("hp") * (NV.roleHpMult ? NV.roleHpMult(type.id) : 1)),
       speed: type.speed + Math.min(40, st.wave * 1.5),
       radius: hitboxRadius, color: type.color, shape: type.shape,
       enemyTypeId: type.id,
@@ -105,7 +117,7 @@
       dead: false, behavior: type.behavior,
       angle: Math.random() * Math.PI * 2, erraticTimer: 0,
       knockbackRes: type.knockbackRes || 0, knockVelX: 0, knockVelY: 0,
-      damage: ((type.damage || 10) + dmgScale) * 0.80 * getDiffMult("dmg"), shield: type.shield || false, shieldCd: 0, resist: type.resist || 0,
+      damage: ((type.damage || 10) + dmgScale) * 0.80 * getDiffMult("dmg") * (NV.roleDmgMult ? NV.roleDmgMult(type.id) : 1), shield: type.shield || false, shieldCd: 0, resist: type.resist || 0,
       hitFlash: 0, hitSlowUntil: 0, hitSlowImmunity: 0,
       erraticTargetAngle: Math.random() * Math.PI * 2,
       shootTimer: 0, stunChance: type.stunChance || 0,

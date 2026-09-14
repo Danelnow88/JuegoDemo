@@ -4,10 +4,12 @@ const fs = require('fs'), vm = require('vm');
 const CHARS = ['boti', 'nova', 'rook', 'swarm'];
 
 function makeSandbox() {
+  const canvasText = [];
   const ctxStub = new Proxy(function () {}, {
     get(t, k) {
       if (k === Symbol.toPrimitive) return () => 0;
       if (k === 'width') return 0;
+      if (k === 'fillText') return (text) => { canvasText.push(String(text)); };
       return (t[k] = t[k] || function () { return ctxStub; });
     },
     set() { return true; },
@@ -99,6 +101,7 @@ function makeSandbox() {
     fire(el, ev, arg) { for (const fn of (el.listeners[ev] || [])) fn(arg); },
     fireDoc(ev, arg) { for (const fn of (docListeners[ev] || [])) fn(arg); },
     getEl,
+    canvasText,
   };
 }
 
@@ -117,6 +120,7 @@ function runFor(charId) {
   let t = 1000;
   // calentar ~60 frames
   for (let i = 0; i < 60; i++) h.step((t += 16));
+  if (!h.canvasText.some((text) => /^ENEMIGOS: \d+ \(\d+\)$/.test(text))) return 'FAIL contador HUD no renderizado';
   let snapshot = h.sandbox.NV.getRuntimeSnapshot();
   if (snapshot.state !== 'playing' || snapshot.paused || snapshot.wave !== 1 || snapshot.frame <= 0) return 'FAIL runtime inactivo';
   if (snapshot.player.character !== charId) return 'FAIL piloto de gameplay incorrecto';
@@ -151,5 +155,14 @@ function verifyLobbySwitching() {
   return 'ok';
 }
 
-console.log('switch ->', verifyLobbySwitching());
-for (const c of CHARS) console.log(c.padEnd(6), '->', runFor(c));
+let failed = 0;
+const switchResult = verifyLobbySwitching();
+console.log('switch ->', switchResult);
+if (switchResult !== 'ok') failed++;
+for (const c of CHARS) {
+  const result = runFor(c);
+  console.log(c.padEnd(6), '->', result);
+  if (result !== 'ok') failed++;
+}
+console.log('RESULT space_special: pass=' + (CHARS.length + 1 - failed) + ' fail=' + failed);
+process.exitCode = failed ? 1 : 0;

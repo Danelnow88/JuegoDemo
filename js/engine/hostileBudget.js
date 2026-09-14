@@ -14,6 +14,19 @@
     return 'light';
   };
 
+  // F1: contador de HEAVY hostiles vivos — la MISMA clasificación que el
+  // presupuesto autoritativo (isElite/hostileClass heavy + boss aparte). El HUD
+  // y cualquier consumidor usan ESTA función; el bucket legacy de espectros
+  // (shape 'specter' / enemyTypeId 'specter_lite') quedó eliminado.
+  NV.heavyHostileCount = function (enemies) {
+    let n = 0;
+    for (const e of enemies || []) {
+      if (!e || e.dead) continue;
+      if (NV.hostileClassOf(e) === 'heavy') n++;
+    }
+    return n;
+  };
+
   NV.getHostileBudget = function (st) {
     st = st || {};
     const enemies = st.enemies || [];

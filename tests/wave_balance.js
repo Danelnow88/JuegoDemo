@@ -1,4 +1,4 @@
-// Tests B1: curva de HP enemigo (NV.enemyHpScale) — pendiente 0.22 desde w=10.
+// Tests B1: curva de HP enemigo (NV.enemyHpScale) — pendiente 0.28 desde w=10 (F1).
 // Tests B2: piso de poder (NV.waveWeaponMult) — +5% de daño de arma por oleada.
 const fs = require('fs'), vm = require('vm');
 let pass = 0, fail = 0;
@@ -21,15 +21,22 @@ t('oleadas 1-10 mantienen la curva original (onboarding intacto)', () => {
 
 t('continua en w=10 (sin salto)', () => {
   const a = NV.enemyHpScale(10), b = NV.enemyHpScale(11);
-  if (Math.abs(b - a - 0.22) > 1e-9) throw new Error('paso 11-10=' + (b - a));
+  if (Math.abs(b - a - 0.28) > 1e-9) throw new Error('paso 11-10=' + (b - a));
 });
 
-t('pendiente 0.22 reduce HP en oleada alta', () => {
-  for (const w of [20, 30, 40]) {
-    if (!(NV.enemyHpScale(w) < oldHp(w))) throw new Error('w=' + w + ' nuevo ' + NV.enemyHpScale(w) + ' no < ' + oldHp(w));
+t('F1: pendiente 0.28 moderada, monotónica y bajo el lineal original', () => {
+  for (const [w, exp] of [[11, 4.28], [20, 6.8], [30, 9.6], [40, 12.4], [50, 15.2]]) {
+    if (Math.abs(NV.enemyHpScale(w) - exp) > 1e-9) throw new Error('w=' + w + ' esperado ' + exp);
   }
-  const red30 = 1 - NV.enemyHpScale(30) / oldHp(30);
-  if (!(red30 > 0.10 && red30 < 0.25)) throw new Error('reduccion w30=' + red30.toFixed(3));
+  let prev = NV.enemyHpScale(1);
+  for (let w = 2; w <= 60; w++) {
+    const s = NV.enemyHpScale(w);
+    if (!(s > prev)) throw new Error('no monotónica en w=' + w);
+    if (!(s <= 1 + 0.30 * w)) throw new Error('w=' + w + ' superó el lineal original');
+    prev = s;
+  }
+  // F1: más durable que la pendiente 0.22 previa (el late game tiene MENOS enemigos)
+  if (!(NV.enemyHpScale(30) > 4 + 20 * 0.22)) throw new Error('F1 no subió durabilidad tardía');
 });
 
 t('spawnEnemy consume la curva unica (sin formula duplicada)', () => {

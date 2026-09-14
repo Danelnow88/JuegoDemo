@@ -11,6 +11,21 @@
   NV.BALANCE = {
     // Tope de buffers de entidad
     MAX_HOSTILES: 30, MAX_HEAVY_HOSTILES: 7,
+    // F1 threat curve: densidad blanda + reposición + composición (oleadas tardías).
+    // MAX_HOSTILES/MAX_HEAVY_HOSTILES siguen siendo el TECHO DURO de emergencia;
+    // el refill ordinario ahora se detiene antes (objetivo blando) para que el
+    // late game opere visiblemente por debajo del cap en vez de saturarlo.
+    LATE_BATCH_CAP: 5,            // lote normal máx en oleadas tardías (antes 8)
+    LATE_REFILL_FLOOR: 0.35,      // piso de reposición tardía (antes 0.25s)
+    SOFT_DENSITY_START: 10,       // oleada desde la que baja el objetivo blando
+    SOFT_DENSITY_FLOOR: 16,       // objetivo blando mínimo (normal, pre-ajuste dificultad)
+    SOFT_DENSITY_SLOPE: 0.4,      // enemigos menos por oleada tras SOFT_DENSITY_START
+    SOFT_DENSITY_DIFF_SCALE: 20,  // (spawnMult-1)*SCALE → easy -3 / hard +3
+    SOFT_DENSITY_MIN: 12,         // piso absoluto (cualquier dificultad)
+    SOFT_HEAVY_TARGET: 4,         // los élites dejan de rellenar al llegar (de 7)
+    TACTICAL_BOOST_START: 14,     // oleada desde la que sube el peso táctico
+    TACTICAL_BOOST_MAX: 2.0,      // multiplicador máximo del peso táctico
+    TACTICAL_BOOST_RATE: 0.05,    // por oleada
     MAX_SPEAKER_MINES: 6,
     SPEAKER_MINE_INITIAL_COUNT: 5,
     SPEAKER_MINE_DETONATE_TIME: 0.12,
@@ -122,14 +137,53 @@
   // ===== B1: escalado de HP enemigo =====
   // Curva ORIGINAL: 1 + 0.30*wave (lineal) — crecía más rápido que el poder del
   // jugador y generaba la espiral descendente que mataba la partida antes de la 30.
-  // Nueva curva: idéntica hasta la oleada 10 (onboarding intacto) y pendiente 0.22
-  // a partir de ahí (continua en w=10: 4.0 = 1 + 0.30*10). Pura y testeable;
-  // spawnEnemy (enemies.js) es su único consumidor.
+  // F1: idéntica hasta la oleada 10 (onboarding intacto); pendiente 0.28 a partir
+  // de ahí (continua en w=10: 4.0 = 1 + 0.30*10). Sube desde 0.22 para que las
+  // oleadas tardías —con MENOS enemigos simultáneos (densidad blanda F1)— sigan
+  // amenazando: w30=9.6 (+14%), w50=15.2 (+27%); siempre bajo el lineal original.
+  // Pura y testeable; spawnEnemy (enemies.js) es su único consumidor.
   NV.enemyHpScale = function (wave) {
     const w = Math.max(1, wave || 1);
     if (w <= 10) return 1 + 0.30 * w;
-    return 4 + (w - 10) * 0.22;
+    return 4 + (w - 10) * 0.28;
   };
+
+  // ===== F1: curva de amenaza tardía (funciones puras y testeables) =====
+  // Densidad blanda: objetivo de enemigos simultáneos. El refill normal se DETIENE
+  // al alcanzarlo; MAX_HOSTILES sigue siendo el techo duro. Early (w<=10) = 30
+  // (sin efecto en onboarding); luego baja ~0.4/oleada hasta el piso 16 (normal).
+  // La dificultad ajusta: easy -3 (menos densidad) / hard +3 (algo más densa, pero
+  // NUNCA vuelve a saturar el cap 30). Consumidor: game.js (spawn loop).
+  NV.softHostileTarget = function (wave, diffId) {
+    const B = NV.BALANCE;
+    const w = Math.max(1, wave || 1);
+    const decline = Math.max(0, w - B.SOFT_DENSITY_START) * B.SOFT_DENSITY_SLOPE;
+    const spawnMult = NV.difficultySafeMult('spawn', diffId) || 1;
+    const diffAdj = Math.round((spawnMult - 1) * B.SOFT_DENSITY_DIFF_SCALE);
+    const base = Math.max(B.SOFT_DENSITY_FLOOR, Math.min(B.MAX_HOSTILES, Math.round(B.MAX_HOSTILES - decline)));
+    return Math.max(B.SOFT_DENSITY_MIN, Math.min(B.MAX_HOSTILES, base + diffAdj));
+  };
+  // Lote de refill normal: early idéntico al actual (2 en w1, 3 en w2, 4 en w4,
+  // 5 en w6) con techo 5 en oleadas tardías (antes 8). Consumidor: game.js.
+  NV.spawnBatchForWave = function (wave) {
+    const w = Math.max(1, wave || 1);
+    return 2 + Math.min(3, Math.floor(w / 2));
+  };
+  // Composición: los roles tácticos EXISTENTES ganan peso gradual a partir de
+  // TACTICAL_BOOST_START (techo 2.0 → ningún tipo individual domina). Consumidor:
+  // spawnEnemy (enemies.js). Solo pondera selección; no toca stats ni minWave.
+  NV.TACTICAL_ENEMY_IDS = { spitter: 1, shielder: 1, wisp: 1, specter_archer: 1, specter_guard: 1, specter_core: 1 };
+  NV.tacticalWeightBoost = function (wave) {
+    const B = NV.BALANCE;
+    const w = Math.max(1, wave || 1);
+    return 1 + Math.min(B.TACTICAL_BOOST_MAX - 1, Math.max(0, w - B.TACTICAL_BOOST_START) * B.TACTICAL_BOOST_RATE);
+  };
+  // Durabilidad/ofensiva por rol (F1: roles, no esponja global). Solo multiplican
+  // en spawn; básicos/chaff quedan en 1.0 (siguen frágiles). Consumidor: enemies.js.
+  NV.ROLE_HP_MULT = { tank: 1.35, specter_guard: 1.30, specter_core: 1.20, shielder: 1.20, spitter: 1.15, specter_archer: 1.10 };
+  NV.ROLE_DMG_MULT = { spitter: 1.15, specter_archer: 1.15, specter_core: 1.10, specter_guard: 1.10 };
+  NV.roleHpMult = function (id) { return NV.ROLE_HP_MULT[id] || 1; };
+  NV.roleDmgMult = function (id) { return NV.ROLE_DMG_MULT[id] || 1; };
 
   // ===== B2: piso de poder del jugador =====
   // El daño del arma escala +5% por oleada completada (automático, sin comprar),
