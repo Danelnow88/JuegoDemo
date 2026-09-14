@@ -33,11 +33,11 @@ function hydra(i) {
 t('familia exacta se identifica por modelo/visualId, no por color', () => {
   const NV = load('auto');
   if (!NV.isHydraEnemyFamily(hydra(0))) throw new Error('elite_base no identificada');
-  if (!NV.isHydraEnemyFamily({ ...hydra(1), enemyTypeId: 'specter_elite_void', visualId: 'elite_specter_void' })) throw new Error('élite espectral no identificada');
+  if (!NV.isHydraEnemyFamily({ ...hydra(1), enemyTypeId: 'specter_elite_void', visualId: 'specter_elite_void' })) throw new Error('élite espectral no identificada');
   if (NV.isHydraEnemyFamily({ ...hydra(2), visualId: null, enemyTypeId: 'spitter', color: '#ff8c00' })) throw new Error('identificó por color');
 });
 
-t('Auto conserva 7 full y simplifica overflow sin eliminar entidades', () => {
+t('fallback settings-only sin visualBudget: Auto conserva 7 full y simplifica overflow sin eliminar entidades', () => {
   const NV = load('auto');
   const enemies = Array.from({ length: 12 }, (_, i) => hydra(i));
   const snapshot = JSON.stringify(enemies);
@@ -62,7 +62,7 @@ t('LOD reducido conserva la silueta animada esencial de Hidra', () => {
   const orangeBulwark = { ...hydra(0), color: '#f80', visualId: 'elite_bulwark' };
   const orangeChaos = { ...hydra(1), color: '#ff4500', visualId: 'elite_chaos' };
   const blueVelocity = { ...hydra(2), color: '#0ff', visualId: 'elite_velocity' };
-  const spectralBlue = { ...hydra(3), color: '#55f6ff', enemyTypeId: 'specter_elite_swift', visualId: 'elite_specter_swift' };
+  const spectralBlue = { ...hydra(3), color: '#55f6ff', enemyTypeId: 'specter_elite_swift', visualId: 'specter_elite_swift' };
   const variants = [orangeBulwark, orangeChaos, blueVelocity, spectralBlue];
   for (const enemy of variants) {
     const closer = Array.from({ length: 4 }, (_, i) => ({ ...hydra(20 + i), x: i, y: 0 }));
@@ -87,7 +87,7 @@ t('renderer reducido usa el mismo path compartido para variantes naranja y azul'
   for (const id of ['elite_bulwark', 'elite_chaos', 'elite_velocity', 'specter_elite_swift']) {
     if (!src.includes(id)) throw new Error('falta variante real ' + id);
   }
-  if (!src.includes('const lobes = [') || !src.includes('innerPoints = 10')) throw new Error('LOD esencial incompleto');
+  if (!src.includes('const HYDRA_LOBES = Object.freeze([') || !src.includes('for (const lobe of HYDRA_LOBES)') || !src.includes('innerPoints = 10')) throw new Error('LOD esencial incompleto');
 });
 
 t('Alta mantiene ruta full para todas las instancias', () => {

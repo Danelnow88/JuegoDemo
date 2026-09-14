@@ -114,14 +114,39 @@
   };
   const RESOLVED_ELITE_PROFILES = Object.create(null);
   let hydraFullRender = new WeakSet();
+  let hydraMediumRender = new WeakSet();
   let hydraCandidates = [];
   let visualBudgetPrepared = false;
   let activeGraphicsPolicy = { quality: 'high', particles: true, heavyVfx: true, hydraFullBudget: Infinity };
   let activeVisualBudget = null; // P2: tier runtime (solo recorta calidad decorativa)
-  const DETAIL_FULL = Object.freeze({ simplified: false, particles: true });
-  const DETAIL_FULL_NO_PARTICLES = Object.freeze({ simplified: false, particles: false });
-  const DETAIL_SIMPLE = Object.freeze({ simplified: true, particles: false });
-  let visualBudgetStats = { family: 'lab_model_5_hydra', total: 0, full: 0, simplified: 0, budget: Infinity };
+  const DETAIL_FULL = Object.freeze({ simplified: false, medium: false, particles: true, particleScale: 1, jitterScale: 1, secondaryInk: true, glowBlur: 12 });
+  const DETAIL_FULL_NO_PARTICLES = Object.freeze({ simplified: false, medium: false, particles: false, particleScale: 0, jitterScale: 1, secondaryInk: true, glowBlur: 12 });
+  const DETAIL_FULL_REDUCED_VFX = Object.freeze({ simplified: false, medium: false, particles: true, particleScale: 0.5, jitterScale: 0.75, secondaryInk: false, glowBlur: 8 });
+  const DETAIL_MEDIUM = Object.freeze({ simplified: false, medium: true, particles: true, particleScale: 0.4, jitterScale: 0.5, secondaryInk: false, glowBlur: 6 });
+  const DETAIL_MEDIUM_NO_PARTICLES = Object.freeze({ simplified: false, medium: true, particles: false, particleScale: 0, jitterScale: 0.5, secondaryInk: false, glowBlur: 6 });
+  const DETAIL_SIMPLE = Object.freeze({ simplified: true, medium: false, particles: false, particleScale: 0, jitterScale: 0, secondaryInk: false, glowBlur: 0 });
+  const BLOB_ANGLE_COUNTS = [4, 5, 6, 7, 8, 9, 10, 12, 14, 16, 18];
+  const BLOB_ANGLES = Object.create(null);
+  for (const count of BLOB_ANGLE_COUNTS) {
+    const points = [];
+    for (let i = 0; i <= count; i++) {
+      const angle = (i / count) * Math.PI * 2;
+      points.push(Object.freeze({
+        sin: Math.sin(angle), cos: Math.cos(angle),
+        sin4: Math.sin(angle * 4), cos4: Math.cos(angle * 4),
+        sin7: Math.sin(angle * 7), cos7: Math.cos(angle * 7),
+      }));
+    }
+    BLOB_ANGLES[count] = Object.freeze(points);
+  }
+  Object.freeze(BLOB_ANGLES);
+  const HYDRA_LOBES = Object.freeze([
+    Object.freeze({ x: -30, y: 35, radius: 15, points: 8, noise: 12, speed: 1.6, seed: 60 }),
+    Object.freeze({ x: 0, y: 45, radius: 18, points: 8, noise: 14, speed: 1.8, seed: 65 }),
+    Object.freeze({ x: 30, y: 35, radius: 15, points: 8, noise: 12, speed: 1.6, seed: 70 }),
+    Object.freeze({ x: 0, y: -10, radius: 45, points: 14, noise: 12, speed: 1.1, seed: 75 }),
+  ]);
+  let visualBudgetStats = { family: 'lab_model_5_hydra', total: 0, full: 0, medium: 0, simplified: 0, budget: Infinity };
   function hash01(e, salt) {
     const v = Math.sin((e.x || 0) * 12.9898 + (e.y || 0) * 78.233 + (e.radius || 1) * 37.719 + salt * 43.1234) * 43758.5453;
     return v - Math.floor(v);
@@ -382,6 +407,7 @@
     const policy = graphicsPolicy();
     activeGraphicsPolicy = policy;
     hydraFullRender = new WeakSet();
+    hydraMediumRender = new WeakSet();
     visualBudgetPrepared = true;
     hydraCandidates.length = 0;
     for (const e of enemies || []) if (isHydraFamily(e)) hydraCandidates.push(e);
@@ -389,13 +415,26 @@
     // P2 visual budget: intersecta el presupuesto de settings con el tier runtime.
     // SOLO recorta modelos completos (decorativo); nunca toca gameplay.
     activeVisualBudget = (NV.getVisualBudget && typeof NV.getVisualBudget === 'function') ? NV.getVisualBudget() : null;
-    if (activeVisualBudget && activeVisualBudget.spectralDetail <= 0) {
-      budget = 0;
-    } else if (activeVisualBudget && activeVisualBudget.spectralDetail < 1) {
-      const cap = Math.ceil(hydraCandidates.length * activeVisualBudget.spectralDetail);
-      budget = budget === Infinity ? cap : Math.min(budget, cap);
+    const total = hydraCandidates.length;
+    const preference = activeVisualBudget ? activeVisualBudget.preference : policy.quality;
+    const tier = activeVisualBudget ? activeVisualBudget.tier : 'full';
+    let fullCount = total, mediumCount = 0;
+    if (!activeVisualBudget) {
+      fullCount = budget === Infinity ? total : Math.min(total, budget);
+    } else if (activeVisualBudget.spectralDetail <= 0) {
+      fullCount = 0;
+    } else if (preference === 'high' && tier === 'full') {
+      fullCount = total;
+    } else if (preference === 'auto' && tier === 'full') {
+      fullCount = Math.min(total, 3);
+      mediumCount = Math.min(Math.max(0, total - fullCount), 2);
+    } else {
+      fullCount = Math.min(total, Math.max(1, Math.ceil(total * 0.25)));
+      mediumCount = Math.min(Math.max(0, total - fullCount), Math.max(1, Math.ceil(total * 0.25)));
     }
-    if (budget !== Infinity && player) {
+    if (budget !== Infinity) fullCount = Math.min(fullCount, budget);
+    mediumCount = Math.min(mediumCount, Math.max(0, total - fullCount));
+    if ((fullCount + mediumCount) < total && player) {
       hydraCandidates.sort((a, b) => {
         const adx = a.x - player.x, ady = a.y - player.y;
         const bdx = b.x - player.x, bdy = b.y - player.y;
@@ -403,13 +442,14 @@
         return delta || (a.x - b.x) || (a.y - b.y);
       });
     }
-    const fullCount = budget === Infinity ? hydraCandidates.length : Math.min(hydraCandidates.length, budget);
     for (let i = 0; i < fullCount; i++) hydraFullRender.add(hydraCandidates[i]);
+    for (let i = fullCount; i < fullCount + mediumCount; i++) hydraMediumRender.add(hydraCandidates[i]);
     visualBudgetStats = {
       family: 'lab_model_5_hydra',
-      total: hydraCandidates.length,
+      total,
       full: fullCount,
-      simplified: hydraCandidates.length - fullCount,
+      medium: mediumCount,
+      simplified: total - fullCount - mediumCount,
       budget,
     };
     return visualBudgetStats;
@@ -653,19 +693,28 @@
     ctx.restore();
   }
 
-  function drawHandDrawnLiquidBlob(ctx, cx, cy, radius, pointsCount, noiseAmp, speedMult, seed, colorGlow = '#ff2a4b', time = 0, simplified = false) {
+  function drawHandDrawnLiquidBlob(ctx, cx, cy, radius, pointsCount, noiseAmp, speedMult, seed, colorGlow = '#ff2a4b', time = 0, detail) {
+    const simplified = detail === true || !!(detail && detail.simplified);
+    const jitterScale = detail && typeof detail.jitterScale === 'number' ? detail.jitterScale : (simplified ? 0 : 1);
+    const secondaryInk = detail && typeof detail.secondaryInk === 'boolean' ? detail.secondaryInk : !simplified;
+    const glowBlur = detail && typeof detail.glowBlur === 'number' ? detail.glowBlur : (simplified ? 0 : 12);
     ctx.save();
     ctx.translate(cx, cy);
 
     ctx.beginPath();
+    const angles = BLOB_ANGLES[pointsCount];
+    const phase1 = time * 12 * speedMult + seed;
+    const phase2 = -time * 18 * speedMult + seed * 2;
+    const sinP1 = Math.sin(phase1), cosP1 = Math.cos(phase1);
+    const sinP2 = Math.sin(phase2), cosP2 = Math.cos(phase2);
     for (let i = 0; i <= pointsCount; i++) {
-      const angle = (i / pointsCount) * Math.PI * 2;
-      const n1 = Math.sin(angle * 4 + time * 12 * speedMult + seed);
-      const n2 = Math.cos(angle * 7 - time * 18 * speedMult + seed * 2);
-    const jitter = simplified ? 0 : (Math.random() - 0.5) * 2;
+      const point = angles[i];
+      const n1 = point.sin4 * cosP1 + point.cos4 * sinP1;
+      const n2 = point.cos7 * cosP2 - point.sin7 * sinP2;
+      const jitter = jitterScale > 0 ? (Math.random() - 0.5) * 2 * jitterScale : 0;
       const r = radius + (n1 + n2 * 0.5) * noiseAmp + jitter;
-      const x = Math.cos(angle) * r;
-      const y = Math.sin(angle) * r;
+      const x = point.cos * r;
+      const y = point.sin * r;
       if (i === 0) ctx.moveTo(x, y);
       else ctx.lineTo(x, y);
     }
@@ -690,11 +739,11 @@
     ctx.lineWidth = 2.5 + Math.sin(time * 20 + seed) * 1;
     ctx.strokeStyle = colorGlow;
     ctx.shadowColor = colorGlow;
-    ctx.shadowBlur = simplified ? 0 : 12;
+    ctx.shadowBlur = glowBlur;
     ctx.stroke();
     ctx.shadowBlur = 0;
 
-    if (simplified) { ctx.restore(); return; }
+    if (!secondaryInk) { ctx.restore(); return; }
     // Tinta secundaria suelta
     ctx.beginPath();
     for (let i = 0; i <= pointsCount / 2; i++) {
@@ -713,34 +762,28 @@
   }
   function drawLiquidParticles(ctx, cx, cy, count, radiusSpread, seed, colorGlow = '#ff2a4b', time = 0) {
     ctx.save();
+    ctx.fillStyle = colorGlow;
+    ctx.shadowColor = colorGlow;
+    ctx.shadowBlur = 8;
+    ctx.beginPath();
     for (let i = 0; i < count; i++) {
       const pAngle = (i / count) * Math.PI * 2 + time * 3 + seed;
       const dist = radiusSpread + Math.sin(time * 10 + i + seed) * 15;
       const px = cx + Math.cos(pAngle) * dist;
       const py = cy + Math.sin(pAngle) * dist + Math.cos(time * 15 + i) * 5;
       const pSize = Math.max(1, 3 + Math.sin(time * 25 + i) * 2);
-
-      ctx.beginPath();
+      ctx.moveTo(px + pSize, py);
       ctx.arc(px, py, pSize, 0, Math.PI * 2);
-      ctx.fillStyle = colorGlow;
-      ctx.shadowColor = colorGlow;
-      ctx.shadowBlur = 8;
-      ctx.fill();
     }
-        ctx.shadowBlur = 0;
+    ctx.fill();
+    ctx.shadowBlur = 0;
     ctx.restore();
   }
   function drawHydraSimplified(ctx, cx, cy, targetX, targetY, time, enemyColor) {
     // LOD esencial: conserva la misma silueta de cuatro lóbulos líquidos que la
     // Hidra full y la misma fase de animación, pero omite jitter aleatorio,
     // partículas, aura negra ancha y shadowBlur. No crea un render pass nuevo.
-    const lobes = [
-      { x: -30, y: 35, radius: 15, points: 8, noise: 12, speed: 1.6, seed: 60 },
-      { x: 0, y: 45, radius: 18, points: 8, noise: 14, speed: 1.8, seed: 65 },
-      { x: 30, y: 35, radius: 15, points: 8, noise: 12, speed: 1.6, seed: 70 },
-      { x: 0, y: -10, radius: 45, points: 14, noise: 12, speed: 1.1, seed: 75 },
-    ];
-    for (const lobe of lobes) {
+    for (const lobe of HYDRA_LOBES) {
       drawHandDrawnLiquidBlob(
         ctx,
         cx + lobe.x,
@@ -860,11 +903,14 @@
           drawHydraSimplified(ctx, adjCx, adjCy, adjTx, adjTy, time, enemyColor);
           break;
         }
-        drawHandDrawnLiquidBlob(ctx, adjCx - 30, adjCy + 35, 15, 8, 12, 1.6, 60, enemyColor, time);
-        drawHandDrawnLiquidBlob(ctx, adjCx, adjCy + 45, 18, 8, 14, 1.8, 65, enemyColor, time);
-        drawHandDrawnLiquidBlob(ctx, adjCx + 30, adjCy + 35, 15, 8, 12, 1.6, 70, enemyColor, time);
-        drawHandDrawnLiquidBlob(ctx, adjCx, adjCy - 10, 45, 18, 12, 1.1, 75, enemyColor, time);
-        if (!detail || detail.particles !== false) drawLiquidParticles(ctx, adjCx, adjCy, 10, 70, 60, enemyColor, time);
+        drawHandDrawnLiquidBlob(ctx, adjCx - 30, adjCy + 35, 15, 8, 12, 1.6, 60, enemyColor, time, detail);
+        drawHandDrawnLiquidBlob(ctx, adjCx, adjCy + 45, 18, 8, 14, 1.8, 65, enemyColor, time, detail);
+        drawHandDrawnLiquidBlob(ctx, adjCx + 30, adjCy + 35, 15, 8, 12, 1.6, 70, enemyColor, time, detail);
+        drawHandDrawnLiquidBlob(ctx, adjCx, adjCy - 10, 45, 18, 12, 1.1, 75, enemyColor, time, detail);
+        if (!detail || detail.particles !== false) {
+          const particleScale = detail && typeof detail.particleScale === 'number' ? detail.particleScale : 1;
+          drawLiquidParticles(ctx, adjCx, adjCy, Math.max(1, Math.round(10 * particleScale)), 70, 60, enemyColor, time);
+        }
         drawLabEyes(ctx, adjCx, adjCy - 12, adjTx, adjTy, 3, 0.85, time, enemyColor);
         break;
     }
@@ -1182,8 +1228,16 @@
     // origen local (trasladado arriba); la escala del modelo ya aplicada arriba
     // fija su tamaño aprobado tras el down-scale por modelo.
     const vbAllSimple = !!(activeVisualBudget && activeVisualBudget.spectralDetail <= 0);
-    const simplified = (poseIdx === 5 && visualBudgetPrepared && !hydraFullRender.has(e)) || vbAllSimple;
-    const detail = simplified ? DETAIL_SIMPLE : (activeGraphicsPolicy.particles ? DETAIL_FULL : DETAIL_FULL_NO_PARTICLES);
+    const simple = (poseIdx === 5 && visualBudgetPrepared && !hydraFullRender.has(e) && !hydraMediumRender.has(e)) || vbAllSimple;
+    const medium = poseIdx === 5 && !simple && hydraMediumRender.has(e);
+    const reducedVfx = !!(activeVisualBudget && (!activeVisualBudget.heavyShadow || !activeVisualBudget.secondaryGlow || activeVisualBudget.decorativeParticleScale < 1));
+    const detail = simple
+      ? DETAIL_SIMPLE
+      : medium
+        ? (activeGraphicsPolicy.particles ? DETAIL_MEDIUM : DETAIL_MEDIUM_NO_PARTICLES)
+        : activeGraphicsPolicy.particles
+          ? (reducedVfx ? DETAIL_FULL_REDUCED_VFX : DETAIL_FULL)
+          : DETAIL_FULL_NO_PARTICLES;
     drawLabEnemyModel(ctx, poseIdx, 0, 0, 1, lookX, lookY, (frame || 0) * 0.03, enemyColor, detail);
     NV.drawEnemyHitFeedback(ctx, e, MODEL_INTRINSIC_RADII[modelIdx]);
     ctx.restore();

@@ -155,14 +155,35 @@ t('render élite con visualId específico', () => {
   if (NV.drawSpectralEnemy2D(ctx, enemy, 30, player, null) !== true) throw new Error('esperaba true');
 });
 
-// Tests para los 8 perfiles élite diferenciados
-const eliteVisualIds = ['elite_base', 'elite_velocity', 'elite_bulwark', 'elite_predator', 'elite_phantom', 'elite_chaos', 'elite_titan', 'elite_swift', 'elite_specter_swift', 'elite_specter_wrath', 'elite_specter_void'];
+// Cobertura del API público para los 11 perfiles élite canónicos.
+const eliteVisualIds = ['elite_base', 'elite_velocity', 'elite_bulwark', 'elite_predator', 'elite_phantom', 'elite_chaos', 'elite_titan', 'elite_swift', 'specter_elite_swift', 'specter_elite_wrath', 'specter_elite_void'];
 for (const vid of eliteVisualIds) {
   t('render élite visualId=' + vid + ' sin crash', () => {
     const ctx = mkCtx();
     const enemy = { x: 100, y: 100, radius: 15, color: '#ff0', shape: 'hex', enemyTypeId: 'tank', dead: false, isElite: true, visualId: vid };
     if (NV.drawSpectralEnemy2D(ctx, enemy, 30, player, null) !== true) throw new Error('esperaba true para ' + vid);
     if (ctx.calls.length < 5) throw new Error('pocos trazos para ' + vid);
+  });
+}
+
+// Ruta canónica de producción: los 8 élites base llevan visualId; los 3
+// espectrales llevan enemyTypeId y visualId canónicos. Ningún caso fuerza
+// enemyTypeId='tank', porque eso seleccionaría el fallback raid-boss legacy.
+const hydraPathPreviouslyCoveredIds = ['elite_base', 'elite_velocity', 'elite_bulwark', 'elite_chaos', 'specter_elite_swift', 'specter_elite_wrath', 'specter_elite_void'];
+const hydraPathClosureIds = ['elite_predator', 'elite_phantom', 'elite_titan', 'elite_swift'];
+const canonicalHydraPathIds = hydraPathPreviouslyCoveredIds.concat(hydraPathClosureIds);
+t('cobertura Hydra/RB6 canónica enumera 11/11 élites sin duplicados', () => {
+  if (canonicalHydraPathIds.length !== 11 || new Set(canonicalHydraPathIds).size !== 11) throw new Error('esperaba 11 IDs canónicos únicos');
+  for (const vid of eliteVisualIds) if (!canonicalHydraPathIds.includes(vid)) throw new Error('falta ' + vid);
+});
+for (const vid of canonicalHydraPathIds) {
+  t('ruta Hydra/RB6 canónica visualId=' + vid + ' sin crash', () => {
+    const ctx = mkCtx();
+    const enemy = { x: 100, y: 100, radius: 15, color: '#ff0', shape: 'hex', dead: false, isElite: true, visualId: vid };
+    if (vid.indexOf('specter_elite_') === 0) enemy.enemyTypeId = vid;
+    if (!NV.isHydraEnemyFamily(enemy)) throw new Error('no clasificó como Hydra/RB6: ' + vid);
+    if (NV.drawSpectralEnemy2D(ctx, enemy, 30, player, null) !== true) throw new Error('esperaba true para ' + vid);
+    if (ctx.calls.length < 5) throw new Error('pocos trazos Hydra/RB6 para ' + vid);
   });
 }
 
