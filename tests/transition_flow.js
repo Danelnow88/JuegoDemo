@@ -10,6 +10,15 @@ function test(name, fn) {
 function includesAll(source, values) {
   for (const value of values) if (!source.includes(value)) throw new Error('falta ' + value);
 }
+function count(source, value) {
+  return source.split(value).length - 1;
+}
+function functionBlock(source, name, nextName) {
+  const start = source.indexOf('function ' + name + '(');
+  if (start < 0) throw new Error('falta función ' + name);
+  const end = nextName ? source.indexOf('function ' + nextName + '(', start + 1) : -1;
+  return source.slice(start, end > start ? end : source.length);
+}
 
 const game = fs.readFileSync('js/game.js', 'utf8');
 const fx = fs.readFileSync('js/engine/fx.js', 'utf8');
@@ -19,6 +28,7 @@ const mobile = fs.readFileSync('js/ui/mobileControls.js', 'utf8');
 const css = fs.readFileSync('css/styles.css', 'utf8');
 const gameData = fs.readFileSync('js/data/gameData.js', 'utf8');
 const synth = fs.readFileSync('js/audio/synth.js', 'utf8');
+const bossSource = fs.readFileSync('js/engine/boss.js', 'utf8');
 
 test('timings aprobados y estados explícitos', () => {
   includesAll(game, [
@@ -64,6 +74,67 @@ test('wave_end bloquea combate y permite solo movimiento/recogida', () => {
   }
 });
 
+test('shop sigue una sola ruta wave_end -> shop_enter -> shop', () => {
+  const begin = functionBlock(game, 'beginShopEntrance', 'finishShopEntrance');
+  const finish = functionBlock(game, 'finishShopEntrance', 'updatePresentation');
+  includesAll(begin, [
+    "if (state !== 'wave_end') return;",
+    "state = 'shop_enter';",
+    'prepareShopContent();',
+    'showShop();',
+    'syncGameState();',
+  ]);
+  includesAll(finish, [
+    "if (presentation.finalized || state !== 'shop_enter') return;",
+    "state = 'shop';",
+    "dom.shop.setAttribute('aria-hidden', 'false');",
+    'syncGameState();',
+  ]);
+  if (count(begin, "state = 'shop_enter';") !== 1) throw new Error('shop_enter no es único');
+  if (count(finish, "state = 'shop';") !== 1) throw new Error('shop final no es único');
+  if (begin.includes('setTimeout') || finish.includes('setTimeout')) throw new Error('timer crítico en entrada de shop');
+});
+
+test('contenido, revelado y finalización del shop están separados', () => {
+  const prepare = functionBlock(game, 'prepareShopContent', 'showShop');
+  const show = functionBlock(game, 'showShop', 'reconcileConsumSel');
+  const begin = functionBlock(game, 'beginShopEntrance', 'finishShopEntrance');
+  const finish = functionBlock(game, 'finishShopEntrance', 'updatePresentation');
+  includesAll(prepare, ['consumableBought = {};', 'generateOffers();', 'renderInventory();']);
+  for (const forbidden of ['state =', 'syncGameState()', "classList.remove('hidden')", "classList.add('hidden')", 'resetPresentation()']) {
+    if (prepare.includes(forbidden)) throw new Error('prepareShopContent mezcla presentación: ' + forbidden);
+  }
+  includesAll(show, ["if (state !== 'shop_enter') return false;", "setAttribute('aria-hidden', 'true')", "classList.remove('hidden')"]);
+  if (count(show, "classList.remove('hidden')") !== 1) throw new Error('revelado hidden no es único');
+  if (finish.includes('classList.') || finish.includes('prepareShopContent') || finish.includes('generateOffers') || finish.includes('renderInventory')) {
+    throw new Error('finishShopEntrance reinicia visibilidad o contenido');
+  }
+  if (count(begin, 'prepareShopContent();') !== 1) throw new Error('contenido no se prepara exactamente una vez');
+});
+
+test('flujo normal y boss comparten trigger idempotente de victoria', () => {
+  const trigger = functionBlock(game, 'triggerWaveVictory', 'triggerFlash');
+  includesAll(game, ['triggerWaveVictory(false, null, null);']);
+  includesAll(bossSource, ['st.triggerWaveVictory(true, bossName, bossColor);']);
+  includesAll(trigger, ["state === 'wave_end'", "state === 'shop_enter'", "state === 'shop'", "state = 'wave_end';"]);
+  if (count(trigger, "state = 'wave_end';") !== 1) throw new Error('wave_end no es único');
+});
+
+test('CSS da ownership exclusivo de entrada a shop_enter y deja shop estable', () => {
+  includesAll(css, [
+    'html[data-game-state="shop_enter"] #shop',
+    'html[data-game-state="shop_enter"] #shop .shop-title',
+    'html[data-game-state="shop_enter"] #shop .shop-section',
+    'html[data-game-state="shop"] #shop',
+    'animation: none !important;',
+    '#permShop:not(.hidden) { animation: shop-in 0.4s ease-out both; }',
+  ]);
+  if (css.includes('.shop-screen:not(.hidden)')) throw new Error('selector legacy todavía alcanza #shop');
+  const stableStart = css.indexOf('html[data-game-state="shop"] #shop');
+  const stable = css.slice(stableStart, css.indexOf('}', stableStart) + 1);
+  if (!stable.includes('animation: none !important;')) throw new Error('shop estable conserva animación');
+});
+
 test('input, pausa/settings y móvil quedan seguros durante transiciones', () => {
   includesAll(game, [
     'function clearCombatIntent()', 'combatIntent.fireIntent = false;',
@@ -72,7 +143,7 @@ test('input, pausa/settings y móvil quedan seguros durante transiciones', () =>
   ]);
   includesAll(mobile, ['nv-game-state-change', 'resetButtons();', 'resetJoystick();']);
   includesAll(css, [
-    'html[data-game-state="shop_enter"] .shop-screen', 'pointer-events: none !important;',
+    'html[data-game-state="shop_enter"] #shop', 'pointer-events: none !important;',
     'html[data-game-state="wave_end"] .mobile-actions',
     'html[data-game-state="player_dying"] .mobile-hud',
   ]);

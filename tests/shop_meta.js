@@ -23,10 +23,10 @@ t('NV.resetMeta borra localStorage', () => {
   if (!g.includes("localStorage.removeItem('neonVoidMeta')")) throw new Error('no borra la clave');
 });
 
-t('tope de consumibles: cap 3 por visita, reset en showShop', () => {
+t('tope de consumibles: cap 3 por visita, reset al preparar contenido del shop', () => {
   if (!g.includes('const CONSUMABLE_CAP = 3;')) throw new Error('cap ausente');
   if (!/let consumableBought = \{\};/.test(g)) throw new Error('contador ausente');
-  const i = g.indexOf('function showShop()');
+  const i = g.indexOf('function prepareShopContent()');
   if (!g.slice(i, i + 300).includes('consumableBought = {};')) throw new Error('no se resetea por visita');
   if (!g.includes("bought >= CONSUMABLE_CAP")) throw new Error('puerta del tope ausente');
   if (!g.includes('NV.consumableList().forEach')) throw new Error('tienda no usa lista centralizada');

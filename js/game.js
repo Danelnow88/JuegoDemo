@@ -136,6 +136,11 @@
     return 1 - Math.pow(1 - p, 3);
   }
 
+  function easeInOutCubic(value) {
+    const p = Math.max(0, Math.min(1, value));
+    return p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
+  }
+
   function presentationProgress() {
     return presentation.duration > 0 ? Math.max(0, Math.min(1, presentation.elapsed / presentation.duration)) : 0;
   }
@@ -145,14 +150,14 @@
     const maxZoom = reduced ? 1.02 : (state === 'player_dying' || state === 'gameover' ? 1.10 : (presentation.isBoss ? 1.08 : 1.07));
     const raw = presentationProgress();
     const delayed = state === 'player_dying' || state === 'gameover'
-      ? Math.max(0, (raw - 0.08) / 0.54)
-      : Math.max(0, (raw - 0.05) / 0.32);
-    const progress = state === 'shop_enter' || state === 'shop' ? 1 : easeOutCubic(Math.min(1, delayed));
+      ? Math.max(0, (raw - 0.06) / 0.72)
+      : Math.max(0, (raw - 0.08) / 0.72);
+    const progress = state === 'shop_enter' || state === 'shop' ? 1 : easeInOutCubic(Math.min(1, delayed));
     return 1 + (maxZoom - 1) * progress;
   }
 
   function cinematicView(vx, vy, vw, vh) {
-    if (state !== 'player_dying' && state !== 'gameover' && state !== 'wave_end' && state !== 'shop_enter') {
+    if (state !== 'player_dying' && state !== 'gameover' && state !== 'wave_end' && state !== 'shop_enter' && state !== 'shop') {
       return { zoom: 1, centerX: vx + vw / 2, centerY: vy + vh / 2 };
     }
     const zoom = presentationZoom();
@@ -166,7 +171,7 @@
   function playerPresentationStyle() {
     const progress = presentationProgress();
     if (state === 'player_dying' || state === 'gameover') {
-      const dissolve = easeOutCubic(Math.max(0, Math.min(1, (progress - 0.10) / 0.58)));
+      const dissolve = easeOutCubic(Math.max(0, Math.min(1, (progress - 0.08) / 0.66)));
       return { alpha: 1 - dissolve, scale: 1 - dissolve * 0.14, flourish: 0 };
     }
     if (state === 'wave_end') {
@@ -1338,23 +1343,22 @@
     nextWave();
   }
 
-  function showShop() {
-    if (NV.audio && typeof NV.audio.stopAllWeapons === 'function') NV.audio.stopAllWeapons();
-    NV.input.setFire(false);
-    combatIntent.dashIntent = false;
+  function prepareShopContent() {
     consumableBought = {}; // el tope de consumibles es por visita a la tienda
-    state = presentation.kind === 'shop_enter' ? 'shop_enter' : 'shop';
-    if (NV.clearHazards) NV.clearHazards(hazards, minefieldState); else hazards = [];
-    syncGameState();
-    dom.shop.setAttribute('aria-hidden', state === 'shop_enter' ? 'true' : 'false');
     invSwapSel = -1;
     updateHUD(); // La habilidad no debe seguir pulsando fuera del combate.
-    dom.shop.classList.remove('hidden');
     dom.shopShards.textContent = shards;
     if (dom.shopWave) dom.shopWave.textContent = wave + 1;
     if (dom.shopNextWave) dom.shopNextWave.textContent = wave + 1;
     generateOffers();
     renderInventory();
+  }
+
+  function showShop() {
+    if (state !== 'shop_enter') return false;
+    dom.shop.setAttribute('aria-hidden', 'true');
+    dom.shop.classList.remove('hidden');
+    return true;
   }
   // === CONSUMIBLES (se usan con la tecla F en partida) ===
   // Reconcilia la selección tras mutar consumibleItems: 0 tipos -> 0; índice fuera
@@ -1824,6 +1828,10 @@
 
   function beginShopEntrance() {
     if (state !== 'wave_end') return;
+    if (NV.audio && typeof NV.audio.stopAllWeapons === 'function') NV.audio.stopAllWeapons();
+    NV.input.setFire(false);
+    combatIntent.dashIntent = false;
+    if (NV.clearHazards) NV.clearHazards(hazards, minefieldState); else hazards = [];
     state = 'shop_enter';
     presentation.kind = 'shop_enter';
     presentation.elapsed = 0;
@@ -1836,7 +1844,9 @@
     floatTexts = [];
     meteors = [];
     specialVFX = null;
+    prepareShopContent();
     showShop();
+    syncGameState();
   }
 
   function finishShopEntrance() {
@@ -2719,7 +2729,7 @@
     ctx.globalAlpha = 1;
 
     if (NV.drawMomentumReadability && state !== 'player_dying' && state !== 'gameover') NV.drawMomentumReadability(ctx, player, momentumVisual, metaRenderEnv);
-    if (state !== 'gameover' && !(state === 'player_dying' && presentationProgress() >= 0.66)) drawPlayer();
+    if (state !== 'gameover' && !(state === 'player_dying' && presentationProgress() >= 0.74)) drawPlayer();
     // Retícula Canvas barata: geometría fija, sin glow, partículas ni DOM por frame.
     if (state === 'playing' && !paused && NV.input.getEffectiveFirePolicy() === 'manual' && combatIntent.aimActive) {
       const ax = combatIntent.aimWorldX, ay = combatIntent.aimWorldY;
@@ -2753,12 +2763,14 @@
 
     ctx.setTransform(scaleX, 0, 0, scaleY, -vx * scaleX, -vy * scaleY);
 
-    if (state === 'player_dying' || state === 'wave_end' || state === 'shop_enter') {
+    if (state === 'player_dying' || state === 'gameover' || state === 'wave_end' || state === 'shop_enter' || state === 'shop') {
       const progress = presentationProgress();
-      const dimStart = state === 'player_dying' ? 0.62 : 0.72;
-      const dim = Math.max(0, Math.min(1, (progress - dimStart) / (1 - dimStart)));
+      const isDeath = state === 'player_dying' || state === 'gameover';
+      const settled = state === 'gameover' || state === 'shop_enter' || state === 'shop';
+      const dimStart = isDeath ? 0.42 : 0.62;
+      const dim = settled ? 1 : easeInOutCubic(Math.max(0, Math.min(1, (progress - dimStart) / (1 - dimStart))));
       ctx.save();
-      ctx.fillStyle = state === 'player_dying'
+      ctx.fillStyle = isDeath
         ? 'rgba(2, 4, 12, ' + (dim * 0.58).toFixed(3) + ')'
         : 'rgba(2, 5, 14, ' + (dim * 0.34).toFixed(3) + ')';
       ctx.fillRect(vx, vy, vw, vh);

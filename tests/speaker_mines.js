@@ -495,7 +495,7 @@ t('telegraph nunca consume la groove compartida del body; el body sí consume gr
 
 t('producción limpia hazards en menu/start/wave/victory/shop/gameOver', () => {
   const g = fs.readFileSync('js/game.js', 'utf8');
-  for (const name of ['function showMenu()', 'function startGame()', 'function nextWave()', 'function triggerWaveVictory', 'function showShop()', 'function gameOver()']) {
+  for (const name of ['function showMenu()', 'function startGame()', 'function nextWave()', 'function triggerWaveVictory', 'function beginShopEntrance()', 'function gameOver()']) {
     const i = g.indexOf(name); if (i < 0) throw new Error('falta ' + name);
     if (!g.slice(i, i + 2200).includes('clearHazards')) throw new Error('sin cleanup ' + name);
   }
