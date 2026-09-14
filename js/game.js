@@ -1953,20 +1953,6 @@
     // pull -> arena clamp. El pull vive en NV.applyHookPull (engine testeable);
     // aca solo se preserva el orden (no se muta moveVx/moveVy ni movement.js).
     if (hookSystem && typeof NV.applyHookPull === 'function') NV.applyHookPull(dt, hookSystem, player, wasDashing);
-    else {
-      if (hookSystem && hookSystem.phase === 'tether' && !wasDashing && player.dashActive) {
-        NV.breakHookTether(hookSystem);
-      }
-      if (hookSystem && hookSystem.phase === 'tether' && hookSystem.srcEnemy && !player.dashActive) {
-        const hdx = hookSystem.srcEnemy.x - player.x, hdy = hookSystem.srcEnemy.y - player.y;
-        const hlen = Math.hypot(hdx, hdy);
-        if (hlen > 0.000001) {
-          const pullSpd = NV.BALANCE.HOOK_PULL_EXTERNAL_SPEED;
-          player.x += (hdx / hlen) * pullSpd * dt;
-          player.y += (hdy / hlen) * pullSpd * dt;
-        }
-      }
-    }
     player.x = Math.max(20, Math.min(arenaW() - 20, player.x));
     player.y = Math.max(30, Math.min(arenaH() - 20, player.y));
     // El cursor vive en mundo: si el jugador se mueve, recalcular la dirección
