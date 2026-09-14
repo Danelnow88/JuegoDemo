@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Canonical Enemy Roster — Neon Void (F0 dev tool)</title>
+<style>
+:root{color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;padding:20px 14px 70px;font-family:system-ui,sans-serif;color:#dffcff;background:#01030d}
+header,main,footer{max-width:1280px;margin:0 auto}
+h1{margin:0;font-size:19px;letter-spacing:.08em;text-transform:uppercase;color:#7dffd0}
+h3.sec{margin:22px 0 4px;font-size:13px;letter-spacing:.1em;color:#9be8ff;text-transform:uppercase}
+.sub{margin:8px 0 0;color:#708496;font-size:12px;max-width:1050px}
+.sub code{color:#9be8ff}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:14px 0}
+.toolbar button,.toolbar select{background:#0b1626;border:1px solid rgba(125,211,252,.3);color:#dffcff;border-radius:6px;padding:7px 10px;font-size:12px;cursor:pointer}
+.toolbar button.active{background:#7dd3fc;color:#04121f;font-weight:700}
+.badge{display:inline-block;border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:2px 8px;font-size:10px;margin:2px 3px 2px 0}
+.b-elite{color:#ffd700;border-color:rgba(255,215,0,.45)}.b-boss{color:#ff78a8;border-color:rgba(255,80,155,.45)}
+.b-heavy{color:#ffb24a;border-color:rgba(255,178,74,.5)}.b-hydra{color:#ff8ab8}.b-simple{color:#8dfaff}.b-spectral{color:#d8f6ff}
+.counts{font-size:12px;color:#8fa6bd;margin:6px 0 0}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(295px,1fr));gap:12px;margin-top:10px}
+.card{background:rgba(10,18,36,.72);border:1px solid rgba(120,180,255,.14);border-radius:10px;padding:10px}
+.card h2{margin:0 0 2px;font-size:13px;color:#eef6ff;word-break:break-word}
+.ids{font-size:11px;color:#8fa6bd;word-break:break-all}
+canvas.stage{width:100%;display:block;background:radial-gradient(circle at 50% 55%,#0a1430 0%,#04060f 70%);border:1px solid rgba(255,255,255,.07);border-radius:8px;margin:8px 0}
+.meta{font-size:11px;line-height:1.5;color:#b9c9dc}
+.meta .row{display:flex;justify-content:space-between;gap:8px;border-bottom:1px dotted rgba(255,255,255,.08);padding:2px 0}
+.meta b{color:#e8f2ff;font-weight:600}
+.note{margin-top:18px;border:1px solid rgba(255,215,0,.25);background:rgba(50,35,0,.25);border-radius:8px;padding:10px 12px;font-size:12px;color:#ffdf9e}
+footer{margin-top:16px;color:#42566b;font-size:11px}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+<header>
+<h1>Canonical Enemy Roster — preview-only (F0)</h1>
+<p class="sub">Dev tool. Roster + renderers come from production modules
+<code>js/data/gameData.js</code>, <code>js/render/spectralEnemies2D.js</code>,
+<code>js/render/enemies.js</code>, <code>js/render/bosses.js</code>.
+No gameplay file is modified. Same world scale per category; hitbox ring = gameplay collision radius
+(<code>radius</code>, or <code>radius × labModelHitboxFactor</code> for liquid-lab spectres).</p>
+<p class="sub">Routing mirrors production <code>drawEnemy/drawBoss</code>:
+lab-spectre ids + every elite/boss → <code>NV.drawSpectralEnemy2D / NV.drawSpectralBoss2D</code>;
+other legacy normals → geometric <code>NV.drawEnemy</code>. Toggle below switches production vs legacy-fallback path.</p>
+<div class="toolbar">
+<button data-filter="ALL" class="active">ALL</button>
+<button data-filter="NORMAL">NORMAL</button>
+<button data-filter="ELITE">ELITE</button>
+<button data-filter="BOSS">BOSS</button>
+<button data-filter="HEAVY">HEAVY</button>
+<button data-filter="HYDRA">HYDRA/SPECTRAL</button>
+<button data-filter="SIMPLE">SIMPLE/GEOMETRIC</button>
+<label for="mode" style="font-size:12px;color:#9be8ff">Renderer</label>
+<select id="mode"><option value="prod" selected>Production (spectral)</option><option value="legacy">Legacy geometric fallback</option></select>
+<label for="previewScale" style="font-size:12px;color:#9be8ff">PREVIEW SCALE ONLY</label>
+<select id="previewScale"><option value="1" selected>100% canonical</option><option value="0.9">90%</option><option value="0.85">85%</option><option value="0.8">80%</option><option value="0.75">75%</option></select>
+<button id="toggleAnim" type="button">Pause animation</button>
+<button id="toggleHitbox" type="button" class="active">Hitbox: ON</button>
+</div>
+<p class="counts" id="counts"></p>
+</header>
+<main><div id="sections"></div>
+<div class="note"><b>HUD note (document only, production unchanged):</b>
+<code>ENEMIGOS: alive (legacy)</code> counts non-dead enemies + legacy bucket
+<code>isElite || shape=='specter' || enemyTypeId=='specter_lite'</code>. It is <b>not</b> heavy budget
+(<code>isElite/heavy + boss</code>), renderer tier, Hydra family, or elite-only.
+This roster keeps <code>category / heavy / visual family / HUD legacy</code> separate.</div>
+</main>
+<footer>F0 canonical roster. Production game untouched. Scale selector is preview-only canvas transform.</footer>
+<script>window.NV = window.NV || {};</script>
+<script src="../js/data/gameData.js"></script>
+<script src="../js/render/spectralEnemies2D.js"></script>
+<script src="../js/render/enemies.js"></script>
+<script src="../js/render/bosses.js"></script>
+<script>
+(function(){
+'use strict';
+var NV=window.NV;
+var sectionsEl=document.getElementById('sections'),counts=document.getElementById('counts');
+if(!NV.ENEMY_TYPES||!NV.ELITE_TYPES||!NV.BOSS_TYPES||typeof NV.drawSpectralEnemy2D!=='function'){
+sectionsEl.innerHTML='<p style="color:#ff6b8a">Production modules failed to load. Open from <code>previews/</code> over the project root.</p>';return;
+}
+// Canonical full-detail policy, preview process only (never persisted).
+NV.settings={graphics:{quality:'high',particles:true,heavyVfx:true},controls:{firePolicy:'manual'},gameplay:{difficulty:'normal'},audio:{sfxVolume:1}};
+function labIdx(id){return (NV.LAB_SPECTER_IDS&&id!=null&&NV.LAB_SPECTER_IDS[id]!=null)?NV.LAB_SPECTER_IDS[id]:null;}
+function famOf(kind,t,e){if(kind==='BOSS')return 'BOSS-SPECTRAL';if(e&&e.isElite)return 'HYDRA';if(labIdx(t.id)!=null||labIdx(t.visualId)!=null)return 'SPECTRAL-LIQUID';return 'SIMPLE-GEOMETRIC';}
+function costOf(kind,fam,t){if(kind==='BOSS'||fam==='HYDRA')return 'HEAVY';if(fam==='SPECTRAL-LIQUID'||t.shape==='specter')return 'MEDIUM';return 'LIGHT';}
+function hudLegacy(kind,e,t){return kind==='NORMAL'&&!!(e.isElite||e.shape==='specter'||e.enemyTypeId==='specter_lite');}
+var roster=[];
+NV.ENEMY_TYPES.forEach(function(t){var e={x:0,y:0,radius:t.radius,color:t.color,shape:t.shape,behavior:t.behavior,enemyTypeId:t.id,visualId:t.visualId||t.id,isElite:false,dead:false,hp:100,maxHp:100};var li=labIdx(t.id);var hr=t.radius;if(li!=null&&NV.labModelHitboxFactor){try{hr=t.radius*NV.labModelHitboxFactor(li);}catch(_){}}var f=famOf('NORMAL',t,e);roster.push({kind:'NORMAL',type:t,entity:e,family:f,cost:costOf('NORMAL',f,t),heavy:t.hostileClass==='heavy',hitRadius:hr});});
+NV.ELITE_TYPES.forEach(function(t){var e={x:0,y:0,radius:t.radius,color:t.color,shape:t.shape,behavior:t.behavior,enemyTypeId:t.id,visualId:t.visualId,isElite:true,dead:false,hp:100,maxHp:100};var li=labIdx(t.id);if(li==null)li=labIdx(t.visualId);var hr=t.radius;if(li!=null&&NV.labModelHitboxFactor){try{hr=t.radius*NV.labModelHitboxFactor(li);}catch(_){}}var f=famOf('ELITE',t,e);roster.push({kind:'ELITE',type:t,entity:e,family:f,cost:costOf('ELITE',f,t),heavy:true,hitRadius:hr});});
+NV.BOSS_TYPES.forEach(function(t,i){var e={x:0,y:0,radius:t.radius,color:t.color,shape:t.shape,name:t.name,dead:false,hp:t.hp,maxHp:t.hp,phase2:false,isBoss:true};roster.push({kind:'BOSS',type:t,entity:e,family:'BOSS-SPECTRAL',cost:'HEAVY',heavy:true,hitRadius:t.radius,bossIndex:i});});
+var filter='ALL',mode='prod',scale=1,animate=true,hitbox=true,frame=0,last=-1;
+var player={x:9999,y:9999};
+function show(e){if(filter==='ALL')return true;if(filter==='NORMAL'||filter==='ELITE'||filter==='BOSS')return e.kind===filter;if(filter==='HEAVY')return e.heavy;if(filter==='HYDRA')return e.family==='HYDRA'||e.family.indexOf('SPECTRAL')===0;if(filter==='SIMPLE')return e.family==='SIMPLE-GEOMETRIC';return true;}
+function drawInto(ctx,W,H,entry,now){
+ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,W,H);
+var cx=W/2,cy=H/2-4;
+ctx.save();ctx.strokeStyle='rgba(124,248,255,.10)';ctx.lineWidth=1;
+for(var gx=0;gx<=W;gx+=20){ctx.beginPath();ctx.moveTo(gx,0);ctx.lineTo(gx,H);ctx.stroke();}
+for(var gy=0;gy<=H;gy+=20){ctx.beginPath();ctx.moveTo(0,gy);ctx.lineTo(W,gy);ctx.stroke();}
+ctx.strokeStyle='rgba(255,255,255,.16)';ctx.beginPath();ctx.moveTo(0,cy);ctx.lineTo(W,cy);ctx.stroke();ctx.beginPath();ctx.moveTo(cx,0);ctx.lineTo(cx,H);ctx.stroke();
+ctx.translate(cx,cy);ctx.scale(scale,scale);ctx.translate(-cx,-cy);
+var e=Object.assign({},entry.entity,{x:cx,y:cy});
+try{
+if(mode==='legacy'){if(entry.kind==='BOSS'){NV.drawBoss(ctx,e,now);}else{NV.drawEnemy(ctx,e,now,player,null);}}
+else{if(entry.kind==='BOSS'){NV.drawSpectralBoss2D(ctx,e,now,player,null);}
+else if(entry.family==='HYDRA'||entry.family.indexOf('SPECTRAL')===0||e.shape==='specter'||e.isElite){NV.drawSpectralEnemy2D(ctx,e,now,player,null);}
+else{NV.drawEnemy(ctx,e,now,player,null);}}
+}catch(err){ctx.fillStyle='#ff6b8a';ctx.font='12px system-ui';ctx.textAlign='center';ctx.fillText('render error',cx,cy);}
+ctx.restore();
+if(hitbox){ctx.save();ctx.strokeStyle=entry.heavy?'rgba(255,178,74,.9)':'rgba(125,211,252,.75)';ctx.lineWidth=1.2;ctx.beginPath();ctx.arc(cx,cy,entry.hitRadius*scale,0,Math.PI*2);ctx.stroke();ctx.fillStyle='rgba(232,242,255,.72)';ctx.font='10px system-ui';ctx.textAlign='left';ctx.fillText('hitbox r='+entry.hitRadius.toFixed(entry.hitRadius!==entry.type.radius?2:0),8,H-8);ctx.restore();}
+}
+var cards=[];
+function rowHTML(k,v){return '<div class="row"><span>'+k+'</span><b>'+v+'</b></div>';}
+function build(){
+sectionsEl.innerHTML='';cards=[];
+var groups=[['NORMAL','Normal — production ENEMY_TYPES'],['ELITE','Elite — production ELITE_TYPES'],['BOSS','Boss — production BOSS_TYPES']];
+groups.forEach(function(g){
+var h=document.createElement('h3');h.className='sec';h.textContent=g[1]+' ('+roster.filter(function(e){return e.kind===g[0];}).length+')';sectionsEl.appendChild(h);
+var grid=document.createElement('div');grid.className='grid';sectionsEl.appendChild(grid);
+roster.forEach(function(entry){
+if(entry.kind!==g[0])return;var t=entry.type;
+var card=document.createElement('section');card.className='card';
+var title=entry.kind==='BOSS'?(t.name+' · boss '+(entry.bossIndex+1)+'/'+NV.BOSS_TYPES.length):((t.name||t.id)+' · '+(t.id||t.visualId));
+card.insertAdjacentHTML('beforeend','<h2>'+title+'</h2><div class="ids">'+(entry.kind==='BOSS'?'BOSS_TYPES['+entry.bossIndex+']':(entry.kind==='ELITE'?'ELITE_TYPES':'ENEMY_TYPES'))+' · visualId '+(t.visualId||t.id||'—')+'</div>');
+var tag='<div><span class="badge">'+entry.kind+'</span><span class="badge">'+(entry.heavy?'HEAVY':'LIGHT')+'</span><span class="badge">'+entry.family+'</span><span class="badge">COST '+entry.cost+'</span>';
+if(entry.kind==='NORMAL')tag+='<span class="badge">HUD-LEGACY:'+(hudLegacy(entry.kind,entry.entity,t)?'YES':'NO')+'</span>';
+tag+='</div>';card.insertAdjacentHTML('beforeend',tag);
+var cv=document.createElement('canvas');cv.className='stage';cv.width=560;cv.height=entry.kind==='BOSS'?240:190;card.appendChild(cv);
+var m='<div class="meta">'+rowHTML('shape',t.shape)+rowHTML('color',t.color)+rowHTML('canonical radius',t.radius);
+if(entry.hitRadius!==t.radius)m+=rowHTML('spawned hitbox radius',entry.hitRadius.toFixed(2));
+m+=rowHTML('hostileClass',t.hostileClass||(entry.heavy?'heavy':'light'))+rowHTML('minWave',t.minWave!=null?t.minWave:'boss wave')+rowHTML('behavior / role',(t.behavior||t.pattern||'—')+(t.attack?' / '+t.attack:''));
+m+=rowHTML('HP / dmg base',t.hp!=null?(t.hp+' / '+t.damage):('boss HP '+t.hp));
+if(t.weight!=null)m+=rowHTML('weight',t.weight);if(t.spectralElite)m+=rowHTML('spectralElite','true');
+var li=labIdx(t.id);if(li==null)li=labIdx(t.visualId);if(li!=null)m+=rowHTML('lab model RB',li+1);
+if(NV.SPECTRAL_ELITE_PROFILES&&entry.entity.visualId&&NV.SPECTRAL_ELITE_PROFILES[entry.entity.visualId])m+=rowHTML('elite profile','yes');
+m+='</div>';card.insertAdjacentHTML('beforeend',m);grid.appendChild(card);
+cards.push({entry:entry,canvas:cv});
+});});
+}
+function updateCounts(){var n=0,l=0,b=0,h=0,hy=0,sp=0,sm=0,vis=0;roster.forEach(function(e){if(e.kind==='NORMAL')n++;if(e.kind==='ELITE')l++;if(e.kind==='BOSS')b++;if(e.heavy)h++;if(e.family==='HYDRA')hy++;if(e.family.indexOf('SPECTRAL')===0)sp++;if(e.family==='SIMPLE-GEOMETRIC')sm++;if(show(e))vis++;});counts.textContent='Production roster: '+n+' NORMAL · '+l+' ELITE · '+b+' BOSS · '+h+' HEAVY · '+hy+' HYDRA · '+sp+' SPECTRAL-LIQUID · '+sm+' SIMPLE-GEOMETRIC · showing '+vis+'/'+roster.length+' · mode '+mode+' · scale '+Math.round(scale*100)+'% preview-only';}
+function paint(now){cards.forEach(function(c){var vis=show(c.entry);c.canvas.parentNode.style.display=vis?'':'none';if(vis)drawInto(c.canvas.getContext('2d'),c.canvas.width,c.canvas.height,c.entry,now);});}
+Array.prototype.forEach.call(document.querySelectorAll('[data-filter]'),function(btn){btn.addEventListener('click',function(){Array.prototype.forEach.call(document.querySelectorAll('[data-filter]'),function(x){x.classList.remove('active');});btn.classList.add('active');filter=btn.getAttribute('data-filter');updateCounts();paint(frame);});});
+document.getElementById('mode').addEventListener('change',function(ev){mode=ev.target.value;paint(frame);updateCounts();});
+document.getElementById('previewScale').addEventListener('change',function(ev){scale=parseFloat(ev.target.value)||1;paint(frame);updateCounts();});
+document.getElementById('toggleAnim').addEventListener('click',function(ev){animate=!animate;ev.target.textContent=animate?'Pause animation':'Resume animation';});
+document.getElementById('toggleHitbox').addEventListener('click',function(ev){hitbox=!hitbox;ev.target.textContent='Hitbox: '+(hitbox?'ON':'OFF');ev.target.classList.toggle('active',hitbox);paint(frame);});
+build();updateCounts();paint(0);
+function loop(ts){requestAnimationFrame(loop);if(!animate)return;var now=Math.floor((ts||0)/33);if(now===last)return;last=now;frame=now;paint(frame);}
+requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
