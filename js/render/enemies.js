@@ -248,61 +248,94 @@
         ctx.restore();
   };
 
+  // Patrón de guiones del tether: constante de módulo (no se reasigna por frame).
+  const HOOK_TETHER_DASH = [14, 7];
+
   // ===== F3: Hook/Pull rendering (Cheap O(1) visuals, world-space) =====
   // Called from game.js world render flow AFTER enemies/player are drawn and
   // BEFORE the world transform is restored. ctx já tiene setTransform(world).
   // Visuales: windup telegraph, hook head + source line, tether source-player line.
-  // No particles, no gradients, no extra render pass.
+  // No particles, no gradients, no extra render pass. Legibilidad mejorada (misma
+  // cota O(1)): lineas mas gruesas/opacas, nucleo de carga en el archer, pua del
+  // gancho orientada por velocidad y tether GUIONADO animado sobre el jugador.
   NV.drawHookEffects = function (ctx, hookSystem, player) {
     if (!hookSystem || !hookSystem.srcEnemy || !player) return;
     const B = NV.BALANCE;
     ctx.save();
     ctx.setLineDash([]);
+    ctx.lineDashOffset = 0;
 
-    // Windup telegraph: linea source->player + arco de carga
+    // Windup telegraph: linea source->player + arco de carga + nucleo que crece.
     if (hookSystem.phase === 'windup') {
       const src = hookSystem.srcEnemy;
       const w = Math.min(1, Math.max(0, 1 - (hookSystem.windupTimer || 0) / B.HOOK_WINDUP_TIME));
-      ctx.strokeStyle = 'rgba(255,178,74,' + (0.35 + w * 0.45).toFixed(3) + ')';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(src.x, src.y);
-      ctx.lineTo(player.x, player.y);
-      ctx.stroke();
       const aa = Math.atan2(player.y - src.y, player.x - src.x);
-      const arcR = (src.radius || 12) + 18 + w * 6;
-      ctx.beginPath();
-      ctx.arc(src.x, src.y, arcR, aa - 0.45, aa + 0.45);
-      ctx.stroke();
-    }
-
-    // Projectile: cabeza del gancho + linea source->projectile
-    if (hookSystem.phase === 'projectile' && hookSystem.projectile) {
-      const p = hookSystem.projectile;
-      const src = hookSystem.srcEnemy;
-      ctx.strokeStyle = 'rgba(255,178,74,0.9)';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      if (src) { ctx.moveTo(src.x, src.y); }
-      ctx.lineTo(p.x, p.y);
-      ctx.stroke();
-      ctx.fillStyle = '#ffb24a';
-      ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI * 2); ctx.fill();
-    }
-
-    // Tether: linea source->player + cabeza en el jugador.
-    // O(1): 1 linea + 1 circulo. Source VIVO (sigue al archer si se mueve).
-    if (hookSystem.phase === 'tether') {
-      const src = hookSystem.srcEnemy;
-      if (!src) return;
-      ctx.strokeStyle = 'rgba(255,178,74,0.8)';
+      ctx.strokeStyle = 'rgba(255,178,74,' + (0.45 + w * 0.45).toFixed(3) + ')';
       ctx.lineWidth = 3;
       ctx.beginPath();
       ctx.moveTo(src.x, src.y);
       ctx.lineTo(player.x, player.y);
       ctx.stroke();
-      ctx.fillStyle = '#ffb24a';
-      ctx.beginPath(); ctx.arc(player.x, player.y, 5, 0, Math.PI * 2); ctx.fill();
+      const arcR = (src.radius || 12) + 16 + w * 10;
+      ctx.beginPath();
+      ctx.arc(src.x, src.y, arcR, aa - 0.55, aa + 0.55);
+      ctx.stroke();
+      // Nucleo de carga: crecimiento monótono con el progreso del windup.
+      ctx.fillStyle = 'rgba(255,210,140,' + (0.5 + w * 0.5).toFixed(3) + ')';
+      ctx.beginPath();
+      ctx.arc(src.x, src.y, 2.5 + w * 5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Projectile: cabeza del gancho + linea source->projectile + pua orientada.
+    if (hookSystem.phase === 'projectile' && hookSystem.projectile) {
+      const p = hookSystem.projectile;
+      const src = hookSystem.srcEnemy;
+      ctx.strokeStyle = 'rgba(255,178,74,0.95)';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      if (src) { ctx.moveTo(src.x, src.y); }
+      ctx.lineTo(p.x, p.y);
+      ctx.stroke();
+      const sp = Math.hypot(p.vx || 0, p.vy || 0) || 1;
+      const ux = (p.vx || 0) / sp, uy = (p.vy || 0) / sp;
+      ctx.beginPath();
+      ctx.moveTo(p.x - ux * 7 - uy * 5, p.y - uy * 7 + ux * 5);
+      ctx.lineTo(p.x, p.y);
+      ctx.lineTo(p.x - ux * 7 + uy * 5, p.y - uy * 7 - ux * 5);
+      ctx.stroke();
+      ctx.fillStyle = '#ffd28c';
+      ctx.beginPath(); ctx.arc(p.x, p.y, 5, 0, Math.PI * 2); ctx.fill();
+    }
+
+    // Tether: linea GUIONADA animada source->player + anillo y chevron en el jugador.
+    // O(1): 1 linea + 1 anillo + 1 chevron. Source VIVO (sigue al archer si se mueve).
+    if (hookSystem.phase === 'tether') {
+      const src = hookSystem.srcEnemy;
+      if (!src) return;
+      const tt = hookSystem.tetherTimer || 0;
+      ctx.strokeStyle = 'rgba(255,178,74,0.95)';
+      ctx.lineWidth = 4;
+      ctx.setLineDash(HOOK_TETHER_DASH);
+      // El offset avanza con la cuenta atrás del tether: el flujo apunta al archer.
+      ctx.lineDashOffset = (tt * 60) % (HOOK_TETHER_DASH[0] + HOOK_TETHER_DASH[1]);
+      ctx.beginPath();
+      ctx.moveTo(src.x, src.y);
+      ctx.lineTo(player.x, player.y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.lineDashOffset = 0;
+      const pr = (player.radius || 20) + 5;
+      ctx.beginPath();
+      ctx.arc(player.x, player.y, pr, 0, Math.PI * 2);
+      ctx.stroke();
+      const pa = Math.atan2(src.y - player.y, src.x - player.x);
+      const cx = Math.cos(pa), cy = Math.sin(pa);
+      ctx.beginPath();
+      ctx.moveTo(player.x + cx * pr - cy * 6, player.y + cy * pr + cx * 6);
+      ctx.lineTo(player.x + cx * (pr + 6), player.y + cy * (pr + 6));
+      ctx.lineTo(player.x + cx * pr + cy * 6, player.y + cy * pr - cx * 6);
+      ctx.stroke();
     }
 
     ctx.restore();

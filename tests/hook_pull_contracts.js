@@ -5,6 +5,7 @@ const fs = require('fs');
 const vm = require('vm');
 
 let pass = 0, fail = 0;
+let testMath = null;
 function t(name, fn) {
   try { fn(); pass++; console.log('  ok  ' + name); }
   catch (error) { fail++; console.log('  FAIL ' + name + ' -> ' + error.message); }
@@ -19,6 +20,7 @@ function load(file, sandbox) {
 function setup() {
   const math = Object.create(Math);
   math.random = function () { return 0.5; };
+  testMath = math;
   const sandbox = { window: { NV: {} }, console, Math: math, Number, Object, Array, Set, Map, JSON };
   load('js/data/balance.js', sandbox);
   load('js/data/gameData.js', sandbox);
@@ -68,6 +70,18 @@ function reserve(NV, typeId, wave) {
   NV.updateEnemies(0, st);
   return { source, hookSystem, st };
 }
+function spawnWithRandom(NV, pool, wave, rnd) {
+  const prev = testMath.random;
+  testMath.random = function () { return rnd; };
+  const out = [];
+  try {
+    NV.spawnEnemy({
+      enemies: out, boss: null, wave, ENEMY_TYPES: pool, W: 800, H: 600, waveEvent: null,
+      MAX_ENEMIES: 30, MAX_HOSTILES: 30, MAX_HEAVY_HOSTILES: 7,
+    });
+  } finally { testMath.random = prev; }
+  return out[0];
+}
 function activeHook(NV, phase, source) {
   const hookSystem = NV.createHookSystem();
   hookSystem.phase = phase;
@@ -90,6 +104,10 @@ const renderSource = fs.readFileSync('js/render/enemies.js', 'utf8');
 
 t('1 Hook unlocks at wave 15', function () {
   if (NV.BALANCE.HOOK_UNLOCK_WAVE !== 15) throw new Error('unlock=' + NV.BALANCE.HOOK_UNLOCK_WAVE);
+  // Presencia del archer (composición): inactiva antes del desbloqueo, activa después.
+  if (NV.hookSourcePresenceMult(14) !== 1) throw new Error('presence active before unlock');
+  if (!(NV.hookSourcePresenceMult(15) > 1)) throw new Error('presence inactive at unlock');
+  if (NV.hookSourcePresenceMult(30) !== NV.BALANCE.HOOK_SOURCE_PRESENCE_MULT) throw new Error('presence cap changed');
 });
 
 t('2 wave 14 cannot reserve Hook', function () {
@@ -105,6 +123,14 @@ t('3 wave 15 can reserve Hook', function () {
 t('4 only specter_archer can Hook', function () {
   const r = reserve(NV, 'specter_archer', 30);
   if (r.hookSystem.srcEnemy !== r.source || r.source.enemyTypeId !== 'specter_archer') throw new Error('archer ownership missing');
+  // La presencia extra es SOLO para el archer: el mismo random elige spitter
+  // antes del desbloqueo y archer después (peso efectivo, no stats).
+  const pool = NV.ENEMY_TYPES.filter(function (type) { return type.id === 'spitter' || type.id === 'specter_archer'; });
+  if (pool.length !== 2) throw new Error('pool incompleto');
+  const before = spawnWithRandom(NV, pool, 14, 0.85);
+  const after = spawnWithRandom(NV, pool, 20, 0.85);
+  if (!before || before.enemyTypeId !== 'spitter') throw new Error('pre-unlock weighting changed: ' + (before && before.enemyTypeId));
+  if (!after || after.enemyTypeId !== 'specter_archer') throw new Error('presence boost not applied: ' + (after && after.enemyTypeId));
 });
 
 t('5 spitter cannot Hook', function () {
@@ -170,6 +196,13 @@ t('12 post-release global lockout = 0.75', function () {
   hs.tether = { srcX: source.x, srcY: source.y };
   NV.breakHookTether(hs);
   near(hs.lockoutTimer, 0.75, 'lockout');
+  // Cadencia (verificación de runtime): el cooldown del source nunca por debajo del
+  // lockout (suelo real del sistema) y el ciclo total dentro de la ventana 2-5s,
+  // con el orden easy > normal > hard intacto.
+  const cdN = NV.hookCooldownForDifficulty('normal');
+  if (cdN < NV.BALANCE.HOOK_GLOBAL_LOCKOUT_POST_RELEASE) throw new Error('cooldown below lockout floor: ' + cdN);
+  if (cdN + NV.BALANCE.HOOK_GLOBAL_LOCKOUT_POST_RELEASE > 5) throw new Error('cadence too slow: ' + cdN);
+  if (!(NV.hookCooldownForDifficulty('hard') < cdN) || !(NV.hookCooldownForDifficulty('easy') > cdN)) throw new Error('difficulty ordering broken');
 });
 
 t('13 projectile hit creates one tether', function () {

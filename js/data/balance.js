@@ -251,14 +251,33 @@
   NV.BALANCE.HOOK_TETHER_MAX_RANGE = 400;
   NV.BALANCE.HOOK_GLOBAL_LOCKOUT_POST_RELEASE = 0.75;
   NV.BALANCE.HOOK_DIRECT_DAMAGE = 0;
+  // F3 visibilidad: el specter_archer es la ÚNICA fuente del Hook y su peso base
+  // (0.12 en gameData) lo dejaba ~8x más raro que los demás roles tácticos (1.0),
+  // así que un jugador podía pasar minutos sin ver un intento. Este multiplicador
+  // solo afecta al PESO EFECTIVO de selección (composición), nunca a stats, minWave
+  // ni al número total de hostiles (soft target/MAX_HOSTILES intactos).
+  NV.BALANCE.HOOK_SOURCE_PRESENCE_FROM_WAVE = 15; // misma oleada que el desbloqueo
+  NV.BALANCE.HOOK_SOURCE_PRESENCE_MULT = 2.5;     // peso efectivo 0.12 -> 0.30
   Object.freeze(NV.BALANCE);
   // Cooldown enemigo-local por dificultad. F3: specter_archer solo.
-  // Llamar con NV.runDifficulty en runtime.
+  // Llamar con NV.runDifficulty en runtime. Ajuste de frecuencia (verificación de
+  // runtime): con un único archer vivo, el ciclo real medido era ~6.4s (cooldown 5
+  // + lockout 0.75 + deferral del ciclo de disparo normal). Bajado a 3.0s en normal
+  // para que el intento entre en la ventana objetivo de 2-5s sin volverse continuo:
+  // el lockout global de 0.75s sigue siendo el suelo real cuando hay >1 archer.
   NV.hookCooldownForDifficulty = function (diffId) {
     const d = NV.difficultyGet(diffId != null ? diffId : (NV.runDifficulty != null ? NV.runDifficulty : 'normal'));
-    if (d.id === 'easy') return 6;
-    if (d.id === 'hard') return 4.25;
-    return 5; // normal + fallback
+    if (d.id === 'easy') return 4.0;
+    if (d.id === 'hard') return 2.25;
+    return 3.0; // normal + fallback
+  };
+  // Multiplicador de peso efectivo del specter_archer (composición, no stats).
+  // 1.0 antes de la oleada de desbloqueo; HOOK_SOURCE_PRESENCE_MULT a partir de ella.
+  // Consumidor único: spawnEnemy (engine/enemies.js). Peso base de datos intacto.
+  NV.hookSourcePresenceMult = function (wave) {
+    const B = NV.BALANCE;
+    const w = Math.max(1, wave || 1);
+    return w >= B.HOOK_SOURCE_PRESENCE_FROM_WAVE ? B.HOOK_SOURCE_PRESENCE_MULT : 1;
   };
   // Factory del hookSystem (game-owned). F3: un juego, un hookSystem.
   // Fases: idle -> windup -> projectile -> tether -> idle (+ lockout).

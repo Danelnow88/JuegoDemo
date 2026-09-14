@@ -77,9 +77,15 @@
       const available = enabledTypes.filter((t) => (t.minWave || 1) <= st.wave);
       const boost = (typeof NV.tacticalWeightBoost === 'function') ? NV.tacticalWeightBoost(st.wave) : 1;
       const tactical = NV.TACTICAL_ENEMY_IDS || {};
+      // F3 presencia: el specter_archer (única fuente del Hook) pesa 0.12 en datos,
+      // ~8x menos que el resto de roles tácticos (1.0); su peso EFECTIVO sube desde
+      // HOOK_UNLOCK_WAVE para que el Hook sea observable. Solo composición: no toca
+      // stats, minWave, fuerza total ni el número de hostiles (soft target intacto).
+      const presence = (typeof NV.hookSourcePresenceMult === 'function') ? NV.hookSourcePresenceMult(st.wave) : 1;
       const effWeight = (t) => {
         const base = (typeof t.weight === 'number') ? t.weight : 1.0;
-        return tactical[t.id] ? base * boost : base;
+        const hookPresence = (t.id === 'specter_archer' && presence > 1) ? presence : 1;
+        return base * hookPresence * (tactical[t.id] ? boost : 1);
       };
       let total = 0;
       for (const t of available) total += effWeight(t);
