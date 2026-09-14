@@ -105,6 +105,45 @@ t('pipeline reporta muerte del jugador', () => {
   if (!r.killed || player.hp !== -5 || r.hpAfter !== -5) throw new Error(JSON.stringify(r));
 });
 
+t('specter_elite_void ranged conserva daño finito desde spawn hasta impacto', () => {
+  const { window: { NV } } = sandbox();
+  const enemies = [];
+  NV.spawnElite({
+    enemies, boss: null, wave: 17, W: 900, H: 520,
+    ELITE_TYPES: NV.ELITE_TYPES.filter((type) => type.id === 'specter_elite_void'),
+    MAX_HOSTILES: 30, MAX_HEAVY_HOSTILES: 7, waveEvent: null,
+  });
+  const source = enemies[0];
+  if (!source || source.enemyTypeId !== 'specter_elite_void') throw new Error('spawn incorrecto');
+  if (!Number.isFinite(source.damage) || source.damage !== source.eliteDamage) throw new Error('damage=' + source.damage + ' eliteDamage=' + source.eliteDamage);
+  const player = { x: 100, y: 100, character: 'boti', hp: 120, maxHp: 120, armor: 0, permDodge: 0, bulwark: 0, invuln: 0, stun: 0 };
+  const bullets = [{ x: 100, y: 100, vx: 0, vy: 0, damage: source.damage, color: source.color, radius: 5, isEnemy: true, dead: false, sourceEnemy: source, sourceType: source.enemyTypeId }];
+  const apply = (base, opts) => NV.applyPlayerDamage(base, damageState(NV, player, Object.assign({}, opts, { allowCrit: false, allowDodge: false })));
+  NV.updateBullets(0, { bullets, W: 900, H: 520, player, enemies: [], boss: null, CHARACTERS: NV.CHARACTERS, SHIELD_COOLDOWN: 1, applyPlayerDamage: apply, addFloatText() {}, killEnemy() {}, applyKnockback() {}, spawnExplosion() {} });
+  if (!Number.isFinite(player.hp) || !Number.isFinite(player.maxHp) || player.maxHp <= 0 || player.hp >= 120) throw new Error('hp=' + player.hp + '/' + player.maxHp);
+});
+
+t('pipeline falla cerrado ante daño o salud no finitos', () => {
+  const { window: { NV } } = sandbox();
+  let player = { character: 'boti', hp: 100, maxHp: 100, armor: 0, permDodge: 0, invuln: 0, x: 0, y: 0 };
+  let r = NV.applyPlayerDamage(undefined, damageState(NV, player, { allowCrit: false, allowDodge: false }));
+  if (!r.killed || r.reason !== 'invalid-damage' || player.hp !== 0 || !Number.isFinite(player.hp)) throw new Error('damage=' + JSON.stringify(r));
+  player = { character: 'boti', hp: NaN, maxHp: Infinity, armor: 0, permDodge: 0, invuln: 1, x: 0, y: 0 };
+  r = NV.applyPlayerDamage(1, damageState(NV, player));
+  if (!r.killed || r.reason !== 'invalid-player-health' || player.hp !== 0 || player.maxHp !== 1) throw new Error('health=' + JSON.stringify(r));
+});
+
+t('mutaciones repetidas permanecen finitas en waves representativas', () => {
+  const { window: { NV } } = sandbox();
+  for (const wave of [1, 5, 10, 20, 30, 40]) {
+    const player = { character: 'boti', hp: 120 + wave, maxHp: 120 + wave, armor: wave % 6, permDodge: 0, invuln: 0, x: 0, y: 0 };
+    for (let i = 0; i < 20 && player.hp > 0; i++) {
+      const r = NV.applyPlayerDamage(3 + wave * 0.5, damageState(NV, player, { allowCrit: false, allowDodge: false }));
+      if (!Number.isFinite(r.damage) || !Number.isFinite(player.hp) || !Number.isFinite(player.maxHp) || player.maxHp <= 0) throw new Error('wave=' + wave + ' i=' + i);
+    }
+  }
+});
+
 t('updateBullets usa pipeline y conserva comportamiento de proyectil', () => {
   const { window: { NV } } = sandbox();
   const player = { x: 100, y: 100, character: 'boti', hp: 20, armor: 0, permDodge: 0, bulwark: 0, invuln: 0, stun: 0 };

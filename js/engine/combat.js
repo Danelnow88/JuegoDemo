@@ -53,6 +53,17 @@
     const player = st.player;
     const cause = st.cause || 'unknown';
     if (!player) return { applied: false, dodged: false, crit: false, damage: 0, killed: false, cause, reason: 'no-player' };
+    if (player.maxHp == null && Number.isFinite(player.hp)) player.maxHp = Math.max(1, player.hp);
+    if (!Number.isFinite(player.maxHp) || player.maxHp <= 0 || !Number.isFinite(player.hp)) {
+      const hpBefore = player.hp;
+      if (!Number.isFinite(player.maxHp) || player.maxHp <= 0) player.maxHp = 1;
+      player.hp = 0;
+      return {
+        applied: true, dodged: false, crit: false,
+        damage: Number.isFinite(hpBefore) ? Math.max(0, hpBefore) : player.maxHp,
+        hpBefore, hpAfter: player.hp, killed: true, cause, reason: 'invalid-player-health',
+      };
+    }
     if (st.respectInvulnerability !== false && player.invuln > 0) {
       return { applied: false, dodged: false, crit: false, damage: 0, hpBefore: player.hp, hpAfter: player.hp, killed: player.hp <= 0, cause, reason: 'invulnerable' };
     }
@@ -69,6 +80,15 @@
     }
     const damage = hit.dmg;
     const hpBefore = player.hp;
+    if (!Number.isFinite(damage)) {
+      player.hp = 0;
+      const result = {
+        applied: true, dodged: false, crit: false, damage: Math.max(0, hpBefore),
+        hpBefore, hpAfter: player.hp, killed: true, cause, reason: 'invalid-damage',
+      };
+      if (st.onPlayerDamaged) st.onPlayerDamaged(Object.assign({}, st.event || {}, result));
+      return result;
+    }
     player.hp -= damage;
     const result = {
       applied: true, dodged: false, crit: !!hit.crit, damage,

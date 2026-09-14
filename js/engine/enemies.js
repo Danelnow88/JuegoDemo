@@ -164,6 +164,7 @@
       const side = Math.random() < 0.5 ? 0 : st.W;
       const y = 80 + Math.random() * (st.H - 200);
       const eliteDmg = elite.damage + Math.min(80, Math.round(st.wave * 2));
+      const scaledEliteDamage = eliteDmg * 0.80 * getDiffMult("dmg");
       // Down-scale líquido: la élite adapta su hitbox al factor del modelo que
       // la dibuja (id para las espectrales, visualId para las base). El ratio
       // uniforme del modelo 5 preserva la jerarquía relativa entre élites.
@@ -182,7 +183,7 @@
         behavior: elite.behavior, angle: Math.random() * Math.PI * 2,
         hostileClass: 'heavy',
         movementClass: elite.movementClass || (NV.enemyMovementClass ? NV.enemyMovementClass(elite) : ((elite.behavior === 'kami' || elite.speed >= 150) ? 'fast' : (elite.speed <= 70 ? 'slow' : 'normal'))),
-        erraticTimer: 0, isElite: true, eliteDamage: eliteDmg * 0.80 * getDiffMult("dmg"), hitFlash: 0, hitSlowUntil: 0, hitSlowImmunity: 0, erraticTargetAngle: Math.random() * Math.PI * 2,
+        erraticTimer: 0, isElite: true, damage: scaledEliteDamage, eliteDamage: scaledEliteDamage, hitFlash: 0, hitSlowUntil: 0, hitSlowImmunity: 0, erraticTargetAngle: Math.random() * Math.PI * 2,
         knockbackRes: 0.3, knockVelX: 0, knockVelY: 0, shootTimer: 0,
         stunChance: elite.stunChance || 0, resist: elite.resist || 0,
       };
