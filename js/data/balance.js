@@ -111,6 +111,16 @@
     WEAPON_PROGRESS_CAP: 3,            // máx ~3 puntos de progreso por derribo
     WEAPON_MAX_LEVEL: 100,             // tope duro de nivel de arma (pico de poder)
 
+    // ===== F4: stun/disrupción del jugador (sistema central, anti-stunlock) =====
+    // Duración por defecto cuando la fuente no define la suya (familias boss
+    // comunes y proyectiles sin metadato propio). Las duraciones por fuente
+    // viven junto al stunChance de cada enemigo/familia de ataque.
+    PLAYER_STUN_DEFAULT_DURATION: 0.5,
+    // Anti-stunlock: tras un stun exitoso, NINGÚN intento adicional (de
+    // cualquier fuente) puede aplicar/extender/resetear stun durante este
+    // lockout global. El daño normal de esos ataques SIEMPRE aplica.
+    PLAYER_STUN_REAPPLY_LOCKOUT: 1.5,
+
     // Duración de oleada normal (segundos, cuenta regresiva): 25 - wave*0.4, piso 15.
     // ÚNICA fuente de verdad: nextWave y la barra de progreso leen de acá.
     WAVE_TIME_BASE: 25,

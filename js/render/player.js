@@ -210,6 +210,16 @@
       ctx.shadowBlur = 0;
     }
 
+    // F4: cue claro de stun activo. Un solo trazo amarillo (sin shadowBlur,
+    // sin gradientes, misma pasada de render) complementa el blink existente.
+    if (player.stun > 0) {
+      ctx.strokeStyle = '#ff0';
+      ctx.globalAlpha = 0.85;
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(0, 0, char.size + 11, 0, Math.PI * 2); ctx.stroke();
+      ctx.globalAlpha = invulnBlink ? 0.4 : 1;
+    }
+
     // F09.4: el aura pulsante genérica alrededor del jugador fue ELIMINADA.
     // Era el contorno redundante visible en gameplay y en el preview del
     // lobby (se confundía con el indicador de cooldown de la habilidad).

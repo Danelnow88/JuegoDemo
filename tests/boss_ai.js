@@ -38,20 +38,26 @@ t('IA predictiva: predictAim adelanta el punto de mira con jugador en movimiento
   if (Math.abs(aMove - aStill) < 0.01) throw new Error('lead insignificante');
 });
 
-t('spawnBossProj aplica stun por disparo (heavy 0.25 / bomb 0.3 / beam 0.35)', () => {
+t('spawnBossProj aplica stun por disparo (heavy 0.30 / bomb 0.35 / beam 0.40) + duración', () => {
   function fire(attack) {
     const b = mkBoss({ attack });
     const st = mkSt();
-    NV.spawnBossProj(b, 400, 40, 1, 0, undefined, undefined, st, attack === 'heavy' ? 0.25 : attack === 'bomb' ? 0.3 : 0.35);
-    return st.bullets[0].stunChance;
+    NV.spawnBossProj(b, 400, 40, 1, 0, undefined, undefined, st,
+      attack === 'heavy' ? 0.30 : attack === 'bomb' ? 0.35 : 0.40,
+      attack === 'heavy' ? 0.55 : attack === 'bomb' ? 0.60 : 0.65);
+    return { chance: st.bullets[0].stunChance, duration: st.bullets[0].stunDuration };
   }
-  if (fire('heavy') !== 0.25) throw new Error('heavy stun');
-  if (fire('bomb') !== 0.3) throw new Error('bomb stun');
-  if (fire('beam') !== 0.35) throw new Error('beam stun');
-  // sin stun explícito usa el del jefe (o 0)
+  const heavy = fire('heavy');
+  if (heavy.chance !== 0.30 || heavy.duration !== 0.55) throw new Error('heavy stun: ' + JSON.stringify(heavy));
+  const bomb = fire('bomb');
+  if (bomb.chance !== 0.35 || bomb.duration !== 0.60) throw new Error('bomb stun: ' + JSON.stringify(bomb));
+  const beam = fire('beam');
+  if (beam.chance !== 0.40 || beam.duration !== 0.65) throw new Error('beam stun: ' + JSON.stringify(beam));
+  // sin stun explícito usa el del jefe (o 0); duración default 0.5
   const b2 = mkBoss({ stunChance: 0.1 }), st2 = mkSt();
   NV.spawnBossProj(b2, 400, 10, 1, 0, undefined, undefined, st2);
   if (st2.bullets[0].stunChance !== 0.1) throw new Error('fallback al stun del jefe roto');
+  if (st2.bullets[0].stunDuration !== 0.5) throw new Error('duración default ausente');
 });
 
 t('IA adaptativa: summoner invoca salvo arena llena; remata si jugador herido y cerca; presiona a distancia', () => {

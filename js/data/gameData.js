@@ -148,7 +148,7 @@
     { id: 'tank', name: 'TANQUE', hp: 60, speed: 40, radius: 20, color: '#ef9d49', shape: 'hex', score: 30, xp: 35, behavior: 'chase', knockbackRes: 0.8, damage: 18, minWave: 3, resist: 3 },
     { id: 'shielder', name: 'ESCUDO', hp: 35, speed: 65, radius: 14, color: '#caa7ff', shape: 'diamond', score: 25, xp: 30, behavior: 'shield', knockbackRes: 0.6, damage: 8, minWave: 6, shield: true },
     { id: 'swarmlet', name: 'ENJAMBITO', hp: 10, speed: 115, radius: 7, color: '#22d3ee', shape: 'atom', score: 8, xp: 8, behavior: 'swarm', knockbackRes: 0.1, damage: 8, minWave: 9 },
-    { id: 'spitter', name: 'ESCOPURAS', hp: 22, speed: 50, radius: 13, color: '#6dc4c0', shape: 'rock', score: 18, xp: 25, behavior: 'ranged', knockbackRes: 0.4, damage: 15, minWave: 12, stunChance: 0.2 },
+    { id: 'spitter', name: 'ESCOPURAS', hp: 22, speed: 50, radius: 13, color: '#6dc4c0', shape: 'rock', score: 18, xp: 25, behavior: 'ranged', knockbackRes: 0.4, damage: 15, minWave: 12, stunChance: 0.5, stunDuration: 0.45 },
     { id: 'wisp', name: 'ESPÍRITU', hp: 12, speed: 160, radius: 6, color: '#4ade80', shape: 'dot', score: 6, xp: 6, behavior: 'erratic', knockbackRes: 0.2, damage: 6, minWave: 15 },
     { id: 'kamikaze', name: 'KAMIKAZE', hp: 20, speed: 125, radius: 10, color: '#ff5f3d', shape: 'triangle', score: 22, xp: 22, behavior: 'kami', knockbackRes: 0.2, damage: 14, minWave: 10 },
 
@@ -179,13 +179,13 @@
     { name: 'TANQUE', hp: 160, speed: 35, radius: 30, color: '#f80', shape: 'rock', score: 60, xp: 60, behavior: 'chase', damage: 25, resist: 3, visualId: 'elite_bulwark' },
     { name: 'ASESINO', hp: 55, speed: 165, radius: 12, color: '#f0f', shape: 'diamond', score: 40, xp: 40, behavior: 'chase', damage: 30, visualId: 'elite_predator' },
     { name: 'FANTASMA', hp: 65, speed: 145, radius: 16, color: '#e0ffff', shape: 'circle', score: 45, xp: 45, behavior: 'erratic', damage: 25, visualId: 'elite_phantom' },
-    { name: 'GOLIATH', hp: 210, speed: 25, radius: 36, color: '#ff1493', shape: 'rock', score: 100, xp: 100, behavior: 'chase', damage: 35, stunChance: 0.15, resist: 3, visualId: 'elite_titan' },
+    { name: 'GOLIATH', hp: 210, speed: 25, radius: 36, color: '#ff1493', shape: 'rock', score: 100, xp: 100, behavior: 'chase', damage: 35, stunChance: 0.35, stunDuration: 0.55, resist: 3, visualId: 'elite_titan' },
     { name: 'VELOCITY', hp: 40, speed: 220, radius: 10, color: '#00ff88', shape: 'dot', score: 35, xp: 35, behavior: 'chase', damage: 18, visualId: 'elite_swift' },
 
     // === ÉLITES ESPECTRALES (minWave + weight, raros) ===
     // spectralElite: spawnElite los selecciona ponderado SOLO desde su minWave.
     // El resto de élites mantiene su ciclo original intacto (sin tocar mecánicas).
-    { id: 'specter_elite_void', name: 'ESPECTRO VACÍO', hp: 95, speed: 70, radius: 18, color: '#9b4dff', shape: 'circle', score: 95, xp: 95, behavior: 'ranged', damage: 24, minWave: 16, weight: 0.03, visualId: 'elite_specter_void', spectralElite: true, knockbackRes: 0.4, stunChance: 0.1 },
+    { id: 'specter_elite_void', name: 'ESPECTRO VACÍO', hp: 95, speed: 70, radius: 18, color: '#9b4dff', shape: 'circle', score: 95, xp: 95, behavior: 'ranged', damage: 24, minWave: 16, weight: 0.03, visualId: 'elite_specter_void', spectralElite: true, knockbackRes: 0.4, stunChance: 0.35, stunDuration: 0.5 },
   ];
   for (const type of NV.ELITE_TYPES) type.hostileClass = 'heavy';
 

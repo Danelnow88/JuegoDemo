@@ -126,7 +126,7 @@
       damage: ((type.damage || 10) + dmgScale) * 0.80 * getDiffMult("dmg") * (NV.roleDmgMult ? NV.roleDmgMult(type.id) : 1), shield: type.shield || false, shieldCd: 0, resist: type.resist || 0,
       hitFlash: 0, hitSlowUntil: 0, hitSlowImmunity: 0,
       erraticTargetAngle: Math.random() * Math.PI * 2,
-      shootTimer: 0, stunChance: type.stunChance || 0,
+      shootTimer: 0, stunChance: type.stunChance || 0, stunDuration: type.stunDuration || 0,
     });
     // Traza de spawn para los espectros (nuevos y legacy WebGL) en consola.
     if (type.id && type.id.indexOf('specter_') === 0) {
@@ -185,7 +185,7 @@
         movementClass: elite.movementClass || (NV.enemyMovementClass ? NV.enemyMovementClass(elite) : ((elite.behavior === 'kami' || elite.speed >= 150) ? 'fast' : (elite.speed <= 70 ? 'slow' : 'normal'))),
         erraticTimer: 0, isElite: true, damage: scaledEliteDamage, eliteDamage: scaledEliteDamage, hitFlash: 0, hitSlowUntil: 0, hitSlowImmunity: 0, erraticTargetAngle: Math.random() * Math.PI * 2,
         knockbackRes: 0.3, knockVelX: 0, knockVelY: 0, shootTimer: 0,
-        stunChance: elite.stunChance || 0, resist: elite.resist || 0,
+        stunChance: elite.stunChance || 0, stunDuration: elite.stunDuration || 0, resist: elite.resist || 0,
       };
       // Metadatos para render espectral (solo cuando el tipo define id).
       if (elite.id) pushed.enemyTypeId = elite.id;
@@ -787,7 +787,7 @@
             const ty0 = (e.spitAimY != null ? e.spitAimY : st.player.y);
             const ang = Math.atan2(ty0 - e.y, tx0 - e.x);
             if (bullets.length < MAX_BULLETS && st.enemyBulletCount() < MAX_ENEMY_BULLETS)
-              bullets.push({ x: e.x, y: e.y, vx: Math.cos(ang) * SPIT_BULLET_SPEED, vy: Math.sin(ang) * SPIT_BULLET_SPEED, damage: e.damage, color: e.color, isEnemy: true, dead: false, sourceEnemy: e, sourceType: e.enemyTypeId || 'ranged' });
+              bullets.push({ x: e.x, y: e.y, vx: Math.cos(ang) * SPIT_BULLET_SPEED, vy: Math.sin(ang) * SPIT_BULLET_SPEED, damage: e.damage, color: e.color, isEnemy: true, dead: false, stunChance: e.stunChance || 0, stunDuration: e.stunDuration || 0, sourceEnemy: e, sourceType: e.enemyTypeId || 'ranged' });
             e.shootTimer = 0;
             e.spitFired = true;
           };
@@ -909,7 +909,7 @@
 
             const d = Math.hypot(e.x - st.player.x, e.y - st.player.y);
       const inContact = d < e.radius + 20;
-      if (inContact && st.player.invuln <= 0 && st.player.stun <= 0 && (e.contactCd || 0) <= 0) {
+      if (inContact && st.player.invuln <= 0 && (e.contactCd || 0) <= 0) {
         const baseDmg = e.isElite ? (e.eliteDamage || 0) : e.damage;
         const hit = applyPlayerDamage(baseDmg, { cause: 'contact', enemy: e });
         if (hit.dodged) {
@@ -929,7 +929,9 @@
           // golpes entre enemigos que rodean al jugador.
           e.dead = true;
           if (st.onKill) st.onKill(e);
-          if (e.stunChance && Math.random() < e.stunChance) { st.player.stun = 0.6; addFloatText(st.player.x, st.player.y - 30, 'STUN', '#ff0'); }
+          // F4: stun central (roll único + anti-stunlock). El stun NO bloqueó el
+          // daño de contacto (la puerta de arriba ya no exige stun <= 0).
+          if (NV.tryApplyPlayerStun) NV.tryApplyPlayerStun(st.player, e.stunDuration || 0, e.stunChance || 0, e, { addFloatText });
           shake = Math.max(shake, hit.crit ? 0.3 : 0.15);
           if (hit.killed) { gameOver = true; return { enemies: enemies.filter((x) => !x.dead), shake, gameOver }; }
         }

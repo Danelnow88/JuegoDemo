@@ -204,11 +204,17 @@
             b.pierce = 1;
             continue;
           }
-          if (player.invuln <= 0 && player.stun <= 0) {
+          if (player.invuln <= 0) {
             b.dead = true;
             const hit = applyPlayerDamage(b.damage, { cause: 'projectile', projectile: b });
             if (hit.applied) {
-              if (b.stunChance && Math.random() < b.stunChance) { player.stun = 0.6; addFloatText(player.x, player.y - 30, 'STUN', '#ff0'); }
+              // F4: stun central (roll único + anti-stunlock). El stun NO es
+              // invulnerabilidad: la puerta de arriba ya no exige stun <= 0,
+              // así que el proyectil siempre daña (respetando invuln/armor).
+              const stunRes = NV.tryApplyPlayerStun
+                ? NV.tryApplyPlayerStun(player, b.stunDuration || (NV.BALANCE && NV.BALANCE.PLAYER_STUN_DEFAULT_DURATION) || 0.5, b.stunChance || 0, b, { addFloatText })
+                : { applied: false };
+              if (stunRes.applied) shake = Math.max(shake, 0.2);
               shake = Math.max(shake, hit.crit ? 0.3 : 0.1);
               if (hit.killed) { over = true; break; }
             }

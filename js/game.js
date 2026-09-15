@@ -1171,7 +1171,7 @@
     player.luck = (char.stats.luck || 0) + permUpgrades.luck * 10;
     player.permCrit = permUpgrades.crit || 0; player.permDodge = permUpgrades.dodge || 0;
     player.permRegen = permUpgrades.regen || 0; player.permGreed = permUpgrades.greed || 0;
-    player.specialCd = 0; player.invuln = 0; player.overdrive = 0; player.stun = 0;
+    player.specialCd = 0; player.invuln = 0; player.overdrive = 0; player.stun = 0; player.stunReapplyLockout = 0;
     player.moveVx = 0; player.moveVy = 0; combatIntent.dashIntent = false; player.agility = 1;
     player.xp = 0; player.level = 1; player.xpToNext = 100;
 
@@ -1229,7 +1229,7 @@
       const bt = BOSS_TYPES[bossIndex];
                   // HP cuadrático en la oleada y durabilidad global: peleas largas y con peso.
                   const bossHp = Math.round((bt.hp + wave * wave * 12 + wave * 40) * 1.8 * ((typeof NV.difficultySafeMult === "function") ? NV.difficultySafeMult("hp") : 1));
-                  const bossCandidate = { x: arenaW()/2, y: 100, hp: bossHp, maxHp: bossHp, radius: bt.radius, color: bt.color, timer: 0, atkTimer: 0, hitFlash: 0, hitSlowUntil: 0, hitSlowImmunity: 0, name: bt.name, pattern: bt.pattern, attack: bt.attack, shape: bt.shape, isBoss: true, hostileClass: 'heavy' };
+                  const bossCandidate = { x: arenaW()/2, y: 100, hp: bossHp, maxHp: bossHp, radius: bt.radius, color: bt.color, timer: 0, atkTimer: 0, hitFlash: 0, hitSlowUntil: 0, hitSlowImmunity: 0, name: bt.name, pattern: bt.pattern, attack: bt.attack, shape: bt.shape, isBoss: true, hostileClass: 'heavy', stunChance: bt.stunChance || 0 };
                   boss = NV.canSpawnBoss({ enemies, boss: null, MAX_HOSTILES, MAX_HEAVY_HOSTILES }) ? bossCandidate : null;
       if (!boss) return;
       showBanner('¡' + bt.name + '!', bt.color);
@@ -1281,6 +1281,7 @@
     bullets = [];
     flameZones = [];
     if (hookSystem && typeof NV.resetHookSystem === 'function') NV.resetHookSystem(hookSystem); // F3: cleanup hook en wave_end
+    player.stun = 0; player.stunReapplyLockout = 0; // F4: sin stun residual entre oleadas
     state = 'wave_end';
     presentation.kind = 'wave_end';
     presentation.elapsed = 0;
@@ -1789,6 +1790,7 @@
     if (state === 'player_dying' || state === 'gameover') return false;
     clearCombatIntent();
     if (hookSystem && typeof NV.resetHookSystem === 'function') NV.resetHookSystem(hookSystem); // F3: cleanup hook en gameover
+    player.stun = 0; player.stunReapplyLockout = 0; // F4: la muerte no deja stun residual
     state = 'player_dying';
     if (NV.clearHazards) NV.clearHazards(hazards, minefieldState); else hazards = [];
     bullets = [];
@@ -1837,6 +1839,7 @@
     NV.input.setFire(false);
     combatIntent.dashIntent = false;
     if (hookSystem && typeof NV.resetHookSystem === 'function') NV.resetHookSystem(hookSystem); // F3: cleanup hook en shop_enter
+    player.stun = 0; player.stunReapplyLockout = 0; // F4: sin stun residual al entrar a la tienda
     if (NV.clearHazards) NV.clearHazards(hazards, minefieldState); else hazards = [];
     state = 'shop_enter';
     presentation.kind = 'shop_enter';
@@ -1998,6 +2001,8 @@
     if (player.invuln > 0) { player.invuln -= dt; if (player.invuln < 0) player.invuln = 0; }
     updateDamageReadability(dt);
     if (player.stun > 0) { player.stun = Math.max(0, player.stun - dt); }
+    // F4: el lockout anti-stunlock ticlea por dt igual que el stun (pausa lo congela).
+    if (player.stunReapplyLockout > 0) { player.stunReapplyLockout = Math.max(0, player.stunReapplyLockout - dt); }
     if (player.phase) { player.phase -= dt; if (player.phase <= 0) { player.phase = 0; player.invuln = 0; detonatePhase(); } }
     if (player.bulwark > 0) { player.bulwark -= dt; if (player.bulwark < 0) player.bulwark = 0; }
     if (player.shield > 0) { player.shield -= dt; if (player.shield < 0) player.shield = 0; }
@@ -2292,8 +2297,10 @@
   }
 
   // === PROYECTILES Y ATAQUES DISTINTOS POR JEFE ===
-  function spawnBossProj(b, speed, damage, count, spread, color, radius) {
-    return NV.spawnBossProj(b, speed, damage, count, spread, color, radius, { player, bullets, MAX_BULLETS, enemyBulletCount, MAX_ENEMY_BULLETS });
+  // F4: forward de stun/stunDuration (antes se descartaban y el stun de jefes
+  // nunca llegaba a producción). El roll sigue en tryApplyPlayerStun (impacto).
+  function spawnBossProj(b, speed, damage, count, spread, color, radius, _stArg, stun, stunDuration) {
+    return NV.spawnBossProj(b, speed, damage, count, spread, color, radius, { player, bullets, MAX_BULLETS, enemyBulletCount, MAX_ENEMY_BULLETS }, stun, stunDuration);
   }
 
   // Esbirros invocados (funciona incluso durante la pelea con un jefe)

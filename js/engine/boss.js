@@ -35,15 +35,19 @@
   };
 
   // ---- Proyectil del jefe (puntería predictiva, salida debajo del cuerpo; stun opcional por disparo) ----
-  NV.spawnBossProj = function (b, speed, damage, count, spread, color, radius, st, stun) {
+  // F4: el stunDuration viaja en la bala; si el ataque no define el suyo, usa el
+  // default de balance (familias comunes = 0.5s). El roll de chance NO ocurre
+  // aquí: lo resuelve tryApplyPlayerStun en el impacto (roll único).
+  NV.spawnBossProj = function (b, speed, damage, count, spread, color, radius, st, stun, stunDuration) {
     if (!b) return;
     const cnt = count || 1;
     const baseAngle = NV.predictAim(b, st, speed);
     const spreadA = spread || 0;
     const sc = (stun !== undefined ? stun : b.stunChance) || 0;
+    const sd = stunDuration !== undefined ? stunDuration : (NV.BALANCE && NV.BALANCE.PLAYER_STUN_DEFAULT_DURATION) || 0.5;
     for (let i = 0; i < cnt && st.bullets.length < st.MAX_BULLETS && st.enemyBulletCount() < st.MAX_ENEMY_BULLETS; i++) {
       const a = cnt > 1 ? baseAngle + (i - (cnt - 1) / 2) * spreadA : baseAngle;
-      st.bullets.push({ x: b.x, y: b.y + 40, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, damage: damage, color: color || b.color, radius: radius || 5, isEnemy: true, dead: false, stunChance: sc, sourceEnemy: b, sourceType: 'boss' });
+      st.bullets.push({ x: b.x, y: b.y + 40, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, damage: damage, color: color || b.color, radius: radius || 5, isEnemy: true, dead: false, stunChance: sc, stunDuration: sd, sourceEnemy: b, sourceType: 'boss' });
     }
   };
 
@@ -90,14 +94,14 @@
   NV.runBossAttack = function (b, dt, st) {
     b.atkTimer = (b.atkTimer || 0) + dt;
     const s = b.attack;
-    const proj = (speed, damage, count, spread, color, radius, stun) => st.spawnBossProj(b, speed, damage, count, spread, color, radius, st, stun);
+    const proj = (speed, damage, count, spread, color, radius, stun, stunDuration) => st.spawnBossProj(b, speed, damage, count, spread, color, radius, st, stun, stunDuration);
     const minion = st.spawnMinion;
     switch (s) {
       case 'repeater':
         if (b.atkTimer >= 0.22) { st.sfx.bossAttack.repeater(); proj(360, 13); b.atkTimer = 0; }
         break;
       case 'heavy':
-        if (b.atkTimer >= 1.35) { st.sfx.bossAttack.heavy(); proj(420, 42, 1, 0, undefined, undefined, 0.25); b.atkTimer = 0; } // golpe pesado: aturde a veces
+        if (b.atkTimer >= 1.35) { st.sfx.bossAttack.heavy(); proj(420, 42, 1, 0, undefined, undefined, 0.30, 0.55); b.atkTimer = 0; } // golpe pesado: stun 0.30 / 0.55s (F4)
         break;
       case 'summon':
         if (b.atkTimer >= 2.6 && st.enemies.length < 26) {
@@ -117,13 +121,13 @@
           for (let i = 0; i < cnt; i++) {
             const a = b.spiralOff + (i / cnt) * Math.PI * 2;
             if (st.bullets.length >= st.MAX_BULLETS || st.enemyBulletCount() >= st.MAX_ENEMY_BULLETS) break;
-            st.bullets.push({ x: b.x, y: b.y + 40, vx: Math.cos(a) * 260, vy: Math.sin(a) * 260, damage: 18, color: b.color, radius: 5, isEnemy: true, dead: false, sourceEnemy: b, sourceType: 'boss' });
+            st.bullets.push({ x: b.x, y: b.y + 40, vx: Math.cos(a) * 260, vy: Math.sin(a) * 260, damage: 18, color: b.color, radius: 5, isEnemy: true, dead: false, stunChance: b.stunChance || 0, stunDuration: (NV.BALANCE && NV.BALANCE.PLAYER_STUN_DEFAULT_DURATION) || 0.5, sourceEnemy: b, sourceType: 'boss' });
           }
           b.atkTimer = 0;
         }
         break;
       case 'beam':
-        if (b.atkTimer >= 3.6) { st.sfx.bossAttack.beam(); proj(560, 44, 1, 0, '#ff5f9b', 9, 0.35); b.atkTimer = 0; b.beamWarned = false; } // láser cargado: stun alto
+        if (b.atkTimer >= 3.6) { st.sfx.bossAttack.beam(); proj(560, 44, 1, 0, '#ff5f9b', 9, 0.40, 0.65); b.atkTimer = 0; b.beamWarned = false; } // láser cargado: stun 0.40 / 0.65s (F4)
         else if (b.atkTimer >= 3.1 && !b.beamWarned) {
           b.beamWarned = true; st.triggerFlash('#ff5f9b');
           st.addFloatText(b.x, b.y - 60, '¡CARGANDO LÁSER!', '#ff5f9b');
@@ -136,13 +140,13 @@
         }
         break;
       case 'bomb':
-        if (b.atkTimer >= 1.6) { st.sfx.bossAttack.bomb(); proj(200, 34, 1, 0, undefined, undefined, 0.3); b.atkTimer = 0; } // bomba: stun al impactar
+        if (b.atkTimer >= 1.6) { st.sfx.bossAttack.bomb(); proj(200, 34, 1, 0, undefined, undefined, 0.35, 0.60); b.atkTimer = 0; } // bomba: stun 0.35 / 0.60s (F4)
         break;
       case 'orbs':
         if (b.atkTimer >= 1.1) {
           st.sfx.bossAttack.orbs();
           const a = Math.atan2(st.player.y - b.y, st.player.x - b.x) + (Math.random() - 0.5) * 0.4;
-          if (st.bullets.length < st.MAX_BULLETS && st.enemyBulletCount() < st.MAX_ENEMY_BULLETS) st.bullets.push({ x: b.x, y: b.y + 40, vx: Math.cos(a) * 300, vy: Math.sin(a) * 300, damage: 18, color: '#e0ffff', radius: 5, isEnemy: true, dead: false, sourceEnemy: b, sourceType: 'boss' });
+          if (st.bullets.length < st.MAX_BULLETS && st.enemyBulletCount() < st.MAX_ENEMY_BULLETS) st.bullets.push({ x: b.x, y: b.y + 40, vx: Math.cos(a) * 300, vy: Math.sin(a) * 300, damage: 18, color: '#e0ffff', radius: 5, isEnemy: true, dead: false, stunChance: b.stunChance || 0, stunDuration: (NV.BALANCE && NV.BALANCE.PLAYER_STUN_DEFAULT_DURATION) || 0.5, sourceEnemy: b, sourceType: 'boss' });
           b.atkTimer = 0;
         }
         break;
