@@ -56,7 +56,7 @@ t('fondo de tienda con profundidad: grid isométrico, partículas y línea de es
 t('micro feedback de compra existe sin cambiar reglas de compra', () => {
   if (!css.includes('@keyframes buy-confirm')) throw new Error('sin destello de compra');
   if (!game.includes("el.classList.add('just-bought')")) throw new Error('compra no marca just-bought');
-  if (!game.includes('if (shards >= item.price)')) throw new Error('validación de shards alterada/ausente');
+  if (!game.includes('if (shards < item.price)')) throw new Error('validación de shards alterada/ausente');
   if (!game.includes('if (item.disabled)')) throw new Error('disabled no se respeta');
 });
 

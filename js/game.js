@@ -654,6 +654,24 @@
   // === DOM ELEMENTS ===
   const dom = NV.dom;
 
+  const SHOP_BALANCE_INSUFFICIENT_CLASS = 'shop-balance-insufficient';
+
+  function clearShopBalanceFeedback() {
+    if (!dom.shopShards) return;
+    dom.shopShards.classList.remove(SHOP_BALANCE_INSUFFICIENT_CLASS);
+    dom.shopShards.onanimationend = null;
+  }
+
+  function restartShopBalanceFeedback() {
+    if (!dom.shopShards) return;
+    dom.shopShards.classList.remove(SHOP_BALANCE_INSUFFICIENT_CLASS);
+    void dom.shopShards.offsetWidth;
+    dom.shopShards.classList.add(SHOP_BALANCE_INSUFFICIENT_CLASS);
+    dom.shopShards.onanimationend = (event) => {
+      if (event.animationName === 'shop-balance-insufficient') clearShopBalanceFeedback();
+    };
+  }
+
   function updateLobbyHeroInfo() {
     const char = CHARACTERS[player.character];
     if (!char || typeof document === 'undefined') return;
@@ -1379,6 +1397,7 @@
     consumableBought = {}; // el tope de consumibles es por visita a la tienda
     invSwapSel = -1;
     updateHUD(); // La habilidad no debe seguir pulsando fuera del combate.
+    clearShopBalanceFeedback();
     dom.shopShards.textContent = shards;
     if (dom.shopWave) dom.shopWave.textContent = wave + 1;
     if (dom.shopNextWave) dom.shopNextWave.textContent = wave + 1;
@@ -1797,34 +1816,38 @@
       const priceHtml = item.disabled ? item.disabledReason : ('◆ ' + item.price);
       const badgeHtml = item.badge ? '<div class="offer-badge">' + item.badge + '</div>' : '';
       el.innerHTML = iconHtml + '<div class="offer-name">' + item.name + "</div><div class=\"offer-desc\">" + item.desc + "</div>" + badgeHtml + "<div class='offer-price'>" + priceHtml + "</div>";
-      el.addEventListener("click", () => {
-        if (item.disabled) {
-          addFloatText(arenaW()/2, arenaH()/2, item.disabledReason || 'Límite alcanzado', '#ff5f9b');
-          return;
-        }
-        if (shards >= item.price) {
-          shards -= item.price;
-          const ok = item.buy();
-          if (ok === false) {
-            // Invariante: una compra inválida NUNCA cobra ni muta estado.
-            shards += item.price;
-            addFloatText(arenaW()/2, arenaH()/2, item.disabledReason || 'Compra no completada', '#ff5f9b');
-            return;
-          }
-          el.classList.add('just-bought');
-          dom.shopShards.textContent = shards;
-          setTimeout(() => { generateOffers(); updateHUD(); renderInventory(); }, 180);
-          if (!item.weapon) sfx.shopBuy();
-        } else {
-          addFloatText(arenaW()/2, arenaH()/2, "Fragmentos insuficientes", "#ff5f9b");
-        }
-      });
+      el.addEventListener("click", () => handleShopPurchase(item, el));
       container.appendChild(el);
       const c = el.querySelector("canvas");
       if (c && item.weapon) drawWeaponCanvas(c, item.weapon, 64, 50);
       if (c && item.consumableType) drawConsumableCanvas(c, item.consumableType, 64, 48);
       if (c && item.metaIcon) drawMetaSkillCanvas(c, item.metaIcon, 64, 48);
     });
+  }
+
+  function handleShopPurchase(item, el) {
+    if (item.disabled) {
+      addFloatText(arenaW()/2, arenaH()/2, item.disabledReason || 'Límite alcanzado', '#ff5f9b');
+      return false;
+    }
+    if (shards < item.price) {
+      restartShopBalanceFeedback();
+      return false;
+    }
+    clearShopBalanceFeedback();
+    shards -= item.price;
+    const ok = item.buy();
+    if (ok === false) {
+      // Invariante: una compra inválida NUNCA cobra ni muta estado.
+      shards += item.price;
+      addFloatText(arenaW()/2, arenaH()/2, item.disabledReason || 'Compra no completada', '#ff5f9b');
+      return false;
+    }
+    el.classList.add('just-bought');
+    dom.shopShards.textContent = shards;
+    setTimeout(() => { generateOffers(); updateHUD(); renderInventory(); }, 180);
+    if (!item.weapon) sfx.shopBuy();
+    return true;
   }
 
   function gameOver() {
