@@ -7,8 +7,12 @@
   const NV = window.NV;
 
   // ---- spawn ----
-  NV.spawnWeaponPickup = function (WEAPONS, weaponPickups, W, H, showBanner, RARITY_COLORS) {
-    const weapon = WEAPONS[Math.floor(Math.random() * WEAPONS.length)];
+  // isEligible(weapon) opcional: filtra el pool ANTES de elegir (pool de elegibles,
+  // nunca retry aleatorio sin límite). Sin elegibles: no genera pickup ni banner.
+  NV.spawnWeaponPickup = function (WEAPONS, weaponPickups, W, H, showBanner, RARITY_COLORS, isEligible) {
+    const pool = (typeof isEligible === 'function') ? WEAPONS.filter(isEligible) : WEAPONS;
+    if (pool.length === 0) return false; // todas las candidatas inelegibles: no se genera drop
+    const weapon = pool[Math.floor(Math.random() * pool.length)];
     weaponPickups.push({
       x: 40 + Math.random() * (W - 80),
       y: 80 + Math.random() * (H - 160),
@@ -16,6 +20,7 @@
       dead: false,
     });
     showBanner('¡' + weapon.name + '! ◆', RARITY_COLORS[weapon.rarity]);
+    return true;
   };
 
   // ---- update genérico de shards/coins ----
@@ -126,34 +131,93 @@
     }
     return n;
   };
-  // Abre si el jugador está cerca; suelta shards (pickups) y/o armas (weaponPickups).
-  // Expira tras CHEST_TTL. Devuelve el array de cofres filtrado (no-muertos).
+  // Abre un cofre de jefe: suelta 1-3 drops (shards y/o armas) con la MISMA
+  // lógica/RNG siempre (pickup manual y auto-recogida comparten esta ruta).
+  // Cada drop liberado se etiqueta con fromBossChest para poder distinguirlo
+  // de drops normales (la auto-recogida de transición sólo toca éstos).
+  // isEligible(weapon) opcional: filtra el pool de armas del cofre (pool de elegibles).
+  // Sin elegibles: ese slot del cofre no suelta arma (seguro: sin crash/loop/undefined).
   const CHEST_TTL = 30;
-  NV.updateBossChests = function (dt, bossChests, player, pickups, weaponPickups, WEAPONS, addFloatText, pickupSfx) {
+  function openBossChest(c, pickups, weaponPickups, WEAPONS, addFloatText, pickupSfx, isEligible) {
+    c.dead = true;
+    addFloatText(c.x, c.y - 18, 'TESORO DEL JEFE! ◆', '#7cf8ff');
+    const n = 1 + Math.floor(Math.random() * 3); // 1..3
+    for (let i = 0; i < n; i++) {
+      const ox = c.x + (Math.random() - 0.5) * 26;
+      const oy = c.y + (Math.random() - 0.5) * 26;
+      if (Math.random() < 0.55) {
+        pickups.push({ x: ox, y: oy, value: 3 + Math.floor(Math.random() * 4), dead: false, fromBossChest: true });
+      } else {
+        const pool = (typeof isEligible === 'function') ? WEAPONS.filter(isEligible) : WEAPONS;
+        if (pool.length > 0) {
+          weaponPickups.push({ x: ox, y: oy, weapon: pool[Math.floor(Math.random() * pool.length)], dead: false, fromBossChest: true });
+        }
+      }
+    }
+    pickupSfx();
+  }
+  NV.updateBossChests = function (dt, bossChests, player, pickups, weaponPickups, WEAPONS, addFloatText, pickupSfx, isEligible) {
     const alive = [];
     for (const c of bossChests) {
       if (c.dead) continue;
+      // Tarea #8c: un cofre con autoCollect (en vuelo de auto-pickup) queda bajo
+      // control EXCLUSIVO de la animación (chestAnim): NO se abre por proximidad
+      // manual ni expira por TTL; sólo se conserva vivo hasta que el vuelo termine.
+      if (c.autoCollect) { alive.push(c); continue; }
       c.timer = (c.timer || 0) + dt;
       if (c.timer > CHEST_TTL) continue; // expira: se descarta
       const d = Math.hypot(c.x - player.x, c.y - player.y);
       if (d < 34) {
-        c.dead = true;
-        addFloatText(c.x, c.y - 18, 'TESORO DEL JEFE! ◆', '#7cf8ff');
-        const n = 1 + Math.floor(Math.random() * 3); // 1..3
-        for (let i = 0; i < n; i++) {
-          const ox = c.x + (Math.random() - 0.5) * 26;
-          const oy = c.y + (Math.random() - 0.5) * 26;
-          if (Math.random() < 0.55) {
-            pickups.push({ x: ox, y: oy, value: 3 + Math.floor(Math.random() * 4), dead: false });
-          } else {
-            weaponPickups.push({ x: ox, y: oy, weapon: WEAPONS[Math.floor(Math.random() * WEAPONS.length)], dead: false });
-          }
-        }
-        pickupSfx();
+        openBossChest(c, pickups, weaponPickups, WEAPONS, addFloatText, pickupSfx, isEligible);
       } else {
         alive.push(c);
       }
     }
     return alive;
+  };
+  // Red de seguridad (Tarea #8): antes de una transición que descartaría el botín
+  // del jefe (wave_end -> shop_enter), recoge automáticamente SOLO las recompensas
+  // de boss pendientes. NO toca drops normales (sin fromBossChest).
+  //  1) Cofres aún sin abrir: se abren por la MISMA ruta del pickup manual (mismo
+  //     RNG/elegibilidad); no se inventan recompensas nuevas.
+  //  2) Drops de cofre (fromBossChest) aún en el suelo: se acreditan una sola vez
+  //     (los ya recogidos están muertos/filtrados => sin duplicados).
+  // collectShard(value, x, y): acredita el shard (game.js suma y da feedback).
+  // collectWeapon(weapon, x, y): aplica las reglas existentes de fusión/inventario;
+  //   debe devolver true si consumió el arma. Si devuelve false (max fusión /
+  //   inventario lleno) el pickup queda en el mundo, como en el pickup manual.
+  NV.autoCollectBossRewards = function (opts) {
+    const o = opts || {};
+    const bossChests = o.bossChests || [];
+    const pickups = o.pickups || [];
+    const weaponPickups = o.weaponPickups || [];
+    const collectShard = o.collectShard || (() => {});
+    const collectWeapon = o.collectWeapon || (() => false);
+    const addFloatText = o.addFloatText || (() => {});
+    const pickupSfx = o.pickupSfx || (() => {});
+    const res = { chestsOpened: 0, shards: 0, weapons: 0 };
+    for (const c of bossChests) {
+      if (!c || c.dead) continue;
+      openBossChest(c, pickups, weaponPickups, o.WEAPONS || [], addFloatText, pickupSfx, o.isEligible);
+      res.chestsOpened++;
+    }
+    for (const p of pickups) {
+      if (!p || p.dead || !p.fromBossChest) continue;
+      p.dead = true;
+      const v = p.value || 1;
+      res.shards += v;
+      collectShard(v, p.x, p.y);
+    }
+    for (const w of weaponPickups) {
+      if (!w || w.dead || !w.fromBossChest) continue;
+      if (collectWeapon(w.weapon, w.x, w.y)) {
+        w.dead = true;
+        res.weapons++;
+      }
+      // No acreditada (inventario lleno / max fusión): queda en el mundo con su
+      // marca fromBossChest, como en el pickup manual. La auto-recogida del
+      // margen la vuelve a intentar si sigue pendiente al vencer.
+    }
+    return res;
   };
 })();

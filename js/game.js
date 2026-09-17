@@ -97,6 +97,12 @@
   const DEATH_TRANSITION_DURATION = 1.45;
   const WAVE_END_DURATION = 2.10;
   const BOSS_WAVE_END_DURATION = 2.25;
+  // Tarea #8: margen extra en wave_end de jefe para recoger su cofre manualmente.
+  // Total antes de la tienda: BOSS_WAVE_END_DURATION + BOSS_CHEST_HOLD ≈ 4.5s.
+  const BOSS_CHEST_HOLD = 2.25;
+  // Tarea #8c: feedback visual del auto-pickup del cofre de boss.
+  const BOSS_CHEST_ANIM = 0.4;   // vuelo del cofre hacia el jugador (0.35-0.5)
+  const BOSS_CHEST_SETTLE = 0.3; // pausa post-recogida antes de la tienda (~0.3s)
   const SHOP_ENTER_DURATION = 0.35;
   let presentation = {
     kind: null,
@@ -107,6 +113,7 @@
     isBoss: false,
     pilot: 'boti',
     finalized: false,
+    hold: 0,
   };
 
   function resetPresentation() {
@@ -118,6 +125,8 @@
     presentation.isBoss = false;
     presentation.pilot = 'boti';
     presentation.finalized = false;
+    presentation.hold = 0;
+    presentation.chestAnim = null; // Tarea #8c: sin animación de auto-pickup residual
   }
 
   function clearCombatIntent() {
@@ -792,10 +801,15 @@
         const rect = canvas.getBoundingClientRect();
         mx = (e.clientX - rect.left) / scaleX; my = (e.clientY - rect.top) / scaleY;
       }
-      for (let i = 0; i < NV.consumSlotRects.length; i++) {
+            for (let i = 0; i < NV.consumSlotRects.length; i++) {
         const r = NV.consumSlotRects[i];
         if (mx >= r.x && mx <= r.x + r.w && my >= r.y && my <= r.y + r.h) {
-          if (consumSel !== i) { consumSel = i; sfx.wheelSelect(); }
+          // El HUD dibuja hasta 6 slots visuales, pero solo los grupos reales son
+          // válidos. Mapear el slot visual al índice real del grupo para evitar que
+          // consumSel apunte a un slot vacío/inexistente.
+          const groups = NV.groupConsumables(consumableItems);
+          const validIdx = i < groups.length ? i : -1;
+          if (validIdx >= 0 && consumSel !== validIdx) { consumSel = validIdx; sfx.wheelSelect(); }
           return;
         }
       }
@@ -1291,8 +1305,9 @@
     presentation.isBoss = !!isBoss;
     presentation.pilot = player.character;
     presentation.finalized = false;
+    presentation.hold = 0; // Tarea #8: margen del cofre de jefe desde cero
     transition = presentation.duration;
-    player.invuln = Math.max(player.invuln, presentation.duration + SHOP_ENTER_DURATION + 0.2);
+    player.invuln = Math.max(player.invuln, presentation.duration + (isBoss ? BOSS_CHEST_HOLD : 0) + SHOP_ENTER_DURATION + 0.2);
     syncGameState();
     if (isBoss) {
       shake = 1;
@@ -1365,24 +1380,38 @@
     dom.shop.classList.remove('hidden');
     return true;
   }
-  // === CONSUMIBLES (se usan con la tecla F en partida) ===
-  // Reconcilia la selección tras mutar consumibleItems: 0 tipos -> 0; índice fuera
-  // de rango -> wrap al primero. Así HUD y gameplay siempre apuntan al mismo tipo.
-  function reconcileConsumSel() {
-    const n = NV.groupConsumables(consumableItems).length;
-    consumSel = n === 0 ? 0 : (consumSel >= n ? 0 : Math.max(0, consumSel));
+    // === CONSUMIBLES (se usan con la tecla F en partida) ===
+  // Reconcilia la selección tras mutar consumableItems: 0 tipos -> 0; índice fuera
+  // de rango -> wrap al primero. Si se pasa preserveType (identidad del consumible
+  // seleccionado), se prioriza mantenerlo en su nuevo índice tras un splice —
+  // así HUD y gameplay siempre apuntan al mismo tipo y no "salta" a otro stack.
+  function reconcileConsumSel(preserveType) {
+    const groups = NV.groupConsumables(consumableItems);
+    const n = groups.length;
+    if (n === 0) { consumSel = 0; return; }
+    if (preserveType !== undefined) {
+      const idx = groups.findIndex((g) => g.type === preserveType);
+      if (idx >= 0) { consumSel = idx; return; }
+    }
+    // Tipo no existe o no se solicitó preservación: wrap determinista al primero válido.
+    consumSel = consumSel >= n ? 0 : Math.max(0, consumSel);
   }
   function useConsumable() {
     if (state !== 'playing' || paused || consumableItems.length === 0) return;
     // Usa el TIPO seleccionado (elegido con Q / click en el HUD), no siempre el primero.
     const groups = NV.groupConsumables(consumableItems);
     consumSel = Math.min(consumSel, groups.length - 1);
-    const item = NV.consumeByType(consumableItems, groups[consumSel].type);
+    if (consumSel < 0) return;
+    const selectedType = groups[consumSel].type;
+    const item = NV.consumeByType(consumableItems, selectedType);
     if (!item) { reconcileConsumSel(); return; }
     NV.applyConsumable(item, { player, enemies, boss, pickups, weaponPickups, addFloatText, triggerFlash, spawnExplosion, spawnShockwave });
     triggerFlash('#7cf8ff');
-    sfx.consume(item.type);
-    reconcileConsumSel();
+    sfx.consume(selectedType);
+    // Preservar selección POR IDENTIDAD de tipo, no por índice posicional: el splice
+    // de consumeByType reordena items y puede desplazar el grupo a otro slot. Si el
+    // tipo aún tiene unidades, se mantiene seleccionado; si no, wrap al primero válido.
+    reconcileConsumSel(selectedType);
     updateHUD();
     notifyMobileConsumable();
   }
@@ -1835,6 +1864,8 @@
 
   function beginShopEntrance() {
     if (state !== 'wave_end') return;
+    // Tarea #8: la recompensa pendiente del cofre de jefe ya se resolvió ANTES de
+    // llegar acá (updatePresentation auto-recoge al vencer el margen).
     if (NV.audio && typeof NV.audio.stopAllWeapons === 'function') NV.audio.stopAllWeapons();
     NV.input.setFire(false);
     combatIntent.dashIntent = false;
@@ -1896,7 +1927,66 @@
         W: arenaW(), H: arenaH(), enemies: [], boss: null, shake, visualOnly: true,
       }, { killEnemy() {}, applyKnockback() {}, spawnExplosion() {} });
       meteors = meteorResult.meteors;
-      if (presentation.elapsed >= presentation.duration) beginShopEntrance();
+      // #8d FIX (causa raíz): esta rama debe atender SOLO la fase de settle
+      // (chestAnim.collected). Antes bastaba con que chestAnim existiera, así que
+      // interceptaba el vuelo en el mismo `else if`-chain: el vuelo se ejecutaba un
+      // único frame (creación + primer paso) y después el settle corría a.t con
+      // dur=BOSS_CHEST_ANIM hasta llamar a beginShopEntrance SIN acreditar nada.
+      if (presentation.chestAnim && presentation.chestAnim.collected) {
+        // Fase 3 (Tarea #8c): settle post-recogida — feedback perceptible, y
+        // recién después entra la tienda (aunque bossChests ya esté vacío).
+        const a = presentation.chestAnim;
+        a.t += dt;
+        if (a.t >= a.dur) {
+          presentation.chestAnim = null;
+          beginShopEntrance();
+        }
+      } else if (presentation.elapsed >= presentation.duration) {
+        // Tarea #8: margen real para recoger el cofre del jefe antes de la tienda.
+        // 1) Hold: margen manual (~BOSS_CHEST_HOLD). Si el jugador abre el cofre,
+        //    bossChests queda vacío y se continúa sin auto-recogida ni animación.
+        // 2) Animación de auto-pickup: si al vencer el margen sigue habiendo cofre,
+        //    éste VUELA hacia el jugador (feedback visible) sin generar recompensa
+        //    nueva; al llegar se auto-recoge (misma autoCollectBossRewards) y tras
+        //    una pausa corta entra la tienda.
+        const cofrePendiente = presentation.isBoss && bossChests.length > 0;
+        if (cofrePendiente && (presentation.hold || 0) < BOSS_CHEST_HOLD) {
+          presentation.hold = (presentation.hold || 0) + dt; // mantiene wave_end: margen del cofre
+        } else if (cofrePendiente) {
+          // Fase 1: animación de vuelo del cofre hacia el jugador.
+          const c = bossChests[0];
+          if (!presentation.chestAnim) {
+            presentation.chestAnim = { t: 0, dur: BOSS_CHEST_ANIM, fromX: c.x, fromY: c.y, collected: false, prog: 0, scale: 1 };
+            c.autoCollect = true; // control exclusivo de la animación (updateBossChests lo ignora)
+            c.autoScale = 1;
+          }
+          const a = presentation.chestAnim;
+          a.t = Math.min(a.dur, a.t + dt);
+          const prog = a.dur > 0 ? a.t / a.dur : 1;
+          // Easing visible desde el primer frame (ease-out cúbico): arranca en
+          // movimiento y frena al llegar; no hay tramo "quieto" inicial.
+          const ease = 1 - Math.pow(1 - prog, 3);
+          // Tarea #8c: destino = posición ACTUAL del jugador en cada frame,
+          // así el cofre lo sigue si se mueve durante el vuelo.
+          c.x = a.fromX + (player.x - a.fromX) * ease;
+          c.y = a.fromY + (player.y - a.fromY) * ease;
+          a.prog = prog;
+          // Escala: durante el primer 65% del vuelo se mantiene COMPLETA (se ve
+          // primero movimiento); la reducción sólo ocurre en el tramo final.
+          a.scale = prog < 0.65 ? 1 : 1 - ((prog - 0.65) / 0.35) * 0.4;
+          c.autoScale = a.scale;
+          if (a.t >= a.dur && !a.collected) {
+            // Fase 2: llegó al jugador -> auto-recogida (misma ruta existente, sin RNG nuevo).
+            c.x = player.x; c.y = player.y;
+            autoCollectBossRewards();
+            a.collected = true;
+            a.t = 0; // pasa a fase de settle
+            a.dur = BOSS_CHEST_SETTLE;
+          }
+        } else {
+          beginShopEntrance();
+        }
+      }
     } else if (state === 'player_dying') {
       if (presentation.elapsed >= presentation.duration) finishPlayerDeath();
     } else if (state === 'shop_enter') {
@@ -2206,8 +2296,16 @@
     NV.spawnElite({ enemies, boss, MAX_HOSTILES, MAX_HEAVY_HOSTILES, wave, ELITE_TYPES, W: arenaW(), H: arenaH(), waveEvent });
   }
 
+  // Elegibilidad para NUEVOS drops de arma: una arma poseída que ya alcanzó el tope
+  // de fusión (MAX_WEAPON_FUSION, fuente de verdad en balance.js) deja de ser
+  // candidata. No poseída sigue elegible (incluida vendida tras maxear: weaponFus
+  // no se resetea al vender, por eso se exige poseída). Mismo "owned" que tryWeaponFusion.
+  function isWeaponDropEligible(w) {
+    const maxed = (weaponFus[w.id] || 0) >= MAX_WEAPON_FUSION;
+    return !(maxed && inventory.some((iw) => iw.id === w.id));
+  }
   function spawnWeaponPickup() {
-    NV.spawnWeaponPickup(WEAPONS, weaponPickups, arenaW(), arenaH(), showBanner, RARITY_COLORS);
+    NV.spawnWeaponPickup(WEAPONS, weaponPickups, arenaW(), arenaH(), showBanner, RARITY_COLORS, isWeaponDropEligible);
   }
 
   function killEnemy(e) {
@@ -2267,7 +2365,52 @@
     bossChests.push({ x, y, dead: false, timer: 0 });
   }
   function updateBossChests(dt) {
-    bossChests = NV.updateBossChests(dt, bossChests, player, pickups, weaponPickups, WEAPONS, addFloatText, sfx.pickup);
+    bossChests = NV.updateBossChests(dt, bossChests, player, pickups, weaponPickups, WEAPONS, addFloatText, sfx.pickup, isWeaponDropEligible);
+  }
+
+  // Tarea #8: red de seguridad del botín de jefe. Antes de la transición que
+  // descartaría el botín (wave_end -> shop_enter), se auto-recogen SOLO las
+  // recompensas de boss pendientes (cofre sin abrir + drops de cofre en el suelo).
+  // El pickup manual sigue intacto y los drops normales no se tocan.
+  function autoCollectBossRewards() {
+    const res = NV.autoCollectBossRewards({
+      bossChests, pickups, weaponPickups, WEAPONS,
+      isEligible: isWeaponDropEligible,
+      addFloatText,
+      pickupSfx: sfx.pickup,
+      collectShard(value, x, y) {
+        shards += value;
+        addFloatText(x, y - 10, '+' + value, '#7cf8ff');
+        sfx.pickup();
+      },
+      // Mismas reglas que el pickup manual de updateWeaponPickups (sin proximidad):
+      // poseída -> fusión; max fusión -> no se consume; si no -> guardar si hay slot.
+      collectWeapon(weapon, x, y) {
+        const r = tryWeaponFusion(weapon);
+        if (r && r.fused) {
+          addFloatText(x, y - 10, 'FUSIÓN Nv' + r.level, '#ffd700');
+          if (sfx.fuse) sfx.fuse(r.level); else sfx.pickup();
+          return true;
+        }
+        if (r && r.maxed) {
+          addFloatText(x, y - 10, 'FUSIÓN MÁX', '#ff5f9b');
+          return false;
+        }
+        if (inventory.length < INVENTORY_SLOTS) {
+          inventory.push(weapon);
+          addFloatText(x, y - 10, 'GUARDADO', '#ffcf76');
+          sfx.pickup();
+          return true;
+        }
+        addFloatText(x, y - 10, 'INVENTARIO LLENO', '#ff5f9b');
+        return false;
+      },
+    });
+    bossChests = bossChests.filter((c) => !c.dead);
+    pickups = pickups.filter((p) => !p.dead);
+    weaponPickups = weaponPickups.filter((w) => !w.dead);
+    if (res.chestsOpened > 0 || res.shards > 0 || res.weapons > 0) updateHUD();
+    return res;
   }
 
     // === DIFICULTAD PROGRESIVA: críticos escalables con la oleada (PvE) ===
@@ -2614,12 +2757,17 @@
       ctx.fillText(wp.weapon.name, wp.x, wp.y + 15);
     }
 
-    // Cofres de jefe: cofre dorado pulsante.
+    // Cofres de jefe: cofre dorado pulsante. En auto-pickup (autoCollect) vuela
+    // hacia el jugador y se achica levemente; es el MISMO objeto/render de siempre.
     for (const c of bossChests) {
       if (c.dead) continue;
       const pulse = 0.6 + Math.sin(frame * 0.15) * 0.4;
+      // Tarea #8c: la escala la calcula la animación (completa al inicio,
+      // reducción sólo en el tramo final del vuelo). Sin animación: escala 1.
+      const scale = c.autoCollect ? (c.autoScale != null ? c.autoScale : 1) : 1;
       ctx.save();
       ctx.translate(c.x, c.y);
+      ctx.scale(scale, scale);
       ctx.shadowBlur = 14;
       ctx.shadowColor = '#ffd700';
       ctx.fillStyle = '#ffcf76';
@@ -2860,10 +3008,14 @@
 
 
 
-  function drawWeaponHUD() {
+    function drawWeaponHUD() {
     // Resolvedor de nivel por arma: cada slot muestra SU nivel (badge + tinte).
     const weaponLevelFor = (id) => weaponLevels[id] || 1;
-    NV.drawWeaponHUD(ctx, arenaW(), arenaH(), CHARACTERS, RARITY_COLORS, player, currentWeapon, currentWeaponLevel, inventory, NV.groupConsumables(consumableItems), consumSel, showHUD, weaponLevelFor);
+    // Nivel de fusión desde el estado central (weaponFus[id]), NO de la instancia:
+    // las armas recogidas del mapa comparten referencia con WEAPONS y no llevan
+    // `fuseLevel` de instancia sincronizado. El HUD consume el estado canonical.
+    const weaponFusionLevelFor = (id) => weaponFus[id] || 0;
+    NV.drawWeaponHUD(ctx, arenaW(), arenaH(), CHARACTERS, RARITY_COLORS, player, currentWeapon, currentWeaponLevel, inventory, NV.groupConsumables(consumableItems), consumSel, showHUD, weaponLevelFor, weaponFusionLevelFor);
   }
 
 
