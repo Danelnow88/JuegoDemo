@@ -96,6 +96,10 @@
   let shake = 0, hitstop = 0, flashColor = null, flashAlpha = 0, specialVFX = null;
   const DEATH_TRANSITION_DURATION = 1.45;
   const WAVE_END_DURATION = 2.10;
+  const WAVE_CLEANUP_DURATION = 0.4;
+  // #10 micro-feedback visual del cleanup: pop inicial + dispersión render-only.
+  const WAVE_CLEANUP_POP_T = 0.08;
+  const WAVE_CLEANUP_POP_SCALE = 1.08;
   const BOSS_WAVE_END_DURATION = 2.25;
   // Tarea #8: margen extra en wave_end de jefe para recoger su cofre manualmente.
   // Total antes de la tienda: BOSS_WAVE_END_DURATION + BOSS_CHEST_HOLD ≈ 4.5s.
@@ -1297,6 +1301,14 @@
     if (hookSystem && typeof NV.resetHookSystem === 'function') NV.resetHookSystem(hookSystem); // F3: cleanup hook en wave_end
     player.stun = 0; player.stunReapplyLockout = 0; // F4: sin stun residual entre oleadas
     state = 'wave_end';
+    // #10: restos visuales, no derribos. El boss conserva su transición propia.
+    if (!isBoss) {
+      for (const e of enemies) {
+        if (e.dead || e.isBoss) continue;
+        e.waveCleanup = true;
+        e.waveCleanupT = 0;
+      }
+    }
     presentation.kind = 'wave_end';
     presentation.elapsed = 0;
     presentation.duration = isBoss ? BOSS_WAVE_END_DURATION : WAVE_END_DURATION;
@@ -1915,6 +1927,13 @@
     shockwaves = NV.updateShockwaves(dt, shockwaves);
 
     if (state === 'wave_end') {
+      if (!presentation.isBoss) {
+        // Sólo tiempo visual: no AI, colisiones, burns ni lógica de muerte.
+        for (const e of enemies) {
+          if (e.waveCleanup) e.waveCleanupT = Math.min(WAVE_CLEANUP_DURATION, e.waveCleanupT + dt);
+        }
+        enemies = enemies.filter((e) => !e.waveCleanup || e.waveCleanupT < WAVE_CLEANUP_DURATION);
+      }
       NV.updatePlayerMovement(player, combatIntent.moveX, combatIntent.moveY, dt);
       player.x = Math.max(20, Math.min(arenaW() - 20, player.x));
       player.y = Math.max(30, Math.min(arenaH() - 20, player.y));
@@ -2309,7 +2328,7 @@
   }
 
   function killEnemy(e) {
-    if (e.killResolved) return;
+    if (e.killResolved || e.waveCleanup) return;
     // F3: cleanup Hook si muere el source (muerte/fusion/removal invalida el hook).
     if (hookSystem && hookSystem.srcEnemy === e && typeof NV.resetHookState === 'function') NV.resetHookState(hookSystem);
     score = NV.killEnemy({
@@ -2837,8 +2856,8 @@
     for (const e of enemies) if (e.atkFlash > 0) drawEnemy(e);
     const autoTargetInRange = currentAutoTarget ? (Math.hypot(currentAutoTarget.x - player.x, currentAutoTarget.y - player.y) <= (currentWeapon.range || Infinity)) : false;
     if (NV.drawAutofireTarget) NV.drawAutofireTarget(ctx, currentAutoTarget, frame, player, autoTargetInRange, NV.META_DEBUG, metaRenderEnv);
-    for (const e of enemies) if (NV.drawContactReadability) NV.drawContactReadability(ctx, e, player, NV.META_DEBUG, metaRenderEnv);
-    for (const e of enemies) if (NV.drawEnemyIntent) NV.drawEnemyIntent(ctx, e, player, metaRenderEnv);
+    for (const e of enemies) if (!e.waveCleanup && NV.drawContactReadability) NV.drawContactReadability(ctx, e, player, NV.META_DEBUG, metaRenderEnv);
+    for (const e of enemies) if (!e.waveCleanup && NV.drawEnemyIntent) NV.drawEnemyIntent(ctx, e, player, metaRenderEnv);
     if (boss && !boss.dead) drawBoss();
 
     // Partículas decorativas quedan detrás de hazards/proyectiles: un telegraph
@@ -3026,16 +3045,122 @@
 
 
 
+  // #10: puff cartoon render-only y determinista. Un centro denso + 6 lóbulos
+  // redondeados forman una nube compacta; sólo depende del timer del cleanup.
+  function drawCleanupPuff(c2, e, progress, puffAlpha, puffScale) {
+    if (puffAlpha <= 0 || progress >= 1) return;
+    const disperse = Math.max(0, (progress - 0.575) / 0.425);
+    const centerR = e.radius * (0.58 + puffScale * 0.34);
+    const orbitR = e.radius * (0.36 + puffScale * 0.28 + disperse * 0.22);
+
+    c2.globalAlpha = puffAlpha * 0.95;
+    c2.fillStyle = '#f4f1e8';
+    c2.beginPath();
+    c2.arc(e.x, e.y, centerR, 0, Math.PI * 2);
+    c2.fill();
+
+    for (let i = 0; i < 6; i++) {
+      const seed = Math.sin((e.x || 0) * 12.9898 + (e.y || 0) * 78.233 + i * 37.719) * 43758.5453;
+      const frac = seed - Math.floor(seed);
+      const ang = i * (Math.PI / 3) + (frac - 0.5) * 0.32;
+      const lobeR = e.radius * (0.3 + frac * 0.13) * (0.72 + puffScale * 0.38);
+      c2.globalAlpha = puffAlpha * (0.72 + frac * 0.2);
+      c2.fillStyle = i % 2 === 0 ? '#fffaf0' : '#e8edf2';
+      c2.beginPath();
+      c2.arc(e.x + Math.cos(ang) * orbitR, e.y + Math.sin(ang) * orbitR, lobeR, 0, Math.PI * 2);
+      c2.fill();
+    }
+
+    // Tres mini-puffs efímeros dan impulso al poof sin crear partículas.
+    const miniP = Math.max(0, Math.min(1, (progress - 0.25) / 0.35));
+    if (miniP > 0 && miniP < 1) {
+      const miniAlpha = puffAlpha * (1 - miniP) * (1 - miniP) * 0.62;
+      for (let i = 0; i < 3; i++) {
+        const seed = Math.sin((e.x || 0) * 31.177 + (e.y || 0) * 17.913 + i * 53.481) * 43758.5453;
+        const frac = seed - Math.floor(seed);
+        const ang = i * (Math.PI * 2 / 3) + (frac - 0.5) * 0.5;
+        const dist = e.radius * (0.72 + miniP * 1.45);
+        const miniR = e.radius * (0.11 + frac * 0.07) * (1 - miniP * 0.28);
+        c2.globalAlpha = miniAlpha * (0.72 + frac * 0.28);
+        c2.fillStyle = i === 1 ? '#e8edf2' : '#fffaf0';
+        c2.beginPath();
+        c2.arc(e.x + Math.cos(ang) * dist, e.y + Math.sin(ang) * dist, miniR, 0, Math.PI * 2);
+        c2.fill();
+      }
+    }
+  }
+
   function drawEnemy(e) {
     // Solo ocultar Canvas2D cuando el mesh WebGL de ESTE enemigo ya existe.
     // Durante carga, fallo o flag apagado, el render original sigue intacto.
     if ((NV.SPECTER_ENABLED === false && e.shape === 'specter') || isEnemyRenderedByLite(e)) return;
-    // Modo espectral: delega a drawSpectralEnemy2D (retorna false para specters, que ya se excluyeron).
-    if (NV.SPECTRAL_ENEMY_MODE && typeof NV.drawSpectralEnemy2D === 'function') {
-      NV.drawSpectralEnemy2D(ctx, e, frame, player, NV.rhythm);
-      return;
+    let renderCtx = ctx;
+    let cleanupProgress = 0;
+    let cleanupPuffAlpha = 0;
+    let cleanupPuffScale = 0.55;
+    let drawCleanupBody = true;
+    if (e.waveCleanup) {
+      const progress = Math.max(0, Math.min(1, e.waveCleanupT / WAVE_CLEANUP_DURATION));
+      if (progress >= 1) return;
+      // #10: sustitución cartoon a 0.105 s; el cleanup funcional sigue en 0.4 s.
+      const poofT = 0.105;
+      const popT = 0.06;
+      const popP = Math.max(0, Math.min(1, e.waveCleanupT / popT));
+      const bodyCollapseP = Math.max(0, Math.min(1, (e.waveCleanupT - popT) / (poofT - popT)));
+      const bodyScale = e.waveCleanupT < popT
+        ? 1 + (WAVE_CLEANUP_POP_SCALE - 1) * popP
+        : WAVE_CLEANUP_POP_SCALE - (WAVE_CLEANUP_POP_SCALE - 0.82) * bodyCollapseP;
+      const bodyDimP = Math.max(0, Math.min(1, (e.waveCleanupT - popT) / (poofT - popT)));
+      const bodyAlpha = e.waveCleanupT >= poofT ? 0 : ctx.globalAlpha * (1 - bodyDimP * 0.22);
+      const puffInP = Math.max(0, Math.min(1, (e.waveCleanupT - 0.09) / (poofT - 0.09)));
+      const puffOutP = Math.max(0, Math.min(1, (WAVE_CLEANUP_DURATION - e.waveCleanupT) / 0.18));
+      const puffIn = puffInP * puffInP * (3 - 2 * puffInP);
+      const puffOut = puffOutP * puffOutP * (3 - 2 * puffOutP);
+      cleanupPuffAlpha = ctx.globalAlpha * 0.96 * puffIn * puffOut;
+      cleanupPuffScale = e.waveCleanupT <= 0.23
+        ? 0.72 + 0.43 * Math.max(0, Math.min(1, (e.waveCleanupT - poofT) / (0.23 - poofT)))
+        : 1.15 + 0.1 * Math.min(1, (e.waveCleanupT - 0.23) / 0.17);
+      cleanupProgress = progress;
+      drawCleanupBody = bodyAlpha > 0;
+      ctx.save();
+      ctx.translate(e.x, e.y);
+      ctx.scale(bodyScale, bodyScale);
+      ctx.translate(-e.x, -e.y);
+      ctx.globalAlpha = bodyAlpha;
+      // Los renderizadores reasignan globalAlpha (ojos, halos, status).
+      // Multiplicar TODAS sus escrituras mantiene el fade del objeto completo,
+      // sin modificar sus modelos ni el renderer del boss. Métodos ligados al
+      // contexto nativo: Canvas2D exige su receiver real.
+      renderCtx = new Proxy(ctx, {
+        get(target, key) {
+          if (key === 'globalAlpha') return bodyAlpha > 0 ? target.globalAlpha / bodyAlpha : 0;
+          const value = target[key];
+          return typeof value === 'function' ? value.bind(target) : value;
+        },
+        set(target, key, value) {
+          target[key] = key === 'globalAlpha' ? value * bodyAlpha : value;
+          return true;
+        }
+      });
     }
-    NV.drawEnemy(ctx, e, frame, player, NV.rhythm);
+    try {
+      if (drawCleanupBody) {
+        const ctx = renderCtx;
+        if (NV.SPECTRAL_ENEMY_MODE && typeof NV.drawSpectralEnemy2D === 'function') {
+          NV.drawSpectralEnemy2D(ctx, e, frame, player, NV.rhythm);
+        } else {
+          NV.drawEnemy(ctx, e, frame, player, NV.rhythm);
+        }
+      }
+    } finally {
+      if (e.waveCleanup) {
+        // Restaurar primero desacopla el puff del alpha y la escala del cuerpo.
+        ctx.restore();
+        ctx.save();
+        drawCleanupPuff(ctx, e, cleanupProgress, cleanupPuffAlpha, cleanupPuffScale);
+        ctx.restore();
+      }
+    }
   }
 
 

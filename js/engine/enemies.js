@@ -208,7 +208,7 @@
   }
   NV.killEnemy = function (st) {
     const e = st.e;
-    if (e.killResolved) return st.score;
+    if (e.killResolved || e.waveCleanup) return st.score;
     e.killResolved = true;
     e.dead = true;
     let score = st.score + e.score;
@@ -558,6 +558,14 @@
   // Devuelve { enemies, shake, gameOver }. Mutaciones de array/player por ref; los
   // primitivos let (enemies filtrado, shake) y el flag gameOver vuelven del retorno.
   NV.updateEnemies = function (dt, st) {
+    // Cleanup nunca entra en AI, contacto, hook ni fusión, incluso si un caller
+    // invoca el motor fuera de playing. Conserva los mismos objetos visuales.
+    if (st.enemies.some((e) => e.waveCleanup)) {
+      const active = st.enemies.filter((e) => !e.waveCleanup);
+      const result = NV.updateEnemies(dt, Object.assign({}, st, { enemies: active }));
+      result.enemies = result.enemies.concat(st.enemies.filter((e) => e.waveCleanup));
+      return result;
+    }
     const { enemies, player, bullets, MAX_BULLETS, MAX_ENEMY_BULLETS, enemyBulletCount, applyPlayerDamage, addFloatText, wave, hookSystem } = st;
     let shake = st.shake || 0;
     let gameOver = false;
