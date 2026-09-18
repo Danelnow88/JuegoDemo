@@ -70,8 +70,10 @@
     ctx.translate(player.x, player.y);
     if (presentation) {
       const visualScale = presentation.scale == null ? 1 : presentation.scale;
+      const visualScaleX = presentation.scaleX == null ? visualScale : presentation.scaleX;
+      const visualScaleY = presentation.scaleY == null ? visualScale : presentation.scaleY;
       const visualAlpha = presentation.alpha == null ? 1 : presentation.alpha;
-      ctx.scale(visualScale, visualScale);
+      ctx.scale(visualScaleX, visualScaleY);
       ctx.globalAlpha = visualAlpha;
       if (presentation.flourish > 0) {
         const flourish = Math.max(0, Math.min(1, presentation.flourish));

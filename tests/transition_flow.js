@@ -32,7 +32,7 @@ const bossSource = fs.readFileSync('js/engine/boss.js', 'utf8');
 
 test('timings aprobados y estados explícitos', () => {
   includesAll(game, [
-    'const DEATH_TRANSITION_DURATION = 1.45;',
+    'const DEATH_TRANSITION_DURATION = 0.82;',
     'const WAVE_END_DURATION = 2.10;',
     'const BOSS_WAVE_END_DURATION = 2.25;',
     'const SHOP_ENTER_DURATION = 0.35;',
@@ -155,7 +155,9 @@ test('cámara es render-only y HUD restaura transform base', () => {
     'const worldScaleX = scaleX * cinematic.zoom;',
     'ctx.setTransform(worldScaleX, 0, 0, worldScaleY, worldOffsetX, worldOffsetY);',
     'ctx.setTransform(scaleX, 0, 0, scaleY, -vx * scaleX, -vy * scaleY);',
-    'const maxZoom = reduced ? 1.02', '? 1.10', '? 1.08 : 1.07',
+    'const maxZoom = reduced ? 1.02 : 1.075;',
+    'const focusP = Math.max(0, Math.min(1, (presentation.elapsed - 0.02) / 0.28));',
+    'const maxZoom = reduced ? 1.02 : (presentation.isBoss ? 1.08 : 1.07);',
   ]);
   const cinematic = game.slice(game.indexOf('function cinematicView'), game.indexOf('function playerPresentationStyle'));
   for (const mutation of ['player.x =', 'player.y =', 'worldMetrics.set', 'setView']) {
@@ -172,8 +174,8 @@ test('reset limpia presentación al iniciar, volver al menú y salir de Shop', (
 
 test('player renderer acepta fade/shrink y flourish sin animación nueva', () => {
   includesAll(playerRender, [
-    'presentation.scale', 'presentation.alpha', 'presentation.flourish',
-    'ctx.scale(visualScale, visualScale);', 'ctx.globalAlpha = visualAlpha;',
+    'presentation.scale', 'presentation.scaleX', 'presentation.scaleY', 'presentation.alpha', 'presentation.flourish',
+    'ctx.scale(visualScaleX, visualScaleY);', 'ctx.globalAlpha = visualAlpha;',
   ]);
   includesAll(game, ['function playerPresentationStyle()', 'dissolve', 'flourish: Math.sin(local * Math.PI)']);
 });

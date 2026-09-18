@@ -94,12 +94,20 @@
   // === ESTADO ===
   let state = 'menu', frame = 0, lastTime = 0;
   let shake = 0, hitstop = 0, flashColor = null, flashAlpha = 0, specialVFX = null;
-  const DEATH_TRANSITION_DURATION = 1.45;
+  const DEATH_TRANSITION_DURATION = 0.82;
   const WAVE_END_DURATION = 2.10;
   const WAVE_CLEANUP_DURATION = 0.4;
   // #10 micro-feedback visual del cleanup: pop inicial + dispersión render-only.
   const WAVE_CLEANUP_POP_T = 0.08;
   const WAVE_CLEANUP_POP_SCALE = 1.08;
+  // #2 muerte del personaje: composición completa en tiempo absoluto.
+  // La muerte visual manda el timing; FIN espera 0.12s después del último residuo.
+  const PLAYER_DEATH_IMPACT_END = 0.06;
+  const PLAYER_DEATH_POP_END = 0.12;
+  const PLAYER_DEATH_POOF_T = 0.18;
+  const PLAYER_DEATH_MAIN_PUFF_END = 0.40;
+  const PLAYER_DEATH_DISSOLVE_END = 0.68;
+  const PLAYER_DEATH_VISUAL_END = 0.70;
   const BOSS_WAVE_END_DURATION = 2.25;
   // Tarea #8: margen extra en wave_end de jefe para recoger su cofre manualmente.
   // Total antes de la tienda: BOSS_WAVE_END_DURATION + BOSS_CHEST_HOLD ≈ 4.5s.
@@ -160,11 +168,14 @@
 
   function presentationZoom() {
     const reduced = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const maxZoom = reduced ? 1.02 : (state === 'player_dying' || state === 'gameover' ? 1.10 : (presentation.isBoss ? 1.08 : 1.07));
+    if (state === 'player_dying' || state === 'gameover') {
+      const maxZoom = reduced ? 1.02 : 1.075;
+      const focusP = Math.max(0, Math.min(1, (presentation.elapsed - 0.02) / 0.28));
+      return 1 + (maxZoom - 1) * easeOutCubic(focusP);
+    }
+    const maxZoom = reduced ? 1.02 : (presentation.isBoss ? 1.08 : 1.07);
     const raw = presentationProgress();
-    const delayed = state === 'player_dying' || state === 'gameover'
-      ? Math.max(0, (raw - 0.06) / 0.72)
-      : Math.max(0, (raw - 0.08) / 0.72);
+    const delayed = Math.max(0, (raw - 0.08) / 0.72);
     const progress = state === 'shop_enter' || state === 'shop' ? 1 : easeInOutCubic(Math.min(1, delayed));
     return 1 + (maxZoom - 1) * progress;
   }
@@ -182,10 +193,9 @@
   }
 
   function playerPresentationStyle() {
-    const progress = presentationProgress();
     if (state === 'player_dying' || state === 'gameover') {
-      const dissolve = easeOutCubic(Math.max(0, Math.min(1, (progress - 0.08) / 0.66)));
-      return { alpha: 1 - dissolve, scale: 1 - dissolve * 0.14, flourish: 0 };
+      const visual = playerDeathVisualAt(presentation.elapsed);
+      return { alpha: visual.bodyAlpha, scale: visual.bodyScale, scaleX: visual.bodyScaleX, scaleY: visual.bodyScaleY, flourish: 0 };
     }
     if (state === 'wave_end') {
       const local = Math.max(0, Math.min(1, presentation.elapsed / 0.55));
@@ -1365,9 +1375,9 @@
     return true;
   }
 
-  function triggerFlash(color) {
+  function triggerFlash(color, intensity) {
     flashColor = color;
-    flashAlpha = Math.max(flashAlpha, 0.3);
+    flashAlpha = Math.max(flashAlpha, intensity == null ? 0.3 : intensity);
   }
 
   function spawnExplosion(x, y, count, color, speedMult) {
@@ -1870,11 +1880,18 @@
     presentation.pilot = player.character;
     presentation.finalized = false;
     syncGameState();
-    shake = Math.max(shake, 0.22);
-    triggerFlash(player.color || '#7cf8ff');
+    // Impacto mortal claro pero breve: reutiliza flash/shake existentes, sin hitstop.
+    shake = Math.max(shake, 0.26);
+    triggerFlash(player.color || '#7cf8ff', 0.18);
     const deathStyle = NV.PILOT_TRANSITIONS && NV.PILOT_TRANSITIONS[player.character];
+    // El dissolve conserva la firma del piloto y se reescala proporcionalmente
+    // para seguir vivo durante la disipación, pero terminar antes de VISUAL_END.
+    const baseLife = deathStyle && deathStyle.life ? deathStyle.life : [1.05, 1.30];
+    const baseLifeMax = Math.max(baseLife[0], baseLife[1]);
+    const dissolveScale = PLAYER_DEATH_DISSOLVE_END / baseLifeMax;
+    const scaleLife = [baseLife[0] * dissolveScale, baseLife[1] * dissolveScale];
     if (NV.spawnPlayerDissolve) NV.spawnPlayerDissolve(particles, MAX_PARTICLES, player.x, player.y, player.color, deathStyle ? {
-      colors: deathStyle.colors, speed: deathStyle.speed, life: deathStyle.life,
+      colors: deathStyle.colors, speed: deathStyle.speed, life: scaleLife,
       size: deathStyle.size, spiral: deathStyle.spiral,
       downwardDrift: deathStyle.downwardDrift, originRadius: (CHARACTERS[player.character].size || 18) * 0.8,
       angular: deathStyle.deathMotion === 'angular-fracture'
@@ -2949,7 +2966,12 @@
     ctx.globalAlpha = 1;
 
     if (NV.drawMomentumReadability && state !== 'player_dying' && state !== 'gameover') NV.drawMomentumReadability(ctx, player, momentumVisual, metaRenderEnv);
-    if (state !== 'gameover' && !(state === 'player_dying' && presentationProgress() >= 0.74)) drawPlayer();
+    // #2: el poof sustituye al cuerpo sin crossfade; residuos terminan antes de FIN.
+    if (state === 'gameover') { /* cuerpo fuera: solo overlay FIN */ }
+    else if (state === 'player_dying') {
+      if (presentation.elapsed < PLAYER_DEATH_POOF_T) drawPlayer();
+      if (presentation.elapsed >= PLAYER_DEATH_POOF_T) drawPlayerDeathPuff(ctx);
+    } else drawPlayer();
     // F3: Hook visuals (world transform activo) — tras enemigos/jugador, ANTES del restore.
     if (NV.drawHookEffects && hookSystem) NV.drawHookEffects(ctx, hookSystem, player);
     ctx.setTransform(scaleX, 0, 0, scaleY, -vx * scaleX, -vy * scaleY);
@@ -3070,6 +3092,9 @@
 
   // #10: puff cartoon render-only y determinista. Un centro denso + 6 lóbulos
   // redondeados forman una nube compacta; sólo depende del timer del cleanup.
+  // #2 lo reutiliza para la muerte del jugador SIN duplicar su geometría:
+  // drawPlayerDeathPuff() mapea el tiempo absoluto de player_dying al mismo
+  // helper aprobado. No toca #10 (drawEnemy sigue con su propia ruta).
   function drawCleanupPuff(c2, e, progress, puffAlpha, puffScale) {
     if (puffAlpha <= 0 || progress >= 1) return;
     const disperse = Math.max(0, (progress - 0.575) / 0.425);
@@ -3111,6 +3136,121 @@
         c2.fill();
       }
     }
+  }
+
+  // #2: timeline visual de la muerte en tiempo absoluto (segundos).
+  // Reutiliza drawCleanupPuff (#10) sin duplicar geometría. Devuelve el
+  // estado render-only para tests: body visible / body fuera / puff activo.
+  function playerDeathVisualAt(t) {
+    const clamped = Math.max(0, t);
+    const bodyVisible = clamped < PLAYER_DEATH_POOF_T;
+    let bodyAlpha = 0;
+    let bodyScaleX = 0.82;
+    let bodyScaleY = 0.78;
+    if (bodyVisible) {
+      if (clamped < PLAYER_DEATH_IMPACT_END) {
+        const impactP = clamped / PLAYER_DEATH_IMPACT_END;
+        bodyAlpha = 1;
+        bodyScaleX = 1 + Math.sin(impactP * Math.PI) * 0.018;
+        bodyScaleY = bodyScaleX;
+      } else if (clamped < PLAYER_DEATH_POP_END) {
+        const popP = (clamped - PLAYER_DEATH_IMPACT_END) / (PLAYER_DEATH_POP_END - PLAYER_DEATH_IMPACT_END);
+        const eased = popP * popP * (3 - 2 * popP);
+        bodyAlpha = 1;
+        bodyScaleX = 1 + 0.09 * eased;
+        bodyScaleY = 1 + 0.075 * eased;
+      } else {
+        const collapseP = (clamped - PLAYER_DEATH_POP_END) / (PLAYER_DEATH_POOF_T - PLAYER_DEATH_POP_END);
+        const eased = collapseP * collapseP * (3 - 2 * collapseP);
+        bodyAlpha = 1 - eased * 0.18;
+        bodyScaleX = 1.09 - 0.21 * eased;
+        bodyScaleY = 1.075 - 0.295 * eased;
+      }
+    }
+    const puffT = Math.max(0, clamped - PLAYER_DEATH_POOF_T);
+    const puffDur = PLAYER_DEATH_VISUAL_END - PLAYER_DEATH_POOF_T;
+    const puffDone = clamped >= PLAYER_DEATH_VISUAL_END;
+    const puffOutP = Math.max(0, Math.min(1, (PLAYER_DEATH_VISUAL_END - clamped) / 0.30));
+    const smooth = (p) => p * p * (3 - 2 * p);
+    // Sustitución real: el núcleo nace compacto y opaco exactamente en POOF.
+    const puffAlpha = bodyVisible || puffDone ? 0 : 0.98 * smooth(puffOutP);
+    const mainP = Math.max(0, Math.min(1, puffT / (PLAYER_DEATH_MAIN_PUFF_END - PLAYER_DEATH_POOF_T)));
+    const tailP = Math.max(0, Math.min(1, (clamped - PLAYER_DEATH_MAIN_PUFF_END) / (PLAYER_DEATH_VISUAL_END - PLAYER_DEATH_MAIN_PUFF_END)));
+    const puffScale = 0.74 + 0.48 * easeOutCubic(mainP) + 0.18 * tailP;
+    const shockP = Math.max(0, Math.min(1, puffT / 0.14));
+    const shockAlpha = bodyVisible || shockP >= 1 ? 0 : (1 - smooth(shockP)) * 0.72;
+    const miniPuffAlpha = bodyVisible ? 0 : puffAlpha * Math.max(0, 1 - puffT / 0.30);
+    const accentAlpha = bodyVisible || puffDone ? 0 : Math.max(0, 1 - puffT / 0.34) * 0.88;
+    return {
+      bodyVisible,
+      bodyAlpha,
+      bodyScale: (bodyScaleX + bodyScaleY) * 0.5,
+      bodyScaleX,
+      bodyScaleY,
+      puffActive: puffAlpha > 0,
+      puffAlpha,
+      puffScale,
+      shockAlpha,
+      shockScale: 0.72 + shockP * 1.35,
+      miniPuffAlpha,
+      accentAlpha,
+      dissolveActive: clamped < PLAYER_DEATH_DISSOLVE_END,
+      visualActive: clamped < PLAYER_DEATH_VISUAL_END,
+      finVisible: clamped >= DEATH_TRANSITION_DURATION,
+      progress: Math.max(0, Math.min(1, puffT / puffDur)),
+    };
+  }
+
+  // #2: dibuja el puff de muerte del jugador reutilizando drawCleanupPuff.
+  // Render-only y determinista: usa la posición del jugador y su radio
+  // (CHARACTERS) como "entidad" efímera; no crea partículas ni toca gameplay.
+  function drawPlayerDeathPuff(c2) {
+    const vis = playerDeathVisualAt(presentation.elapsed);
+    if (!vis.puffActive) return vis;
+    const radius = (CHARACTERS[player.character] && CHARACTERS[player.character].size) || 18;
+    const signature = NV.PILOT_TRANSITIONS && NV.PILOT_TRANSITIONS[player.character];
+    const accent = signature ? signature.accent : (player.color || '#7cf8ff');
+    const x = player.x, y = player.y;
+    c2.save();
+    if (vis.shockAlpha > 0) {
+      c2.globalAlpha = vis.shockAlpha;
+      c2.strokeStyle = accent;
+      c2.lineWidth = Math.max(0.8, 2.2 * (1 - vis.progress));
+      c2.beginPath();
+      c2.arc(x, y, radius * vis.shockScale, 0, Math.PI * 2);
+      c2.stroke();
+    }
+    drawCleanupPuff(c2, { x, y, radius: radius * 1.08 }, vis.progress, vis.puffAlpha, vis.puffScale);
+    if (vis.miniPuffAlpha > 0) {
+      const miniP = Math.max(0, Math.min(1, (presentation.elapsed - PLAYER_DEATH_POOF_T) / 0.30));
+      for (let i = 0; i < 4; i++) {
+        const ang = -0.35 + i * 1.72;
+        const dist = radius * (0.75 + miniP * 1.85);
+        c2.globalAlpha = vis.miniPuffAlpha * (0.62 + i * 0.07);
+        c2.fillStyle = i % 2 ? '#e8edf2' : '#fffaf0';
+        c2.beginPath();
+        c2.arc(x + Math.cos(ang) * dist, y + Math.sin(ang) * dist, radius * (0.10 + i * 0.018) * (1 - miniP * 0.25), 0, Math.PI * 2);
+        c2.fill();
+      }
+    }
+    if (vis.accentAlpha > 0) {
+      const accentP = Math.max(0, Math.min(1, (presentation.elapsed - PLAYER_DEATH_POOF_T) / 0.34));
+      c2.strokeStyle = accent;
+      c2.lineWidth = 1.6;
+      c2.lineCap = 'round';
+      for (let i = 0; i < 4; i++) {
+        const ang = 0.38 + i * Math.PI * 0.5;
+        const inner = radius * (0.48 + accentP * 0.8);
+        const outer = inner + radius * (0.28 - accentP * 0.08);
+        c2.globalAlpha = vis.accentAlpha * (0.72 + (i % 2) * 0.2);
+        c2.beginPath();
+        c2.moveTo(x + Math.cos(ang) * inner, y + Math.sin(ang) * inner);
+        c2.lineTo(x + Math.cos(ang) * outer, y + Math.sin(ang) * outer);
+        c2.stroke();
+      }
+    }
+    c2.restore();
+    return vis;
   }
 
   function drawEnemy(e) {
