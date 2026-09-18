@@ -2650,8 +2650,8 @@
   }
 
 
-  function addFloatText(x, y, text, color) {
-    NV.addFloatText(floatTexts, x, y, text, color);
+  function addFloatText(x, y, text, color, size, metadata) {
+    NV.addFloatText(floatTexts, x, y, text, color, size, metadata);
   }
 
 
@@ -2957,6 +2957,10 @@
     }
 
     for (const ft of floatTexts) {
+      if (ft.bossReaction && NV.drawBossReactionText) {
+        NV.drawBossReactionText(ctx, ft, vx, vy, vw, vh, !!(NV.capabilities && NV.capabilities.isMobile));
+        continue;
+      }
       ctx.globalAlpha = Math.max(0, ft.life / 0.8);
       ctx.fillStyle = ft.color;
       ctx.font = 'bold ' + (ft.size || 14) + 'px system-ui';
@@ -3026,6 +3030,7 @@
       drawSpecialCooldown();
       const mobilePresentation = !!(NV.capabilities && NV.capabilities.isMobile);
       NV.drawCombo(ctx, arenaW(), arenaH(), killCombo, mobilePresentation ? { x: viewX() + 12, y: viewY() + 83 } : null);
+      NV.drawBossHUD(ctx, viewX(), viewY(), viewW(), viewH(), boss, mobilePresentation);
       NV.drawDashStamina(ctx, viewX(), viewY(), viewW(), viewH(), player, mobilePresentation);
       if (!mobilePresentation) drawWeaponHUD();
       else NV.consumSlotRects = [];

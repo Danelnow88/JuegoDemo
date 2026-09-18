@@ -1377,34 +1377,6 @@
       }
     }
   }
-  function drawBossHpBar(ctx, boss, profile) {
-    const r = boss.radius * (profile.radiusMul || 1.3);
-    const barW = 280, barH = 18;
-    const hpPct = Math.max(0, boss.hp) / boss.maxHp;
-    ctx.save();
-    ctx.translate(0, -r - 45);
-    ctx.fillStyle = 'rgba(0,0,0,0.6)';
-    ctx.fillRect(-barW / 2 - 2, -2, barW + 4, barH + 4);
-    const hpColor = hpPct > 0.4 ? profile.glow : (hpPct > 0.2 ? '#ffcf76' : '#ff5f9b');
-    ctx.fillStyle = hpColor;
-    ctx.fillRect(-barW / 2, 0, barW * hpPct, barH);
-    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
-    ctx.strokeRect(-barW / 2, 0, barW, barH);
-    ctx.font = 'bold 11px system-ui'; ctx.textAlign = 'center'; ctx.fillStyle = '#fff';
-    ctx.fillText(Math.ceil(boss.hp) + ' / ' + boss.maxHp, 0, 14);
-    ctx.restore();
-  }
-  function drawBossName(ctx, boss, profile) {
-    const r = boss.radius * (profile.radiusMul || 1.3);
-    ctx.save();
-    ctx.fillStyle = profile.glow;
-    ctx.font = 'bold 14px system-ui';
-    ctx.textAlign = 'center';
-    ctx.shadowBlur = 8; ctx.shadowColor = profile.glow;
-    ctx.fillText(boss.name, 0, -r - 12);
-    ctx.shadowBlur = 0;
-    ctx.restore();
-  }
   function drawBossEffects(ctx, boss, frame, profile) {
     const r = boss.radius * (profile.radiusMul || 1.3);
     const time = frame * 0.06;
@@ -1470,8 +1442,6 @@
     NV.drawEnemyHitFeedback(ctx, boss, boss.radius * (profile.radiusMul || 1.3));
     drawBossParticles(ctx, boss, frame, profile);
     drawBossEyes(ctx, boss, player, profile);
-    drawBossHpBar(ctx, boss, profile);
-    drawBossName(ctx, boss, profile);
     ctx.restore();
     return true;
   };

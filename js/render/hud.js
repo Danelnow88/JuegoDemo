@@ -10,14 +10,43 @@
   // canvas. Se mantiene como no-op para no romper llamadas existentes.
   NV.drawSpecialCooldown = function () { return; };
 
+  NV.getBottomCombatHudLayout = function (viewX, viewY, viewW, viewH, mobile) {
+    const segmentW = mobile ? 28 : 34;
+    const segmentH = mobile ? 5 : 6;
+    const dashGap = 4;
+    const dashW = segmentW * 2 + dashGap;
+    const dashY = viewY + viewH - (mobile ? 58 : 18);
+    const safeSide = 12;
+    const bossBarW = Math.max(0, Math.min(260, viewW - safeSide * 2));
+    const bossBarH = mobile ? 14 : 16;
+    const bossDashGap = mobile ? 9 : 10;
+    const dashLabelTop = dashY - (mobile ? 11 : 12);
+    const bossBarY = dashLabelTop - bossDashGap - bossBarH;
+    return {
+      dashX: viewX + viewW / 2 - dashW / 2,
+      dashY,
+      dashW,
+      dashSegmentW: segmentW,
+      dashSegmentH: segmentH,
+      dashGap,
+      bossBarX: viewX + viewW / 2 - bossBarW / 2,
+      bossBarY,
+      bossBarW,
+      bossBarH,
+      bossDashGap,
+      safeSide
+    };
+  };
+
   NV.drawDashStamina = function (ctx, viewX, viewY, viewW, viewH, player, mobile) {
     if (!player || !(player.dashStaminaMax > 0) || !(player.dashCost > 0)) return false;
     const stamina = Math.max(0, Math.min(player.dashStaminaMax, player.dashStamina || 0));
     const uses = Math.floor((stamina + 0.0001) / player.dashCost);
-    const segmentW = mobile ? 28 : 34, segmentH = mobile ? 5 : 6, gap = 4;
-    const totalW = segmentW * 2 + gap;
-    const x = viewX + viewW / 2 - totalW / 2;
-    const y = viewY + viewH - (mobile ? 58 : 18);
+    const layout = NV.getBottomCombatHudLayout(viewX, viewY, viewW, viewH, mobile);
+    const segmentW = layout.dashSegmentW, segmentH = layout.dashSegmentH, gap = layout.dashGap;
+    const totalW = layout.dashW;
+    const x = layout.dashX;
+    const y = layout.dashY;
     ctx.save();
     ctx.font = 'bold ' + (mobile ? 7 : 8) + 'px system-ui';
     ctx.textAlign = 'center';
@@ -35,6 +64,111 @@
       ctx.strokeStyle = 'rgba(124, 248, 255, 0.55)';
       ctx.lineWidth = 1;
       ctx.strokeRect(sx, y, segmentW, segmentH);
+    }
+    ctx.restore();
+    return true;
+  };
+
+  NV.drawBossHUD = function (ctx, viewX, viewY, viewW, viewH, boss, mobile) {
+    if (!boss || boss.dead || !(boss.maxHp > 0)) return false;
+    const layout = NV.getBottomCombatHudLayout(viewX, viewY, viewW, viewH, mobile);
+    if (!(layout.bossBarW > 0)) return false;
+    const hpPct = Math.max(0, Math.min(1, boss.hp / boss.maxHp));
+    const hpColor = hpPct > 0.4 ? '#7cf8ff' : (hpPct > 0.2 ? '#ffcf76' : '#ff5f9b');
+    const x = layout.bossBarX, y = layout.bossBarY, w = layout.bossBarW, h = layout.bossBarH;
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.shadowBlur = 0;
+    ctx.font = 'bold ' + (mobile ? 9 : 11) + 'px system-ui';
+    ctx.fillStyle = '#fff';
+    ctx.fillText(boss.name || 'JEFE', x + w / 2, y - 5);
+    ctx.fillStyle = 'rgba(10, 12, 22, 0.88)';
+    ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = hpColor;
+    ctx.fillRect(x, y, w * hpPct, h);
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x, y, w, h);
+    ctx.font = 'bold ' + (mobile ? 9 : 11) + 'px system-ui';
+    ctx.fillStyle = '#fff';
+    ctx.fillText(Math.ceil(Math.max(0, boss.hp)) + ' / ' + boss.maxHp, x + w / 2, y + h - (mobile ? 3 : 3));
+    ctx.restore();
+    return true;
+  };
+
+  function bossReactionLines(ctx, text, maxWidth, fontSize) {
+    ctx.font = 'bold ' + fontSize + 'px system-ui';
+    if (ctx.measureText(text).width <= maxWidth) return [text];
+    const words = String(text).split(/\s+/);
+    if (words.length < 2) return [text];
+    let best = null;
+    for (let i = 1; i < words.length; i++) {
+      const lines = [words.slice(0, i).join(' '), words.slice(i).join(' ')];
+      const width = Math.max(ctx.measureText(lines[0]).width, ctx.measureText(lines[1]).width);
+      if (!best || width < best.width) best = { lines, width };
+    }
+    return best ? best.lines : [text];
+  }
+
+  NV.getBossReactionLayout = function (ctx, ft, viewX, viewY, viewW, viewH, mobile) {
+    const safe = mobile ? 10 : 9;
+    const maxWidth = Math.max(1, viewW - safe * 2);
+    let fontSize = ft.size || 14;
+    const minFontSize = mobile ? 10 : 11;
+    ctx.save();
+    while (fontSize > minFontSize) {
+      ctx.font = 'bold ' + fontSize + 'px system-ui';
+      if (ctx.measureText(ft.text).width <= maxWidth) break;
+      fontSize--;
+    }
+    let lines = bossReactionLines(ctx, ft.text, maxWidth, fontSize);
+    ctx.font = 'bold ' + fontSize + 'px system-ui';
+    let textW = 0;
+    for (const line of lines) textW = Math.max(textW, ctx.measureText(line).width);
+    if (textW > maxWidth && fontSize > minFontSize) {
+      fontSize = minFontSize;
+      lines = bossReactionLines(ctx, ft.text, maxWidth, fontSize);
+      ctx.font = 'bold ' + fontSize + 'px system-ui';
+      textW = 0;
+      for (const line of lines) textW = Math.max(textW, ctx.measureText(line).width);
+    }
+    const boss = ft.boss && !ft.boss.dead ? ft.boss : null;
+    const anchorX = boss ? boss.x : (ft.bossX == null ? ft.x : ft.bossX);
+    const anchorY = boss ? boss.y : (ft.bossY == null ? ft.y : ft.bossY);
+    const radius = boss ? boss.radius : (ft.bossRadius || 0);
+    const lineH = fontSize + 2;
+    const blockH = lines.length * lineH;
+    const drift = ft.bossReactionDrift || 0;
+    let baseline = anchorY - radius - 14 - drift;
+    let flipped = false;
+    if (baseline - fontSize < viewY + safe) {
+      baseline = anchorY + radius + fontSize + 8 - drift;
+      flipped = true;
+    }
+    const minBaseline = viewY + safe + fontSize;
+    const maxBaseline = viewY + viewH - safe - blockH + lineH;
+    baseline = Math.max(minBaseline, Math.min(maxBaseline, baseline));
+    const halfW = Math.min(maxWidth, textW) / 2;
+    const x = Math.max(viewX + safe + halfW, Math.min(viewX + viewW - safe - halfW, anchorX));
+    ctx.restore();
+    return { x, baseline, lines, fontSize, lineH, width: Math.min(maxWidth, textW), flipped, safe };
+  };
+
+  NV.drawBossReactionText = function (ctx, ft, viewX, viewY, viewW, viewH, mobile) {
+    if (!ft || !ft.bossReaction) return false;
+    const layout = NV.getBossReactionLayout(ctx, ft, viewX, viewY, viewW, viewH, mobile);
+    ctx.save();
+    ctx.globalAlpha = NV.getBossReactionAlpha ? NV.getBossReactionAlpha(ft) : Math.max(0, Math.min(1, ft.life / 0.8));
+    ctx.fillStyle = ft.color || '#ff5f5f';
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.82)';
+    ctx.lineWidth = 3;
+    ctx.lineJoin = 'round';
+    ctx.font = 'bold ' + layout.fontSize + 'px system-ui';
+    ctx.textAlign = 'center';
+    for (let i = 0; i < layout.lines.length; i++) {
+      const y = layout.baseline + i * layout.lineH;
+      if (typeof ctx.strokeText === 'function') ctx.strokeText(layout.lines[i], layout.x, y);
+      ctx.fillText(layout.lines[i], layout.x, y);
     }
     ctx.restore();
     return true;

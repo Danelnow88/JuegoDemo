@@ -172,14 +172,46 @@
   };
 
   // ---- Reacción de dolor/enojo: golpe fuerte => globo de texto (con cooldown interno) ----
-  const BOSS_RAGE_TEXTS = ['@%$#!', '¡GRRR!', 'RAGE', 'ALERT', '#@!*', '¡¿QUÉ?!', 'FURY', '¡DUELE!'];
+  const BOSS_RAGE_TEXTS = [
+    '@%$#!',
+    '#@#$!*',
+    '¡GRRRR!',
+    '¡PAJERO!',
+    '¿AH, SÍ?',
+    '¡VENÍ, DALE!',
+    '¡COMEME LOS HUEVOS!',
+    '¡YA VAS A VER!',
+    '¡AHORA VAS A VER!',
+    '¡NO JODAS!',
+    '¡AGUANTÁ!',
+    '¡LA PUTA MADRE!',
+    '¡LA RE PUTÍSIMA MADRE!',
+    '¡ME DOLIÓ, FORRO!',
+    '¡¿QUÉ HACÉS?!',
+    '¡¿QUÉ MIRÁS TONTÍN?!',
+    '¡DALE PETE, PEGÁ!',
+    '¡ESO NO FUE NADA!',
+    '¡¿ESO ES TODO?!',
+    '¡TE ESTOY ESPERANDO!',
+    '¡TE VOY A HACER MIERDA!',
+    '¡TE HAGO CACA!',
+    '¡TE VOY A ROMPER TODO!',
+    '¡NO ME ROMPAS LAS BOLAS!'
+  ];
+  NV.BOSS_RAGE_TEXTS = BOSS_RAGE_TEXTS.slice();
   NV.bossHitReaction = function (boss, damage, addFloatText) {
     if (!boss || boss.dead) return false;
     if ((boss.rageCd || 0) > 0) return false;
     // Solo reacciona a golpes contundentes (≥2.5% de su vida máxima).
     if (damage < boss.maxHp * 0.025) return false;
     const txt = BOSS_RAGE_TEXTS[Math.floor(Math.random() * BOSS_RAGE_TEXTS.length)];
-    addFloatText(boss.x, boss.y - boss.radius - 14, txt, '#ff5f5f');
+    addFloatText(boss.x, boss.y - boss.radius - 14, txt, '#ff5f5f', 14, {
+      bossReaction: true,
+      boss,
+      bossX: boss.x,
+      bossY: boss.y,
+      bossRadius: boss.radius
+    });
     boss.rageCd = 1.6;
     return true;
   };

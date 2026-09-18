@@ -129,14 +129,62 @@
     return particles;
   };
 
+  const BOSS_REACTION_TIMING = Object.freeze({
+    life: 1.8,
+    fadeInEnd: 0.12,
+    holdEnd: 1.2,
+    fadeOutDuration: 0.6
+  });
+  NV.BOSS_REACTION_TIMING = BOSS_REACTION_TIMING;
+
+  NV.getBossReactionAlpha = function (ft) {
+    if (!ft || !ft.bossReaction) return 1;
+    const age = Math.max(0, ft.age || 0);
+    if (age < BOSS_REACTION_TIMING.fadeInEnd) {
+      return age / BOSS_REACTION_TIMING.fadeInEnd;
+    }
+    if (age <= BOSS_REACTION_TIMING.holdEnd) return 1;
+    const progress = Math.min(1, (age - BOSS_REACTION_TIMING.holdEnd) / BOSS_REACTION_TIMING.fadeOutDuration);
+    return 1 - progress * progress * (3 - 2 * progress);
+  };
+
+  function bossReactionDriftSpeed(age) {
+    if (age < BOSS_REACTION_TIMING.fadeInEnd) return 10;
+    if (age <= BOSS_REACTION_TIMING.holdEnd) return 0.5;
+    return 3;
+  }
+
   // Empuja un texto flotante al array (por referencia). size opcional en px.
-  NV.addFloatText = function (floatTexts, x, y, text, color, size) {
-    floatTexts.push({ x, y, text, color, life: 0.8, size: size || 14 });
+  NV.addFloatText = function (floatTexts, x, y, text, color, size, metadata) {
+    const entry = { x, y, text, color, life: 0.8, size: size || 14 };
+    if (metadata) Object.assign(entry, metadata);
+    if (entry.bossReaction) {
+      entry.life = BOSS_REACTION_TIMING.life;
+      entry.age = 0;
+      entry.bossReactionDrift = 0;
+      if (entry.boss) {
+        for (let i = floatTexts.length - 1; i >= 0; i--) {
+          if (floatTexts[i].bossReaction && floatTexts[i].boss === entry.boss) floatTexts.splice(i, 1);
+        }
+      }
+    }
+    floatTexts.push(entry);
   };
 
   // Actualiza los textos flotantes; devuelve el array filtrado.
   NV.updateFloatTexts = function (dt, floatTexts) {
-    for (const ft of floatTexts) { ft.y -= 60 * dt; ft.life -= dt; }
+    for (const ft of floatTexts) {
+      if (ft.bossReaction) {
+        const age = Math.max(0, ft.age || 0);
+        ft.bossReactionDrift = (ft.bossReactionDrift || 0) + bossReactionDriftSpeed(age) * dt;
+        ft.age = age + dt;
+        const remaining = BOSS_REACTION_TIMING.life - ft.age;
+        ft.life = remaining > 0.000001 ? remaining : 0;
+      } else {
+        ft.y -= 60 * dt;
+        ft.life -= dt;
+      }
+    }
     return floatTexts.filter((ft) => ft.life > 0);
   };
 

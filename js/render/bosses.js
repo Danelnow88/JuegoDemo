@@ -1,4 +1,4 @@
-// ===== RENDER: jefe (cuerpo + barra de HP + FASE 2) =====
+// ===== RENDER: jefe físico (cuerpo + ojos + FASE 2) =====
 // Función de dibujo PURA. game.js aporta ctx, boss, frame.
 (() => {
   'use strict';
@@ -11,24 +11,6 @@
     ctx.fillStyle = boss.color;
     ctx.shadowBlur = 30;
     ctx.shadowColor = boss.color;
-
-    // Barra de salud del jefe
-    const barW = 260, barH = 16;
-    const hpPct = Math.max(0, boss.hp) / boss.maxHp;
-    ctx.save();
-    ctx.translate(0, -boss.radius - 40);
-    ctx.fillStyle = '#222';
-    ctx.fillRect(-barW / 2, 0, barW, barH);
-    ctx.fillStyle = hpPct > 0.4 ? '#7cf8ff' : (hpPct > 0.2 ? '#ffcf76' : '#ff5f9b');
-    ctx.fillRect(-barW / 2, 0, barW * hpPct, barH);
-    ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(-barW / 2, 0, barW, barH);
-    ctx.font = 'bold 11px system-ui';
-    ctx.textAlign = 'center';
-    ctx.fillStyle = '#fff';
-    ctx.fillText(Math.ceil(boss.hp) + ' / ' + boss.maxHp, 0, 13);
-    ctx.restore();
 
     const r = boss.radius;
     ctx.save();
@@ -60,11 +42,6 @@
     ctx.beginPath(); ctx.arc(-8, -5, 6, 0, Math.PI * 2); ctx.arc(8, -5, 6, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = '#000';
     ctx.beginPath(); ctx.arc(-8, -5, 3, 0, Math.PI * 2); ctx.arc(8, -5, 3, 0, Math.PI * 2); ctx.fill();
-
-    ctx.fillStyle = boss.color;
-    ctx.font = 'bold 13px system-ui';
-    ctx.textAlign = 'center';
-    ctx.fillText(boss.name, 0, -r - 10);
 
     ctx.shadowBlur = 0;
     ctx.restore();
