@@ -172,9 +172,9 @@
       ctx.restore();
     }
 
-    // Congelante: hint visual de enemigo ralentizado. Brillo azulado + halo exterior
-    // que parpadea sutilmente. 100% visual: no altera datos de gameplay.
-    if (e.slowUntil > 0) {
+    // Congelante persistente: helper visual compartido (#11). 100% visual.
+    if (typeof NV.drawFrozenStatus === 'function') NV.drawFrozenStatus(ctx, e, frame, r);
+    else if (e.slowUntil > 0) {
       const cold = 0.5 + Math.sin(frame * 0.35) * 0.5; // parpadeo suave
       ctx.fillStyle = 'rgba(103,232,249,' + (cold * 0.22) + ')';
       ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();

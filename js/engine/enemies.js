@@ -280,12 +280,49 @@
   };
 
   // ---- Consumibles: bomba de vacío y congelante ----
-  NV.voidBomb = function (enemies, boss) {
-    for (const e of enemies) { if (!e.dead) e.hp = Math.max(1, e.hp - Math.round(e.maxHp * 0.25)); }
-    if (boss && !boss.dead) boss.hp = Math.max(1, boss.hp - Math.round(boss.maxHp * 0.25));
+  NV.voidBomb = function (enemies, boss, onKill) {
+    for (const e of enemies) {
+      if (e.dead) continue;
+      const isElite = !!(e.isElite || (e.hostileClass === 'heavy'));
+      const dmg = isElite ? Math.round(e.maxHp * NV.BALANCE.VOID_BOMB_ELITE_DAMAGE_MULT) : e.maxHp;
+      e.hp = Math.max(0, e.hp - dmg);
+      if (e.hp <= 0 && onKill) onKill(e);
+    }
+    if (boss && !boss.dead) {
+      boss.hp = Math.max(0, boss.hp - Math.round(boss.maxHp * NV.BALANCE.VOID_BOMB_BOSS_DAMAGE_MULT));
+    }
   };
   NV.freezeEnemies = function (enemies, duration) {
     for (const e of enemies) { if (!e.dead) e.slowUntil = duration; }
+  };
+
+  // #11: sincronía mecánica/VFX de la bomba. El impacto se aplica al CRUZAR el
+  // umbral de detonación (mismo lifetime y BOMB_IMPACT_T que el renderer), sin
+  // setTimeout: avanza con el dt del game loop y se ejecuta exactamente una vez.
+  NV.bombImpactDelay = function () {
+    // Fuente neutral: js/data/consumables.js (funciona sin el renderer cargado).
+    const defs = NV.CONSUMABLE_FX_LIFETIMES || {};
+    const life = NV.BOMB_FX_LIFETIME != null ? NV.BOMB_FX_LIFETIME : (defs.bomb || 0);
+    return life * (NV.BOMB_IMPACT_T != null ? NV.BOMB_IMPACT_T : 0);
+  };
+  NV.createBombImpact = function (enemies, boss, killEnemy) {
+    return { enemies, boss, killEnemy, elapsed: 0, applied: false };
+  };
+  NV.tickBombImpacts = function (queue, dt) {
+    if (!queue || !queue.length) return [];
+    const delay = NV.bombImpactDelay();
+    const remaining = [];
+    for (const imp of queue) {
+      if (!imp || imp.applied) continue; // impacto único: consumido no se re-ejecuta
+      imp.elapsed += dt;
+      if (imp.elapsed >= delay) { // cruce de umbral: no depende de acertar un frame exacto
+        imp.applied = true;
+        NV.voidBomb(imp.enemies, imp.boss, imp.killEnemy);
+      } else {
+        remaining.push(imp);
+      }
+    }
+    return remaining;
   };
 
   // ----- Cuadrícula espacial (spatial hash) para vecinos cercanos -----

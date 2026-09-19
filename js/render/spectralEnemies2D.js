@@ -1203,10 +1203,16 @@
     return BOSS_PROFILES[key] || BOSS_PROFILES.boss_jefe;
   }
   function drawStatusLayers(ctx, e, frame, player, profile) {
-    if (e.slowUntil > 0) {
+    // #11: freeze compartido con geometría real (corrige el fillStyle huérfano).
+    if (typeof NV.drawFrozenStatus === 'function') NV.drawFrozenStatus(ctx, e, frame, e.radius);
+    else if (e.slowUntil > 0) {
       const t = frame * 0.06;
       const cold = 0.5 + Math.sin(t * 3.5) * 0.5;
-      ctx.fillStyle = 'rgba(103,232,249,' + (cold * 0.22) + ')';
+      ctx.save();
+      ctx.globalAlpha = 0.24 + cold * 0.12;
+      ctx.fillStyle = 'rgba(103,232,249,1)';
+      ctx.beginPath(); ctx.arc(0, 0, e.radius, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
     }
     if (e.armed) {
       const blink = 0.4 + Math.sin(frame * 0.36) * 0.6;
@@ -1286,6 +1292,9 @@
       return true;
     }
     ctx.translate(e.x + rx, e.y + ry);
+    // El freeze (slowUntil) vive en drawStatusLayers: cada ruta lo invoca una
+    // única vez (lab y élite lo hacen dentro de su propio renderer), evitando
+    // la duplicación visual que oscurecería el overlay.
     drawStatusLayers(ctx, e, frame, player, profile);
     drawEliteEffects(ctx, e, frame, profile);
     drawBody(ctx, e, frame, profile);

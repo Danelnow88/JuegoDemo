@@ -322,6 +322,7 @@ function runChestScen(opts) {
   ct.WEAPONS = [{ id: 'rifle', name: 'Rifle', rarity: 'common' }];
   ct.isWeaponDropEligible = () => true;
   ct.updatePickups = () => {}; ct.updateWeaponPickups = () => {};
+  ct.updateBombImpacts = () => {}; // #11: cola de impactos pendientes vacía aquí
   ct.updateBossChests = (dt) => {
     ct.bossChests = EN.updateBossChests(dt, ct.bossChests, ct.player, ct.pickups, ct.weaponPickups,
       ct.WEAPONS, ct.addFloatText, ct.sfxPickup, ct.isWeaponDropEligible);

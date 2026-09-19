@@ -107,7 +107,7 @@ function makeSandbox() {
 
 function runFor(charId) {
   const h = makeSandbox();
-  const order = fs.readFileSync('index.html', 'utf8').match(/<script src="([^"]+)"/g).map((s) => s.match(/"([^"]+)"/)[1]);
+  const order = fs.readFileSync('index.html', 'utf8').match(/<script src="([^"]+)"/g).map((s) => s.match(/"([^"]+)"/)[1].split('?')[0]);
   for (const f of order) vm.runInNewContext(fs.readFileSync(f, 'utf8'), h.sandbox, { filename: f });
   // Flujo F09.3: la biblioteca selecciona; JUGAR arranca directamente desde lobby.
   h.fire(h.getEl('card-' + charId), 'click');
@@ -141,7 +141,7 @@ function runFor(charId) {
 
 function verifyLobbySwitching() {
   const h = makeSandbox();
-  const order = fs.readFileSync('index.html', 'utf8').match(/<script src="([^"]+)"/g).map((s) => s.match(/"([^"]+)"/)[1]);
+  const order = fs.readFileSync('index.html', 'utf8').match(/<script src="([^"]+)"/g).map((s) => s.match(/"([^"]+)"/)[1].split('?')[0]);
   for (const f of order) vm.runInNewContext(fs.readFileSync(f, 'utf8'), h.sandbox, { filename: f });
   const prev = h.getEl('hero-prev'), next = h.getEl('hero-next');
   if ((prev.listeners.click || []).length !== 1 || (next.listeners.click || []).length !== 1) return 'FAIL listeners duplicados';

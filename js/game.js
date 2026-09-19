@@ -94,6 +94,32 @@
   // === ESTADO ===
   let state = 'menu', frame = 0, lastTime = 0;
   let shake = 0, hitstop = 0, flashColor = null, flashAlpha = 0, specialVFX = null;
+  let consumableVfx = [];
+  function spawnConsumableVfx(type, opts) {
+    if (typeof NV.spawnConsumableFx !== 'function') return;
+    const o = opts || {};
+    if (type === 'bomb') {
+      // #11: el evento bomb necesita dimensiones REALES de la arena para calcular
+      // el radio de detonación hasta la esquina más lejana (sin caps arbitrarios).
+      o.arenaW = arenaW();
+      o.arenaH = arenaH();
+    }
+    consumableVfx = NV.spawnConsumableFx(consumableVfx, type, player.x, player.y, o);
+  }
+  function updateConsumableVfx(dt) {
+    if (typeof NV.updateConsumableFx === 'function') consumableVfx = NV.updateConsumableFx(consumableVfx, dt);
+  }
+  // #11: impactos de bomba pendientes. Sin setTimeout: el game loop los tickea con
+  // dt y NV.tickBombImpacts aplica el daño exactamente una vez al cruzar el umbral.
+  let pendingBombImpacts = [];
+  function registerBombImpact(impact) {
+    if (impact && !impact.applied) pendingBombImpacts.push(impact);
+  }
+  function updateBombImpacts(dt) {
+    if (pendingBombImpacts.length && typeof NV.tickBombImpacts === 'function') {
+      pendingBombImpacts = NV.tickBombImpacts(pendingBombImpacts, dt);
+    }
+  }
   const DEATH_TRANSITION_DURATION = 0.82;
   const WAVE_END_DURATION = 2.10;
   const WAVE_CLEANUP_DURATION = 0.4;
@@ -1242,7 +1268,7 @@
         boss = null; shake = 0; hitstop = 0; flashAlpha = 0;
     transition = 0; paused = false; showStats = false;
     resetPresentation();
-    specialVFX = null; NV.musicTime = 0;
+    specialVFX = null; consumableVfx = []; pendingBombImpacts = []; NV.musicTime = 0;
     NV.musicState.step = 0; NV.musicState.lastBeat = 0; NV.musicState.intensity = 0;
     NV.musicState.phase = 'normal'; NV.musicState.combo = 0; // reset de identidad sonora (Tarea 3)
 
@@ -1269,6 +1295,8 @@
     clearEspectroBridge();
     floatTexts = []; trails = []; shockwaves = []; weaponPickups = [];
     drones = []; meteors = []; bossChests = []; hazards = [];
+    consumableVfx = []; // #11: los VFX instantáneos no sobreviven al cambio de oleada
+    pendingBombImpacts = []; // #11: sin impactos de bomba huérfanos entre oleadas
 
     if (wave % 5 === 0) {
       const bossIndex = ((wave / 5 - 1) % BOSS_TYPES.length + BOSS_TYPES.length) % BOSS_TYPES.length;
@@ -1447,7 +1475,7 @@
     const selectedType = groups[consumSel].type;
     const item = NV.consumeByType(consumableItems, selectedType);
     if (!item) { reconcileConsumSel(); return; }
-    NV.applyConsumable(item, { player, enemies, boss, pickups, weaponPickups, addFloatText, triggerFlash, spawnExplosion, spawnShockwave });
+    NV.applyConsumable(item, { player, enemies, boss, pickups, weaponPickups, addFloatText, triggerFlash, spawnExplosion, spawnShockwave, spawnConsumableVfx, killEnemy, registerBombImpact });
     triggerFlash('#7cf8ff');
     sfx.consume(selectedType);
     // Preservar selección POR IDENTIDAD de tipo, no por índice posicional: el splice
@@ -1872,6 +1900,8 @@
     flameZones = [];
     drones = [];
     meteors = [];
+    consumableVfx = []; // #11: sin VFX de consumibles huérfanos tras la muerte
+    pendingBombImpacts = []; // #11: la carga de la bomba no sobrevive a la muerte
     presentation.kind = 'player_dying';
     presentation.elapsed = 0;
     presentation.duration = DEATH_TRANSITION_DURATION;
@@ -1941,6 +1971,8 @@
     floatTexts = [];
     meteors = [];
     specialVFX = null;
+    consumableVfx = [];
+    pendingBombImpacts = [];
     prepareShopContent();
     showShop();
     syncGameState();
@@ -1966,6 +1998,10 @@
       specialVFX.life -= dt;
       if (specialVFX.life <= 0) specialVFX = null;
     }
+    // Guard defensivo: los harnesses que extraen esta función a un sandbox no
+    // definen el helper local; en producción siempre existe.
+    if (typeof updateConsumableVfx === 'function') updateConsumableVfx(dt);
+    updateBombImpacts(dt);
     updateParticles(dt);
     updateFloatTexts(dt);
     updateTrails(dt);
@@ -2079,6 +2115,8 @@
       specialVFX.life -= dt;
       if (specialVFX.life <= 0) specialVFX = null;
     }
+    if (typeof updateConsumableVfx === 'function') updateConsumableVfx(dt);
+    updateBombImpacts(dt);
 
     updateMusic(dt);
 
@@ -3349,6 +3387,10 @@
 
   function drawPlayer() {
     NV.drawPlayer(ctx, player, CHARACTERS, frame, playerPresentationStyle());
+    if (typeof NV.drawConsumableActivation === 'function') {
+      const char = CHARACTERS[player.character];
+      for (const e of consumableVfx) NV.drawConsumableActivation(ctx, e, player, char, frame);
+    }
   }
 
   // === LOBBY PREVIEW: render real del personaje seleccionado en el lobby ===

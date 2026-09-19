@@ -34,6 +34,8 @@
   NV.CHARACTERS = {
     boti: {
       name: 'BOTI', color: '#7cf8ff', bodyColor: '#4a9eff', eyeColor: '#fff', size: 22,
+      // Color dominante REAL del cuerpo en drawPlayer (drips/blob/flow cian).
+      shieldColor: '#00f0ff',
       special: 'meteor', maxCd: 14, passive: 'Regenera 1 HP cada 5s', passiveId: 'boti_regen',
       skillName: 'Lluvia Estelar', skillDesc: 'Meteoritos devastadores contra enemigos normales; recarga larga y daño reducido contra jefes',
       card: {
@@ -45,6 +47,8 @@
     },
     nova: {
       name: 'NOVA', color: '#caa7ff', bodyColor: '#9b59b6', eyeColor: '#ff0', size: 18,
+      // Color dominante REAL del cuerpo en drawPlayer (blob principal rojo).
+      shieldColor: '#ff3300',
       special: 'phase', maxCd: 7, passive: 'Daño +20%, recibe +20%', passiveId: 'nova_glass_cannon', takeDmgMult: 1.2,
       skillName: 'Fase Fantasma', skillDesc: 'Aura espectral de área potente (afecta jefes); al terminar, detona un golpe final sobre lo alcanzado',
       card: {
@@ -56,6 +60,8 @@
     },
     rook: {
       name: 'ROOK', color: '#ffcf76', bodyColor: '#f39c12', eyeColor: '#000', size: 26,
+      // Color dominante REAL del cuerpo en drawPlayer (drips/flow dorado).
+      shieldColor: '#eab308',
       special: 'bulwark', maxCd: 12, passive: '-15% daño recibido', passiveId: 'rook_tank', takeDmgMult: 0.85,
       skillName: 'Muralla', skillDesc: 'Escudo que refleja balas con más fuerza; onda de choque que aturde y empuja al activarse',
       card: {
@@ -67,6 +73,8 @@
     },
     swarm: {
       name: 'ENJAMBRE', color: '#8dfaff', bodyColor: '#00d4aa', eyeColor: '#fff', size: 16,
+      // Color dominante REAL del cuerpo en drawPlayer (drips/blob/anillos amarillos).
+      shieldColor: '#ffee77',
       special: 'hivemind', maxCd: 10, passive: '15% esquiva', passiveId: 'swarm_dodge', dodge: 0.15,
       skillName: 'Drones de Combate', skillDesc: '6 drones escoltas que apuntan solos al enemigo o jefe más cercano a distancia',
       card: {

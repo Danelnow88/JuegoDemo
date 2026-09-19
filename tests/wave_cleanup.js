@@ -18,19 +18,21 @@ function makeGameCtx() {
     player: { hp: 100, x: 100, y: 100, invuln: 0, stun: 0, stunReapplyLockout: 0, character: 'nova' },
     enemies: [{ hp: 20, maxHp: 20, x: 100, y: 100, radius: 12 }],
     presentation: {}, hazards: [], bullets: [{ isEnemy: true, x: 0, y: 0 }], flameZones: [],
-    hookSystem: null, minefieldState: {}, boss: null, bossChests: [], wave: 3,
+    hookSystem: null, minefieldState: {}, boss: null, bossChests: [], pickups: [], wave: 3,
     WAVE_END_DURATION: 2.1, WAVE_CLEANUP_DURATION: 0.4, BOSS_WAVE_END_DURATION: 2.25, BOSS_CHEST_HOLD: 2.25,
     SHOP_ENTER_DURATION: 0.5, arenaW: () => 900, arenaH: () => 520,
     NV: {
       updateShockwaves: (dt, a) => a, updatePlayerMovement: noop,
       updateMeteors: (dt, m) => ({ meteors: m }),
+      activateNormalShardMagnetPull: noop,
     },
     clearCombatIntent: noop, syncGameState: noop, triggerFlash: noop, spawnExplosion: noop,
     showBanner: noop, sfx: { victory: noop },
     shake: 0, flashAlpha: 0, specialVFX: null, shockwaves: [], meteors: [], frame: 0,
     combatIntent: {}, updateParticles: noop, updateFloatTexts: noop, updateTrails: noop,
     updatePickups: noop, updateWeaponPickups: noop, updateBossChests: noop,
-  };
+    updateBombImpacts: noop, // #11: cola de impactos pendientes vacía en estos escenarios
+    };
   vm.createContext(c);
   // triggerWaveVictory real (corta antes de triggerFlash, mockeado) y
   // updatePresentation REAL completa (paso del timer + filtro de eliminación).

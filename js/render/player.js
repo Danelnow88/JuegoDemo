@@ -169,42 +169,49 @@
       ctx.globalAlpha = invulnBlink ? 0.4 : 1;
     }
 
+    // #11: estelas cinéticas detrás del cuerpo (sin aros genéricos concéntricos).
+    if (typeof NV.drawPlayerConsumableEffects === 'function') NV.drawPlayerConsumableEffects(ctx, player, char, frame, 'behind');
+
     const breathe = Math.sin(frame * 0.05) * 1.5;
     const bob = Math.sin(frame * 0.12) * 2;
     ctx.translate(0, bob + breathe);
 
     
-    // Escudo de consumible: burbuja azul pulsante. Visible mientras `player.shield > 0`
-    // y NO hay fase activa (la fase ya dibuja su propia aura espectral).
-    if (player.shield > 0 && player.phase <= 0) {
-      const shieldPulse = 0.35 + Math.sin(frame * 0.2) * 0.2;
-      ctx.strokeStyle = '#7cf8ff';
-      ctx.globalAlpha = shieldPulse;
-      ctx.lineWidth = 3.5;
-      ctx.shadowColor = '#7cf8ff';
-      ctx.shadowBlur = 14;
-      ctx.setLineDash([10, 6]);
-      ctx.beginPath(); ctx.arc(0, 0, char.size + 18, 0, Math.PI * 2); ctx.stroke();
-      ctx.setLineDash([]);
-      // Anillo interno fino para refuerzo visual de "activo".
-      ctx.globalAlpha = shieldPulse * 0.8;
-      ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.arc(0, 0, char.size + 14, 0, Math.PI * 2); ctx.stroke();
-      ctx.globalAlpha = invulnBlink ? 0.4 : 1;
-      ctx.shadowBlur = 0;
+    // Escudo de consumible: campo de fuerza dedicado (#11). Visible mientras
+    // `player.shield > 0` y NO hay fase activa. Se conserva esta guarda para
+    // no alterar el gameplay existente.
+    if (player.shield > 0) {
+      if (typeof NV.drawPlayerConsumableEffects === 'function') NV.drawPlayerConsumableEffects(ctx, player, char, frame, 'front');
+      else {
+        const shieldPulse = 0.35 + Math.sin(frame * 0.2) * 0.2;
+        ctx.strokeStyle = '#7cf8ff';
+        ctx.globalAlpha = shieldPulse;
+        ctx.lineWidth = 3.5;
+        ctx.shadowColor = '#7cf8ff';
+        ctx.shadowBlur = 14;
+        ctx.setLineDash([10, 6]);
+        ctx.beginPath(); ctx.arc(0, 0, char.size + 18, 0, Math.PI * 2); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.globalAlpha = shieldPulse * 0.8;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(0, 0, char.size + 14, 0, Math.PI * 2); ctx.stroke();
+        ctx.globalAlpha = invulnBlink ? 0.4 : 1;
+        ctx.shadowBlur = 0;
+      }
     }
 
-    // Overdrive: energía violeta/eléctrica alrededor del personaje mientras dura
-    // el boost de velocidad. Solo render: la lógica sigue en engine/consumables + game.js.
-    if (player.overdrive > 0) {
+    // Overdrive persistente heredado: queda desactivado como capa principal (#11).
+    // La identidad direccional vive en la capa 'behind'; este bloque solo existe
+    // como fallback si el renderer dedicado no está cargado.
+    if (player.overdrive > 0 && typeof NV.drawPlayerConsumableEffects !== 'function') {
       const odPulse = 0.45 + Math.sin(frame * 0.45) * 0.25;
       ctx.strokeStyle = '#caa7ff';
-      ctx.globalAlpha = odPulse;
+      ctx.globalAlpha = odPulse * 0.35;
       ctx.lineWidth = 2.5;
       ctx.shadowColor = '#caa7ff';
       ctx.shadowBlur = 18;
       ctx.beginPath(); ctx.arc(0, 0, char.size + 23 + Math.sin(frame * 0.25) * 4, 0, Math.PI * 2); ctx.stroke();
-      ctx.globalAlpha = odPulse * 0.75;
+      ctx.globalAlpha = odPulse * 0.28;
       ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = 1.2;
       ctx.beginPath(); ctx.arc(0, 0, char.size + 9, 0, Math.PI * 2); ctx.stroke();
