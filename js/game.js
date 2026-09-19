@@ -1329,6 +1329,7 @@
     if (hookSystem && typeof NV.resetHookSystem === 'function') NV.resetHookSystem(hookSystem); // F3: cleanup hook en wave_end
     player.stun = 0; player.stunReapplyLockout = 0; // F4: sin stun residual entre oleadas
     state = 'wave_end';
+    NV.activateNormalShardMagnetPull(pickups, player);
     // #10: restos visuales, no derribos. El boss conserva su transición propia.
     if (!isBoss) {
       for (const e of enemies) {
@@ -1916,6 +1917,10 @@
 
   function beginShopEntrance() {
     if (state !== 'wave_end') return;
+    const result = NV.collectRemainingNormalShards(pickups);
+    pickups = result.pickups;
+    shards += result.shards;
+    if (result.shards > 0) updateHUD();
     // Tarea #8: la recompensa pendiente del cofre de jefe ya se resolvió ANTES de
     // llegar acá (updatePresentation auto-recoge al vencer el margen).
     if (NV.audio && typeof NV.audio.stopAllWeapons === 'function') NV.audio.stopAllWeapons();

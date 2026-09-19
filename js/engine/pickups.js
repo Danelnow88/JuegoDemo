@@ -49,6 +49,41 @@
     return { pickups: pickups.filter((p) => !p.dead), shards };
   };
 
+  // Fin de oleada: selecciona los shards normales más cercanos hasta el cap
+  // propio de #9. No altera magnetPull de los no seleccionados.
+  NV.activateNormalShardMagnetPull = function (pickups, player) {
+    const cap = NV.BALANCE.WAVE_END_SHARD_CAP;
+    const eligible = [];
+    for (const p of pickups) {
+      if (!p || p.dead || p.fromBossChest) continue;
+      eligible.push({
+        pickup: p,
+        distSq: (p.x - player.x) ** 2 + (p.y - player.y) ** 2,
+      });
+    }
+    eligible.sort((a, b) => a.distSq - b.distSq);
+    for (let i = 0; i < eligible.length && i < cap; i++) {
+      eligible[i].pickup.waveEndCollect = true;
+      eligible[i].pickup.magnetPull = true;
+    }
+  };
+
+  // Red de seguridad previa a shop_enter: acredita sin feedback únicamente los
+  // shards seleccionados por #9. Conserva cualquier pickup no seleccionado.
+  NV.collectRemainingNormalShards = function (pickups) {
+    let shards = 0;
+    const remaining = [];
+    for (const p of pickups) {
+      if (!p || p.dead || p.fromBossChest || p.waveEndCollect !== true) {
+        remaining.push(p);
+        continue;
+      }
+      p.dead = true;
+      shards += p.value || 1;
+    }
+    return { pickups: remaining, shards };
+  };
+
   // ---- update de pickups de arma ----
   // devuelve { weaponPickups, currentWeapon } (currentWeapon reasignado por el wrapper si cambió)
   // tryFusion(weapon) => { fused, level } | { maxed } | { owned:false }; retrocompatible si no se pasa.
